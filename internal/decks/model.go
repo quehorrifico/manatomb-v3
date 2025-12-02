@@ -160,3 +160,35 @@ func DeleteDeck(ctx context.Context, db *sql.DB, deckID int64) error {
 	`, deckID)
 	return err
 }
+
+func EnsureDeckTables(ctx context.Context, db *sql.DB) error {
+	// Decks table
+	if _, err := db.ExecContext(ctx, `
+        CREATE TABLE IF NOT EXISTS decks (
+            id BIGSERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            format TEXT,
+            commander_name TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+    `); err != nil {
+		return err
+	}
+
+	// Deck cards table
+	if _, err := db.ExecContext(ctx, `
+        CREATE TABLE IF NOT EXISTS deck_cards (
+            deck_id BIGINT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+            card_id BIGINT NOT NULL,
+            quantity INT NOT NULL DEFAULT 0,
+            PRIMARY KEY (deck_id, card_id)
+        );
+    `); err != nil {
+		return err
+	}
+
+	return nil
+}

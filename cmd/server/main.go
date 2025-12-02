@@ -6,8 +6,10 @@ import (
 	"net/http"
 
 	"manatomb/app/internal/account"
+	"manatomb/app/internal/cards"
 	"manatomb/app/internal/config"
 	"manatomb/app/internal/db"
+	"manatomb/app/internal/decks"
 	"manatomb/app/internal/web"
 )
 
@@ -16,12 +18,21 @@ func main() {
 	database := db.Open(cfg.DatabaseURL)
 	defer database.Close()
 
+	// ✅ Ensure all required tables exist
 	if err := account.EnsureUserTable(context.Background(), database); err != nil {
 		log.Fatalf("failed to ensure users table: %v", err)
 	}
 
 	if err := account.EnsureSessionsTable(context.Background(), database); err != nil {
 		log.Fatalf("failed to ensure sessions table: %v", err)
+	}
+
+	if err := cards.EnsureCardsTable(context.Background(), database); err != nil {
+		log.Fatalf("failed to ensure cards table: %v", err)
+	}
+
+	if err := decks.EnsureDeckTables(context.Background(), database); err != nil {
+		log.Fatalf("failed to ensure deck and deck_cards tables: %v", err)
 	}
 
 	renderer := web.NewRenderer()

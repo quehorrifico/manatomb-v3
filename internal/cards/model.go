@@ -38,3 +38,20 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 	}
 	return &c, nil
 }
+
+func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+        CREATE TABLE IF NOT EXISTS cards (
+            id BIGSERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            mana_cost TEXT,
+            type_line TEXT,
+            oracle_text TEXT,
+            image_uri TEXT,
+            scryfall_id TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+    `)
+	return err
+}
