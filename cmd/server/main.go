@@ -20,6 +20,10 @@ func main() {
 		log.Fatalf("failed to ensure users table: %v", err)
 	}
 
+	if err := account.EnsureSessionsTable(context.Background(), database); err != nil {
+		log.Fatalf("failed to ensure sessions table: %v", err)
+	}
+
 	renderer := web.NewRenderer()
 	app := &web.App{
 		DB:       database,

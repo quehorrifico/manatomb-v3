@@ -112,3 +112,15 @@ func EnsureUserTable(ctx context.Context, db *sql.DB) error {
     `)
 	return err
 }
+
+func EnsureSessionsTable(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+        CREATE TABLE IF NOT EXISTS sessions (
+            id TEXT PRIMARY KEY,
+            user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            expires_at TIMESTAMPTZ NOT NULL
+        );
+    `)
+	return err
+}
