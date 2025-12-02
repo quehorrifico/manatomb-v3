@@ -1,10 +1,13 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -14,10 +17,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type ctxKey string
-
 const ctxKeyUser ctxKey = "currentUser"
 const sessionCookieName = "mt_session"
+
+type ctxKey string
+
+type notFoundRecorder struct {
+	rw     http.ResponseWriter
+	header http.Header
+	status int
+	buf    bytes.Buffer
+}
 
 type App struct {
 	DB       *sql.DB
@@ -74,7 +84,7 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 	// Logged-in dashboard: show a few recent decks
 	userDecks, err := decks.ListDecksByUser(r.Context(), a.DB, user.ID)
 	if err != nil {
-		http.Error(w, "could not load decks", http.StatusInternalServerError)
+		a.RenderServerError(w, r, err)
 		return
 	}
 
@@ -318,4 +328,83 @@ func (a *App) RenderNotFound(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.Renderer.Render(w, "not_found", data)
+}
+
+func (a *App) RenderServerError(w http.ResponseWriter, r *http.Request, err error) {
+	log.Printf("server error: %v", err)
+
+	w.WriteHeader(http.StatusInternalServerError)
+
+	data := TemplateData{
+		CurrentUser: CurrentUser(r),
+		Data:        nil,
+		Flash:       "",
+		Error:       "",
+	}
+
+	a.Renderer.Render(w, "error", data)
+}
+
+func (a *App) WithRecoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				// Log panic + stack trace
+				log.Printf("panic: %v\n%s", rec, debug.Stack())
+
+				// Show pretty 500 error page
+				a.RenderServerError(w, r, fmt.Errorf("panic: %v", rec))
+			}
+		}()
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (r *notFoundRecorder) Header() http.Header {
+	if r.header == nil {
+		r.header = make(http.Header)
+	}
+	return r.header
+}
+
+func (r *notFoundRecorder) WriteHeader(status int) {
+	r.status = status
+}
+
+func (r *notFoundRecorder) Write(b []byte) (int, error) {
+	return r.buf.Write(b)
+}
+
+func (a *App) WithNotFoundMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &notFoundRecorder{
+			rw:     w,
+			status: http.StatusOK,
+		}
+
+		next.ServeHTTP(rec, r)
+
+		// If the wrapped handler (typically the mux) reported a 404,
+		// render our pretty not_found page instead of the default text.
+		if rec.status == http.StatusNotFound {
+			a.RenderNotFound(w, r)
+			return
+		}
+
+		// Otherwise, copy recorded headers and body through to the real ResponseWriter.
+		for k, vv := range rec.Header() {
+			for _, v := range vv {
+				w.Header().Add(k, v)
+			}
+		}
+
+		// If no status was explicitly set, treat it as 200 OK.
+		status := rec.status
+		if status == 0 {
+			status = http.StatusOK
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write(rec.buf.Bytes())
+	})
 }

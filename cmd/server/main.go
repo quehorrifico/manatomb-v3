@@ -90,8 +90,11 @@ func main() {
 	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
 	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
 
-	// Wrap with middleware that injects CurrentUser
-	handler := app.WithUserMiddleware(mux)
+	// Wrap with middleware (NotFound → User → Recovery)
+	var handler http.Handler = mux
+	handler = app.WithNotFoundMiddleware(handler)
+	handler = app.WithUserMiddleware(handler)
+	handler = app.WithRecoveryMiddleware(handler)
 
 	addr := ":" + cfg.Port
 	log.Printf("Listening on %s...", addr)

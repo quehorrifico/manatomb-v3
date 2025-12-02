@@ -67,7 +67,7 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 		var err error
 		userDecks, err = decks.ListDecksByUser(r.Context(), a.DB, user.ID)
 		if err != nil {
-			http.Error(w, "could not load decks", http.StatusInternalServerError)
+			a.RenderServerError(w, r, err)
 			return
 		}
 	}
