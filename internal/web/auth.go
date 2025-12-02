@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"manatomb/app/internal/account"
@@ -27,6 +28,7 @@ type TemplateData struct {
 	CurrentUser *account.User
 	Data        any
 	Flash       string
+	Error       string
 }
 
 func (a *App) withCurrentUser(next http.Handler) http.Handler {
@@ -95,39 +97,105 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 
 	a.Renderer.Render(w, "home", data)
 }
+
 func (a *App) HandleSignupShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
+
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
-		Flash:       flash,
+		Data: struct {
+			DisplayName string
+			Email       string
+		}{},
+		Flash: flash,
+		Error: "",
 	}
+
 	a.Renderer.Render(w, "signup", data)
 }
 
 func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		log.Printf("signup parse form error: %v", err)
-		http.Error(w, "invalid form", http.StatusBadRequest)
+		data := TemplateData{
+			Data: struct {
+				DisplayName string
+				Email       string
+			}{},
+			Error: "Invalid form submission. Please try again.",
+		}
+		a.Renderer.Render(w, "signup", data)
 		return
 	}
 
-	email := r.Form.Get("email")
-	displayName := r.Form.Get("display_name")
+	email := strings.TrimSpace(r.Form.Get("email"))
+	displayName := strings.TrimSpace(r.Form.Get("display_name"))
 	password := r.Form.Get("password")
 
 	log.Printf("signup attempt: email=%s displayName=%s", email, displayName)
 
+	// Basic validation
+	if displayName == "" || email == "" || password == "" {
+		data := TemplateData{
+			Data: struct {
+				DisplayName string
+				Email       string
+			}{
+				DisplayName: displayName,
+				Email:       email,
+			},
+			Error: "Display name, email, and password are required.",
+		}
+		a.Renderer.Render(w, "signup", data)
+		return
+	}
+
+	if len(password) < 8 {
+		data := TemplateData{
+			Data: struct {
+				DisplayName string
+				Email       string
+			}{
+				DisplayName: displayName,
+				Email:       email,
+			},
+			Error: "Password must be at least 8 characters long.",
+		}
+		a.Renderer.Render(w, "signup", data)
+		return
+	}
+
 	u, err := account.CreateUser(r.Context(), a.DB, email, displayName, password)
 	if err != nil {
 		log.Printf("create user error: %v", err)
-		http.Error(w, "could not create user", http.StatusInternalServerError)
+		data := TemplateData{
+			Data: struct {
+				DisplayName string
+				Email       string
+			}{
+				DisplayName: displayName,
+				Email:       email,
+			},
+			Error: "Could not create account. This email may already be in use.",
+		}
+		a.Renderer.Render(w, "signup", data)
 		return
 	}
 
 	sess, err := account.CreateSession(r.Context(), a.DB, u.ID, 7*24*time.Hour)
 	if err != nil {
 		log.Printf("create session error: %v", err)
-		http.Error(w, "could not create session", http.StatusInternalServerError)
+		data := TemplateData{
+			Data: struct {
+				DisplayName string
+				Email       string
+			}{
+				DisplayName: displayName,
+				Email:       email,
+			},
+			Error: "Account created, but we couldn't log you in automatically. Please try logging in.",
+		}
+		a.Renderer.Render(w, "signup", data)
 		return
 	}
 
@@ -136,41 +204,71 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Value:    sess.ID.String(),
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // true in prod
+		Secure:   false, // set true in prod when behind HTTPS
 	})
 
 	log.Printf("signup success: userID=%d, redirecting to /decks", u.ID)
 	setFlash(w, "Account created. Welcome to Mana Tomb!")
-	// http.Redirect(w, r, "/", http.StatusSeeOther)
 	http.Redirect(w, r, "/decks", http.StatusSeeOther)
 }
 
 func (a *App) HandleLoginShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
+
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
-		Flash:       flash,
+		Data: struct {
+			Email string
+		}{},
+		Flash: flash,
+		Error: "",
 	}
+
 	a.Renderer.Render(w, "login", data)
 }
 
 func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
+		data := TemplateData{
+			Data: struct {
+				Email string
+			}{},
+			Error: "Invalid form submission. Please try again.",
+		}
+		a.Renderer.Render(w, "login", data)
 		return
 	}
-	email := r.Form.Get("email")
+
+	email := strings.TrimSpace(r.Form.Get("email"))
 	password := r.Form.Get("password")
 
 	u, err := account.Authenticate(r.Context(), a.DB, email, password)
 	if err != nil {
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		log.Printf("authenticate error: %v", err)
+		data := TemplateData{
+			Data: struct {
+				Email string
+			}{
+				Email: email,
+			},
+			Error: "Invalid email or password.",
+		}
+		a.Renderer.Render(w, "login", data)
 		return
 	}
 
 	sess, err := account.CreateSession(r.Context(), a.DB, u.ID, 7*24*time.Hour)
 	if err != nil {
-		http.Error(w, "could not create session", http.StatusInternalServerError)
+		log.Printf("create session error: %v", err)
+		data := TemplateData{
+			Data: struct {
+				Email string
+			}{
+				Email: email,
+			},
+			Error: "Could not create session. Please try logging in again.",
+		}
+		a.Renderer.Render(w, "login", data)
 		return
 	}
 
@@ -207,4 +305,17 @@ func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) WithUserMiddleware(next http.Handler) http.Handler {
 	return a.withCurrentUser(next)
+}
+
+func (a *App) RenderNotFound(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+
+	data := TemplateData{
+		CurrentUser: CurrentUser(r),
+		Data:        nil,
+		Flash:       "",
+		Error:       "",
+	}
+
+	a.Renderer.Render(w, "not_found", data)
 }

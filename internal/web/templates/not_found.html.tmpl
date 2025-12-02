@@ -1,0 +1,17 @@
+{{ define "not_found" }}
+  {{ template "layout_header" . }}
+
+  <div class="min-h-[50vh] flex flex-col items-center justify-center text-center">
+    <h1 class="text-4xl font-bold text-slate-100 mb-4">404 — Page Not Found</h1>
+    <p class="text-slate-400 mb-8 max-w-md">
+      The page you're looking for doesn't exist, or may have been moved.
+    </p>
+
+    <a href="/"
+       class="px-4 py-2 rounded-md bg-emerald-500 text-slate-950 font-semibold hover:bg-emerald-400 transition-colors">
+      Return Home
+    </a>
+  </div>
+
+  {{ template "layout_footer" . }}
+{{ end }}

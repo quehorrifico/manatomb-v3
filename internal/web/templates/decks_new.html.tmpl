@@ -1,6 +1,6 @@
 {{ define "decks_new" }}
   {{ template "layout_header" . }}
-  {{ $ctx := .Data }}
+  {{ $d := .Data }}
 
   <div class="space-y-6">
     <!-- Header -->
@@ -30,6 +30,7 @@
             <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
             <input type="text"
                    name="name"
+                   value="{{ $d.Name }}"
                    required
                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
           </label>
@@ -41,7 +42,7 @@
             <div class="flex flex-col sm:flex-row gap-2">
               <input type="text"
                      name="commander_name"
-                     value="{{ $ctx.CommanderName }}"
+                     value="{{ $d.CommanderName }}"
                      required
                      class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
               <a href="/commanders/search"
@@ -60,7 +61,7 @@
             <span class="block text-xs font-medium text-slate-400 mb-1">Description (optional)</span>
             <textarea name="description"
                       rows="4"
-                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400"></textarea>
+                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">{{ $d.Description }}</textarea>
           </label>
         </div>
 

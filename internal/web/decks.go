@@ -94,11 +94,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Very simple param parsing: /decks/{id}
 	idStr := r.URL.Path[len("/decks/"):]
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
@@ -150,10 +149,9 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// GET: load deck, cards, and commander card details
 	d, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
 	if err != nil {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
@@ -203,19 +201,19 @@ func (a *App) HandleDeckEditShow(w http.ResponseWriter, r *http.Request) {
 
 	idStr := r.URL.Query().Get("id")
 	if idStr == "" {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
 	d, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
 	if err != nil {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
@@ -252,9 +250,8 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ensure the deck belongs to this user
 	if _, err := decks.GetDeck(r.Context(), a.DB, id, user.ID); err != nil {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
