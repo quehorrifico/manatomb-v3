@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
+	"manatomb/app/internal/account"
 	"manatomb/app/internal/config"
 	"manatomb/app/internal/db"
 	"manatomb/app/internal/web"
@@ -13,6 +15,10 @@ func main() {
 	cfg := config.Load()
 	database := db.Open(cfg.DatabaseURL)
 	defer database.Close()
+
+	if err := account.EnsureUserTable(context.Background(), database); err != nil {
+		log.Fatalf("failed to ensure users table: %v", err)
+	}
 
 	renderer := web.NewRenderer()
 	app := &web.App{
