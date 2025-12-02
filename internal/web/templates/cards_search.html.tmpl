@@ -1,0 +1,202 @@
+{{ define "cards_search" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-semibold tracking-tight">
+          Card search
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          Search the Scryfall database and add cards directly to your decks.
+        </p>
+      </div>
+
+      {{ if .CurrentUser }}
+        <div class="flex flex-wrap gap-2">
+          <a href="/decks"
+             class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+            My decks
+          </a>
+        </div>
+      {{ end }}
+    </div>
+
+    <!-- Search + filters -->
+    <section class="rounded-lg border border-slate-800 bg-slate-900/70 p-4 space-y-4">
+      <form method="GET" action="/cards/search" class="space-y-4">
+        <div class="flex flex-col md:flex-row gap-3">
+          <label class="flex-1 text-sm text-slate-200">
+            <span class="block text-xs font-medium text-slate-400 mb-1">Name</span>
+            <input type="text"
+                   name="q"
+                   value="{{ $ctx.Query }}"
+                   placeholder="Search by name (e.g. Sol Ring, Lightning Bolt)"
+                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+          </label>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <fieldset class="text-sm text-slate-200">
+            <legend class="block text-xs font-medium text-slate-400 mb-1">
+              Colors (color identity)
+            </legend>
+            <div class="flex flex-wrap gap-3">
+              <label class="inline-flex items-center gap-1">
+                <input type="checkbox" name="color" value="W"
+                       class="rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                <span>W</span>
+              </label>
+              <label class="inline-flex items-center gap-1">
+                <input type="checkbox" name="color" value="U"
+                       class="rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                <span>U</span>
+              </label>
+              <label class="inline-flex items-center gap-1">
+                <input type="checkbox" name="color" value="B"
+                       class="rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                <span>B</span>
+              </label>
+              <label class="inline-flex items-center gap-1">
+                <input type="checkbox" name="color" value="R"
+                       class="rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                <span>R</span>
+              </label>
+              <label class="inline-flex items-center gap-1">
+                <input type="checkbox" name="color" value="G"
+                       class="rounded border-slate-600 bg-slate-950 text-emerald-500 focus:ring-emerald-500">
+                <span>G</span>
+              </label>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">
+              Leave empty for any colors.
+            </p>
+          </fieldset>
+
+          <div class="text-sm text-slate-200">
+            <label class="block text-xs font-medium text-slate-400 mb-1">
+              Type
+            </label>
+            <select name="type"
+                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+              <option value="">Any type</option>
+              <option value="creature">Creature</option>
+              <option value="instant">Instant</option>
+              <option value="sorcery">Sorcery</option>
+              <option value="artifact">Artifact</option>
+              <option value="enchantment">Enchantment</option>
+              <option value="planeswalker">Planeswalker</option>
+              <option value="land">Land</option>
+            </select>
+            <p class="mt-1 text-xs text-slate-500">
+              Simple Scryfall type filter (e.g. creature, instant, land).
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit"
+                  class="inline-flex items-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+            Search
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Results -->
+    <section class="space-y-3">
+      {{ if $ctx.HasSearched }}
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-slate-100">
+            Results
+          </h3>
+          {{ if .CurrentUser }}
+            <p class="text-xs text-slate-500">
+              Click “Add to deck” to add directly from here.
+            </p>
+          {{ else }}
+            <p class="text-xs text-slate-500">
+              <a href="/login" class="text-emerald-400 hover:text-emerald-300 transition-colors">
+                Log in
+              </a>
+              to add cards to your decks.
+            </p>
+          {{ end }}
+        </div>
+
+        {{ if $ctx.Results }}
+          <ul class="space-y-3">
+            {{ range $ctx.Results }}
+              <li class="rounded-lg border border-slate-800 bg-slate-900/70 p-4 text-sm">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <div class="space-y-1">
+                    <p class="text-base font-semibold text-slate-50">
+                      {{ .Name }}
+                      <span class="ml-1 text-slate-300 text-sm">{{ .ManaCost }}</span>
+                    </p>
+                    <p class="text-xs uppercase tracking-wide text-slate-400">
+                      {{ .TypeLine }}
+                    </p>
+                    <p class="text-sm text-slate-200 whitespace-pre-line">
+                      {{ .OracleText }}
+                    </p>
+                  </div>
+
+                  <div class="md:ml-4 md:w-52 shrink-0">
+                    {{ if $.CurrentUser }}
+                      {{ if $ctx.Decks }}
+                        <form method="POST" action="/cards/add-to-deck" class="space-y-2">
+                          <input type="hidden" name="card_name" value="{{ .Name }}">
+                          <label class="block text-xs font-medium text-slate-400">
+                            Add to deck
+                            <select name="deck_id"
+                                    class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+                              {{ range $ctx.Decks }}
+                                <option value="{{ .ID }}">{{ .Name }}</option>
+                              {{ end }}
+                            </select>
+                          </label>
+                          <button type="submit"
+                                  class="w-full inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 text-xs font-semibold hover:bg-emerald-400 transition-colors">
+                            Add
+                          </button>
+                        </form>
+                      {{ else }}
+                        <p class="text-xs text-slate-500">
+                          You don't have any decks yet.
+                          <a href="/decks/new" class="text-emerald-400 hover:text-emerald-300 transition-colors">
+                            Create a deck
+                          </a>
+                          first.
+                        </p>
+                      {{ end }}
+                    {{ else }}
+                      <p class="text-xs text-slate-500">
+                        <a href="/login" class="text-emerald-400 hover:text-emerald-300 transition-colors">
+                          Log in
+                        </a>
+                        to add this card to a deck.
+                      </p>
+                    {{ end }}
+                  </div>
+                </div>
+              </li>
+            {{ end }}
+          </ul>
+        {{ else }}
+          <p class="text-sm text-slate-400">
+            No results. Try adjusting your name, colors, or type filters.
+          </p>
+        {{ end }}
+      {{ else }}
+        <p class="text-sm text-slate-400">
+          Enter a name or choose filters above to begin searching.
+        </p>
+      {{ end }}
+    </section>
+  </div>
+
+  {{ template "layout_footer" . }}
+{{ end }}

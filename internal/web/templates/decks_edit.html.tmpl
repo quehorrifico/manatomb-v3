@@ -1,0 +1,85 @@
+{{ define "decks_edit" }}
+  {{ template "layout_header" . }}
+  {{ $d := .Data }}
+
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-semibold tracking-tight">
+          Edit deck
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          Update this deck’s name, commander, or description.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <a href="/decks/{{ $d.ID }}"
+           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+          Back to deck
+        </a>
+      </div>
+    </div>
+
+    <!-- Form card -->
+    <section class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+      <form method="POST" action="/decks/edit" class="space-y-4">
+        <input type="hidden" name="id" value="{{ $d.ID }}">
+
+        <div class="text-sm text-slate-200">
+          <label class="block">
+            <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
+            <input type="text"
+                   name="name"
+                   value="{{ $d.Name }}"
+                   required
+                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+          </label>
+        </div>
+
+        <div class="text-sm text-slate-200">
+          <label class="block">
+            <span class="block text-xs font-medium text-slate-400 mb-1">Commander name</span>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input type="text"
+                     name="commander_name"
+                     value="{{ $d.CommanderName }}"
+                     required
+                     class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+              <a href="/commanders/search"
+                 class="inline-flex items-center justify-center px-3 py-2 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+                Search commanders
+              </a>
+            </div>
+          </label>
+          <p class="mt-1 text-xs text-slate-500">
+            Changing this will change which commander is displayed for this deck.
+          </p>
+        </div>
+
+        <div class="text-sm text-slate-200">
+          <label class="block">
+            <span class="block text-xs font-medium text-slate-400 mb-1">Description</span>
+            <textarea name="description"
+                      rows="4"
+                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">{{ $d.Description }}</textarea>
+          </label>
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <a href="/decks/{{ $d.ID }}"
+             class="inline-flex items-center px-4 py-2 rounded-md border border-slate-700 bg-slate-900 text-sm text-slate-200 hover:border-slate-500 hover:text-slate-100 transition-colors">
+            Cancel
+          </a>
+          <button type="submit"
+                  class="inline-flex items-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+            Save changes
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  {{ template "layout_footer" . }}
+{{ end }}

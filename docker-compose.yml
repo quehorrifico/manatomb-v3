@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: manatomb_db
+    environment:
+      POSTGRES_USER: manatomb
+      POSTGRES_PASSWORD: manatomb
+      POSTGRES_DB: manatomb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:

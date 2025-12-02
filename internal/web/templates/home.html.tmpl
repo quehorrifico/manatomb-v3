@@ -1,0 +1,97 @@
+{{ define "home" }}
+  {{ template "layout_header" . }}
+
+  {{ if .CurrentUser }}
+    {{ $u := .CurrentUser }}
+    {{ $ctx := .Data }}
+
+    <section class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight">
+            Welcome back, <span class="text-emerald-400">{{ $u.DisplayName }}</span>
+          </h2>
+          <p class="text-sm text-slate-400 mt-1">
+            What do you want to brew today?
+          </p>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <a href="/decks/new"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+            <span>New deck</span>
+          </a>
+          <a href="/cards/search"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-slate-700 bg-slate-900 text-sm text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+            Search cards
+          </a>
+        </div>
+      </div>
+
+      <div class="grid gap-6 md:grid-cols-2">
+        <section class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+          <h3 class="text-sm font-semibold text-slate-100 mb-2">Quick links</h3>
+          <ul class="space-y-1 text-sm text-slate-300">
+            <li><a href="/decks" class="hover:text-emerald-300 transition-colors">View all decks</a></li>
+            <li><a href="/decks/new" class="hover:text-emerald-300 transition-colors">Create a new Commander deck</a></li>
+            <li><a href="/cards/search" class="hover:text-emerald-300 transition-colors">Search cards</a></li>
+            <li><a href="/commanders/search" class="hover:text-emerald-300 transition-colors">Find a new commander</a></li>
+          </ul>
+        </section>
+
+        <section class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+          <h3 class="text-sm font-semibold text-slate-100 mb-2">Recent decks</h3>
+
+          {{ if $ctx.RecentDecks }}
+            <ul class="space-y-2 text-sm">
+              {{ range $ctx.RecentDecks }}
+                <li class="flex items-center justify-between gap-2">
+                  <div>
+                    <a href="/decks/{{ .ID }}" class="font-medium text-slate-100 hover:text-emerald-300 transition-colors">
+                      {{ .Name }}
+                    </a>
+                    {{ if .CommanderName }}
+                      <p class="text-xs text-slate-400">
+                        Commander: {{ .CommanderName }}
+                      </p>
+                    {{ end }}
+                  </div>
+                </li>
+              {{ end }}
+            </ul>
+          {{ else }}
+            <p class="text-sm text-slate-400">
+              You don't have any decks yet.
+              <a href="/decks/new" class="text-emerald-400 hover:text-emerald-300 transition-colors">
+                Create your first deck
+              </a>.
+            </p>
+          {{ end }}
+        </section>
+      </div>
+    </section>
+
+  {{ else }}
+    <section class="max-w-xl space-y-4">
+      <h2 class="text-3xl font-semibold tracking-tight">
+        Welcome to <span class="text-emerald-400">Mana Tomb</span>
+      </h2>
+      <p class="text-slate-300">
+        Build and manage your Commander decks with a fast, focused web app powered by Scryfall.
+      </p>
+
+      <div class="flex flex-wrap gap-3">
+        <a href="/signup"
+           class="inline-flex items-center px-5 py-2.5 rounded-md bg-emerald-500 text-slate-950 font-semibold text-sm hover:bg-emerald-400 transition-colors">
+          Create an account
+        </a>
+        <a href="/login"
+           class="inline-flex items-center px-5 py-2.5 rounded-md border border-slate-700 bg-slate-900 text-slate-200 text-sm hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+          Log in
+        </a>
+      </div>
+    </section>
+  {{ end }}
+
+  {{ template "layout_footer" . }}
+{{ end }}

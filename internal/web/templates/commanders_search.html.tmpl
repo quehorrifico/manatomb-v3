@@ -1,0 +1,105 @@
+{{ define "commanders_search" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-semibold tracking-tight">
+          Commander search
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">
+          Find legendary creatures and other commander-legal cards to lead your decks.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <a href="/decks/new"
+           class="inline-flex items-center px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 text-xs font-semibold hover:bg-emerald-400 transition-colors">
+          New deck
+        </a>
+        <a href="/decks"
+           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+          My decks
+        </a>
+      </div>
+    </div>
+
+    <!-- Search form -->
+    <section class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+      <form method="GET" action="/commanders/search" class="flex flex-col sm:flex-row gap-3">
+        <label class="flex-1 text-sm text-slate-200">
+          <span class="block text-xs font-medium text-slate-400 mb-1">Commander name</span>
+          <input type="text"
+                 name="q"
+                 value="{{ $ctx.Query }}"
+                 placeholder="Search by name (e.g. Atraxa, Kaalia, Muldrotha)"
+                 class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+        </label>
+
+        <div class="flex items-end">
+          <button type="submit"
+                  class="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+            Search
+          </button>
+        </div>
+      </form>
+      <p class="mt-2 text-xs text-slate-500">
+        Searches are biased toward <span class="font-semibold text-slate-300">commander-legal</span> cards.
+      </p>
+    </section>
+
+    <!-- Results -->
+    <section class="space-y-3">
+      {{ if $ctx.Query }}
+        <h3 class="text-sm font-semibold text-slate-100">
+          Results for “{{ $ctx.Query }}”
+        </h3>
+
+        {{ if $ctx.Results }}
+          <ul class="space-y-3">
+            {{ range $ctx.Results }}
+              <li class="rounded-lg border border-slate-800 bg-slate-900/70 p-4 text-sm">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <div class="space-y-1">
+                    <p class="text-base font-semibold text-slate-50">
+                      {{ .Name }}
+                      <span class="ml-1 text-slate-300 text-sm">{{ .ManaCost }}</span>
+                    </p>
+                    <p class="text-xs uppercase tracking-wide text-slate-400">
+                      {{ .TypeLine }}
+                    </p>
+                    <p class="text-sm text-slate-200 whitespace-pre-line">
+                      {{ .OracleText }}
+                    </p>
+                  </div>
+
+                  <div class="md:ml-4 md:w-52 shrink-0 flex flex-col gap-2">
+                    <a href="/decks/new?commander_name={{ .Name }}"
+                       class="inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 text-xs font-semibold hover:bg-emerald-400 transition-colors">
+                      Use as commander
+                    </a>
+                    <p class="text-[11px] text-slate-500">
+                      This will prefill the commander field on the new deck page.
+                    </p>
+                  </div>
+                </div>
+              </li>
+            {{ end }}
+          </ul>
+        {{ else }}
+          <p class="text-sm text-slate-400">
+            No commanders found. Try a different name or a shorter search term.
+          </p>
+        {{ end }}
+      {{ else }}
+        <p class="text-sm text-slate-400">
+          Enter a commander name above to start searching.
+        </p>
+      {{ end }}
+    </section>
+  </div>
+
+  {{ template "layout_footer" . }}
+{{ end }}

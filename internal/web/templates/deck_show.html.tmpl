@@ -1,0 +1,158 @@
+{{ define "deck_show" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+  {{ $d := $ctx.Deck }}
+  {{ $c := $ctx.Commander }}
+
+  <div class="space-y-6">
+    <!-- Top bar: title + actions -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-semibold tracking-tight">
+          {{ $d.Name }}
+        </h2>
+        <p class="text-sm text-slate-400">
+          Commander deck
+        </p>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <a href="/decks/edit?id={{ $d.ID }}"
+           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+          Edit deck
+        </a>
+
+        <form method="POST" action="/decks/delete"
+              onsubmit="return confirm('Delete this deck? This cannot be undone.');">
+          <input type="hidden" name="id" value="{{ $d.ID }}">
+          <button type="submit"
+                  class="inline-flex items-center px-3 py-1.5 rounded-md border border-red-800/70 bg-red-900/40 text-xs text-red-300 hover:border-red-500 hover:text-red-200 transition-colors">
+            Delete deck
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main layout: commander + deck meta / cards -->
+    <div class="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.5fr)]">
+      <!-- Commander & deck info -->
+      <section class="space-y-4">
+        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+          <h3 class="text-sm font-semibold text-slate-100 mb-2">Commander</h3>
+
+          {{ if $c }}
+            <div class="flex flex-col sm:flex-row gap-4">
+              {{ if $c.ImageURI }}
+                <div class="sm:w-40 shrink-0">
+                  <img src="{{ $c.ImageURI }}"
+                       alt="{{ $c.Name }}"
+                       class="w-full h-auto rounded-md shadow-lg shadow-slate-900/80 border border-slate-800">
+                </div>
+              {{ end }}
+
+              <div class="space-y-1 text-sm">
+                <p class="text-base font-semibold text-slate-50">
+                  {{ $c.Name }}
+                  <span class="ml-1 text-slate-300 text-sm">{{ $c.ManaCost }}</span>
+                </p>
+                <p class="text-xs uppercase tracking-wide text-slate-400">
+                  {{ $c.TypeLine }}
+                </p>
+                <p class="text-sm text-slate-200 whitespace-pre-line">
+                  {{ $c.OracleText }}
+                </p>
+              </div>
+            </div>
+          {{ else }}
+            <p class="text-sm text-slate-300">
+              <span class="font-medium">Commander:</span> {{ $d.CommanderName }}
+            </p>
+          {{ end }}
+        </div>
+
+        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4 space-y-2 text-sm">
+          {{ if $d.Description }}
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                Description
+              </h3>
+              <p class="text-slate-200 whitespace-pre-line">{{ $d.Description }}</p>
+            </div>
+          {{ end }}
+
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              Format
+            </h3>
+            <p class="text-slate-200">
+              {{ if $d.Format }}{{ $d.Format }}{{ else }}Commander{{ end }}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cards & add form -->
+      <section class="space-y-4">
+        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h3 class="text-sm font-semibold text-slate-100">Cards in deck</h3>
+            <!-- Could add total count here in future -->
+          </div>
+
+          {{ if $ctx.DeckCards }}
+            <ul class="divide-y divide-slate-800 text-sm">
+              {{ range $ctx.DeckCards }}
+                <li class="flex items-center justify-between gap-3 py-2">
+                  <div>
+                    <p class="font-medium text-slate-100">
+                      {{ .Quantity }}x {{ .CardName }}
+                    </p>
+                  </div>
+                  <form method="POST" action="/decks/{{ $d.ID }}" class="shrink-0">
+                    <input type="hidden" name="card_id" value="{{ .CardID }}">
+                    <button type="submit"
+                            class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+                      −
+                    </button>
+                  </form>
+                </li>
+              {{ end }}
+            </ul>
+          {{ else }}
+            <p class="text-sm text-slate-400">
+              No cards yet. Use the form below or the card search page to start adding cards.
+            </p>
+          {{ end }}
+        </div>
+
+        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+          <h3 class="text-sm font-semibold text-slate-100 mb-2">Add card</h3>
+          <form method="POST" action="/decks/{{ $d.ID }}" class="flex flex-col sm:flex-row gap-2">
+            <label class="flex-1 text-sm text-slate-200">
+              <span class="block text-xs font-medium text-slate-400 mb-1">Card name</span>
+              <input type="text"
+                     name="card_name"
+                     required
+                     class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+            </label>
+            <div class="flex items-end">
+              <button type="submit"
+                      class="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+                Add
+              </button>
+            </div>
+          </form>
+          <p class="mt-2 text-xs text-slate-500">
+            Tip: You can also add cards directly from the
+            <a href="/cards/search" class="text-emerald-400 hover:text-emerald-300 transition-colors">
+              card search
+            </a>
+            page.
+          </p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  {{ template "layout_footer" . }}
+{{ end }}
