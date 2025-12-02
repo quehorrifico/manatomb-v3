@@ -99,3 +99,16 @@ func DeleteSession(ctx context.Context, db *sql.DB, sid uuid.UUID) error {
 	_, err := db.ExecContext(ctx, `DELETE FROM sessions WHERE id = $1`, sid)
 	return err
 }
+
+func EnsureUserTable(ctx context.Context, db *sql.DB) error {
+	_, err := db.ExecContext(ctx, `
+        CREATE TABLE IF NOT EXISTS users (
+            id BIGSERIAL PRIMARY KEY,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
+    `)
+	return err
+}
