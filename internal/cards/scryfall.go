@@ -52,17 +52,32 @@ func (c *ScryfallClient) SearchByName(ctx context.Context, q string) ([]Card, er
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("scryfall error: %s", resp.Status)
+	// Decode the body so we can see whether this is a normal list or an error.
+	var body struct {
+		Object   string         `json:"object"`
+		Code     string         `json:"code"`
+		Status   int            `json:"status"`
+		Data     []scryfallCard `json:"data"`
+		Details  string         `json:"details"`
+		Warnings []string       `json:"warnings"`
 	}
 
-	var body struct {
-		Data []scryfallCard `json:"data"`
-	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, err
 	}
 
+	// If Scryfall returns an error object, branch on the code:
+	if body.Object == "error" {
+		// Typical "no cards matched your search query" case
+		if body.Code == "not_found" || resp.StatusCode == http.StatusNotFound {
+			return []Card{}, nil
+		}
+
+		// Bad query, rate limit, etc. – this is a real error.
+		return nil, fmt.Errorf("scryfall error (%s): %s", body.Code, body.Details)
+	}
+
+	// Normal case: zero or more results.
 	out := make([]Card, 0, len(body.Data))
 	for _, sc := range body.Data {
 		img := sc.ImageURIs["normal"]

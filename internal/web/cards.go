@@ -1,6 +1,8 @@
 package web
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -52,13 +54,22 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var results []cards.Card
+	var errMsg string
+
 	if hasSearched {
 		scry := cards.NewScryfallClient()
-		var err error
-		results, err = scry.SearchByName(r.Context(), searchQuery)
+		found, err := scry.SearchByName(r.Context(), searchQuery)
 		if err != nil {
-			http.Error(w, "error searching cards", http.StatusBadGateway)
-			return
+			log.Printf("card search error for %q (built query %q): %v", query, searchQuery, err)
+			errMsg = "We couldn't search for cards right now. Please try again."
+		} else if len(found) == 0 {
+			if query == "" && hasFilters {
+				errMsg = "No cards matched your filters."
+			} else {
+				errMsg = fmt.Sprintf("No cards found for “%s”. Please check the spelling or filters.", query)
+			}
+		} else {
+			results = found
 		}
 	}
 
@@ -86,6 +97,7 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 			HasSearched: hasSearched,
 		},
 		Flash: flash,
+		Error: errMsg, // 🔴 shows in red banner via layout_header
 	}
 
 	a.Renderer.Render(w, "cards_search", data)
