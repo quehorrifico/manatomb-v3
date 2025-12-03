@@ -1,8 +1,11 @@
 package web
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
@@ -32,14 +35,14 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 	a.Renderer.Render(w, "decks_list", data)
 }
 
-// Show "new deck" form. Supports optional ?commander_name=... from commander search.
 func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
-	flash := readFlash(w, r)
 	if user == nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
+
+	flash := readFlash(w, r)
 
 	// Optional commander_name from query string (e.g., coming from commander search)
 	commanderName := r.URL.Query().Get("commander_name")
@@ -48,10 +51,15 @@ func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 		CurrentUser: user,
 		Data: struct {
 			CommanderName string
+			Name          string
+			Description   string
 		}{
 			CommanderName: commanderName,
+			Name:          "",
+			Description:   "",
 		},
 		Flash: flash,
+		Error: "",
 	}
 
 	a.Renderer.Render(w, "decks_new", data)
@@ -70,13 +78,33 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.Form.Get("name")
-	desc := r.Form.Get("description")
-	commander := r.Form.Get("commander_name")
+	name := strings.TrimSpace(r.Form.Get("name"))
+	desc := strings.TrimSpace(r.Form.Get("description"))
+	commander := strings.TrimSpace(r.Form.Get("commander_name"))
+
+	// Basic validation: require a name
+	if name == "" {
+		data := TemplateData{
+			CurrentUser: user,
+			Data: struct {
+				CommanderName string
+				Name          string
+				Description   string
+			}{
+				CommanderName: commander,
+				Name:          name,
+				Description:   desc,
+			},
+			Error: "Deck name is required.",
+		}
+		a.Renderer.Render(w, "decks_new", data)
+		return
+	}
 
 	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, name, desc, commander)
 	if err != nil {
-		http.Error(w, "could not create deck", http.StatusInternalServerError)
+		// Use our pretty 500 page + logging
+		a.RenderServerError(w, r, err)
 		return
 	}
 
@@ -115,14 +143,62 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		if cardName != "" {
 			c, err := cards.EnsureCardByName(r.Context(), a.DB, cardName)
 			if err != nil {
-				http.Error(w, "could not add card", http.StatusInternalServerError)
+				// If the card doesn't exist on Scryfall, show a friendly error on the deck page.
+				if errors.Is(err, cards.ErrCardNotFound) {
+					d, derr := decks.GetDeck(r.Context(), a.DB, id, user.ID)
+					if derr != nil {
+						a.RenderNotFound(w, r)
+						return
+					}
+
+					deckCards, derr := decks.ListDeckCards(r.Context(), a.DB, id)
+					if derr != nil {
+						a.RenderServerError(w, r, derr)
+						return
+					}
+
+					// Try to fetch commander details again (optional).
+					var commanderCard *cards.Card
+					if d.CommanderName != "" {
+						scry := cards.NewScryfallClient()
+						results, serr := scry.SearchByName(r.Context(), d.CommanderName+" is:commander")
+						if serr == nil && len(results) > 0 {
+							commanderCard = &results[0]
+						}
+					}
+
+					type deckPageData struct {
+						Deck      *decks.Deck
+						DeckCards []decks.DeckCard
+						Commander *cards.Card
+					}
+
+					data := TemplateData{
+						CurrentUser: user,
+						Data: deckPageData{
+							Deck:      d,
+							DeckCards: deckCards,
+							Commander: commanderCard,
+						},
+						Flash: flash,
+						Error: fmt.Sprintf("No card found named “%s”. Please check the spelling.", cardName),
+					}
+
+					a.Renderer.Render(w, "deck_show", data)
+					return
+				}
+
+				// Unexpected error: treat as real 500.
+				a.RenderServerError(w, r, err)
 				return
 			}
-			// Add +1 copy
+
+			// Valid card, add +1 copy
 			if err := decks.AddCard(r.Context(), a.DB, id, c.ID, 1); err != nil {
-				http.Error(w, "could not add card", http.StatusInternalServerError)
+				a.RenderServerError(w, r, err)
 				return
 			}
+
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 			return
 		}
@@ -137,7 +213,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 
 			// Use delta = -1 to decrement; AddCard will delete row if quantity goes to 0
 			if err := decks.AddCard(r.Context(), a.DB, id, cardID, -1); err != nil {
-				http.Error(w, "could not update card", http.StatusInternalServerError)
+				a.RenderServerError(w, r, err)
 				return
 			}
 
@@ -149,6 +225,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// GET: load deck, cards, and commander details
 	d, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
 	if err != nil {
 		a.RenderNotFound(w, r)
@@ -157,7 +234,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 
 	deckCards, err := decks.ListDeckCards(r.Context(), a.DB, id)
 	if err != nil {
-		http.Error(w, "could not load deck cards", http.StatusInternalServerError)
+		a.RenderServerError(w, r, err)
 		return
 	}
 

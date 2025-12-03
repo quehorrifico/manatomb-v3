@@ -1,0 +1,5 @@
+ALTER TABLE cards
+    ADD COLUMN IF NOT EXISTS mana_cost   TEXT,
+    ADD COLUMN IF NOT EXISTS type_line   TEXT,
+    ADD COLUMN IF NOT EXISTS oracle_text TEXT,
+    ADD COLUMN IF NOT EXISTS image_uri   TEXT;
