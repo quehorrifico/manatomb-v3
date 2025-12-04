@@ -79,14 +79,24 @@
       <!-- Logo / Hero -->
       <div class="text-center space-y-4">
         <h1 class="text-4xl sm:text-5xl font-semibold tracking-tight">
-          <span class="bg-gradient-to-br from-purple-300 via-fuchsia-300 to-slate-100 bg-clip-text text-transparent">
+          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
             Mana Tomb
           </span>
         </h1>
 
         <p class="text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
-          A hobby project for Commander players. Search Magic cards, explore decks, and learn rulings — no account required to start using it.
+          Search Magic cards, explore decks, and learn rulings — no account required.
         </p>
+      </div>
+
+      <!-- Rotating art placeholder -->
+      <div class="mt-6">
+        <div class="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950/80 py-6 px-4 flex flex-col items-center justify-center">
+          <div class="mb-3 h-28 w-full max-w-md rounded-lg bg-gradient-to-br from-sky-500/40 via-slate-800 to-slate-950 opacity-80"></div>
+          <p class="text-[0.7rem] text-slate-400 text-center max-w-md">
+            Future rotating Mana Tomb art will appear here. In the future, this will showcase community logos and artwork with credit links.
+          </p>
+        </div>
       </div>
 
       <!-- Card Search + Primary actions -->
@@ -94,7 +104,7 @@
         <div>
           <form action="/cards/search" method="GET" class="relative">
             <label for="q" class="sr-only">Search for a Magic card</label>
-            <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 shadow-inner shadow-purple-500/10 focus-within:border-purple-400/80 focus-within:shadow-purple-500/25 transition-all">
+            <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 shadow-inner shadow-sky-500/10 focus-within:border-sky-400/80 focus-within:shadow-sky-500/25 transition-all">
               <input
                 id="q"
                 name="q"
@@ -105,7 +115,7 @@
               />
               <button
                 type="submit"
-                class="inline-flex items-center rounded-md bg-purple-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-colors"
+                class="inline-flex items-center rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-colors"
               >
                 Search
               </button>
@@ -113,11 +123,11 @@
           </form>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1.5 shadow-md shadow-purple-500/10">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1.5 shadow-md shadow-sky-500/10">
           <!-- Browse Decks -->
           <a href="/decks/public"
-             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-purple-400/60 border border-transparent transition-all">
-            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-purple-300/80 group-hover:text-purple-200">
+             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
+            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
               Browse Decks
             </p>
             <p class="text-[0.72rem] text-slate-400">
@@ -127,8 +137,8 @@
 
           <!-- Rulings Search -->
           <a href="/rules"
-             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-purple-400/60 border border-transparent transition-all">
-            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-purple-300/80 group-hover:text-purple-200">
+             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
+            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
               Rulings Search
             </p>
             <p class="text-[0.72rem] text-slate-400">
@@ -138,8 +148,8 @@
 
           <!-- Deck Builder -->
           <a href="/decks/new"
-             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-purple-400/60 border border-transparent transition-all">
-            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-purple-300/80 group-hover:text-purple-200">
+             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
+            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
               Deck Builder
             </p>
             <p class="text-[0.72rem] text-slate-400">
@@ -152,16 +162,16 @@
       <!-- Supporting text -->
       <div class="mt-10 space-y-1 text-center">
         <p class="text-xs text-slate-500">
-          Powered by Scryfall. Type a card name and hit enter to get started.
+          Card data and images courtesy of
+          <a href="https://scryfall.com" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Scryfall</a>.
         </p>
-
-        <p class="text-[0.7rem] text-slate-500">
+        <p class="text-xs text-slate-500">
           Want to save decks and sync between devices?
-          <a href="/signup" class="text-purple-300 hover:text-purple-200 font-medium">
+          <a href="/signup" class="text-sky-300 hover:text-sky-200 font-medium">
             Create an account
           </a>
           or
-          <a href="/login" class="text-purple-300 hover:text-purple-200 font-medium">
+          <a href="/login" class="text-sky-300 hover:text-sky-200 font-medium">
             log in
           </a>.
         </p>
