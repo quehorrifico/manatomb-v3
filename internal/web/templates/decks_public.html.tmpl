@@ -1,0 +1,35 @@
+{{ define "decks_public" }}
+  {{ template "layout_header" . }}
+
+  <main class="max-w-3xl mx-auto py-10 px-4 space-y-8">
+    <section class="space-y-3 text-center">
+      <h1 class="text-3xl sm:text-4xl font-semibold tracking-tight">
+        <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+          Browse Decks
+        </span>
+      </h1>
+      <p class="text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
+        Coming soon: a place to explore Commander decks shared by the Mana Tomb community.
+      </p>
+    </section>
+
+    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-5 shadow-md shadow-sky-500/10 space-y-4 text-sm text-slate-300">
+      <p>
+        The plan for this page:
+      </p>
+      <ul class="list-disc list-inside space-y-1 text-slate-400 text-sm">
+        <li>Browse public Commander decks shared by other players.</li>
+        <li>Filter by commander, colors, and power level.</li>
+        <li>Click into a deck to see the full list and card details.</li>
+      </ul>
+      <p class="text-xs text-slate-500">
+        For now, you can start by brewing your own decks on the
+        <a href="/decks/new" class="text-sky-300 hover:text-sky-200 font-medium">Deck Builder</a>
+        or managing your decks on
+        <a href="/decks" class="text-sky-300 hover:text-sky-200 font-medium">My Decks</a>.
+      </p>
+    </section>
+  </main>
+
+  {{ template "layout_footer" . }}
+{{ end }}

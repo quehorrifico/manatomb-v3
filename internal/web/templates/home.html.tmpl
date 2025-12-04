@@ -5,74 +5,87 @@
   </style>
 
   {{ if .CurrentUser }}
-    {{ $u := .CurrentUser }}
-    {{ $ctx := .Data }}
+  {{ $u := .CurrentUser }}
 
-    <section class="space-y-6">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 class="text-2xl font-semibold tracking-tight">
-            Welcome back, <span class="text-emerald-400">{{ $u.DisplayName }}</span>
-          </h2>
-          <p class="text-sm text-slate-400 mt-1">
-            What do you want to brew today?
-          </p>
+  <section class="max-w-2xl mx-auto py-10 space-y-10">
+
+    <!-- Hero -->
+    <div class="text-center space-y-3">
+      <h1 class="text-4xl sm:text-5xl font-semibold tracking-tight">
+        <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+          Mana Tomb
+        </span>
+      </h1>
+
+      <p class="text-sm sm:text-base text-slate-300">
+        Welcome back, <span class="text-sky-300 font-medium">{{ $u.DisplayName }}</span>.
+      </p>
+    </div>
+
+    <!-- Search -->
+    <div>
+      <form action="/cards/search" method="GET" class="relative">
+        <label for="q" class="sr-only">Search for a Magic card</label>
+        <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 shadow-inner shadow-sky-500/10 focus-within:border-sky-400/80 focus-within:shadow-sky-500/25 transition-all">
+          <input
+            id="q"
+            name="q"
+            type="text"
+            placeholder="Search for a Magic card (e.g. Sol Ring, Mana Drain)..."
+            class="flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+            autocomplete="off"
+          />
+          <button
+            type="submit"
+            class="inline-flex items-center rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-colors"
+          >
+            Search
+          </button>
         </div>
+      </form>
+    </div>
 
-        <div class="flex flex-wrap gap-2">
-          <a href="/decks/new"
-             class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
-            <span>New deck</span>
-          </a>
-          <a href="/cards/search"
-             class="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-slate-700 bg-slate-900 text-sm text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
-            Search cards
-          </a>
-        </div>
-      </div>
+    <!-- Primary actions (4 buttons) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-3 rounded-xl border border-slate-800 bg-slate-950/80 p-2 shadow-md shadow-sky-500/10">
 
-      <div class="grid gap-6 md:grid-cols-2">
-        <section class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-          <h3 class="text-sm font-semibold text-slate-100 mb-2">Quick links</h3>
-          <ul class="space-y-1 text-sm text-slate-300">
-            <li><a href="/decks" class="hover:text-emerald-300 transition-colors">View all decks</a></li>
-            <li><a href="/decks/new" class="hover:text-emerald-300 transition-colors">Create a new Commander deck</a></li>
-            <li><a href="/cards/search" class="hover:text-emerald-300 transition-colors">Search cards</a></li>
-            <li><a href="/commanders/search" class="hover:text-emerald-300 transition-colors">Find a new commander</a></li>
-          </ul>
-        </section>
+      <!-- My Decks -->
+      <a href="/decks"
+         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
+        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
+          My Decks
+        </p>
+        <p class="text-[0.78rem] text-slate-400">View and edit your Commander decks.</p>
+      </a>
 
-        <section class="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
-          <h3 class="text-sm font-semibold text-slate-100 mb-2">Recent decks</h3>
+      <!-- Browse Decks -->
+      <a href="/decks/public"
+         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
+        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
+          Browse Decks
+        </p>
+        <p class="text-[0.78rem] text-slate-400">Explore community-created decks.</p>
+      </a>
 
-          {{ if $ctx.RecentDecks }}
-            <ul class="space-y-2 text-sm">
-              {{ range $ctx.RecentDecks }}
-                <li class="flex items-center justify-between gap-2">
-                  <div>
-                    <a href="/decks/{{ .ID }}" class="font-medium text-slate-100 hover:text-emerald-300 transition-colors">
-                      {{ .Name }}
-                    </a>
-                    {{ if .CommanderName }}
-                      <p class="text-xs text-slate-400">
-                        Commander: {{ .CommanderName }}
-                      </p>
-                    {{ end }}
-                  </div>
-                </li>
-              {{ end }}
-            </ul>
-          {{ else }}
-            <p class="text-sm text-slate-400">
-              You don't have any decks yet.
-              <a href="/decks/new" class="text-emerald-400 hover:text-emerald-300 transition-colors">
-                Create your first deck
-              </a>.
-            </p>
-          {{ end }}
-        </section>
-      </div>
-    </section>
+      <!-- Rulings Search -->
+      <a href="/rules"
+         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
+        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
+          Rulings Search
+        </p>
+        <p class="text-[0.78rem] text-slate-400">Look up Judge-style clarifications.</p>
+      </a>
+
+      <!-- Deck Builder -->
+      <a href="/decks/new"
+         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
+        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
+          Deck Builder
+        </p>
+        <p class="text-[0.78rem] text-slate-400">Create a new Commander deck.</p>
+      </a>
+
+    </div>
+  </section>
 
   {{ else }}
     <section class="max-w-2xl mx-auto py-10 space-y-10">
@@ -166,21 +179,28 @@
 
   <!-- Bottom credit near footer -->
   <div class="mt-24 space-y-1 text-center">
-        <p class="text-xs text-slate-500">
-          Card data and images courtesy of
-          <a href="https://scryfall.com" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Scryfall</a>.
-        </p>
-        <p class="text-xs text-slate-500">
-          Want to save decks and sync between devices?
-          <a href="/signup" class="text-sky-300 hover:text-sky-200 font-medium">
-            Create an account
-          </a>
-          or
-          <a href="/login" class="text-sky-300 hover:text-sky-200 font-medium">
-            log in
-          </a>.
-        </p>
-      </div>
+    <p class="text-xs text-slate-500">
+      Card data and images courtesy of
+      <a href="https://scryfall.com" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Scryfall</a>.
+    </p>
+
+    {{ if .CurrentUser }}
+      <p class="text-xs text-slate-500">
+        <a href="/logout" class="text-sky-300 hover:text-sky-200 font-medium">Sign out</a>
+      </p>
+    {{ else }}
+      <p class="text-xs text-slate-500">
+        Want to save decks and sync between devices?
+        <a href="/signup" class="text-sky-300 hover:text-sky-200 font-medium">
+          Create an account
+        </a>
+        or
+        <a href="/login" class="text-sky-300 hover:text-sky-200 font-medium">
+          log in
+        </a>.
+      </p>
+    {{ end }}
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}
