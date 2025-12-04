@@ -18,7 +18,7 @@
             tomb: {
               bg: "#020617",      // slate-950-ish
               surface: "#020817", // deep blue/black
-              accent: "#22c55e",  // emerald-500-ish
+              accent: "#0ea5e9",  // sky-500-ish
             }
           }
         }
@@ -31,16 +31,16 @@
     <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur">
       <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <a href="/" class="flex items-center gap-2">
-          <div class="h-8 w-8 rounded-full border border-emerald-400/60 bg-emerald-500/10 flex items-center justify-center text-emerald-300 font-bold text-sm">
+          <div class="h-8 w-8 rounded-full border border-sky-400/60 bg-sky-500/10 flex items-center justify-center text-sky-300 font-bold text-sm">
             MT
           </div>
           <span class="text-lg font-semibold tracking-wide">Mana Tomb</span>
         </a>
 
         <nav class="flex items-center gap-3 text-sm">
-          <a href="/decks" class="text-slate-300 hover:text-emerald-300 transition-colors">My Decks</a>
-          <a href="/cards/search" class="text-slate-300 hover:text-emerald-300 transition-colors">Cards</a>
-          <a href="/commanders/search" class="text-slate-300 hover:text-emerald-300 transition-colors hidden sm:inline">
+          <a href="/decks" class="text-slate-300 hover:text-sky-300 transition-colors">My Decks</a>
+          <a href="/cards/search" class="text-slate-300 hover:text-sky-300 transition-colors">Cards</a>
+          <a href="/commanders/search" class="text-slate-300 hover:text-sky-300 transition-colors hidden sm:inline">
             Commanders
           </a>
 
@@ -49,16 +49,16 @@
               Hi, {{ .CurrentUser.DisplayName }}
             </span>
             <a href="/logout"
-               class="px-3 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+               class="px-3 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
               Logout
             </a>
           {{ else }}
             <a href="/login"
-               class="px-3 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+               class="px-3 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
               Log in
             </a>
             <a href="/signup"
-               class="px-3 py-1 rounded-md bg-emerald-500 text-slate-950 text-xs font-semibold hover:bg-emerald-400 transition-colors">
+               class="px-3 py-1 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
               Sign up
             </a>
           {{ end }}
@@ -69,7 +69,7 @@
         <main class="flex-1">
       <div class="max-w-5xl mx-auto px-4 py-6">
         {{ if .Flash }}
-          <div class="mb-3 rounded-md border border-emerald-500/60 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+          <div class="mb-3 rounded-md border border-sky-500/60 bg-sky-500/10 px-3 py-2 text-sm text-sky-200">
             {{ .Flash }}
           </div>
         {{ end }}

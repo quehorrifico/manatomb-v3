@@ -4,12 +4,14 @@
   {{ $d := $ctx.Deck }}
   {{ $c := $ctx.Commander }}
 
-  <div class="space-y-6">
+  <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
     <!-- Top bar: title + actions -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
       <div>
         <h2 class="text-2xl font-semibold tracking-tight">
-          {{ $d.Name }}
+          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+            {{ $d.Name }}
+          </span>
         </h2>
         <p class="text-sm text-slate-400">
           Commander deck
@@ -18,7 +20,7 @@
 
       <div class="flex flex-wrap gap-2">
         <a href="/decks/edit?id={{ $d.ID }}"
-           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
           Edit deck
         </a>
 
@@ -37,8 +39,8 @@
     <div class="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.5fr)]">
       <!-- Commander & deck info -->
       <section class="space-y-4">
-        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
-          <h3 class="text-sm font-semibold text-slate-100 mb-2">Commander</h3>
+        <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Commander</h3>
 
           {{ if $c }}
             <div class="flex flex-col sm:flex-row gap-4">
@@ -50,7 +52,7 @@
                 </div>
               {{ end }}
 
-              <div class="space-y-1 text-sm">
+              <div class="space-y-2 text-sm">
                 <p class="text-base font-semibold text-slate-50">
                   {{ $c.Name }}
                   <span class="ml-1 text-slate-300 text-sm">{{ $c.ManaCost }}</span>
@@ -70,7 +72,7 @@
           {{ end }}
         </div>
 
-        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4 space-y-2 text-sm">
+        <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10 space-y-3 text-sm">
           {{ if $d.Description }}
             <div>
               <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
@@ -93,9 +95,11 @@
 
       <!-- Cards & add form -->
       <section class="space-y-4">
-        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+        <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
           <div class="flex items-center justify-between gap-2 mb-3">
-            <h3 class="text-sm font-semibold text-slate-100">Cards in deck</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Cards in deck
+            </h3>
             <!-- Could add total count here in future -->
           </div>
 
@@ -111,7 +115,7 @@
                   <form method="POST" action="/decks/{{ $d.ID }}" class="shrink-0">
                     <input type="hidden" name="card_id" value="{{ .CardID }}">
                     <button type="submit"
-                            class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+                            class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
                       −
                     </button>
                   </form>
@@ -125,26 +129,26 @@
           {{ end }}
         </div>
 
-        <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
-          <h3 class="text-sm font-semibold text-slate-100 mb-2">Add card</h3>
+        <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Add card</h3>
           <form method="POST" action="/decks/{{ $d.ID }}" class="flex flex-col sm:flex-row gap-2">
             <label class="flex-1 text-sm text-slate-200">
               <span class="block text-xs font-medium text-slate-400 mb-1">Card name</span>
               <input type="text"
                      name="card_name"
                      required
-                     class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+                     class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
             </label>
             <div class="flex items-end">
               <button type="submit"
-                      class="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+                      class="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
                 Add
               </button>
             </div>
           </form>
           <p class="mt-2 text-xs text-slate-500">
             Tip: You can also add cards directly from the
-            <a href="/cards/search" class="text-emerald-400 hover:text-emerald-300 transition-colors">
+            <a href="/cards/search" class="text-sky-300 hover:text-sky-200 transition-colors">
               card search
             </a>
             page.
@@ -152,7 +156,7 @@
         </div>
       </section>
     </div>
-  </div>
+  </main>
 
   {{ template "layout_footer" . }}
 {{ end }}

@@ -2,12 +2,14 @@
   {{ template "layout_header" . }}
   {{ $d := .Data }}
 
-  <div class="space-y-6">
+  <main class="max-w-3xl mx-auto py-10 px-4 space-y-6">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h2 class="text-2xl font-semibold tracking-tight">
-          New deck
+          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+            New Deck
+          </span>
         </h2>
         <p class="text-sm text-slate-400 mt-1">
           Create a new Commander deck. You can always edit it later.
@@ -16,15 +18,17 @@
 
       <div class="flex flex-wrap gap-2">
         <a href="/decks"
-           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
           Back to my decks
         </a>
       </div>
     </div>
 
     <!-- Form card -->
-    <section class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
       <form method="POST" action="/decks/new" class="space-y-4">
+
+        <!-- Deck name -->
         <div class="text-sm text-slate-200">
           <label class="block">
             <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
@@ -32,10 +36,13 @@
                    name="name"
                    value="{{ $d.Name }}"
                    required
-                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 
+                          text-sm text-slate-100 placeholder:text-slate-500
+                          focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
           </label>
         </div>
 
+        <!-- Commander -->
         <div class="text-sm text-slate-200">
           <label class="block">
             <span class="block text-xs font-medium text-slate-400 mb-1">Commander name</span>
@@ -44,9 +51,14 @@
                      name="commander_name"
                      value="{{ $d.CommanderName }}"
                      required
-                     class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+                     class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2
+                            text-sm text-slate-100 placeholder:text-slate-500
+                            focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+
               <a href="/commanders/search"
-                 class="inline-flex items-center justify-center px-3 py-2 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+                 class="inline-flex items-center justify-center px-3 py-2 rounded-md 
+                        border border-slate-700 bg-slate-900 text-xs text-slate-200
+                        hover:border-sky-400 hover:text-sky-300 transition-colors">
                 Search commanders
               </a>
             </div>
@@ -56,28 +68,37 @@
           </p>
         </div>
 
+        <!-- Description -->
         <div class="text-sm text-slate-200">
           <label class="block">
             <span class="block text-xs font-medium text-slate-400 mb-1">Description (optional)</span>
             <textarea name="description"
                       rows="4"
-                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">{{ $d.Description }}</textarea>
+                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2
+                             text-sm text-slate-100 placeholder:text-slate-500
+                             focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.Description }}</textarea>
           </label>
         </div>
 
+        <!-- Actions -->
         <div class="flex justify-end gap-2">
           <a href="/decks"
-             class="inline-flex items-center px-4 py-2 rounded-md border border-slate-700 bg-slate-900 text-sm text-slate-200 hover:border-slate-500 hover:text-slate-100 transition-colors">
+             class="inline-flex items-center px-4 py-2 rounded-md border border-slate-700 
+                    bg-slate-900 text-sm text-slate-200 hover:border-slate-500 hover:text-slate-100 transition-colors">
             Cancel
           </a>
+
           <button type="submit"
-                  class="inline-flex items-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+                  class="inline-flex items-center px-4 py-2 rounded-md 
+                         bg-sky-500 text-slate-950 text-sm font-semibold 
+                         hover:bg-sky-400 transition-colors focus:outline-none 
+                         focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
             Create deck
           </button>
         </div>
       </form>
     </section>
-  </div>
+  </main>
 
   {{ template "layout_footer" . }}
 {{ end }}

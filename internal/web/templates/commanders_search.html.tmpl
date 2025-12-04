@@ -2,32 +2,35 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <div class="space-y-6">
+  <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
+
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h2 class="text-2xl font-semibold tracking-tight">
-          Commander search
+          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+            Commander Search
+          </span>
         </h2>
         <p class="text-sm text-slate-400 mt-1">
-          Find legendary creatures and other commander-legal cards to lead your decks.
+          Find legendary creatures and commander-legal cards to lead your decks.
         </p>
       </div>
 
       <div class="flex flex-wrap gap-2">
         <a href="/decks/new"
-           class="inline-flex items-center px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 text-xs font-semibold hover:bg-emerald-400 transition-colors">
+           class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
           New deck
         </a>
         <a href="/decks"
-           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-emerald-400 hover:text-emerald-300 transition-colors">
+           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
           My decks
         </a>
       </div>
     </div>
 
     <!-- Search form -->
-    <section class="rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
       <form method="GET" action="/commanders/search" class="flex flex-col sm:flex-row gap-3">
         <label class="flex-1 text-sm text-slate-200">
           <span class="block text-xs font-medium text-slate-400 mb-1">Commander name</span>
@@ -35,18 +38,22 @@
                  name="q"
                  value="{{ $ctx.Query }}"
                  placeholder="Search by name (e.g. Atraxa, Kaalia, Muldrotha)"
-                 class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+                 class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2
+                        text-sm text-slate-100 placeholder:text-slate-500
+                        focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
         </label>
 
         <div class="flex items-end">
           <button type="submit"
-                  class="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors">
+                  class="w-full inline-flex items-center justify-center px-4 py-2 rounded-md
+                         bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors
+                         focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
             Search
           </button>
         </div>
       </form>
       <p class="mt-2 text-xs text-slate-500">
-        Searches are biased toward <span class="font-semibold text-slate-300">commander-legal</span> cards.
+        Searches prioritize <span class="font-semibold text-slate-300">commander-legal</span> cards.
       </p>
     </section>
 
@@ -60,8 +67,10 @@
         {{ if $ctx.Results }}
           <ul class="space-y-3">
             {{ range $ctx.Results }}
-              <li class="rounded-lg border border-slate-800 bg-slate-900/70 p-4 text-sm">
+              <li class="rounded-xl border border-slate-800 bg-slate-950/80 p-4
+                         text-sm shadow-md shadow-sky-500/10">
                 <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <!-- Card text side -->
                   <div class="space-y-1">
                     <p class="text-base font-semibold text-slate-50">
                       {{ .Name }}
@@ -75,13 +84,16 @@
                     </p>
                   </div>
 
+                  <!-- Actions -->
                   <div class="md:ml-4 md:w-52 shrink-0 flex flex-col gap-2">
                     <a href="/decks/new?commander_name={{ .Name }}"
-                       class="inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 text-xs font-semibold hover:bg-emerald-400 transition-colors">
+                       class="inline-flex items-center justify-center px-3 py-1.5 rounded-md
+                              bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors
+                              focus:outline-none focus:ring-1 focus:ring-sky-400">
                       Use as commander
                     </a>
                     <p class="text-[11px] text-slate-500">
-                      This will prefill the commander field on the new deck page.
+                      Prefills the commander field when creating a new deck.
                     </p>
                   </div>
                 </div>
@@ -99,7 +111,8 @@
         </p>
       {{ end }}
     </section>
-  </div>
+
+  </main>
 
   {{ template "layout_footer" . }}
 {{ end }}

@@ -84,11 +84,18 @@ func main() {
 		}
 	})
 	mux.HandleFunc("/decks/delete", app.HandleDeckDeletePost)
+
+	// NEW: public decks stub
+	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
+
 	mux.HandleFunc("/decks/", app.HandleDeckShow) // /decks/{id}
 
 	mux.HandleFunc("/cards/search", app.HandleCardSearch)
 	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
 	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
+
+	// NEW: rulings stub
+	mux.HandleFunc("/rules", app.HandleRulesHome)
 
 	// Wrap with middleware (NotFound → User → Recovery)
 	var handler http.Handler = mux

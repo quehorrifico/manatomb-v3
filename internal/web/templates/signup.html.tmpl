@@ -1,49 +1,60 @@
 {{ define "signup" }}
   {{ template "layout_header" . }}
+  <style>
+    header { display: none; }
+  </style>
   {{ $d := .Data }}
 
-  <div class="flex items-center justify-center">
-    <div class="w-full max-w-md">
-      <div class="mb-6 text-center">
+  <main class="flex items-center justify-center py-10 px-4">
+    <div class="w-full max-w-md space-y-6">
+      <div class="text-center space-y-2">
         <h2 class="text-2xl font-semibold tracking-tight">
-          Create your account
+          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+            Create your account
+          </span>
         </h2>
-        <p class="mt-1 text-sm text-slate-400">
+        <p class="text-sm text-slate-400">
           Start building and managing your Commander decks.
         </p>
       </div>
 
-      <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-6">
+      <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-6 shadow-md shadow-sky-500/15">
         <form method="POST" action="/signup" class="space-y-4">
           <div class="text-sm text-slate-200">
             <label class="block">
               <span class="block text-xs font-medium text-slate-400 mb-1">Display name</span>
-              <input type="text"
-                     name="display_name"
-                     value="{{ $d.DisplayName }}"
-                     required
-                     class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+              <input
+                type="text"
+                name="display_name"
+                value="{{ $d.DisplayName }}"
+                required
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400"
+              >
             </label>
           </div>
 
           <div class="text-sm text-slate-200">
             <label class="block">
               <span class="block text-xs font-medium text-slate-400 mb-1">Email</span>
-              <input type="email"
-                     name="email"
-                     value="{{ $d.Email }}"
-                     required
-                     class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+              <input
+                type="email"
+                name="email"
+                value="{{ $d.Email }}"
+                required
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400"
+              >
             </label>
           </div>
 
           <div class="text-sm text-slate-200">
             <label class="block">
               <span class="block text-xs font-medium text-slate-400 mb-1">Password</span>
-              <input type="password"
-                     name="password"
-                     required
-                     class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400">
+              <input
+                type="password"
+                name="password"
+                required
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400"
+              >
             </label>
             <p class="mt-1 text-xs text-slate-500">
               Use a strong password you don’t use elsewhere.
@@ -51,14 +62,16 @@
           </div>
 
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-            <button type="submit"
-                    class="inline-flex items-center justify-center px-4 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400 transition-colors w-full sm:w-auto">
+            <button
+              type="submit"
+              class="inline-flex items-center justify-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors w-full sm:w-auto focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+            >
               Create account
             </button>
 
             <p class="text-xs text-slate-500">
               Already have an account?
-              <a href="/login" class="text-emerald-400 hover:text-emerald-300 transition-colors">
+              <a href="/login" class="text-sky-300 hover:text-sky-200 transition-colors font-medium">
                 Log in
               </a>
             </p>
@@ -66,7 +79,7 @@
         </form>
       </div>
     </div>
-  </div>
+  </main>
 
   {{ template "layout_footer" . }}
 {{ end }}
