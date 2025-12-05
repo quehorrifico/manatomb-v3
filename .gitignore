@@ -3,3 +3,4 @@ bin/
 build/
 *.log
 *.sqlite
+ops-notes.md

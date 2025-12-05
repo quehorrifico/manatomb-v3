@@ -294,7 +294,9 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/decks", http.StatusSeeOther)
 }
 
-func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
+// ClearSessionCookie clears the current session in the database (if present)
+// and removes the session cookie from the client.
+func (a *App) ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(sessionCookieName)
 	if err == nil && cookie.Value != "" {
 		if sid, err := uuid.Parse(cookie.Value); err == nil {
@@ -309,7 +311,10 @@ func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 		HttpOnly: true,
 	})
+}
 
+func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	a.ClearSessionCookie(w, r)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 

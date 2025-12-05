@@ -185,7 +185,8 @@
     </p>
 
     {{ if .CurrentUser }}
-      <p class="text-xs text-slate-500">
+      <p class="text-xs text-slate-500 space-x-4">
+        <a href="/settings" class="text-sky-300 hover:text-sky-200 font-medium">Settings</a>
         <a href="/logout" class="text-sky-300 hover:text-sky-200 font-medium">Sign out</a>
       </p>
     {{ else }}

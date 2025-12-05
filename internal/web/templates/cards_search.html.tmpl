@@ -113,6 +113,11 @@
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-semibold text-slate-100">
             Results
+            {{ if $ctx.Results }}
+              <span class="ml-1 text-xs text-slate-500">
+                ({{ len $ctx.Results }})
+              </span>
+            {{ end }}
           </h3>
           {{ if .CurrentUser }}
             <p class="text-xs text-slate-500">
@@ -129,64 +134,33 @@
         </div>
 
         {{ if $ctx.Results }}
-          <ul class="space-y-3">
-            {{ range $ctx.Results }}
-              <li class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 text-sm shadow-md shadow-sky-500/10">
-                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                  <div class="space-y-1">
-                    <p class="text-base font-semibold text-slate-50">
-                      {{ .Name }}
-                      <span class="ml-1 text-slate-300 text-sm">{{ .ManaCost }}</span>
-                    </p>
-                    <p class="text-xs uppercase tracking-wide text-slate-400">
-                      {{ .TypeLine }}
-                    </p>
-                    <p class="text-sm text-slate-200 whitespace-pre-line">
-                      {{ .OracleText }}
-                    </p>
+        <ul class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {{ range $ctx.Results }}
+            <li class="rounded-xl border border-slate-800 bg-slate-950/80 p-2 shadow-md shadow-sky-500/10">
+              <button
+                type="button"
+                class="w-full flex items-center justify-center"
+                data-card-detail
+                data-name="{{ .Name }}"
+                data-mana-cost="{{ .ManaCost }}"
+                data-type-line="{{ .TypeLine }}"
+                data-image-uri="{{ .ImageURI }}">
+                {{ if .ImageURI }}
+                  <img src="{{ .ImageURI }}"
+                       alt="{{ .Name }}"
+                       class="w-full h-auto rounded-md border border-slate-800 shadow-md shadow-slate-900/80">
+                {{ else }}
+                  <div class="w-full aspect-[3/4] flex items-center justify-center text-xs text-slate-400">
+                    No image
                   </div>
-
-                  <div class="md:ml-4 md:w-52 shrink-0">
-                    {{ if $.CurrentUser }}
-                      {{ if $ctx.Decks }}
-                        <form method="POST" action="/cards/add-to-deck" class="space-y-2">
-                          <input type="hidden" name="card_name" value="{{ .Name }}">
-                          <label class="block text-xs font-medium text-slate-400">
-                            Add to deck
-                            <select name="deck_id"
-                                    class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-                              {{ range $ctx.Decks }}
-                                <option value="{{ .ID }}">{{ .Name }}</option>
-                              {{ end }}
-                            </select>
-                          </label>
-                          <button type="submit"
-                                  class="w-full inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-                            Add
-                          </button>
-                        </form>
-                      {{ else }}
-                        <p class="text-xs text-slate-500">
-                          You don't have any decks yet.
-                          <a href="/decks/new" class="text-sky-300 hover:text-sky-200 transition-colors">
-                            Create a deck
-                          </a>
-                          first.
-                        </p>
-                      {{ end }}
-                    {{ else }}
-                      <p class="text-xs text-slate-500">
-                        <a href="/login" class="text-sky-300 hover:text-sky-200 transition-colors">
-                          Log in
-                        </a>
-                        to add this card to a deck.
-                      </p>
-                    {{ end }}
-                  </div>
-                </div>
-              </li>
-            {{ end }}
-          </ul>
+                {{ end }}
+              </button>
+              <div class="hidden js-oracle-text">
+                {{ .OracleText }}
+              </div>
+            </li>
+          {{ end }}
+        </ul>
         {{ else }}
           <p class="text-sm text-slate-400">
             No results. Try adjusting your name, colors, or type filters.
@@ -199,6 +173,99 @@
       {{ end }}
     </section>
   </main>
+
+  <!-- Card detail modal -->
+  <div id="card-detail-modal"
+       class="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-50 hidden">
+    <div class="max-w-xl w-full mx-4 rounded-xl border border-slate-800 bg-slate-950 p-4 shadow-lg shadow-sky-500/20 relative">
+      <button type="button"
+              class="absolute top-2 right-2 text-slate-400 hover:text-slate-200 text-xs"
+              data-close-modal>
+        Close
+      </button>
+
+      <div class="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] items-start">
+        <div class="flex items-center justify-center">
+          <img data-field="image"
+               alt=""
+               class="w-full max-w-xs h-auto rounded-md border border-slate-800 shadow-md shadow-slate-900/80">
+        </div>
+
+        <div class="space-y-2 text-sm text-slate-200">
+          <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
+          <p class="text-xs uppercase tracking-wide text-slate-400">
+            <span data-field="type-line"></span>
+          </p>
+          <p class="text-xs text-slate-300">
+            <span class="font-medium text-slate-200">Cost:</span>
+            <span data-field="mana-cost"></span>
+          </p>
+          <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('card-detail-modal');
+    if (!modal) return;
+
+    var nameEl = modal.querySelector('[data-field="name"]');
+    var typeEl = modal.querySelector('[data-field="type-line"]');
+    var manaEl = modal.querySelector('[data-field="mana-cost"]');
+    var oracleEl = modal.querySelector('[data-field="oracle-text"]');
+    var imageEl = modal.querySelector('[data-field="image"]');
+
+    function closeModal() {
+      modal.classList.add('hidden');
+    }
+
+    modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        closeModal();
+      });
+    });
+
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+
+    document.querySelectorAll('[data-card-detail]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var li = btn.closest('li');
+        if (!li) return;
+
+        var oracleNode = li.querySelector('.js-oracle-text');
+        var oracleText = oracleNode ? oracleNode.textContent : '';
+
+        var name = btn.getAttribute('data-name') || '';
+        var manaCost = btn.getAttribute('data-mana-cost') || '';
+        var typeLine = btn.getAttribute('data-type-line') || '';
+        var imageUri = btn.getAttribute('data-image-uri') || '';
+
+        if (nameEl) nameEl.textContent = name;
+        if (typeEl) typeEl.textContent = typeLine;
+        if (manaEl) manaEl.textContent = manaCost;
+        if (oracleEl) oracleEl.textContent = oracleText;
+
+        if (imageEl) {
+          if (imageUri) {
+            imageEl.src = imageUri;
+            imageEl.classList.remove('hidden');
+          } else {
+            imageEl.src = '';
+            imageEl.classList.add('hidden');
+          }
+        }
+
+        modal.classList.remove('hidden');
+      });
+    });
+  });
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

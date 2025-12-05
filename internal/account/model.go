@@ -10,6 +10,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var ErrInvalidPassword = errors.New("invalid password")
+
 type User struct {
 	ID           int64
 	Email        string
@@ -123,4 +125,83 @@ func EnsureSessionsTable(ctx context.Context, db *sql.DB) error {
         );
     `)
 	return err
+}
+
+func UpdateProfile(ctx context.Context, db *sql.DB, userID int64, displayName, email string) error {
+	_, err := db.ExecContext(ctx,
+		`UPDATE users
+		 SET display_name = $1,
+		     email = $2
+		 WHERE id = $3`,
+		displayName, email, userID,
+	)
+	return err
+}
+
+func ChangePassword(ctx context.Context, db *sql.DB, userID int64, currentPassword, newPassword string) error {
+	// Fetch hash
+	var hash string
+	err := db.QueryRowContext(ctx,
+		`SELECT password_hash FROM users WHERE id = $1`,
+		userID,
+	).Scan(&hash)
+	if err != nil {
+		return err
+	}
+
+	// Check current password
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(currentPassword)); err != nil {
+		return ErrInvalidPassword
+	}
+
+	// Hash new password
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.ExecContext(ctx,
+		`UPDATE users SET password_hash = $1 WHERE id = $2`,
+		string(newHash), userID,
+	)
+	return err
+}
+
+func DeleteAccount(ctx context.Context, db *sql.DB, userID int64) error {
+	// Order matters if you don't have ON DELETE CASCADE.
+	// If you do have foreign keys with cascade, some of this may be redundant.
+
+	// Delete deck_cards via decks
+	if _, err := db.ExecContext(ctx,
+		`DELETE FROM deck_cards WHERE deck_id IN (SELECT id FROM decks WHERE user_id = $1)`,
+		userID,
+	); err != nil {
+		return err
+	}
+
+	// Delete decks
+	if _, err := db.ExecContext(ctx,
+		`DELETE FROM decks WHERE user_id = $1`,
+		userID,
+	); err != nil {
+		return err
+	}
+
+	// Delete sessions
+	if _, err := db.ExecContext(ctx,
+		`DELETE FROM sessions WHERE user_id = $1`,
+		userID,
+	); err != nil {
+		return err
+	}
+
+	// Delete user
+	if _, err := db.ExecContext(ctx,
+		`DELETE FROM users WHERE id = $1`,
+		userID,
+	); err != nil {
+		return err
+	}
+
+	return nil
 }

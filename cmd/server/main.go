@@ -64,6 +64,17 @@ func main() {
 	})
 	mux.HandleFunc("/logout", app.HandleLogout)
 
+	mux.HandleFunc("/settings", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			app.HandleSettingsShow(w, r)
+		case http.MethodPost:
+			app.HandleSettingsPost(w, r)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
 	mux.HandleFunc("/decks", app.HandleDecksList)
 	mux.HandleFunc("/decks/new", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
