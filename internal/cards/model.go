@@ -53,7 +53,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		return nil, ErrCardNotFound
 	}
 
-	c := results[0] // Card from your scryfall.go: Name, ManaCost, TypeLine, OracleText, ImageURI
+	c := results[0]
 
 	// 3) Insert card into DB using fields that match your Card struct.
 	var newID int64

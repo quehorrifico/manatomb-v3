@@ -119,18 +119,9 @@
               </span>
             {{ end }}
           </h3>
-          {{ if .CurrentUser }}
-            <p class="text-xs text-slate-500">
-              Click “Add to deck” to add directly from here.
-            </p>
-          {{ else }}
-            <p class="text-xs text-slate-500">
-              <a href="/login" class="text-sky-300 hover:text-sky-200 transition-colors">
-                Log in
-              </a>
-              to add cards to your decks.
-            </p>
-          {{ end }}
+          <p class="text-xs text-slate-500">
+            Click a card to see details.
+          </p>
         </div>
 
         {{ if $ctx.Results }}
@@ -144,7 +135,9 @@
                 data-name="{{ .Name }}"
                 data-mana-cost="{{ .ManaCost }}"
                 data-type-line="{{ .TypeLine }}"
-                data-image-uri="{{ .ImageURI }}">
+                data-image-uri="{{ .ImageURI }}"
+                data-price="{{ .PriceUSD }}"
+                data-artist="{{ .Artist }}">
                 {{ if .ImageURI }}
                   <img src="{{ .ImageURI }}"
                        alt="{{ .Name }}"
@@ -191,15 +184,31 @@
                class="w-full max-w-xs h-auto rounded-md border border-slate-800 shadow-md shadow-slate-900/80">
         </div>
 
-        <div class="space-y-2 text-sm text-slate-200">
+        <div class="space-y-3 text-sm text-slate-200">
           <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
           <p class="text-xs uppercase tracking-wide text-slate-400">
             <span data-field="type-line"></span>
           </p>
-          <p class="text-xs text-slate-300">
-            <span class="font-medium text-slate-200">Cost:</span>
-            <span data-field="mana-cost"></span>
+
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+            <span>
+              <span class="font-medium text-slate-200">Cost:</span>
+              <span data-field="mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
+            </span>
+            <span>
+              <span class="font-medium text-slate-200">Price:</span>
+              <span data-field="price-usd">—</span>
+            </span>
+            <span>
+              <span class="font-medium text-slate-200">Artist:</span>
+              <span data-field="artist">—</span>
+            </span>
+          </div>
+
+          <p class="text-xs text-slate-500">
+            Prices via Scryfall (USD, approximate).
           </p>
+
           <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
         </div>
       </div>
@@ -216,9 +225,25 @@
     var manaEl = modal.querySelector('[data-field="mana-cost"]');
     var oracleEl = modal.querySelector('[data-field="oracle-text"]');
     var imageEl = modal.querySelector('[data-field="image"]');
+    var priceEl = modal.querySelector('[data-field="price-usd"]');
+    var artistEl = modal.querySelector('[data-field="artist"]');
 
     function closeModal() {
       modal.classList.add('hidden');
+    }
+
+    function renderManaSymbols(manaCost) {
+      if (!manaCost) return '';
+      var html = '';
+      var re = /\{([^}]+)\}/g;
+      var match;
+      while ((match = re.exec(manaCost)) !== null) {
+        var sym = match[1];
+        var encoded = encodeURIComponent(sym);
+        var src = 'https://svgs.scryfall.io/card-symbols/' + encoded + '.svg';
+        html += '<img src="' + src + '" alt="{' + sym + '}" class="inline-block h-5 align-text-bottom mr-0.5">';
+      }
+      return html;
     }
 
     modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
@@ -245,11 +270,22 @@
         var manaCost = btn.getAttribute('data-mana-cost') || '';
         var typeLine = btn.getAttribute('data-type-line') || '';
         var imageUri = btn.getAttribute('data-image-uri') || '';
+        var price = btn.getAttribute('data-price') || '';
+        var artist = btn.getAttribute('data-artist') || '';
 
+        // Set values from server-provided data
         if (nameEl) nameEl.textContent = name;
         if (typeEl) typeEl.textContent = typeLine;
-        if (manaEl) manaEl.textContent = manaCost;
+        if (manaEl) manaEl.innerHTML = renderManaSymbols(manaCost);
         if (oracleEl) oracleEl.textContent = oracleText;
+
+        if (priceEl) {
+          priceEl.textContent = price ? ('$' + price) : '—';
+        }
+
+        if (artistEl) {
+          artistEl.textContent = artist || '—';
+        }
 
         if (imageEl) {
           if (imageUri) {

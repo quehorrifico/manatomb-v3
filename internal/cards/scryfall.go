@@ -15,6 +15,10 @@ type Card struct {
 	TypeLine   string `json:"type_line"`
 	OracleText string `json:"oracle_text"`
 	ImageURI   string `json:"image_uris_normal"`
+
+	// Extra metadata used by the UI (not required to be persisted).
+	PriceUSD string `json:"-"`
+	Artist   string `json:"-"`
 }
 
 type scryfallCard struct {
@@ -23,6 +27,12 @@ type scryfallCard struct {
 	TypeLine   string            `json:"type_line"`
 	OracleText string            `json:"oracle_text"`
 	ImageURIs  map[string]string `json:"image_uris"`
+	Prices     struct {
+		USD       string `json:"usd"`
+		USDFoil   string `json:"usd_foil"`
+		USDEtched string `json:"usd_etched"`
+	} `json:"prices"`
+	Artist string `json:"artist"`
 }
 
 type ScryfallClient struct {
@@ -81,12 +91,24 @@ func (c *ScryfallClient) SearchByName(ctx context.Context, q string) ([]Card, er
 	out := make([]Card, 0, len(body.Data))
 	for _, sc := range body.Data {
 		img := sc.ImageURIs["normal"]
+
+		// Prefer non-foil USD, then fallback to foil / etched if needed.
+		price := sc.Prices.USD
+		if price == "" {
+			price = sc.Prices.USDFoil
+		}
+		if price == "" {
+			price = sc.Prices.USDEtched
+		}
+
 		out = append(out, Card{
 			Name:       sc.Name,
 			ManaCost:   sc.ManaCost,
 			TypeLine:   sc.TypeLine,
 			OracleText: sc.OracleText,
 			ImageURI:   img,
+			PriceUSD:   price,
+			Artist:     sc.Artist,
 		})
 	}
 	return out, nil
