@@ -12,9 +12,10 @@ import (
 	"manatomb/app/internal/decks"
 )
 
-// cardSearchResult is a view model for card search UI. It flattens the
-// core fields we display in the grid + a JSON-encoded faces slice for MDFC.
-type cardSearchResult struct {
+// searchResult is a shared view model for both general card search and
+// commander search. It flattens the core fields we display in the grid plus
+// a JSON-encoded faces slice for MDFC / multi-faced cards.
+type searchResult struct {
 	Name       string
 	ManaCost   string
 	TypeLine   string
@@ -24,25 +25,36 @@ type cardSearchResult struct {
 	Artist     string
 
 	// FacesJSON is a JSON-encoded []cards.CardFace (from cards.Card.Faces).
-	// It is used by the frontend to support MDFC "flip" behavior in the modal.
+	// It is used by the frontend to support MDFC "flip" behavior in the detail modals.
 	FacesJSON string
 }
 
-// commanderSearchResult is a view model for commander search UI. It mirrors the
-// cardSearchResult shape but is kept separate in case commander-specific fields
-// diverge later.
-type commanderSearchResult struct {
-	Name       string
-	ManaCost   string
-	TypeLine   string
-	OracleText string
-	ImageURI   string
-	PriceUSD   string
-	Artist     string
+// buildSearchResults converts a slice of cards.Card into a slice of searchResult,
+// pre-encoding the Faces slice into JSON for MDFC support.
+func buildSearchResults(cardsIn []cards.Card) []searchResult {
+	viewResults := make([]searchResult, 0, len(cardsIn))
 
-	// FacesJSON is a JSON-encoded []cards.CardFace (from cards.Card.Faces).
-	// It is used by the frontend to support MDFC "flip" behavior in the commander modal.
-	FacesJSON string
+	for _, c := range cardsIn {
+		facesJSON := ""
+		if len(c.Faces) > 0 {
+			if b, err := json.Marshal(c.Faces); err == nil {
+				facesJSON = string(b)
+			}
+		}
+
+		viewResults = append(viewResults, searchResult{
+			Name:       c.Name,
+			ManaCost:   c.ManaCost,
+			TypeLine:   c.TypeLine,
+			OracleText: c.OracleText,
+			ImageURI:   c.ImageURI,
+			PriceUSD:   c.PriceUSD,
+			Artist:     c.Artist,
+			FacesJSON:  facesJSON,
+		})
+	}
+
+	return viewResults
 }
 
 func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
@@ -108,26 +120,7 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build view-model results with pre-encoded faces JSON for MDFC support.
-	viewResults := make([]cardSearchResult, 0, len(results))
-	for _, c := range results {
-		facesJSON := ""
-		if len(c.Faces) > 0 {
-			if b, err := json.Marshal(c.Faces); err == nil {
-				facesJSON = string(b)
-			}
-		}
-
-		viewResults = append(viewResults, cardSearchResult{
-			Name:       c.Name,
-			ManaCost:   c.ManaCost,
-			TypeLine:   c.TypeLine,
-			OracleText: c.OracleText,
-			ImageURI:   c.ImageURI,
-			PriceUSD:   c.PriceUSD,
-			Artist:     c.Artist,
-			FacesJSON:  facesJSON,
-		})
-	}
+	viewResults := buildSearchResults(results)
 
 	var userDecks []decks.Deck
 	if user != nil {
@@ -143,7 +136,7 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 		CurrentUser: user,
 		Data: struct {
 			Query       string
-			Results     []cardSearchResult
+			Results     []searchResult
 			Decks       []decks.Deck
 			HasSearched bool
 		}{
@@ -235,32 +228,13 @@ func (a *App) HandleCommanderSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build view-model results with pre-encoded faces JSON for MDFC commanders.
-	viewResults := make([]commanderSearchResult, 0, len(rawResults))
-	for _, c := range rawResults {
-		facesJSON := ""
-		if len(c.Faces) > 0 {
-			if b, err := json.Marshal(c.Faces); err == nil {
-				facesJSON = string(b)
-			}
-		}
-
-		viewResults = append(viewResults, commanderSearchResult{
-			Name:       c.Name,
-			ManaCost:   c.ManaCost,
-			TypeLine:   c.TypeLine,
-			OracleText: c.OracleText,
-			ImageURI:   c.ImageURI,
-			PriceUSD:   c.PriceUSD,
-			Artist:     c.Artist,
-			FacesJSON:  facesJSON,
-		})
-	}
+	viewResults := buildSearchResults(rawResults)
 
 	data := TemplateData{
 		CurrentUser: user,
 		Data: struct {
 			Query   string
-			Results []commanderSearchResult
+			Results []searchResult
 		}{
 			Query:   query,
 			Results: viewResults,
