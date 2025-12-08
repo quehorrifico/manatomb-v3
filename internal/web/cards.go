@@ -28,6 +28,23 @@ type cardSearchResult struct {
 	FacesJSON string
 }
 
+// commanderSearchResult is a view model for commander search UI. It mirrors the
+// cardSearchResult shape but is kept separate in case commander-specific fields
+// diverge later.
+type commanderSearchResult struct {
+	Name       string
+	ManaCost   string
+	TypeLine   string
+	OracleText string
+	ImageURI   string
+	PriceUSD   string
+	Artist     string
+
+	// FacesJSON is a JSON-encoded []cards.CardFace (from cards.Card.Faces).
+	// It is used by the frontend to support MDFC "flip" behavior in the commander modal.
+	FacesJSON string
+}
+
 func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	flash := readFlash(w, r)
@@ -196,32 +213,60 @@ func (a *App) HandleCardAddToDeck(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) HandleCommanderSearch(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
-	query := r.URL.Query().Get("q")
 	flash := readFlash(w, r)
 
-	var results []cards.Card
-	if query != "" {
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	hasSearched := query != ""
+
+	var rawResults []cards.Card
+	var errMsg string
+
+	if hasSearched {
 		scry := cards.NewScryfallClient()
 		// Bias search toward commander-legal cards
 		searchQuery := query + " is:commander"
-		var err error
-		results, err = scry.SearchByName(r.Context(), searchQuery)
+		found, err := scry.SearchByName(r.Context(), searchQuery)
 		if err != nil {
-			http.Error(w, "error searching commanders", http.StatusBadGateway)
-			return
+			log.Printf("commander search error for %q (built query %q): %v", query, searchQuery, err)
+			errMsg = "There was a problem searching for commanders. Please try again."
+		} else {
+			rawResults = found
 		}
+	}
+
+	// Build view-model results with pre-encoded faces JSON for MDFC commanders.
+	viewResults := make([]commanderSearchResult, 0, len(rawResults))
+	for _, c := range rawResults {
+		facesJSON := ""
+		if len(c.Faces) > 0 {
+			if b, err := json.Marshal(c.Faces); err == nil {
+				facesJSON = string(b)
+			}
+		}
+
+		viewResults = append(viewResults, commanderSearchResult{
+			Name:       c.Name,
+			ManaCost:   c.ManaCost,
+			TypeLine:   c.TypeLine,
+			OracleText: c.OracleText,
+			ImageURI:   c.ImageURI,
+			PriceUSD:   c.PriceUSD,
+			Artist:     c.Artist,
+			FacesJSON:  facesJSON,
+		})
 	}
 
 	data := TemplateData{
 		CurrentUser: user,
 		Data: struct {
 			Query   string
-			Results []cards.Card
+			Results []commanderSearchResult
 		}{
 			Query:   query,
-			Results: results,
+			Results: viewResults,
 		},
 		Flash: flash,
+		Error: errMsg,
 	}
 
 	a.Renderer.Render(w, "commanders_search", data)
