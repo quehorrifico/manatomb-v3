@@ -11,8 +11,9 @@ import (
 var ErrCardNotFound = errors.New("card not found")
 
 type DBCard struct {
-	ID   int64
-	Name string
+	ID       int64
+	Name     string
+	ImageURI string
 }
 
 // EnsureCardByName ensures that the card exists in our DB.
@@ -29,10 +30,10 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 	// 1) Try to find card already stored in DB by exact name
 	var existing DBCard
 	err := db.QueryRowContext(ctx, `
-		SELECT id, name
+		SELECT id, name, image_uri
 		FROM cards
 		WHERE name = $1
-	`, name).Scan(&existing.ID, &existing.Name)
+	`, name).Scan(&existing.ID, &existing.Name, &existing.ImageURI)
 	if err == nil {
 		return &existing, nil
 	}
@@ -55,24 +56,78 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 
 	c := results[0]
 
-	// 3) Insert card into DB using fields that match your Card struct.
+	// 3) Insert card into DB using fields that match the normalized Card struct.
+	colors := ""
+	if len(c.Colors) > 0 {
+		colors = strings.Join(c.Colors, ",")
+	}
+	colorIdentity := ""
+	if len(c.ColorIdentity) > 0 {
+		colorIdentity = strings.Join(c.ColorIdentity, ",")
+	}
+
 	var newID int64
 	err = db.QueryRowContext(ctx, `
-		INSERT INTO cards (name, mana_cost, type_line, oracle_text, image_uri)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO cards (
+			name,
+			mana_cost,
+			type_line,
+			oracle_text,
+			image_uri,
+			colors,
+			color_identity,
+			cmc,
+			layout,
+			commander_legal,
+			price_usd,
+			artist,
+			edhrec_rank,
+			scryfall_uri,
+			set_code,
+			set_name,
+			scryfall_id,
+			oracle_id
+		)
+		VALUES (
+			$1, $2, $3, $4, $5,
+			$6, $7, $8, $9, $10,
+			$11, $12, $13, $14, $15,
+			$16, $17, $18
+		)
 		RETURNING id
-	`, c.Name, c.ManaCost, c.TypeLine, c.OracleText, c.ImageURI).Scan(&newID)
+	`,
+		c.Name,
+		c.ManaCost,
+		c.TypeLine,
+		c.OracleText,
+		c.ImageURI,
+		colors,
+		colorIdentity,
+		c.CMC,
+		c.Layout,
+		c.CommanderLegal,
+		c.PriceUSD,
+		c.Artist,
+		c.EDHRecRank,
+		c.ScryfallURI,
+		c.SetCode,
+		c.SetName,
+		c.ID,
+		c.OracleID,
+	).Scan(&newID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &DBCard{
-		ID:   newID,
-		Name: c.Name,
+		ID:       newID,
+		Name:     c.Name,
+		ImageURI: c.ImageURI,
 	}, nil
 }
 
 func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
+	// Base table definition (for new databases).
 	_, err := db.ExecContext(ctx, `
         CREATE TABLE IF NOT EXISTS cards (
             id BIGSERIAL PRIMARY KEY,
@@ -83,5 +138,32 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
             image_uri TEXT
         );
     `)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Add new commander/MDFC-related columns if they don't exist yet.
+	alterStmts := []string{
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS colors TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS color_identity TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS cmc DOUBLE PRECISION;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS layout TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS commander_legal BOOLEAN;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS price_usd TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS artist TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS edhrec_rank INTEGER;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS scryfall_uri TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS set_code TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS set_name TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS scryfall_id TEXT;`,
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS oracle_id TEXT;`,
+	}
+
+	for _, stmt := range alterStmts {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

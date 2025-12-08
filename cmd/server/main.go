@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 
@@ -13,27 +14,77 @@ import (
 	"manatomb/app/internal/web"
 )
 
+func ensureTables(ctx context.Context, database *sql.DB) {
+	if err := account.EnsureUserTable(ctx, database); err != nil {
+		log.Fatalf("failed to ensure users table: %v", err)
+	}
+
+	if err := account.EnsureSessionsTable(ctx, database); err != nil {
+		log.Fatalf("failed to ensure sessions table: %v", err)
+	}
+
+	if err := cards.EnsureCardsTable(ctx, database); err != nil {
+		log.Fatalf("failed to ensure cards table: %v", err)
+	}
+
+	if err := decks.EnsureDeckTables(ctx, database); err != nil {
+		log.Fatalf("failed to ensure deck and deck_cards tables: %v", err)
+	}
+}
+
+// methodSwitch returns a handler that dispatches to the given GET / POST handlers
+// and responds with 405 for unsupported methods.
+func methodSwitch(get, post http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			if get != nil {
+				get(w, r)
+				return
+			}
+		case http.MethodPost:
+			if post != nil {
+				post(w, r)
+				return
+			}
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// registerRoutes wires up all HTTP routes for the application.
+func registerRoutes(mux *http.ServeMux, app *web.App) {
+	// Home / auth
+	mux.HandleFunc("/", app.HandleHome)
+	mux.HandleFunc("/signup", methodSwitch(app.HandleSignupShow, app.HandleSignupPost))
+	mux.HandleFunc("/login", methodSwitch(app.HandleLoginShow, app.HandleLoginPost))
+	mux.HandleFunc("/logout", app.HandleLogout)
+
+	// User settings
+	mux.HandleFunc("/settings", methodSwitch(app.HandleSettingsShow, app.HandleSettingsPost))
+
+	// Decks
+	mux.HandleFunc("/decks", app.HandleDecksList)
+	mux.HandleFunc("/decks/new", methodSwitch(app.HandleDeckNewShow, app.HandleDeckNewPost))
+	mux.HandleFunc("/decks/edit", methodSwitch(app.HandleDeckEditShow, app.HandleDeckEditPost))
+	mux.HandleFunc("/decks/delete", app.HandleDeckDeletePost)
+	mux.HandleFunc("/decks/create-from-commander", app.HandleDeckCreateFromCommander)
+	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
+	mux.HandleFunc("/decks/", app.HandleDeckShow) // /decks/{id}
+
+	// Cards / commanders / rules
+	mux.HandleFunc("/cards/search", app.HandleCardSearch)
+	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
+	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
+	mux.HandleFunc("/rules", app.HandleRulesHome)
+}
+
 func main() {
 	cfg := config.Load()
 	database := db.Open(cfg.DatabaseURL)
 	defer database.Close()
 
-	// ✅ Ensure all required tables exist
-	if err := account.EnsureUserTable(context.Background(), database); err != nil {
-		log.Fatalf("failed to ensure users table: %v", err)
-	}
-
-	if err := account.EnsureSessionsTable(context.Background(), database); err != nil {
-		log.Fatalf("failed to ensure sessions table: %v", err)
-	}
-
-	if err := cards.EnsureCardsTable(context.Background(), database); err != nil {
-		log.Fatalf("failed to ensure cards table: %v", err)
-	}
-
-	if err := decks.EnsureDeckTables(context.Background(), database); err != nil {
-		log.Fatalf("failed to ensure deck and deck_cards tables: %v", err)
-	}
+	ensureTables(context.Background(), database)
 
 	renderer := web.NewRenderer()
 	app := &web.App{
@@ -42,73 +93,9 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", app.HandleHome)
-	mux.HandleFunc("/signup", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			app.HandleSignupShow(w, r)
-		case http.MethodPost:
-			app.HandleSignupPost(w, r)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			app.HandleLoginShow(w, r)
-		} else if r.Method == http.MethodPost {
-			app.HandleLoginPost(w, r)
-		} else {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/logout", app.HandleLogout)
+	registerRoutes(mux, app)
 
-	mux.HandleFunc("/settings", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			app.HandleSettingsShow(w, r)
-		case http.MethodPost:
-			app.HandleSettingsPost(w, r)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/decks", app.HandleDecksList)
-	mux.HandleFunc("/decks/new", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			app.HandleDeckNewShow(w, r)
-		} else if r.Method == http.MethodPost {
-			app.HandleDeckNewPost(w, r)
-		} else {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/decks/edit", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			app.HandleDeckEditShow(w, r)
-		} else if r.Method == http.MethodPost {
-			app.HandleDeckEditPost(w, r)
-		} else {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/decks/delete", app.HandleDeckDeletePost)
-
-	// NEW: public decks stub
-	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
-
-	mux.HandleFunc("/decks/", app.HandleDeckShow) // /decks/{id}
-
-	mux.HandleFunc("/cards/search", app.HandleCardSearch)
-	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
-	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
-
-	// NEW: rulings stub
-	mux.HandleFunc("/rules", app.HandleRulesHome)
-
-	// Wrap with middleware (NotFound → User → Recovery)
+	// Wrap with middleware (outermost last)
 	var handler http.Handler = mux
 	handler = app.WithNotFoundMiddleware(handler)
 	handler = app.WithUserMiddleware(handler)

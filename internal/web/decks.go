@@ -7,16 +7,67 @@ import (
 	"strconv"
 	"strings"
 
+	"manatomb/app/internal/account"
 	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
 )
 
-// List all decks for the current user.
-func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
+// deckListItem is a lightweight view model for rendering the "My Decks" page.
+// It includes the core deck fields plus an optional CommanderImageURI for UI use.
+type deckListItem struct {
+	ID                int64
+	Name              string
+	Description       string
+	CommanderName     string
+	CommanderImageURI string
+}
+
+// currentUserOrRedirect ensures there is a logged-in user, otherwise redirects
+// to the login page and returns nil.
+func (a *App) currentUserOrRedirect(w http.ResponseWriter, r *http.Request) *account.User {
 	user := CurrentUser(r)
-	flash := readFlash(w, r)
 	if user == nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return nil
+	}
+	return user
+}
+
+// parseDeckIDFromPath extracts the deck ID from a path like /decks/{id}.
+func parseDeckIDFromPath(r *http.Request) (int64, error) {
+	const prefix = "/decks/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return 0, fmt.Errorf("invalid deck path")
+	}
+	idStr := strings.TrimPrefix(r.URL.Path, prefix)
+	if idStr == "" {
+		return 0, fmt.Errorf("missing deck id in path")
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid deck id")
+	}
+	return id, nil
+}
+
+// parseDeckIDFromForm extracts the deck ID from a submitted form (field "id").
+func parseDeckIDFromForm(r *http.Request) (int64, error) {
+	idStr := strings.TrimSpace(r.Form.Get("id"))
+	if idStr == "" {
+		return 0, errors.New("missing deck id")
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return 0, errors.New("invalid deck id")
+	}
+	return id, nil
+}
+
+// List all decks for the current user.
+func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
+	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
+	if user == nil {
 		return
 	}
 
@@ -26,9 +77,33 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Build a view model with optional commander art URIs, fetched via EnsureCardByName.
+	items := make([]deckListItem, 0, len(userDecks))
+
+	for _, d := range userDecks {
+		item := deckListItem{
+			ID:            d.ID,
+			Name:          d.Name,
+			Description:   d.Description,
+			CommanderName: d.CommanderName,
+		}
+
+		commanderName := strings.TrimSpace(d.CommanderName)
+		if commanderName != "" {
+			if c, err := cards.EnsureCardByName(r.Context(), a.DB, commanderName); err == nil {
+				if c.ImageURI != "" {
+					item.CommanderImageURI = c.ImageURI
+				}
+			}
+			// If EnsureCardByName fails or has no image, we just show the placeholder in the UI.
+		}
+
+		items = append(items, item)
+	}
+
 	data := TemplateData{
 		CurrentUser: user,
-		Data:        userDecks,
+		Data:        items,
 		Flash:       flash,
 	}
 
@@ -36,16 +111,18 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
-	flash := readFlash(w, r)
-
-	// Optional commander_name from query string (e.g., coming from commander search)
-	commanderName := r.URL.Query().Get("commander_name")
+	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
+	if commanderName == "" {
+		// No commander yet: push the user to the commander search flow first.
+		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
 
 	data := TemplateData{
 		CurrentUser: user,
@@ -67,9 +144,8 @@ func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 
 // Handle POST from "new deck" form.
 func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -81,6 +157,25 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.Form.Get("name"))
 	desc := strings.TrimSpace(r.Form.Get("description"))
 	commander := strings.TrimSpace(r.Form.Get("commander_name"))
+
+	// Require a commander
+	if commander == "" {
+		data := TemplateData{
+			CurrentUser: user,
+			Data: struct {
+				CommanderName string
+				Name          string
+				Description   string
+			}{
+				CommanderName: commander,
+				Name:          name,
+				Description:   desc,
+			},
+			Error: "Please choose a commander first.",
+		}
+		a.Renderer.Render(w, "decks_new", data)
+		return
+	}
 
 	// Basic validation: require a name
 	if name == "" {
@@ -112,18 +207,61 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
 }
 
-// Show a single deck, its cards, and commander details.
-// Also handles POSTs to add/decrement cards.
-func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
-	flash := readFlash(w, r)
+// Handle creating a new deck directly from a chosen commander.
+//
+// This is intended to be called from the commander search page when the user
+// clicks "Use as commander". It will:
+//   - default the deck name to the commander name (if no explicit name is given)
+//   - create the deck with an empty description
+//   - redirect straight to the deck show page.
+func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Request) {
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
-	idStr := r.URL.Path[len("/decks/"):]
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	commander := strings.TrimSpace(r.FormValue("commander_name"))
+	if commander == "" {
+		// No commander provided – send user back to commander search with a friendly message.
+		setFlash(w, "Please choose a commander first.")
+		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
+
+	// Optional deck name (for future flexibility); default to commander name.
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		name = commander
+	}
+
+	// For this flow we start with an empty description.
+	desc := ""
+
+	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, name, desc, commander)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	setFlash(w, "Deck created.")
+	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
+}
+
+// Show a single deck, its cards, and commander details.
+// Also handles POSTs to add/decrement cards.
+func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
+	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
+	if user == nil {
+		return
+	}
+
+	id, err := parseDeckIDFromPath(r)
 	if err != nil {
 		a.RenderNotFound(w, r)
 		return
@@ -269,10 +407,9 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckEditShow(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
 	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -304,9 +441,8 @@ func (a *App) HandleDeckEditShow(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -315,15 +451,9 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := r.Form.Get("id")
-	if idStr == "" {
-		http.Error(w, "missing deck id", http.StatusBadRequest)
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseDeckIDFromForm(r)
 	if err != nil {
-		http.Error(w, "invalid deck id", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -337,7 +467,7 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 	commander := r.Form.Get("commander_name")
 
 	if err := decks.UpdateDeck(r.Context(), a.DB, id, name, desc, commander); err != nil {
-		http.Error(w, "could not update deck", http.StatusInternalServerError)
+		a.RenderServerError(w, r, err)
 		return
 	}
 
@@ -346,9 +476,8 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckDeletePost(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -362,25 +491,19 @@ func (a *App) HandleDeckDeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := r.Form.Get("id")
-	if idStr == "" {
-		http.Error(w, "missing deck id", http.StatusBadRequest)
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseDeckIDFromForm(r)
 	if err != nil {
-		http.Error(w, "invalid deck id", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if _, err := decks.GetDeck(r.Context(), a.DB, id, user.ID); err != nil {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
 	if err := decks.DeleteDeck(r.Context(), a.DB, id); err != nil {
-		http.Error(w, "could not delete deck", http.StatusInternalServerError)
+		a.RenderServerError(w, r, err)
 		return
 	}
 
