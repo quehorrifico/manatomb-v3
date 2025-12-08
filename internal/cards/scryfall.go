@@ -9,30 +9,212 @@ import (
 	"time"
 )
 
+// CardFace represents one face of a multi-faced card (MDFC, split, etc.).
+type CardFace struct {
+	Name       string   `json:"name"`
+	ManaCost   string   `json:"mana_cost"`
+	TypeLine   string   `json:"type_line"`
+	OracleText string   `json:"oracle_text"`
+	ImageURI   string   `json:"image_uri"`
+	Artist     string   `json:"artist"`
+	Colors     []string `json:"colors"`
+	ColorID    []string `json:"color_identity"`
+}
+
+// Card is the normalized view of a card used by ManaTomb. It hides the
+// complexity of different Scryfall layouts (normal, MDFC, split, etc.) and
+// exposes a single "primary face" plus commander-relevant metadata.
 type Card struct {
-	Name       string `json:"name"`
-	ManaCost   string `json:"mana_cost"`
-	TypeLine   string `json:"type_line"`
-	OracleText string `json:"oracle_text"`
-	ImageURI   string `json:"image_uris_normal"`
+	ID       string
+	OracleID string
+
+	Name       string
+	ManaCost   string
+	TypeLine   string
+	OracleText string
+	ImageURI   string
+
+	Colors         []string
+	ColorIdentity  []string
+	CMC            float64
+	Layout         string
+	CommanderLegal bool
 
 	// Extra metadata used by the UI (not required to be persisted).
-	PriceUSD string `json:"-"`
-	Artist   string `json:"-"`
+	PriceUSD   string
+	Artist     string
+	EDHRecRank int
+
+	ScryfallURI string
+	SetCode     string
+	SetName     string
+
+	// Faces contains all faces for MDFC/similar layouts. For normal cards this will be empty.
+	Faces []CardFace `json:"faces"`
 }
 
 type scryfallCard struct {
+	ID       string `json:"id"`
+	OracleID string `json:"oracle_id"`
+
 	Name       string            `json:"name"`
 	ManaCost   string            `json:"mana_cost"`
 	TypeLine   string            `json:"type_line"`
 	OracleText string            `json:"oracle_text"`
 	ImageURIs  map[string]string `json:"image_uris"`
-	Prices     struct {
+
+	// MDFC / modal double-faced cards
+	CardFaces []struct {
+		Name       string            `json:"name"`
+		ManaCost   string            `json:"mana_cost"`
+		TypeLine   string            `json:"type_line"`
+		OracleText string            `json:"oracle_text"`
+		ImageURIs  map[string]string `json:"image_uris"`
+		Artist     string            `json:"artist"`
+		Colors     []string          `json:"colors"`
+		ColorID    []string          `json:"color_identity"`
+	} `json:"card_faces"`
+
+	Colors        []string          `json:"colors"`
+	ColorIdentity []string          `json:"color_identity"`
+	CMC           float64           `json:"cmc"`
+	Layout        string            `json:"layout"`
+	Legalities    map[string]string `json:"legalities"`
+
+	Prices struct {
 		USD       string `json:"usd"`
 		USDFoil   string `json:"usd_foil"`
 		USDEtched string `json:"usd_etched"`
 	} `json:"prices"`
-	Artist string `json:"artist"`
+
+	Artist     string `json:"artist"`
+	EDHRecRank int    `json:"edhrec_rank"`
+
+	ScryfallURI string `json:"scryfall_uri"`
+	Set         string `json:"set"`
+	SetName     string `json:"set_name"`
+}
+
+// normalizeScryfallCard flattens a raw Scryfall card (which may be MDFC or
+// other layouts) into a single Card value that the rest of the app can use.
+func normalizeScryfallCard(sc scryfallCard) Card {
+	// Start with top-level fields.
+	name := sc.Name
+	manaCost := sc.ManaCost
+	typeLine := sc.TypeLine
+	oracleText := sc.OracleText
+	artist := sc.Artist
+	colors := sc.Colors
+	colorID := sc.ColorIdentity
+
+	// Pick an image URI, preferring primary face for MDFCs.
+	img := ""
+	if len(sc.CardFaces) > 0 {
+		face := sc.CardFaces[0]
+		if face.Name != "" {
+			name = face.Name
+		}
+		if face.ManaCost != "" {
+			manaCost = face.ManaCost
+		}
+		if face.TypeLine != "" {
+			typeLine = face.TypeLine
+		}
+		if face.OracleText != "" {
+			oracleText = face.OracleText
+		}
+		if face.Artist != "" {
+			artist = face.Artist
+		}
+		if len(face.Colors) > 0 {
+			colors = face.Colors
+		}
+		if len(face.ColorID) > 0 {
+			colorID = face.ColorID
+		}
+		if face.ImageURIs != nil {
+			img = face.ImageURIs["normal"]
+			if img == "" {
+				img = face.ImageURIs["large"]
+			}
+			if img == "" {
+				img = face.ImageURIs["small"]
+			}
+		}
+	}
+
+	// If we didn't get an image from faces, try the top-level image_uris.
+	if img == "" && sc.ImageURIs != nil {
+		img = sc.ImageURIs["normal"]
+		if img == "" {
+			img = sc.ImageURIs["large"]
+		}
+		if img == "" {
+			img = sc.ImageURIs["small"]
+		}
+	}
+
+	// Prefer non-foil USD, then fallback to other prices.
+	price := sc.Prices.USD
+	if price == "" {
+		price = sc.Prices.USDFoil
+	}
+	if price == "" {
+		price = sc.Prices.USDEtched
+	}
+
+	commanderLegal := false
+	if sc.Legalities != nil && sc.Legalities["commander"] == "legal" {
+		commanderLegal = true
+	}
+
+	// Build faces slice for MDFC and similar layouts.
+	faces := make([]CardFace, 0, len(sc.CardFaces))
+	for _, f := range sc.CardFaces {
+		faceImg := ""
+		if f.ImageURIs != nil {
+			faceImg = f.ImageURIs["normal"]
+			if faceImg == "" {
+				faceImg = f.ImageURIs["large"]
+			}
+			if faceImg == "" {
+				faceImg = f.ImageURIs["small"]
+			}
+		}
+
+		faces = append(faces, CardFace{
+			Name:       f.Name,
+			ManaCost:   f.ManaCost,
+			TypeLine:   f.TypeLine,
+			OracleText: f.OracleText,
+			ImageURI:   faceImg,
+			Artist:     f.Artist,
+			Colors:     f.Colors,
+			ColorID:    f.ColorID,
+		})
+	}
+
+	return Card{
+		ID:             sc.ID,
+		OracleID:       sc.OracleID,
+		Name:           name,
+		ManaCost:       manaCost,
+		TypeLine:       typeLine,
+		OracleText:     oracleText,
+		ImageURI:       img,
+		Colors:         colors,
+		ColorIdentity:  colorID,
+		CMC:            sc.CMC,
+		Layout:         sc.Layout,
+		CommanderLegal: commanderLegal,
+		PriceUSD:       price,
+		Artist:         artist,
+		EDHRecRank:     sc.EDHRecRank,
+		ScryfallURI:    sc.ScryfallURI,
+		SetCode:        sc.Set,
+		SetName:        sc.SetName,
+		Faces:          faces,
+	}
 }
 
 type ScryfallClient struct {
@@ -90,26 +272,7 @@ func (c *ScryfallClient) SearchByName(ctx context.Context, q string) ([]Card, er
 	// Normal case: zero or more results.
 	out := make([]Card, 0, len(body.Data))
 	for _, sc := range body.Data {
-		img := sc.ImageURIs["normal"]
-
-		// Prefer non-foil USD, then fallback to foil / etched if needed.
-		price := sc.Prices.USD
-		if price == "" {
-			price = sc.Prices.USDFoil
-		}
-		if price == "" {
-			price = sc.Prices.USDEtched
-		}
-
-		out = append(out, Card{
-			Name:       sc.Name,
-			ManaCost:   sc.ManaCost,
-			TypeLine:   sc.TypeLine,
-			OracleText: sc.OracleText,
-			ImageURI:   img,
-			PriceUSD:   price,
-			Artist:     sc.Artist,
-		})
+		out = append(out, normalizeScryfallCard(sc))
 	}
 	return out, nil
 }

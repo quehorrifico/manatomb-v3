@@ -11,6 +11,16 @@ import (
 	"manatomb/app/internal/decks"
 )
 
+// deckListItem is a lightweight view model for rendering the "My Decks" page.
+// It includes the core deck fields plus an optional CommanderImageURI for UI use.
+type deckListItem struct {
+	ID                int64
+	Name              string
+	Description       string
+	CommanderName     string
+	CommanderImageURI string
+}
+
 // List all decks for the current user.
 func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
@@ -26,9 +36,33 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Build a view model with optional commander art URIs, fetched via EnsureCardByName.
+	items := make([]deckListItem, 0, len(userDecks))
+
+	for _, d := range userDecks {
+		item := deckListItem{
+			ID:            d.ID,
+			Name:          d.Name,
+			Description:   d.Description,
+			CommanderName: d.CommanderName,
+		}
+
+		commanderName := strings.TrimSpace(d.CommanderName)
+		if commanderName != "" {
+			if c, err := cards.EnsureCardByName(r.Context(), a.DB, commanderName); err == nil {
+				if c.ImageURI != "" {
+					item.CommanderImageURI = c.ImageURI
+				}
+			}
+			// If EnsureCardByName fails or has no image, we just show the placeholder in the UI.
+		}
+
+		items = append(items, item)
+	}
+
 	data := TemplateData{
 		CurrentUser: user,
-		Data:        userDecks,
+		Data:        items,
 		Flash:       flash,
 	}
 
@@ -44,8 +78,12 @@ func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 
 	flash := readFlash(w, r)
 
-	// Optional commander_name from query string (e.g., coming from commander search)
-	commanderName := r.URL.Query().Get("commander_name")
+	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
+	if commanderName == "" {
+		// No commander yet: push the user to the commander search flow first.
+		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
 
 	data := TemplateData{
 		CurrentUser: user,
@@ -82,6 +120,25 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	desc := strings.TrimSpace(r.Form.Get("description"))
 	commander := strings.TrimSpace(r.Form.Get("commander_name"))
 
+	// Require a commander
+	if commander == "" {
+		data := TemplateData{
+			CurrentUser: user,
+			Data: struct {
+				CommanderName string
+				Name          string
+				Description   string
+			}{
+				CommanderName: commander,
+				Name:          name,
+				Description:   desc,
+			},
+			Error: "Please choose a commander first.",
+		}
+		a.Renderer.Render(w, "decks_new", data)
+		return
+	}
+
 	// Basic validation: require a name
 	if name == "" {
 		data := TemplateData{
@@ -104,6 +161,52 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, name, desc, commander)
 	if err != nil {
 		// Use our pretty 500 page + logging
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	setFlash(w, "Deck created.")
+	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
+}
+
+// Handle creating a new deck directly from a chosen commander.
+//
+// This is intended to be called from the commander search page when the user
+// clicks "Use as commander". It will:
+//   - default the deck name to the commander name (if no explicit name is given)
+//   - create the deck with an empty description
+//   - redirect straight to the deck show page.
+func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Request) {
+	user := CurrentUser(r)
+	if user == nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	commander := strings.TrimSpace(r.FormValue("commander_name"))
+	if commander == "" {
+		// No commander provided – send user back to commander search with a friendly message.
+		setFlash(w, "Please choose a commander first.")
+		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
+
+	// Optional deck name (for future flexibility); default to commander name.
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		name = commander
+	}
+
+	// For this flow we start with an empty description.
+	desc := ""
+
+	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, name, desc, commander)
+	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
 	}

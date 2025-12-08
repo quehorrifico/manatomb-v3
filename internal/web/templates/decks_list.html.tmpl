@@ -16,58 +16,200 @@
         </p>
       </div>
 
-      <div class="flex flex-wrap gap-2">
-        <a href="/decks/new"
+      <div class="flex flex-wrap gap-2 items-center">
+        <a href="/commanders/search"
            class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
           New deck
         </a>
+
+        <!-- View toggle -->
+        <div class="inline-flex items-center rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 overflow-hidden ml-1">
+          <button type="button"
+                  id="deck-view-list-btn"
+                  class="px-3 py-1.5 border-r border-slate-700 bg-slate-800 text-slate-100">
+            List
+          </button>
+          <button type="button"
+                  id="deck-view-grid-btn"
+                  class="px-3 py-1.5">
+            Grid
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Deck list -->
     <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
       {{ if $ctx }}
-        <ul class="divide-y divide-slate-800">
-          {{ range $ctx }}
-            <li class="py-3 flex items-center justify-between gap-3">
-              <div class="space-y-1 min-w-0">
-                <a href="/decks/{{ .ID }}"
-                   class="text-sm font-semibold text-slate-100 hover:text-sky-300 transition-colors">
-                  {{ .Name }}
-                </a>
-                <p class="text-xs text-slate-400">
-                  {{ if .CommanderName }}
-                    Commander: {{ .CommanderName }}
+        <!-- List view (default) -->
+        <div id="deck-view-list">
+          <ul class="divide-y divide-slate-800">
+            {{ range $ctx }}
+              <li class="py-3 flex items-center gap-3">
+                <!-- Commander art thumbnail -->
+                <div class="h-14 w-10 rounded-md border border-slate-800 bg-slate-900/80 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                  {{ if .CommanderImageURI }}
+                    <img
+                      src="{{ .CommanderImageURI }}"
+                      alt="{{ .CommanderName }}"
+                      class="w-full h-full object-cover">
                   {{ else }}
-                    Commander not set
+                    <div class="w-full h-full flex items-center justify-center text-[10px] text-slate-500 uppercase tracking-wide">
+                      {{ if .CommanderName }}Cmdr{{ else }}—{{ end }}
+                    </div>
                   {{ end }}
-                </p>
-                {{ if .Description }}
-                  <p class="text-xs text-slate-500 line-clamp-2">
-                    {{ .Description }}
-                  </p>
-                {{ end }}
-              </div>
+                </div>
 
-              <div class="flex flex-col items-end gap-1 text-xs text-slate-400 shrink-0">
-                <a href="/decks/{{ .ID }}"
-                   class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-950 text-[11px] text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                  Open
-                </a>
-              </div>
-            </li>
-          {{ end }}
-        </ul>
+                <!-- Deck info + actions -->
+                <div class="flex items-center justify-between gap-3 flex-1 min-w-0">
+                  <div class="space-y-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <a href="/decks/{{ .ID }}"
+                         class="text-sm font-semibold text-slate-100 hover:text-sky-300 transition-colors">
+                        {{ .Name }}
+                      </a>
+                      <span class="inline-flex items-center rounded-full bg-slate-900 px-2 py-0.5 text-[11px] text-slate-300 border border-slate-700">
+                        {{ if .CommanderName }}
+                          Commander: {{ .CommanderName }}
+                        {{ else }}
+                          Commander not set
+                        {{ end }}
+                      </span>
+                    </div>
+                    {{ if .Description }}
+                      <p class="text-xs text-slate-500 line-clamp-2">
+                        {{ .Description }}
+                      </p>
+                    {{ end }}
+                  </div>
+
+                  <div class="flex flex-col items-end gap-1 text-xs text-slate-400 shrink-0">
+                    <a href="/decks/{{ .ID }}"
+                       class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-950 text-[11px] text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
+                      Open
+                    </a>
+                  </div>
+                </div>
+              </li>
+            {{ end }}
+          </ul>
+        </div>
+
+        <!-- Grid view (card layout) -->
+        <div id="deck-view-grid" class="hidden">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {{ range $ctx }}
+              <a href="/decks/{{ .ID }}"
+                 class="block rounded-lg border border-slate-800 bg-slate-950 p-3 shadow-sm shadow-sky-500/10 hover:border-sky-500 hover:shadow-sky-500/20 transition-colors">
+                <div class="flex gap-3">
+                  <!-- Commander art thumbnail -->
+                  <div class="h-20 w-14 rounded-md border border-slate-800 bg-slate-900/80 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    {{ if .CommanderImageURI }}
+                      <img
+                        src="{{ .CommanderImageURI }}"
+                        alt="{{ .CommanderName }}"
+                        class="w-full h-full object-cover">
+                    {{ else }}
+                      <div class="w-full h-full flex items-center justify-center text-[10px] text-slate-500 uppercase tracking-wide">
+                        {{ if .CommanderName }}Cmdr{{ else }}—{{ end }}
+                      </div>
+                    {{ end }}
+                  </div>
+
+                  <!-- Deck info -->
+                  <div class="space-y-1 min-w-0">
+                    <h3 class="text-sm font-semibold text-slate-100 truncate">
+                      {{ .Name }}
+                    </h3>
+                    <p class="text-xs text-slate-400 truncate">
+                      {{ if .CommanderName }}
+                        Commander: {{ .CommanderName }}
+                      {{ else }}
+                        Commander not set
+                      {{ end }}
+                    </p>
+                    {{ if .Description }}
+                      <p class="text-xs text-slate-500 line-clamp-3">
+                        {{ .Description }}
+                      </p>
+                    {{ else }}
+                      <p class="text-[11px] text-slate-600 italic">
+                        No description yet.
+                      </p>
+                    {{ end }}
+                  </div>
+                </div>
+              </a>
+            {{ end }}
+          </div>
+        </div>
       {{ else }}
         <p class="text-sm text-slate-400">
           You don't have any decks yet.
-          <a href="/decks/new" class="text-sky-300 hover:text-sky-200 transition-colors font-medium">
-            Create your first deck
-          </a>.
+          <a href="/commanders/search"
+             class="text-xs font-medium text-sky-300 hover:text-sky-200">
+            Create new deck
+          </a>
         </p>
       {{ end }}
     </section>
   </main>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var listBtn = document.getElementById('deck-view-list-btn');
+    var gridBtn = document.getElementById('deck-view-grid-btn');
+    var listView = document.getElementById('deck-view-list');
+    var gridView = document.getElementById('deck-view-grid');
+
+    function setView(mode, persist) {
+      if (!listBtn || !gridBtn || !listView || !gridView) return;
+
+      if (mode === 'grid') {
+        listView.classList.add('hidden');
+        gridView.classList.remove('hidden');
+        gridBtn.classList.add('bg-slate-800', 'text-slate-100');
+        listBtn.classList.remove('bg-slate-800', 'text-slate-100', 'border-r', 'border-slate-700');
+      } else {
+        // default to list
+        listView.classList.remove('hidden');
+        gridView.classList.add('hidden');
+        listBtn.classList.add('bg-slate-800', 'text-slate-100', 'border-r', 'border-slate-700');
+        gridBtn.classList.remove('bg-slate-800', 'text-slate-100');
+      }
+
+      if (persist) {
+        try {
+          localStorage.setItem('mt_deck_view', mode);
+        } catch (e) {
+          // ignore storage errors
+        }
+      }
+    }
+
+    if (listBtn && gridBtn) {
+      listBtn.addEventListener('click', function () {
+        setView('list', true);
+      });
+
+      gridBtn.addEventListener('click', function () {
+        setView('grid', true);
+      });
+
+      // Initialize from saved preference
+      var initial = 'list';
+      try {
+        var stored = localStorage.getItem('mt_deck_view');
+        if (stored === 'grid' || stored === 'list') {
+          initial = stored;
+        }
+      } catch (e) {
+        // ignore
+      }
+      setView(initial, false);
+    }
+  });
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

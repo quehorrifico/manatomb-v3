@@ -13,18 +13,14 @@
           </span>
         </h2>
         <p class="text-sm text-slate-400 mt-1">
-          Find legendary creatures and commander-legal cards to lead your decks.
+          Step 1: Choose a legendary creature or commander-legal card to lead your deck.
         </p>
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <a href="/decks/new"
-           class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
-          New deck
-        </a>
         <a href="/decks"
            class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-          My decks
+          Back to decks
         </a>
       </div>
     </div>
@@ -53,49 +49,53 @@
         </div>
       </form>
       <p class="mt-2 text-xs text-slate-500">
-        Searches prioritize <span class="font-semibold text-slate-300">commander-legal</span> cards.
+        Searches prioritize <span class="font-semibold text-slate-300">commander-legal</span> cards. After you pick a commander, we&apos;ll create a deck for you that you can rename and edit.
       </p>
     </section>
 
     <!-- Results -->
     <section class="space-y-3">
       {{ if $ctx.Query }}
-        <h3 class="text-sm font-semibold text-slate-100">
-          Results for “{{ $ctx.Query }}”
-        </h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-slate-100">
+            Results for “{{ $ctx.Query }}”
+            {{ if $ctx.Results }}
+              <span class="ml-1 text-xs text-slate-500">
+                ({{ len $ctx.Results }})
+              </span>
+            {{ end }}
+          </h3>
+          <p class="text-xs text-slate-500">
+            Click a card to see details and choose it as your commander.
+          </p>
+        </div>
 
         {{ if $ctx.Results }}
-          <ul class="space-y-3">
+          <ul class="grid grid-cols-2 md:grid-cols-3 gap-4">
             {{ range $ctx.Results }}
-              <li class="rounded-xl border border-slate-800 bg-slate-950/80 p-4
-                         text-sm shadow-md shadow-sky-500/10">
-                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                  <!-- Card text side -->
-                  <div class="space-y-1">
-                    <p class="text-base font-semibold text-slate-50">
-                      {{ .Name }}
-                      <span class="ml-1 text-slate-300 text-sm">{{ .ManaCost }}</span>
-                    </p>
-                    <p class="text-xs uppercase tracking-wide text-slate-400">
-                      {{ .TypeLine }}
-                    </p>
-                    <p class="text-sm text-slate-200 whitespace-pre-line">
-                      {{ .OracleText }}
-                    </p>
-                  </div>
-
-                  <!-- Actions -->
-                  <div class="md:ml-4 md:w-52 shrink-0 flex flex-col gap-2">
-                    <a href="/decks/new?commander_name={{ .Name }}"
-                       class="inline-flex items-center justify-center px-3 py-1.5 rounded-md
-                              bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors
-                              focus:outline-none focus:ring-1 focus:ring-sky-400">
-                      Use as commander
-                    </a>
-                    <p class="text-[11px] text-slate-500">
-                      Prefills the commander field when creating a new deck.
-                    </p>
-                  </div>
+              <li class="rounded-xl border border-slate-800 bg-slate-950/80 p-2 shadow-md shadow-sky-500/10">
+                <button
+                  type="button"
+                  class="w-full flex items-center justify-center"
+                  data-commander-detail
+                  data-name="{{ .Name }}"
+                  data-mana-cost="{{ .ManaCost }}"
+                  data-type-line="{{ .TypeLine }}"
+                  data-image-uri="{{ .ImageURI }}"
+                  data-price="{{ .PriceUSD }}"
+                  data-artist="{{ .Artist }}">
+                  {{ if .ImageURI }}
+                    <img src="{{ .ImageURI }}"
+                         alt="{{ .Name }}"
+                         class="w-full h-auto rounded-md border border-slate-800 shadow-md shadow-slate-900/80">
+                  {{ else }}
+                    <div class="w-full aspect-[3/4] flex items-center justify-center text-xs text-slate-400">
+                      No image
+                    </div>
+                  {{ end }}
+                </button>
+                <div class="hidden js-oracle-text">
+                  {{ .OracleText }}
                 </div>
               </li>
             {{ end }}
@@ -107,11 +107,160 @@
         {{ end }}
       {{ else }}
         <p class="text-sm text-slate-400">
-          Enter a commander name above to start searching.
+          Enter a commander name above to start. Once you choose one, you&apos;ll move on to naming your deck and adding cards.
         </p>
       {{ end }}
     </section>
 
+    <!-- Commander detail modal -->
+    <div id="commander-detail-modal"
+         class="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-50 hidden">
+      <div class="max-w-xl w-full mx-4 rounded-xl border border-slate-800 bg-slate-950 p-4 shadow-lg shadow-sky-500/20 relative">
+        <button type="button"
+                class="absolute top-2 right-2 text-slate-400 hover:text-slate-200 text-xs"
+                data-close-commander-modal>
+          Close
+        </button>
+
+        <div class="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] items-start">
+          <div class="flex items-center justify-center">
+            <img data-field="commander-image"
+                 alt=""
+                 class="w-full max-w-xs h-auto rounded-md border border-slate-800 shadow-md shadow-slate-900/80">
+          </div>
+
+          <div class="space-y-3 text-sm text-slate-200">
+            <h3 class="text-lg font-semibold text-slate-50" data-field="commander-name"></h3>
+            <p class="text-xs uppercase tracking-wide text-slate-400">
+              <span data-field="commander-type-line"></span>
+            </p>
+
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+              <span>
+                <span class="font-medium text-slate-200">Cost:</span>
+                <span data-field="commander-mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
+              </span>
+              <span>
+                <span class="font-medium text-slate-200">Price:</span>
+                <span data-field="price-usd">—</span>
+              </span>
+              <span>
+                <span class="font-medium text-slate-200">Artist:</span>
+                <span data-field="artist">—</span>
+              </span>
+            </div>
+
+            <p class="text-xs text-slate-500">
+              Prices via Scryfall (USD, approximate).
+            </p>
+
+            <p class="text-sm text-slate-200 whitespace-pre-line" data-field="commander-oracle-text"></p>
+
+            <form method="POST" action="/decks/create-from-commander" class="pt-2">
+              <input type="hidden" name="commander_name" value="" data-field="commander-input">
+              <button type="submit"
+                      class="inline-flex items-center justify-center px-4 py-2 rounded-md
+                             bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors
+                             focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
+                Use as commander
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var modal = document.getElementById('commander-detail-modal');
+      if (!modal) return;
+
+      var nameEl = modal.querySelector('[data-field="commander-name"]');
+      var typeEl = modal.querySelector('[data-field="commander-type-line"]');
+      var manaEl = modal.querySelector('[data-field="commander-mana-cost"]');
+      var oracleEl = modal.querySelector('[data-field="commander-oracle-text"]');
+      var imageEl = modal.querySelector('[data-field="commander-image"]');
+      var inputEl = modal.querySelector('[data-field="commander-input"]');
+      var priceEl = modal.querySelector('[data-field="price-usd"]');
+      var artistEl = modal.querySelector('[data-field="artist"]');
+
+      function renderManaSymbols(manaCost) {
+        if (!manaCost) return '';
+        var html = '';
+        var re = /\{([^}]+)\}/g;
+        var match;
+        while ((match = re.exec(manaCost)) !== null) {
+          var sym = match[1];
+          var encoded = encodeURIComponent(sym);
+          var src = 'https://svgs.scryfall.io/card-symbols/' + encoded + '.svg';
+          html += '<img src="' + src + '" alt="{' + sym + '}" class="inline-block h-5 align-text-bottom mr-0.5">';
+        }
+        return html;
+      }
+
+      function closeModal() {
+        modal.classList.add('hidden');
+      }
+
+      modal.querySelectorAll('[data-close-commander-modal]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          closeModal();
+        });
+      });
+
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+
+      document.querySelectorAll('[data-commander-detail]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var li = btn.closest('li');
+          if (!li) return;
+
+          var oracleNode = li.querySelector('.js-oracle-text');
+          var oracleText = oracleNode ? oracleNode.textContent : '';
+
+          var name = btn.getAttribute('data-name') || '';
+          var manaCost = btn.getAttribute('data-mana-cost') || '';
+          var typeLine = btn.getAttribute('data-type-line') || '';
+          var imageUri = btn.getAttribute('data-image-uri') || '';
+          var price = btn.getAttribute('data-price') || '';
+          var artist = btn.getAttribute('data-artist') || '';
+
+          if (nameEl) nameEl.textContent = name;
+          if (typeEl) typeEl.textContent = typeLine;
+          if (manaEl) manaEl.innerHTML = renderManaSymbols(manaCost);
+          if (oracleEl) oracleEl.textContent = oracleText;
+
+          if (priceEl) {
+            priceEl.textContent = price ? ('$' + price) : '—';
+          }
+
+          if (artistEl) {
+            artistEl.textContent = artist || '—';
+          }
+
+          if (inputEl) {
+            inputEl.value = name;
+          }
+
+          if (imageEl) {
+            if (imageUri) {
+              imageEl.src = imageUri;
+              imageEl.classList.remove('hidden');
+            } else {
+              imageEl.src = '';
+              imageEl.classList.add('hidden');
+            }
+          }
+
+          modal.classList.remove('hidden');
+        });
+      });
+    });
+    </script>
   </main>
 
   {{ template "layout_footer" . }}

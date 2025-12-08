@@ -95,6 +95,7 @@ func main() {
 		}
 	})
 	mux.HandleFunc("/decks/delete", app.HandleDeckDeletePost)
+	mux.HandleFunc("/decks/create-from-commander", app.HandleDeckCreateFromCommander)
 
 	// NEW: public decks stub
 	mux.HandleFunc("/decks/public", app.HandlePublicDecks)

@@ -7,23 +7,57 @@
   <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
     <!-- Top bar: title + actions -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">
-          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-            {{ $d.Name }}
-          </span>
-        </h2>
-        <p class="text-sm text-slate-400">
-          Commander deck
-        </p>
+      <div class="space-y-1">
+        <!-- View state: click to edit -->
+        <button
+          type="button"
+          id="deck-name-view"
+          class="group text-left"
+          title="Click to rename this deck">
+          <h2 class="text-2xl font-semibold tracking-tight">
+            <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent group-hover:from-sky-300 group-hover:via-cyan-200">
+              {{ $d.Name }}
+            </span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5 group-hover:text-slate-400">
+            Click here to rename deck.
+          </p>
+        </button>
+
+        <!-- Edit state: inline form (hidden by default) -->
+        <form
+          id="deck-name-form"
+          method="POST"
+          action="/decks/edit"
+          class="hidden space-y-2">
+          <input type="hidden" name="id" value="{{ $d.ID }}">
+          <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
+          <input type="hidden" name="description" value="{{ $d.Description }}">
+
+          <label class="block text-sm text-slate-200">
+            <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
+            <input
+              type="text"
+              name="name"
+              value="{{ $d.Name }}"
+              required
+              class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+          </label>
+          <div class="flex items-center gap-2">
+            <button type="submit"
+                    class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+              Save name
+            </button>
+            <button type="button"
+                    id="deck-name-cancel"
+                    class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <a href="/decks/edit?id={{ $d.ID }}"
-           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-          Edit deck
-        </a>
-
         <form method="POST" action="/decks/delete"
               onsubmit="return confirm('Delete this deck? This cannot be undone.');">
           <input type="hidden" name="id" value="{{ $d.ID }}">
@@ -73,14 +107,57 @@
         </div>
 
         <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10 space-y-3 text-sm">
-          {{ if $d.Description }}
-            <div>
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
-                Description
-              </h3>
-              <p class="text-slate-200 whitespace-pre-line">{{ $d.Description }}</p>
-            </div>
-          {{ end }}
+          <div class="space-y-1">
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
+              Description
+            </h3>
+
+            <!-- View state -->
+            <button
+              type="button"
+              id="deck-desc-view"
+              class="w-full text-left rounded-md border border-transparent px-2 py-1 hover:border-slate-700 hover:bg-slate-900/60 transition-colors">
+              {{ if $d.Description }}
+                <p class="text-sm text-slate-200 whitespace-pre-line">
+                  {{ $d.Description }}
+                </p>
+              {{ else }}
+                <p class="text-sm text-slate-500 italic">
+                  Click to add a description for this deck.
+                </p>
+              {{ end }}
+            </button>
+
+            <!-- Edit state -->
+            <form
+              id="deck-desc-form"
+              method="POST"
+              action="/decks/edit"
+              class="hidden space-y-2">
+              <input type="hidden" name="id" value="{{ $d.ID }}">
+              <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
+              <input type="hidden" name="name" value="{{ $d.Name }}">
+
+              <label class="block text-sm text-slate-200">
+                <span class="block text-xs font-medium text-slate-400 mb-1">Deck description</span>
+                <textarea
+                  name="description"
+                  rows="4"
+                  class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.Description }}</textarea>
+              </label>
+              <div class="flex items-center gap-2">
+                <button type="submit"
+                        class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+                  Save description
+                </button>
+                <button type="button"
+                        id="deck-desc-cancel"
+                        class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
 
           <div>
             <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">
@@ -157,6 +234,57 @@
       </section>
     </div>
   </main>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Deck name inline edit
+    var nameView = document.getElementById('deck-name-view');
+    var nameForm = document.getElementById('deck-name-form');
+    var nameCancel = document.getElementById('deck-name-cancel');
+
+    if (nameView && nameForm) {
+      nameView.addEventListener('click', function () {
+        nameView.classList.add('hidden');
+        nameForm.classList.remove('hidden');
+        var input = nameForm.querySelector('input[name="name"]');
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      });
+    }
+
+    if (nameCancel && nameForm && nameView) {
+      nameCancel.addEventListener('click', function () {
+        nameForm.classList.add('hidden');
+        nameView.classList.remove('hidden');
+      });
+    }
+
+    // Description inline edit
+    var descView = document.getElementById('deck-desc-view');
+    var descForm = document.getElementById('deck-desc-form');
+    var descCancel = document.getElementById('deck-desc-cancel');
+
+    if (descView && descForm) {
+      descView.addEventListener('click', function () {
+        descView.classList.add('hidden');
+        descForm.classList.remove('hidden');
+        var textarea = descForm.querySelector('textarea[name="description"]');
+        if (textarea) {
+          textarea.focus();
+        }
+      });
+    }
+
+    if (descCancel && descForm && descView) {
+      descCancel.addEventListener('click', function () {
+        descForm.classList.add('hidden');
+        descView.classList.remove('hidden');
+      });
+    }
+  });
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

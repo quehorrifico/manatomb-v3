@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,6 +11,22 @@ import (
 	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
 )
+
+// cardSearchResult is a view model for card search UI. It flattens the
+// core fields we display in the grid + a JSON-encoded faces slice for MDFC.
+type cardSearchResult struct {
+	Name       string
+	ManaCost   string
+	TypeLine   string
+	OracleText string
+	ImageURI   string
+	PriceUSD   string
+	Artist     string
+
+	// FacesJSON is a JSON-encoded []cards.CardFace (from cards.Card.Faces).
+	// It is used by the frontend to support MDFC "flip" behavior in the modal.
+	FacesJSON string
+}
 
 func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
@@ -73,6 +90,28 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Build view-model results with pre-encoded faces JSON for MDFC support.
+	viewResults := make([]cardSearchResult, 0, len(results))
+	for _, c := range results {
+		facesJSON := ""
+		if len(c.Faces) > 0 {
+			if b, err := json.Marshal(c.Faces); err == nil {
+				facesJSON = string(b)
+			}
+		}
+
+		viewResults = append(viewResults, cardSearchResult{
+			Name:       c.Name,
+			ManaCost:   c.ManaCost,
+			TypeLine:   c.TypeLine,
+			OracleText: c.OracleText,
+			ImageURI:   c.ImageURI,
+			PriceUSD:   c.PriceUSD,
+			Artist:     c.Artist,
+			FacesJSON:  facesJSON,
+		})
+	}
+
 	var userDecks []decks.Deck
 	if user != nil {
 		var err error
@@ -87,12 +126,12 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 		CurrentUser: user,
 		Data: struct {
 			Query       string
-			Results     []cards.Card
+			Results     []cardSearchResult
 			Decks       []decks.Deck
 			HasSearched bool
 		}{
 			Query:       query,
-			Results:     results,
+			Results:     viewResults,
 			Decks:       userDecks,
 			HasSearched: hasSearched,
 		},

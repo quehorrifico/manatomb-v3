@@ -137,7 +137,8 @@
                 data-type-line="{{ .TypeLine }}"
                 data-image-uri="{{ .ImageURI }}"
                 data-price="{{ .PriceUSD }}"
-                data-artist="{{ .Artist }}">
+                data-artist="{{ .Artist }}"
+                data-faces='{{ .FacesJSON }}'>
                 {{ if .ImageURI }}
                   <img src="{{ .ImageURI }}"
                        alt="{{ .Name }}"
@@ -210,6 +211,14 @@
           </p>
 
           <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
+
+          <div class="mt-4 flex justify-end">
+            <button type="button"
+                    class="px-3 py-1.5 text-xs rounded-md bg-sky-500 text-slate-950 font-semibold hover:bg-sky-400 hidden"
+                    data-flip-card>
+              Flip card
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -227,6 +236,10 @@
     var imageEl = modal.querySelector('[data-field="image"]');
     var priceEl = modal.querySelector('[data-field="price-usd"]');
     var artistEl = modal.querySelector('[data-field="artist"]');
+    var flipBtn = modal.querySelector('[data-flip-card]');
+
+    var currentFaces = null;
+    var currentFaceIndex = 0;
 
     function closeModal() {
       modal.classList.add('hidden');
@@ -244,6 +257,36 @@
         html += '<img src="' + src + '" alt="{' + sym + '}" class="inline-block h-5 align-text-bottom mr-0.5">';
       }
       return html;
+    }
+
+    function renderFace(face) {
+      if (!face) return;
+
+      var faceName = face.name || '';
+      var faceMana = face.mana_cost || '';
+      var faceType = face.type_line || '';
+      var faceOracle = face.oracle_text || '';
+      var faceImage = face.image_uri || '';
+      var faceArtist = face.artist || '';
+
+      if (nameEl) nameEl.textContent = faceName;
+      if (typeEl) typeEl.textContent = faceType;
+      if (manaEl) manaEl.innerHTML = renderManaSymbols(faceMana);
+      if (oracleEl) oracleEl.textContent = faceOracle;
+
+      if (imageEl) {
+        if (faceImage) {
+          imageEl.src = faceImage;
+          imageEl.classList.remove('hidden');
+        } else {
+          imageEl.src = '';
+          imageEl.classList.add('hidden');
+        }
+      }
+
+      if (artistEl && faceArtist) {
+        artistEl.textContent = faceArtist;
+      }
     }
 
     modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
@@ -272,34 +315,72 @@
         var imageUri = btn.getAttribute('data-image-uri') || '';
         var price = btn.getAttribute('data-price') || '';
         var artist = btn.getAttribute('data-artist') || '';
+        var facesJSON = btn.getAttribute('data-faces');
 
-        // Set values from server-provided data
-        if (nameEl) nameEl.textContent = name;
-        if (typeEl) typeEl.textContent = typeLine;
-        if (manaEl) manaEl.innerHTML = renderManaSymbols(manaCost);
-        if (oracleEl) oracleEl.textContent = oracleText;
+        // Reset faces state for this card
+        currentFaces = null;
+        currentFaceIndex = 0;
+        if (flipBtn) {
+          flipBtn.classList.add('hidden');
+        }
 
+        // Try to parse faces JSON for MDFC / multi-faced cards
+        if (facesJSON && facesJSON !== 'null' && facesJSON !== '') {
+          try {
+            var parsed = JSON.parse(facesJSON);
+            if (Array.isArray(parsed) && parsed.length > 1) {
+              currentFaces = parsed;
+              currentFaceIndex = 0;
+              if (flipBtn) {
+                flipBtn.classList.remove('hidden');
+              }
+            }
+          } catch (e) {
+            console.error('Failed to parse faces JSON', e);
+          }
+        }
+
+        // If we have faces, use the first face as the initial view.
+        if (currentFaces && currentFaces.length > 0) {
+          renderFace(currentFaces[0]);
+        } else {
+          // Fallback to single-face card behavior.
+          if (nameEl) nameEl.textContent = name;
+          if (typeEl) typeEl.textContent = typeLine;
+          if (manaEl) manaEl.innerHTML = renderManaSymbols(manaCost);
+          if (oracleEl) oracleEl.textContent = oracleText;
+
+          if (imageEl) {
+            if (imageUri) {
+              imageEl.src = imageUri;
+              imageEl.classList.remove('hidden');
+            } else {
+              imageEl.src = '';
+              imageEl.classList.add('hidden');
+            }
+          }
+
+          if (artistEl) {
+            artistEl.textContent = artist || '—';
+          }
+        }
+
+        // Price is always from the primary card data.
         if (priceEl) {
           priceEl.textContent = price ? ('$' + price) : '—';
-        }
-
-        if (artistEl) {
-          artistEl.textContent = artist || '—';
-        }
-
-        if (imageEl) {
-          if (imageUri) {
-            imageEl.src = imageUri;
-            imageEl.classList.remove('hidden');
-          } else {
-            imageEl.src = '';
-            imageEl.classList.add('hidden');
-          }
         }
 
         modal.classList.remove('hidden');
       });
     });
+
+    if (flipBtn) {
+      flipBtn.addEventListener('click', function () {
+        if (!currentFaces || currentFaces.length < 2) return;
+        currentFaceIndex = (currentFaceIndex + 1) % currentFaces.length;
+        renderFace(currentFaces[currentFaceIndex]);
+      });
+    }
   });
   </script>
 
