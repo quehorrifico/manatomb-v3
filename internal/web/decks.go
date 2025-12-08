@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"manatomb/app/internal/account"
 	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
 )
@@ -21,12 +22,52 @@ type deckListItem struct {
 	CommanderImageURI string
 }
 
-// List all decks for the current user.
-func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
+// currentUserOrRedirect ensures there is a logged-in user, otherwise redirects
+// to the login page and returns nil.
+func (a *App) currentUserOrRedirect(w http.ResponseWriter, r *http.Request) *account.User {
 	user := CurrentUser(r)
-	flash := readFlash(w, r)
 	if user == nil {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return nil
+	}
+	return user
+}
+
+// parseDeckIDFromPath extracts the deck ID from a path like /decks/{id}.
+func parseDeckIDFromPath(r *http.Request) (int64, error) {
+	const prefix = "/decks/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return 0, fmt.Errorf("invalid deck path")
+	}
+	idStr := strings.TrimPrefix(r.URL.Path, prefix)
+	if idStr == "" {
+		return 0, fmt.Errorf("missing deck id in path")
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid deck id")
+	}
+	return id, nil
+}
+
+// parseDeckIDFromForm extracts the deck ID from a submitted form (field "id").
+func parseDeckIDFromForm(r *http.Request) (int64, error) {
+	idStr := strings.TrimSpace(r.Form.Get("id"))
+	if idStr == "" {
+		return 0, errors.New("missing deck id")
+	}
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		return 0, errors.New("invalid deck id")
+	}
+	return id, nil
+}
+
+// List all decks for the current user.
+func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
+	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
+	if user == nil {
 		return
 	}
 
@@ -70,13 +111,11 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-
-	flash := readFlash(w, r)
 
 	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
 	if commanderName == "" {
@@ -105,9 +144,8 @@ func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 
 // Handle POST from "new deck" form.
 func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -177,9 +215,8 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 //   - create the deck with an empty description
 //   - redirect straight to the deck show page.
 func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -218,15 +255,13 @@ func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Reque
 // Show a single deck, its cards, and commander details.
 // Also handles POSTs to add/decrement cards.
 func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
 	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
-	idStr := r.URL.Path[len("/decks/"):]
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseDeckIDFromPath(r)
 	if err != nil {
 		a.RenderNotFound(w, r)
 		return
@@ -372,10 +407,9 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckEditShow(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
 	flash := readFlash(w, r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -407,9 +441,8 @@ func (a *App) HandleDeckEditShow(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -418,15 +451,9 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := r.Form.Get("id")
-	if idStr == "" {
-		http.Error(w, "missing deck id", http.StatusBadRequest)
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseDeckIDFromForm(r)
 	if err != nil {
-		http.Error(w, "invalid deck id", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -440,7 +467,7 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 	commander := r.Form.Get("commander_name")
 
 	if err := decks.UpdateDeck(r.Context(), a.DB, id, name, desc, commander); err != nil {
-		http.Error(w, "could not update deck", http.StatusInternalServerError)
+		a.RenderServerError(w, r, err)
 		return
 	}
 
@@ -449,9 +476,8 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckDeletePost(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
+	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
@@ -465,25 +491,19 @@ func (a *App) HandleDeckDeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := r.Form.Get("id")
-	if idStr == "" {
-		http.Error(w, "missing deck id", http.StatusBadRequest)
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseDeckIDFromForm(r)
 	if err != nil {
-		http.Error(w, "invalid deck id", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	if _, err := decks.GetDeck(r.Context(), a.DB, id, user.ID); err != nil {
-		http.NotFound(w, r)
+		a.RenderNotFound(w, r)
 		return
 	}
 
 	if err := decks.DeleteDeck(r.Context(), a.DB, id); err != nil {
-		http.Error(w, "could not delete deck", http.StatusInternalServerError)
+		a.RenderServerError(w, r, err)
 		return
 	}
 
