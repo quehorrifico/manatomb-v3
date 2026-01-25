@@ -71,6 +71,7 @@ func registerRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/decks/create-from-commander", app.HandleDeckCreateFromCommander)
 	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
 	mux.HandleFunc("/decks/guest", app.HandleGuestDeckShow)
+	mux.HandleFunc("/decks/import-draft", app.HandleDeckImportDraft)
 	mux.HandleFunc("/decks/", app.HandleDeckShow) // /decks/{id}
 
 	// Cards / commanders / rules

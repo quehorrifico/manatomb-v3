@@ -2,7 +2,12 @@
   {{ $ctx := .Data }}
   {{ $d := $ctx.Deck }}
   {{ $c := $ctx.Commander }}
-  {{ $isGuest := not .CurrentUser }}
+  {{ $isGuest := false }}
+  {{ if $ctx.GuestMode }}
+    {{ $isGuest = true }}
+  {{ else }}
+    {{ $isGuest = not .CurrentUser }}
+  {{ end }}
   {{ template "layout_header" . }}
 
   <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
@@ -82,10 +87,17 @@
         </form>
         {{ end }}
         {{ if $isGuest }}
-          <a href="/login?next={{ urlquery (print "/decks/new?commander_name=" $d.CommanderName) }}"
-             class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
-            Log in to save
-          </a>
+          {{ if .CurrentUser }}
+            <button type="button" id="guest-save-to-account"
+                    class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
+              Save to my account
+            </button>
+          {{ else }}
+            <a href="/login?next={{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName) }}"
+               class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
+              Log in to save
+            </a>
+          {{ end }}
         {{ end }}
       </div>
     </div>
@@ -270,6 +282,9 @@
           </form>
           {{ else }}
           </form>
+          {{ if $isGuest }}
+            <p id="guest-add-status" class="mt-2 text-xs text-slate-500" aria-live="polite"></p>
+          {{ end }}
           {{ end }}
           <p class="mt-2 text-xs text-slate-500">
             Tip: You can also add cards directly from the
@@ -284,10 +299,17 @@
                       class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
                 Copy decklist
               </button>
-              <a href="/login?next={{ urlquery (print "/decks/new?commander_name=" $d.CommanderName) }}"
-                 class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
-                Log in to save
-              </a>
+              {{ if .CurrentUser }}
+                <button type="button" id="guest-save-to-account-2"
+                        class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
+                  Save to my account
+                </button>
+              {{ else }}
+                <a href="/login?next={{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName) }}"
+                   class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
+                  Log in to save
+                </a>
+              {{ end }}
             </div>
             <p id="guest-copy-status" class="mt-2 text-xs text-slate-500" aria-live="polite"></p>
           {{ end }}
@@ -368,6 +390,7 @@
 
     var copyBtn = document.getElementById('guest-copy-decklist');
     var copyStatus = document.getElementById('guest-copy-status');
+    var addStatus = document.getElementById('guest-add-status');
 
     function loadDraft() {
       try {
@@ -394,7 +417,23 @@
     }
 
     function normalizeName(s) {
-      return (s || '').trim();
+      // Collapse internal whitespace and trim.
+      return (s || '').replace(/\s+/g, ' ').trim();
+    }
+
+    async function validateCardNameExact(name) {
+      // Use Scryfall exact-name lookup so we don't accept random strings.
+      // This avoids writing junk to our DB for guest drafts.
+      var url = 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(name);
+      try {
+        var res = await fetch(url, { method: 'GET' });
+        if (!res.ok) return null;
+        var data = await res.json();
+        if (!data || !data.name) return null;
+        return data.name; // canonical casing/name from Scryfall
+      } catch (e) {
+        return null;
+      }
     }
 
     function render(d) {
@@ -481,17 +520,49 @@
     render(draft);
 
     if (addForm && addInput) {
-      addForm.addEventListener('submit', function (e) {
+      addForm.addEventListener('submit', async function (e) {
         e.preventDefault();
-        var n = normalizeName(addInput.value);
-        if (!n) return;
+
+        if (addStatus) addStatus.textContent = '';
+
+        var raw = normalizeName(addInput.value);
+        if (!raw) return;
+
+        // Basic guardrails
+        if (raw.length > 80) {
+          if (addStatus) addStatus.textContent = 'That name looks too long. Please paste a real card name.';
+          return;
+        }
+
+        // Disable while validating
+        var submitBtn = addForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+
+        var canonical = await validateCardNameExact(raw);
+
+        if (submitBtn) submitBtn.disabled = false;
+
+        if (!canonical) {
+          if (addStatus) addStatus.textContent = 'No MTG card found with that exact name. Check spelling (or use Card Search for fuzzy matches).';
+          return;
+        }
+
         var dd = loadDraft() || { commanderName: commanderName, cards: {} };
         dd.cards = dd.cards || {};
-        dd.cards[n] = (dd.cards[n] || 0) + 1;
+
+        // Use canonical name so we don't store duplicates with different casing.
+        dd.cards[canonical] = (dd.cards[canonical] || 0) + 1;
+
         saveDraft(dd);
         render(dd);
+
         addInput.value = '';
         addInput.focus();
+
+        if (addStatus) addStatus.textContent = 'Added ' + canonical + '.';
+        setTimeout(function () {
+          if (addStatus) addStatus.textContent = '';
+        }, 1500);
       });
     }
 
@@ -533,6 +604,64 @@
         }, 2500);
       });
     }
+
+    async function importDraftToAccount() {
+      var dd = loadDraft();
+      if (!dd) {
+        if (copyStatus) copyStatus.textContent = 'No draft found to save.';
+        return;
+      }
+
+      var cards = Object.entries(dd.cards || {}).map(function (pair) {
+        return { name: pair[0], qty: pair[1] };
+      }).filter(function (x) {
+        return x && x.name && x.qty && x.qty > 0;
+      });
+
+      var payload = {
+        commander_name: commanderName,
+        name: dd.name || commanderName,
+        description: dd.description || '',
+        cards: cards,
+      };
+
+      try {
+        if (copyStatus) copyStatus.textContent = 'Saving…';
+
+        var res = await fetch('/decks/import-draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          if (copyStatus) copyStatus.textContent = 'Could not save deck. Please try again.';
+          return;
+        }
+
+        var out = await res.json();
+        if (out && out.deck_id) {
+          try { localStorage.removeItem(key); } catch (e) {}
+          window.location.href = '/decks/' + out.deck_id;
+          return;
+        }
+
+        if (copyStatus) copyStatus.textContent = 'Saved, but did not receive a deck id.';
+      } catch (e) {
+        if (copyStatus) copyStatus.textContent = 'Could not save deck. Please try again.';
+      }
+    }
+
+    function bindSave(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('click', function () {
+        importDraftToAccount();
+      });
+    }
+
+    bindSave('guest-save-to-account');
+    bindSave('guest-save-to-account-2');
   });
   </script>
 

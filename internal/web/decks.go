@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -21,6 +22,76 @@ type deckListItem struct {
 	Description       string
 	CommanderName     string
 	CommanderImageURI string
+}
+
+type importDraftRequest struct {
+	CommanderName string `json:"commander_name"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Cards         []struct {
+		Name string `json:"name"`
+		Qty  int    `json:"qty"`
+	} `json:"cards"`
+}
+
+type importDraftResponse struct {
+	DeckID int64 `json:"deck_id"`
+}
+
+func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
+	user := a.currentUserOrRedirect(w, r)
+	if user == nil {
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req importDraftRequest
+	if err := parseJSONBody(r, &req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	commander := strings.TrimSpace(req.CommanderName)
+	name := strings.TrimSpace(req.Name)
+	desc := strings.TrimSpace(req.Description)
+
+	if commander == "" {
+		http.Error(w, "missing commander_name", http.StatusBadRequest)
+		return
+	}
+	if name == "" {
+		name = commander
+	}
+
+	// Create the saved deck
+	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, name, desc, commander)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	// Add cards; skip unknown cards instead of failing the whole import
+	for _, item := range req.Cards {
+		cardName := strings.TrimSpace(item.Name)
+		qty := item.Qty
+		if cardName == "" || qty <= 0 {
+			continue
+		}
+
+		card, err := cards.EnsureCardByName(r.Context(), a.DB, cardName)
+		if err != nil {
+			continue
+		}
+
+		_ = decks.AddCard(r.Context(), a.DB, d.ID, card.ID, qty) // best-effort
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(importDraftResponse{DeckID: d.ID})
 }
 
 // currentUserOrRedirect ensures there is a logged-in user, otherwise redirects
@@ -240,6 +311,7 @@ func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
 		Deck      *decks.Deck
 		DeckCards []decks.DeckCard
 		Commander *cards.Card
+		GuestMode bool
 	}
 
 	data := TemplateData{
@@ -248,13 +320,11 @@ func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
 			Deck:      fakeDeck,
 			DeckCards: nil,
 			Commander: commanderCard,
+			GuestMode: true,
 		},
 		Flash: flash,
 	}
 
-	// if w.Header().Get("Content-Type") == "" {
-	// 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// }
 	a.Renderer.Render(w, "deck_show", data)
 }
 
@@ -363,6 +433,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 						Deck      *decks.Deck
 						DeckCards []decks.DeckCard
 						Commander *cards.Card
+						GuestMode bool
 					}
 
 					data := TemplateData{
@@ -371,6 +442,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 							Deck:      d,
 							DeckCards: deckCards,
 							Commander: commanderCard,
+							GuestMode: false,
 						},
 						Flash: flash,
 						Error: fmt.Sprintf("No card found named “%s”. Please check the spelling.", cardName),
@@ -445,6 +517,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		Deck      *decks.Deck
 		DeckCards []decks.DeckCard
 		Commander *cards.Card
+		GuestMode bool
 	}
 
 	data := TemplateData{
@@ -453,6 +526,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			Deck:      d,
 			DeckCards: deckCards,
 			Commander: commanderCard,
+			GuestMode: false,
 		},
 		Flash: flash,
 	}
@@ -563,4 +637,10 @@ func (a *App) HandleDeckDeletePost(w http.ResponseWriter, r *http.Request) {
 
 	setFlash(w, "Deck deleted.")
 	http.Redirect(w, r, "/decks", http.StatusSeeOther)
+}
+
+func parseJSONBody(r *http.Request, dst any) error {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	return dec.Decode(dst)
 }
