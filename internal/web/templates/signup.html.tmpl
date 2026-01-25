@@ -20,6 +20,7 @@
 
       <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-6 shadow-md shadow-sky-500/15">
         <form method="POST" action="/signup" class="space-y-4">
+          <input type="hidden" name="next" value="{{ $d.Next }}">
           <div class="text-sm text-slate-200">
             <label class="block">
               <span class="block text-xs font-medium text-slate-400 mb-1">Display name</span>
@@ -71,7 +72,7 @@
 
             <p class="text-xs text-slate-500">
               Already have an account?
-              <a href="/login" class="text-sky-300 hover:text-sky-200 transition-colors font-medium">
+              <a href="/login?next={{ urlquery $d.Next }}" class="text-sky-300 hover:text-sky-200 transition-colors font-medium">
                 Log in
               </a>
             </p>

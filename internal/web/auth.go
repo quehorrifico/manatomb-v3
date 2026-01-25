@@ -111,12 +111,20 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleSignupShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
 
+	next := strings.TrimSpace(r.URL.Query().Get("next"))
+	if next == "" || !strings.HasPrefix(next, "/") {
+		next = "/decks"
+	}
+
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
 		Data: struct {
 			DisplayName string
 			Email       string
-		}{},
+			Next        string
+		}{
+			Next: next,
+		},
 		Flash: flash,
 		Error: "",
 	}
@@ -131,6 +139,7 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 			Data: struct {
 				DisplayName string
 				Email       string
+				Next        string
 			}{},
 			Error: "Invalid form submission. Please try again.",
 		}
@@ -142,6 +151,11 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 	displayName := strings.TrimSpace(r.Form.Get("display_name"))
 	password := r.Form.Get("password")
 
+	next := strings.TrimSpace(r.Form.Get("next"))
+	if next == "" || !strings.HasPrefix(next, "/") {
+		next = "/decks"
+	}
+
 	log.Printf("signup attempt: email=%s displayName=%s", email, displayName)
 
 	// Basic validation
@@ -150,9 +164,11 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 			Data: struct {
 				DisplayName string
 				Email       string
+				Next        string
 			}{
 				DisplayName: displayName,
 				Email:       email,
+				Next:        next,
 			},
 			Error: "Display name, email, and password are required.",
 		}
@@ -165,9 +181,11 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 			Data: struct {
 				DisplayName string
 				Email       string
+				Next        string
 			}{
 				DisplayName: displayName,
 				Email:       email,
+				Next:        next,
 			},
 			Error: "Password must be at least 8 characters long.",
 		}
@@ -182,9 +200,11 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 			Data: struct {
 				DisplayName string
 				Email       string
+				Next        string
 			}{
 				DisplayName: displayName,
 				Email:       email,
+				Next:        next,
 			},
 			Error: "Could not create account. This email may already be in use.",
 		}
@@ -199,9 +219,11 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 			Data: struct {
 				DisplayName string
 				Email       string
+				Next        string
 			}{
 				DisplayName: displayName,
 				Email:       email,
+				Next:        next,
 			},
 			Error: "Account created, but we couldn't log you in automatically. Please try logging in.",
 		}
@@ -217,19 +239,27 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Secure:   false, // set true in prod when behind HTTPS
 	})
 
-	log.Printf("signup success: userID=%d, redirecting to /decks", u.ID)
+	log.Printf("signup success: userID=%d, redirecting to %s", u.ID, next)
 	setFlash(w, "Account created. Welcome to Mana Tomb!")
-	http.Redirect(w, r, "/decks", http.StatusSeeOther)
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (a *App) HandleLoginShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
 
+	next := strings.TrimSpace(r.URL.Query().Get("next"))
+	if next == "" || !strings.HasPrefix(next, "/") {
+		next = "/decks"
+	}
+
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
 		Data: struct {
 			Email string
-		}{},
+			Next  string
+		}{
+			Next: next,
+		},
 		Flash: flash,
 		Error: "",
 	}
@@ -242,6 +272,7 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		data := TemplateData{
 			Data: struct {
 				Email string
+				Next  string
 			}{},
 			Error: "Invalid form submission. Please try again.",
 		}
@@ -252,14 +283,21 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.Form.Get("email"))
 	password := r.Form.Get("password")
 
+	next := strings.TrimSpace(r.Form.Get("next"))
+	if next == "" || !strings.HasPrefix(next, "/") {
+		next = "/decks"
+	}
+
 	u, err := account.Authenticate(r.Context(), a.DB, email, password)
 	if err != nil {
 		log.Printf("authenticate error: %v", err)
 		data := TemplateData{
 			Data: struct {
 				Email string
+				Next  string
 			}{
 				Email: email,
+				Next:  next,
 			},
 			Error: "Invalid email or password.",
 		}
@@ -273,8 +311,10 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		data := TemplateData{
 			Data: struct {
 				Email string
+				Next  string
 			}{
 				Email: email,
+				Next:  next,
 			},
 			Error: "Could not create session. Please try logging in again.",
 		}
@@ -291,7 +331,7 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	})
 
 	setFlash(w, "Welcome back!")
-	http.Redirect(w, r, "/decks", http.StatusSeeOther)
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 // ClearSessionCookie clears the current session in the database (if present)

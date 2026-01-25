@@ -1,9 +1,11 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -20,6 +22,76 @@ type deckListItem struct {
 	Description       string
 	CommanderName     string
 	CommanderImageURI string
+}
+
+type importDraftRequest struct {
+	CommanderName string `json:"commander_name"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Cards         []struct {
+		Name string `json:"name"`
+		Qty  int    `json:"qty"`
+	} `json:"cards"`
+}
+
+type importDraftResponse struct {
+	DeckID int64 `json:"deck_id"`
+}
+
+func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
+	user := a.currentUserOrRedirect(w, r)
+	if user == nil {
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req importDraftRequest
+	if err := parseJSONBody(r, &req); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	commander := strings.TrimSpace(req.CommanderName)
+	name := strings.TrimSpace(req.Name)
+	desc := strings.TrimSpace(req.Description)
+
+	if commander == "" {
+		http.Error(w, "missing commander_name", http.StatusBadRequest)
+		return
+	}
+	if name == "" {
+		name = commander
+	}
+
+	// Create the saved deck
+	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, name, desc, commander)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	// Add cards; skip unknown cards instead of failing the whole import
+	for _, item := range req.Cards {
+		cardName := strings.TrimSpace(item.Name)
+		qty := item.Qty
+		if cardName == "" || qty <= 0 {
+			continue
+		}
+
+		card, err := cards.EnsureCardByName(r.Context(), a.DB, cardName)
+		if err != nil {
+			continue
+		}
+
+		_ = decks.AddCard(r.Context(), a.DB, d.ID, card.ID, qty) // best-effort
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(importDraftResponse{DeckID: d.ID})
 }
 
 // currentUserOrRedirect ensures there is a logged-in user, otherwise redirects
@@ -112,10 +184,7 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
-	user := a.currentUserOrRedirect(w, r)
-	if user == nil {
-		return
-	}
+	user := CurrentUser(r)
 
 	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
 	if commanderName == "" {
@@ -207,6 +276,58 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
 }
 
+// Guest deck builder (no DB persistence).
+// Renders the same deck page UI but uses client-side localStorage for the deck contents.
+func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
+	flash := readFlash(w, r)
+	user := CurrentUser(r)
+
+	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
+	if commanderName == "" {
+		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
+
+	// Fake deck object (ID=0) so the template can render.
+	fakeDeck := &decks.Deck{
+		ID:            0,
+		UserID:        0,
+		Name:          "New Deck",
+		Description:   "",
+		CommanderName: commanderName,
+	}
+
+	// Try to fetch commander details from Scryfall for nicer UI.
+	var commanderCard *cards.Card
+	if commanderName != "" {
+		scry := cards.NewScryfallClient()
+		results, err := scry.SearchByName(r.Context(), commanderName+" is:commander")
+		if err == nil && len(results) > 0 {
+			commanderCard = &results[0]
+		}
+	}
+
+	type deckPageData struct {
+		Deck      *decks.Deck
+		DeckCards []decks.DeckCard
+		Commander *cards.Card
+		GuestMode bool
+	}
+
+	data := TemplateData{
+		CurrentUser: user, // will be nil for guests; template handles guest mode
+		Data: deckPageData{
+			Deck:      fakeDeck,
+			DeckCards: nil,
+			Commander: commanderCard,
+			GuestMode: true,
+		},
+		Flash: flash,
+	}
+
+	a.Renderer.Render(w, "deck_show", data)
+}
+
 // Handle creating a new deck directly from a chosen commander.
 //
 // This is intended to be called from the commander search page when the user
@@ -215,10 +336,7 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 //   - create the deck with an empty description
 //   - redirect straight to the deck show page.
 func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Request) {
-	user := a.currentUserOrRedirect(w, r)
-	if user == nil {
-		return
-	}
+	user := CurrentUser(r)
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
@@ -230,6 +348,12 @@ func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Reque
 		// No commander provided – send user back to commander search with a friendly message.
 		setFlash(w, "Please choose a commander first.")
 		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
+
+	// If the user is not logged in, send them to the guest deck builder.
+	if user == nil {
+		http.Redirect(w, r, "/decks/guest?commander_name="+url.QueryEscape(commander), http.StatusSeeOther)
 		return
 	}
 
@@ -309,6 +433,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 						Deck      *decks.Deck
 						DeckCards []decks.DeckCard
 						Commander *cards.Card
+						GuestMode bool
 					}
 
 					data := TemplateData{
@@ -317,6 +442,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 							Deck:      d,
 							DeckCards: deckCards,
 							Commander: commanderCard,
+							GuestMode: false,
 						},
 						Flash: flash,
 						Error: fmt.Sprintf("No card found named “%s”. Please check the spelling.", cardName),
@@ -391,6 +517,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		Deck      *decks.Deck
 		DeckCards []decks.DeckCard
 		Commander *cards.Card
+		GuestMode bool
 	}
 
 	data := TemplateData{
@@ -399,6 +526,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			Deck:      d,
 			DeckCards: deckCards,
 			Commander: commanderCard,
+			GuestMode: false,
 		},
 		Flash: flash,
 	}
@@ -509,4 +637,10 @@ func (a *App) HandleDeckDeletePost(w http.ResponseWriter, r *http.Request) {
 
 	setFlash(w, "Deck deleted.")
 	http.Redirect(w, r, "/decks", http.StatusSeeOther)
+}
+
+func parseJSONBody(r *http.Request, dst any) error {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	return dec.Decode(dst)
 }
