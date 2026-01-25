@@ -1,13 +1,15 @@
 {{ define "deck_show" }}
-  {{ template "layout_header" . }}
   {{ $ctx := .Data }}
   {{ $d := $ctx.Deck }}
   {{ $c := $ctx.Commander }}
+  {{ $isGuest := not .CurrentUser }}
+  {{ template "layout_header" . }}
 
   <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
     <!-- Top bar: title + actions -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
       <div class="space-y-1">
+        {{ if not $isGuest }}
         <!-- View state: click to edit -->
         <button
           type="button"
@@ -55,9 +57,21 @@
             </button>
           </div>
         </form>
+        {{ end }}
+        {{ if $isGuest }}
+          <div class="space-y-1">
+            <h2 class="text-2xl font-semibold tracking-tight">
+              <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+                <span id="guest-deck-name">{{ $d.Name }}</span>
+              </span>
+            </h2>
+            <p class="text-xs text-amber-200/80">Guest deck — saved in this browser only.</p>
+          </div>
+        {{ end }}
       </div>
 
       <div class="flex flex-wrap gap-2">
+        {{ if not $isGuest }}
         <form method="POST" action="/decks/delete"
               onsubmit="return confirm('Delete this deck? This cannot be undone.');">
           <input type="hidden" name="id" value="{{ $d.ID }}">
@@ -66,6 +80,13 @@
             Delete deck
           </button>
         </form>
+        {{ end }}
+        {{ if $isGuest }}
+          <a href="/login?next={{ urlquery (print "/decks/new?commander_name=" $d.CommanderName) }}"
+             class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
+            Log in to save
+          </a>
+        {{ end }}
       </div>
     </div>
 
@@ -112,6 +133,7 @@
               Description
             </h3>
 
+            {{ if not $isGuest }}
             <!-- View state -->
             <button
               type="button"
@@ -157,6 +179,14 @@
                 </button>
               </div>
             </form>
+            {{ end }}
+
+            {{ if $isGuest }}
+              <div class="w-full rounded-md border border-slate-800 bg-slate-950 px-3 py-2">
+                <p id="guest-deck-desc" class="text-sm text-slate-200 whitespace-pre-line">{{ $d.Description }}</p>
+                <p id="guest-deck-desc-empty" class="text-sm text-slate-500 italic hidden">No description yet.</p>
+              </div>
+            {{ end }}
           </div>
 
           <div>
@@ -180,6 +210,7 @@
             <!-- Could add total count here in future -->
           </div>
 
+          {{ if not $isGuest }}
           {{ if $ctx.DeckCards }}
             <ul class="divide-y divide-slate-800 text-sm">
               {{ range $ctx.DeckCards }}
@@ -204,14 +235,27 @@
               No cards yet. Use the form below or the card search page to start adding cards.
             </p>
           {{ end }}
+          {{ end }}
+
+          {{ if $isGuest }}
+            <ul id="guest-deck-cards" class="divide-y divide-slate-800 text-sm"></ul>
+            <p id="guest-deck-cards-empty" class="text-sm text-slate-400 hidden">
+              No cards yet. Use the form below or the card search page to start adding cards.
+            </p>
+          {{ end }}
         </div>
 
         <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
           <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Add card</h3>
-          <form method="POST" action="/decks/{{ $d.ID }}" class="flex flex-col sm:flex-row gap-2">
+          {{ if not $isGuest }}
+            <form method="POST" action="/decks/{{ $d.ID }}" class="flex flex-col sm:flex-row gap-2">
+          {{ else }}
+            <form id="guest-add-card-form" class="flex flex-col sm:flex-row gap-2" novalidate>
+          {{ end }}
             <label class="flex-1 text-sm text-slate-200">
               <span class="block text-xs font-medium text-slate-400 mb-1">Card name</span>
               <input type="text"
+                     id="guest-card-name"
                      name="card_name"
                      required
                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
@@ -222,7 +266,11 @@
                 Add
               </button>
             </div>
+          {{ if not $isGuest }}
           </form>
+          {{ else }}
+          </form>
+          {{ end }}
           <p class="mt-2 text-xs text-slate-500">
             Tip: You can also add cards directly from the
             <a href="/cards/search" class="text-sky-300 hover:text-sky-200 transition-colors">
@@ -230,6 +278,19 @@
             </a>
             page.
           </p>
+          {{ if $isGuest }}
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button type="button" id="guest-copy-decklist"
+                      class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
+                Copy decklist
+              </button>
+              <a href="/login?next={{ urlquery (print "/decks/new?commander_name=" $d.CommanderName) }}"
+                 class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
+                Log in to save
+              </a>
+            </div>
+            <p id="guest-copy-status" class="mt-2 text-xs text-slate-500" aria-live="polite"></p>
+          {{ end }}
         </div>
       </section>
     </div>
@@ -237,50 +298,239 @@
 
   <script>
   document.addEventListener('DOMContentLoaded', function () {
-    // Deck name inline edit
-    var nameView = document.getElementById('deck-name-view');
-    var nameForm = document.getElementById('deck-name-form');
-    var nameCancel = document.getElementById('deck-name-cancel');
+    var isGuest = {{ if $isGuest }}true{{ else }}false{{ end }};
 
-    if (nameView && nameForm) {
-      nameView.addEventListener('click', function () {
-        nameView.classList.add('hidden');
-        nameForm.classList.remove('hidden');
-        var input = nameForm.querySelector('input[name="name"]');
-        if (input) {
-          input.focus();
-          input.select();
+    // ===== Logged-in inline edit behaviors (unchanged) =====
+    if (!isGuest) {
+      // Deck name inline edit
+      var nameView = document.getElementById('deck-name-view');
+      var nameForm = document.getElementById('deck-name-form');
+      var nameCancel = document.getElementById('deck-name-cancel');
+
+      if (nameView && nameForm) {
+        nameView.addEventListener('click', function () {
+          nameView.classList.add('hidden');
+          nameForm.classList.remove('hidden');
+          var input = nameForm.querySelector('input[name="name"]');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      }
+
+      if (nameCancel && nameForm && nameView) {
+        nameCancel.addEventListener('click', function () {
+          nameForm.classList.add('hidden');
+          nameView.classList.remove('hidden');
+        });
+      }
+
+      // Description inline edit
+      var descView = document.getElementById('deck-desc-view');
+      var descForm = document.getElementById('deck-desc-form');
+      var descCancel = document.getElementById('deck-desc-cancel');
+
+      if (descView && descForm) {
+        descView.addEventListener('click', function () {
+          descView.classList.add('hidden');
+          descForm.classList.remove('hidden');
+          var textarea = descForm.querySelector('textarea[name="description"]');
+          if (textarea) {
+            textarea.focus();
+          }
+        });
+      }
+
+      if (descCancel && descForm && descView) {
+        descCancel.addEventListener('click', function () {
+          descForm.classList.add('hidden');
+          descView.classList.remove('hidden');
+        });
+      }
+
+      return; // no guest JS needed
+    }
+
+    // ===== Guest draft deck behavior =====
+    var key = 'manatomb.draftDeck';
+    var commanderName = {{ printf "%q" $d.CommanderName }};
+
+    var nameEl = document.getElementById('guest-deck-name');
+    var descEl = document.getElementById('guest-deck-desc');
+    var descEmptyEl = document.getElementById('guest-deck-desc-empty');
+
+    var listEl = document.getElementById('guest-deck-cards');
+    var emptyEl = document.getElementById('guest-deck-cards-empty');
+
+    var addForm = document.getElementById('guest-add-card-form');
+    var addInput = document.getElementById('guest-card-name');
+
+    var copyBtn = document.getElementById('guest-copy-decklist');
+    var copyStatus = document.getElementById('guest-copy-status');
+
+    function loadDraft() {
+      try {
+        var raw = localStorage.getItem(key);
+        if (!raw) return null;
+        var d = JSON.parse(raw);
+        if (!d || typeof d !== 'object') return null;
+        if (d.commanderName && d.commanderName !== commanderName) return null;
+        if (!d.cards || typeof d.cards !== 'object') d.cards = {};
+        return d;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveDraft(d) {
+      try {
+        d.commanderName = commanderName;
+        d.updatedAt = new Date().toISOString();
+        localStorage.setItem(key, JSON.stringify(d));
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    function normalizeName(s) {
+      return (s || '').trim();
+    }
+
+    function render(d) {
+      d = d || { commanderName: commanderName, cards: {} };
+
+      // Name/description hydration (if present)
+      if (nameEl && d.name) nameEl.textContent = d.name;
+      if (descEl) {
+        var hasDesc = !!(d.description && d.description.trim());
+        descEl.textContent = hasDesc ? d.description : '';
+        if (descEmptyEl) descEmptyEl.classList.toggle('hidden', hasDesc);
+      }
+
+      if (!listEl) return;
+
+      // Clear list
+      listEl.innerHTML = '';
+
+      var entries = Object.entries(d.cards || {});
+      entries.sort(function (a, b) {
+        return a[0].localeCompare(b[0]);
+      });
+
+      if (emptyEl) emptyEl.classList.toggle('hidden', entries.length !== 0);
+
+      entries.forEach(function (pair) {
+        var cardName = pair[0];
+        var qty = pair[1];
+        if (!qty || qty <= 0) return;
+
+        var li = document.createElement('li');
+        li.className = 'flex items-center justify-between gap-3 py-2';
+
+        var left = document.createElement('div');
+        var p = document.createElement('p');
+        p.className = 'font-medium text-slate-100';
+        p.textContent = qty + 'x ' + cardName;
+        left.appendChild(p);
+
+        var right = document.createElement('div');
+        right.className = 'shrink-0 flex items-center gap-2';
+
+        var minus = document.createElement('button');
+        minus.type = 'button';
+        minus.className = 'inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors';
+        minus.textContent = '−';
+        minus.addEventListener('click', function () {
+          var dd = loadDraft() || { commanderName: commanderName, cards: {} };
+          dd.cards = dd.cards || {};
+          dd.cards[cardName] = (dd.cards[cardName] || 0) - 1;
+          if (dd.cards[cardName] <= 0) delete dd.cards[cardName];
+          saveDraft(dd);
+          render(dd);
+        });
+
+        var plus = document.createElement('button');
+        plus.type = 'button';
+        plus.className = 'inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors';
+        plus.textContent = '+';
+        plus.addEventListener('click', function () {
+          var dd = loadDraft() || { commanderName: commanderName, cards: {} };
+          dd.cards = dd.cards || {};
+          dd.cards[cardName] = (dd.cards[cardName] || 0) + 1;
+          saveDraft(dd);
+          render(dd);
+        });
+
+        right.appendChild(minus);
+        right.appendChild(plus);
+
+        li.appendChild(left);
+        li.appendChild(right);
+
+        listEl.appendChild(li);
+      });
+    }
+
+    // Init
+    var draft = loadDraft();
+    if (!draft) {
+      draft = { commanderName: commanderName, name: (nameEl ? nameEl.textContent : ''), description: '', cards: {} };
+      saveDraft(draft);
+    }
+    render(draft);
+
+    if (addForm && addInput) {
+      addForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var n = normalizeName(addInput.value);
+        if (!n) return;
+        var dd = loadDraft() || { commanderName: commanderName, cards: {} };
+        dd.cards = dd.cards || {};
+        dd.cards[n] = (dd.cards[n] || 0) + 1;
+        saveDraft(dd);
+        render(dd);
+        addInput.value = '';
+        addInput.focus();
+      });
+    }
+
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async function () {
+        var dd = loadDraft() || { commanderName: commanderName, cards: {} };
+        var lines = [];
+        lines.push('Commander: ' + commanderName);
+        lines.push('');
+        var entries = Object.entries(dd.cards || {});
+        entries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
+        entries.forEach(function (pair) {
+          lines.push(pair[1] + ' ' + pair[0]);
+        });
+        var text = lines.join('\n');
+
+        try {
+          await navigator.clipboard.writeText(text);
+          if (copyStatus) copyStatus.textContent = 'Copied decklist to clipboard.';
+        } catch (e) {
+          // Fallback
+          try {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (copyStatus) copyStatus.textContent = 'Copied decklist to clipboard.';
+          } catch (e2) {
+            if (copyStatus) copyStatus.textContent = 'Could not copy automatically. You can manually select/copy from the card list.';
+          }
         }
-      });
-    }
 
-    if (nameCancel && nameForm && nameView) {
-      nameCancel.addEventListener('click', function () {
-        nameForm.classList.add('hidden');
-        nameView.classList.remove('hidden');
-      });
-    }
-
-    // Description inline edit
-    var descView = document.getElementById('deck-desc-view');
-    var descForm = document.getElementById('deck-desc-form');
-    var descCancel = document.getElementById('deck-desc-cancel');
-
-    if (descView && descForm) {
-      descView.addEventListener('click', function () {
-        descView.classList.add('hidden');
-        descForm.classList.remove('hidden');
-        var textarea = descForm.querySelector('textarea[name="description"]');
-        if (textarea) {
-          textarea.focus();
-        }
-      });
-    }
-
-    if (descCancel && descForm && descView) {
-      descCancel.addEventListener('click', function () {
-        descForm.classList.add('hidden');
-        descView.classList.remove('hidden');
+        setTimeout(function () {
+          if (copyStatus) copyStatus.textContent = '';
+        }, 2500);
       });
     }
   });

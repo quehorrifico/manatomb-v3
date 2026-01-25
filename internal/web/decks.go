@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -112,10 +113,7 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
-	user := a.currentUserOrRedirect(w, r)
-	if user == nil {
-		return
-	}
+	user := CurrentUser(r)
 
 	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
 	if commanderName == "" {
@@ -207,6 +205,59 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
 }
 
+// Guest deck builder (no DB persistence).
+// Renders the same deck page UI but uses client-side localStorage for the deck contents.
+func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
+	flash := readFlash(w, r)
+	user := CurrentUser(r)
+
+	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
+	if commanderName == "" {
+		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
+
+	// Fake deck object (ID=0) so the template can render.
+	fakeDeck := &decks.Deck{
+		ID:            0,
+		UserID:        0,
+		Name:          "New Deck",
+		Description:   "",
+		CommanderName: commanderName,
+	}
+
+	// Try to fetch commander details from Scryfall for nicer UI.
+	var commanderCard *cards.Card
+	if commanderName != "" {
+		scry := cards.NewScryfallClient()
+		results, err := scry.SearchByName(r.Context(), commanderName+" is:commander")
+		if err == nil && len(results) > 0 {
+			commanderCard = &results[0]
+		}
+	}
+
+	type deckPageData struct {
+		Deck      *decks.Deck
+		DeckCards []decks.DeckCard
+		Commander *cards.Card
+	}
+
+	data := TemplateData{
+		CurrentUser: user, // will be nil for guests; template handles guest mode
+		Data: deckPageData{
+			Deck:      fakeDeck,
+			DeckCards: nil,
+			Commander: commanderCard,
+		},
+		Flash: flash,
+	}
+
+	// if w.Header().Get("Content-Type") == "" {
+	// 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// }
+	a.Renderer.Render(w, "deck_show", data)
+}
+
 // Handle creating a new deck directly from a chosen commander.
 //
 // This is intended to be called from the commander search page when the user
@@ -215,10 +266,7 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 //   - create the deck with an empty description
 //   - redirect straight to the deck show page.
 func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Request) {
-	user := a.currentUserOrRedirect(w, r)
-	if user == nil {
-		return
-	}
+	user := CurrentUser(r)
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
@@ -230,6 +278,12 @@ func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Reque
 		// No commander provided – send user back to commander search with a friendly message.
 		setFlash(w, "Please choose a commander first.")
 		http.Redirect(w, r, "/commanders/search", http.StatusSeeOther)
+		return
+	}
+
+	// If the user is not logged in, send them to the guest deck builder.
+	if user == nil {
+		http.Redirect(w, r, "/decks/guest?commander_name="+url.QueryEscape(commander), http.StatusSeeOther)
 		return
 	}
 
