@@ -1,0 +1,1227 @@
+{{ define "deck_playtest" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+  {{ $deck := $ctx.Deck }}
+  {{ $authNext := $ctx.AuthNextPath }}
+  {{ if not $authNext }}
+    {{ $authNext = "/decks/new?mode=commander" }}
+  {{ end }}
+
+  <main class="max-w-7xl mx-auto px-4 py-8 space-y-4">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-100">Commander Goldfish Playtest</h1>
+        <p class="text-sm text-slate-400">{{ $deck.Name }}</p>
+        {{ if $deck.CommanderName }}
+          <p class="text-xs text-slate-500 mt-1">Commander: {{ $deck.CommanderName }}</p>
+        {{ end }}
+        {{ if and $ctx.GuestMode (not .CurrentUser) }}
+          <p class="text-xs text-amber-200/80 mt-1">Guest session: this run is not saved to an account.</p>
+        {{ end }}
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button id="pt-reset"
+                class="px-3 py-2 rounded-md bg-slate-800 text-slate-100 text-sm hover:bg-slate-700">
+          Reset game
+        </button>
+        <button id="pt-draw"
+                class="px-3 py-2 rounded-md bg-slate-100 text-slate-950 text-sm font-semibold hover:bg-white">
+          Draw card
+        </button>
+        <button id="pt-next-turn"
+                class="px-3 py-2 rounded-md bg-violet-500 text-white text-sm font-semibold hover:bg-violet-400">
+          Next turn
+        </button>
+        <button id="pt-stats-toggle"
+                class="px-3 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400">
+          Game stats
+        </button>
+        {{ if and $ctx.GuestMode (not .CurrentUser) }}
+          <a id="pt-auth-login"
+             href="/login?next={{ urlquery $authNext }}"
+             class="px-3 py-2 rounded-md bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200">
+            Log in
+          </a>
+          <a id="pt-auth-signup"
+             href="/signup?next={{ urlquery $authNext }}"
+             class="px-3 py-2 rounded-md border border-sky-500 text-sky-200 text-sm font-semibold hover:bg-sky-900/40">
+            Sign up
+          </a>
+        {{ end }}
+      </div>
+    </div>
+
+    <p id="pt-status" class="text-xs text-sky-300" aria-live="polite"></p>
+
+    <section id="pt-opening-screen" class="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-200">Opening Hand</h2>
+          <p class="text-xs text-slate-400">Review your random 7 cards, then keep or mulligan.</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="pt-mulligan"
+                  class="px-3 py-2 rounded-md bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200">
+            Mulligan
+          </button>
+          <button id="pt-keep"
+                  class="px-3 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400">
+            Keep
+          </button>
+        </div>
+      </div>
+      <div id="pt-opening-hand" class="min-h-[176px] rounded-lg bg-slate-950/80 p-2 flex flex-wrap gap-2 content-start"></div>
+    </section>
+
+    <section id="pt-play-surface" class="hidden flex flex-col gap-3 min-h-[calc(100vh-182px)]">
+      <section class="rounded-xl border border-slate-800 bg-slate-950/60 p-3 flex-1 min-h-[380px]">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-slate-200">Battlefield</h2>
+          <span class="text-xs text-slate-400">Drag to reposition. Lands snap to the bottom row.</span>
+        </div>
+        <div id="pt-zone-battlefield"
+             data-zone="battlefield"
+             class="pt-drop-zone mt-2 h-[calc(100%-28px)] min-h-[340px] rounded-lg bg-slate-950/80 p-2 relative overflow-hidden"></div>
+      </section>
+
+      <section class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+        <div class="flex items-end gap-4 overflow-x-auto pb-1">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between mb-1">
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Hand</p>
+              <p class="text-[11px] text-slate-500">Drag to reorder, click to play</p>
+            </div>
+            <div id="pt-zone-hand"
+                 data-zone="hand"
+                 class="pt-drop-zone pt-hand-zone min-h-[146px] rounded-md bg-slate-950/80 p-1 flex gap-2 overflow-x-auto overflow-y-hidden items-start"></div>
+          </div>
+
+          <div class="flex items-end gap-2 shrink-0">
+            <div class="w-[114px]">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Graveyard</p>
+              <div id="pt-zone-graveyard"
+                   data-zone="graveyard"
+                   class="pt-drop-zone pt-stack-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
+            </div>
+
+            <div class="w-[114px]">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Exile</p>
+              <div id="pt-zone-exile"
+                   data-zone="exile"
+                   class="pt-drop-zone pt-stack-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
+            </div>
+
+            <div class="w-[114px]">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Commander</p>
+              <div id="pt-zone-command"
+                   data-zone="command"
+                   class="pt-drop-zone pt-stack-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
+            </div>
+
+            <div class="w-[114px]">
+              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Library</p>
+              <div id="pt-zone-library"
+                   data-zone="library"
+                   class="pt-drop-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <div id="pt-stats-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-stats-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="absolute right-4 top-20 w-[min(460px,92vw)] rounded-xl border border-slate-700 bg-slate-950/95 p-4 shadow-2xl shadow-black/80 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-slate-100">Game Stats</h2>
+          <button id="pt-stats-close"
+                  type="button"
+                  class="px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500">
+            Close
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
+          <p>Turn: <span id="pt-turn" class="font-semibold text-slate-100">0</span></p>
+          <p>Mulligans: <span id="pt-mulligans" class="font-semibold text-slate-100">0</span></p>
+          <p>Commander tax: <span id="pt-commander-tax" class="font-semibold text-slate-100">+0</span></p>
+          <p>Library: <span id="pt-count-library" class="font-semibold text-slate-100">0</span></p>
+          <p>Hand: <span id="pt-count-hand" class="font-semibold text-slate-100">0</span></p>
+          <p>Battlefield: <span id="pt-count-battlefield" class="font-semibold text-slate-100">0</span></p>
+          <p>Graveyard: <span id="pt-count-graveyard" class="font-semibold text-slate-100">0</span></p>
+          <p>Exile: <span id="pt-count-exile" class="font-semibold text-slate-100">0</span></p>
+          <p>Commander: <span id="pt-count-command" class="font-semibold text-slate-100">0</span></p>
+        </div>
+      </section>
+    </div>
+
+    <aside id="pt-hover-preview"
+           class="hidden pointer-events-none fixed right-4 top-24 z-50">
+      <div class="w-[300px] rounded-xl overflow-hidden bg-slate-950/95 shadow-2xl shadow-black/80">
+        <img id="pt-hover-preview-img"
+             alt=""
+             class="w-full h-auto hidden">
+        <div id="pt-hover-preview-fallback"
+             class="hidden p-4 text-sm text-slate-300 bg-gradient-to-br from-slate-900 to-slate-800"></div>
+      </div>
+    </aside>
+
+    <style>
+      .pt-drop-zone.pt-drop-zone--active {
+        background: rgb(8 47 73 / 0.62);
+        box-shadow: 0 0 0 2px rgb(14 116 144 / 0.5) inset;
+      }
+
+      .pt-card {
+        width: 96px;
+        border-radius: 0.65rem;
+        overflow: hidden;
+        background: rgb(2 6 23);
+        box-shadow: 0 8px 22px rgba(2, 6, 23, 0.55);
+        cursor: grab;
+        transition: transform 120ms ease, box-shadow 120ms ease;
+        user-select: none;
+        position: relative;
+      }
+
+      .pt-card:hover {
+        transform: translateY(-2px);
+      }
+
+      .pt-card:active {
+        cursor: grabbing;
+      }
+
+      .pt-card.pt-card--opening {
+        width: 108px;
+      }
+
+      .pt-card.pt-card--stack {
+        width: 82px;
+      }
+
+      .pt-card.pt-card--tapped {
+        transform: rotate(90deg) scale(0.96);
+        margin-left: 12px;
+        margin-right: 12px;
+      }
+
+      .pt-card__image {
+        width: 100%;
+        aspect-ratio: 63 / 88;
+        object-fit: cover;
+        display: block;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+      }
+
+      .pt-card__fallback {
+        width: 100%;
+        aspect-ratio: 63 / 88;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 11px;
+        line-height: 1.2;
+        color: rgb(203 213 225);
+        padding: 10px;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+      }
+
+      .pt-card__chips {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .pt-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9999px;
+        padding: 1px 7px;
+        font-size: 10px;
+        line-height: 1.25;
+        letter-spacing: 0.02em;
+      }
+
+      .pt-chip--commander {
+        background: rgb(186 230 253);
+        color: rgb(2 6 23);
+        font-weight: 700;
+      }
+
+      .pt-chip--tapped {
+        background: rgb(250 204 21);
+        color: rgb(15 23 42);
+        font-weight: 700;
+      }
+
+      .pt-hand-zone {
+        scroll-snap-type: x mandatory;
+        scrollbar-width: thin;
+      }
+
+      .pt-hand-zone > .pt-card {
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+      }
+
+      .pt-hand-zone::-webkit-scrollbar {
+        height: 8px;
+      }
+
+      .pt-hand-zone::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.45);
+        border-radius: 999px;
+      }
+
+      .pt-hand-zone::-webkit-scrollbar-thumb {
+        background: rgba(71, 85, 105, 0.9);
+        border-radius: 999px;
+      }
+
+      .pt-library-stack {
+        position: relative;
+        width: 86px;
+        height: 122px;
+        margin: 10px auto 0;
+      }
+
+      .pt-library-stack__card {
+        position: absolute;
+        inset: 0;
+        border-radius: 0.65rem;
+        background:
+          radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.3), transparent 45%),
+          radial-gradient(circle at 80% 80%, rgba(14, 116, 144, 0.45), transparent 50%),
+          linear-gradient(165deg, rgba(15, 23, 42, 1), rgba(30, 41, 59, 0.95));
+      }
+
+      .pt-library-stack__card:nth-child(2) {
+        transform: translate(-5px, 4px);
+      }
+
+      .pt-library-stack__card:nth-child(3) {
+        transform: translate(-10px, 8px);
+      }
+    </style>
+
+    <script>
+      (function () {
+        var librarySeed = {{ $ctx.CardsJSON }};
+        var commanderSeed = {{ $ctx.CommanderJSON }};
+        var cardIDSeed = 1;
+
+        var battlefieldCardWidth = 96;
+        var battlefieldCardHeight = 136;
+        var battlefieldSnapGap = 8;
+        var battlefieldSnapRow = 32;
+        var stackedOffsetX = 8;
+        var stackedOffsetY = 3;
+
+        function createCard(name, imageURI, typeLine, isCommander) {
+          return {
+            id: cardIDSeed++,
+            name: String(name || "").trim(),
+            imageURI: String(imageURI || "").trim(),
+            typeLine: String(typeLine || "").trim(),
+            tapped: false,
+            isCommander: !!isCommander,
+            bfX: null,
+            bfY: null
+          };
+        }
+
+        function isLandCard(card) {
+          if (!card) return false;
+          return /land/i.test(String(card.typeLine || ""));
+        }
+
+        function shuffle(cards) {
+          for (var i = cards.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = cards[i];
+            cards[i] = cards[j];
+            cards[j] = tmp;
+          }
+          return cards;
+        }
+
+        function buildLibrary(seedRows) {
+          var lib = [];
+          for (var i = 0; i < seedRows.length; i++) {
+            var row = seedRows[i] || {};
+            var name = String(row.name || "").trim();
+            var imageURI = String(row.image_uri || "").trim();
+            var typeLine = String(row.type_line || "").trim();
+            var qty = Number(row.qty || 0);
+            if (!name || qty <= 0) continue;
+            for (var q = 0; q < qty; q++) {
+              lib.push(createCard(name, imageURI, typeLine, false));
+            }
+          }
+          return lib;
+        }
+
+        function zoneLabel(zone) {
+          if (zone === "command") return "Commander";
+          if (zone === "library") return "Library";
+          if (zone === "hand") return "Hand";
+          if (zone === "battlefield") return "Battlefield";
+          if (zone === "graveyard") return "Graveyard";
+          if (zone === "exile") return "Exile";
+          return zone;
+        }
+
+        var zoneOrder = ["command", "library", "hand", "battlefield", "graveyard", "exile"];
+
+        var state = {
+          phase: "opening", // opening | play
+          zones: {
+            command: [],
+            library: [],
+            hand: [],
+            battlefield: [],
+            graveyard: [],
+            exile: []
+          },
+          turn: 0,
+          mulligans: 0,
+          commanderCasts: 0,
+          draggingCardID: null
+        };
+
+        var openingScreen = document.getElementById("pt-opening-screen");
+        var openingHandEl = document.getElementById("pt-opening-hand");
+        var playSurface = document.getElementById("pt-play-surface");
+
+        var zoneEls = {
+          command: document.getElementById("pt-zone-command"),
+          library: document.getElementById("pt-zone-library"),
+          hand: document.getElementById("pt-zone-hand"),
+          battlefield: document.getElementById("pt-zone-battlefield"),
+          graveyard: document.getElementById("pt-zone-graveyard"),
+          exile: document.getElementById("pt-zone-exile")
+        };
+
+        var elStatus = document.getElementById("pt-status");
+        var elTurn = document.getElementById("pt-turn");
+        var elMulligans = document.getElementById("pt-mulligans");
+        var elCommanderTax = document.getElementById("pt-commander-tax");
+        var countEls = {
+          command: document.getElementById("pt-count-command"),
+          library: document.getElementById("pt-count-library"),
+          hand: document.getElementById("pt-count-hand"),
+          battlefield: document.getElementById("pt-count-battlefield"),
+          graveyard: document.getElementById("pt-count-graveyard"),
+          exile: document.getElementById("pt-count-exile")
+        };
+
+        var btnReset = document.getElementById("pt-reset");
+        var btnDraw = document.getElementById("pt-draw");
+        var btnNextTurn = document.getElementById("pt-next-turn");
+        var btnKeep = document.getElementById("pt-keep");
+        var btnMulligan = document.getElementById("pt-mulligan");
+
+        var btnStatsToggle = document.getElementById("pt-stats-toggle");
+        var statsOverlay = document.getElementById("pt-stats-overlay");
+        var btnStatsClose = document.getElementById("pt-stats-close");
+        var btnStatsBackdrop = document.getElementById("pt-stats-backdrop");
+        var authLoginLink = document.getElementById("pt-auth-login");
+        var authSignupLink = document.getElementById("pt-auth-signup");
+
+        var previewWrap = document.getElementById("pt-hover-preview");
+        var previewImg = document.getElementById("pt-hover-preview-img");
+        var previewFallback = document.getElementById("pt-hover-preview-fallback");
+
+        function seedGuestDraftFromPlaytest() {
+          if (!({{ if and $ctx.GuestMode (not .CurrentUser) }}true{{ else }}false{{ end }})) return;
+
+          try {
+            var cards = {};
+            var commanderName = "";
+            var hasStateCards = false;
+
+            function addCardCount(name, qty) {
+              name = String(name || "").trim();
+              qty = Number(qty || 0);
+              if (!name || qty <= 0) return;
+              cards[name] = (cards[name] || 0) + qty;
+            }
+
+            // Prefer live state so login/save keeps up with current game zones.
+            if (state && state.zones) {
+              for (var i = 0; i < zoneOrder.length; i++) {
+                var zoneName = zoneOrder[i];
+                var zone = state.zones[zoneName];
+                if (!Array.isArray(zone)) continue;
+                for (var j = 0; j < zone.length; j++) {
+                  var card = zone[j] || {};
+                  var nameFromState = String(card.name || "").trim();
+                  if (!nameFromState) continue;
+                  addCardCount(nameFromState, 1);
+                  hasStateCards = true;
+                  if (!commanderName && card.isCommander) {
+                    commanderName = nameFromState;
+                  }
+                }
+              }
+            }
+
+            // Fallback to seed payload if this runs before game state initializes.
+            if (!hasStateCards) {
+              for (var i = 0; i < librarySeed.length; i++) {
+                var row = librarySeed[i] || {};
+                var name = String(row.name || "").trim();
+                var qty = Number(row.qty || 0);
+                if (!name || qty <= 0) continue;
+                addCardCount(name, qty);
+              }
+            }
+
+            if (!hasStateCards && commanderSeed && commanderSeed.name) {
+              commanderName = String(commanderSeed.name || "").trim();
+              if (commanderName) {
+                addCardCount(commanderName, 1);
+              }
+            } else if (!commanderName && commanderSeed && commanderSeed.name) {
+              commanderName = String(commanderSeed.name || "").trim();
+            } else if (commanderName && !cards[commanderName]) {
+              addCardCount(commanderName, 1);
+            }
+
+            var candidates = [];
+            if (commanderName) {
+              candidates.push(commanderName);
+            }
+
+            var draft = {
+              commanderName: commanderName,
+              commanderCandidates: candidates,
+              name: {{ printf "%q" $deck.Name }},
+              description: {{ printf "%q" $deck.Description }},
+              cards: cards,
+              updatedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem("manatomb.draftDeck", JSON.stringify(draft));
+          } catch (e) {
+            // ignore storage errors
+          }
+        }
+
+        if (authLoginLink) authLoginLink.addEventListener("click", seedGuestDraftFromPlaytest);
+        if (authSignupLink) authSignupLink.addEventListener("click", seedGuestDraftFromPlaytest);
+        seedGuestDraftFromPlaytest();
+
+        function setStatus(msg) {
+          if (elStatus) elStatus.textContent = msg || "";
+        }
+
+        function setStatsOverlay(open) {
+          if (!statsOverlay) return;
+          statsOverlay.classList.toggle("hidden", !open);
+        }
+
+        function statsOverlayOpen() {
+          if (!statsOverlay) return false;
+          return !statsOverlay.classList.contains("hidden");
+        }
+
+        function showPreview(card) {
+          if (!previewWrap || !card) return;
+          if (card.imageURI) {
+            if (previewImg) {
+              previewImg.src = card.imageURI;
+              previewImg.alt = card.name || "Card preview";
+              previewImg.classList.remove("hidden");
+            }
+            if (previewFallback) previewFallback.classList.add("hidden");
+          } else {
+            if (previewImg) previewImg.classList.add("hidden");
+            if (previewFallback) {
+              previewFallback.textContent = card.name || "Unknown card";
+              previewFallback.classList.remove("hidden");
+            }
+          }
+          previewWrap.classList.remove("hidden");
+        }
+
+        function hidePreview() {
+          if (!previewWrap) return;
+          previewWrap.classList.add("hidden");
+        }
+
+        function getZoneArray(zone) {
+          return state.zones[zone] || null;
+        }
+
+        function commanderTax() {
+          return state.commanderCasts * 2;
+        }
+
+        function findCard(cardID) {
+          for (var i = 0; i < zoneOrder.length; i++) {
+            var zoneName = zoneOrder[i];
+            var zone = getZoneArray(zoneName);
+            if (!zone) continue;
+            for (var j = 0; j < zone.length; j++) {
+              if (zone[j] && zone[j].id === cardID) {
+                return {
+                  zone: zoneName,
+                  index: j,
+                  card: zone[j]
+                };
+              }
+            }
+          }
+          return null;
+        }
+
+        function drawCards(count) {
+          var drew = 0;
+          for (var i = 0; i < count; i++) {
+            if (state.zones.library.length === 0) break;
+            var card = state.zones.library.pop();
+            card.tapped = false;
+            card.bfX = null;
+            card.bfY = null;
+            state.zones.hand.push(card);
+            drew += 1;
+          }
+          return drew;
+        }
+
+        function clampBattlefieldPosition(x, y) {
+          var el = zoneEls.battlefield;
+          if (!el) {
+            return {
+              x: Math.max(0, x),
+              y: Math.max(0, y)
+            };
+          }
+          var maxX = Math.max(0, el.clientWidth - battlefieldCardWidth);
+          var maxY = Math.max(0, el.clientHeight - battlefieldCardHeight);
+          return {
+            x: Math.min(maxX, Math.max(0, Math.round(x))),
+            y: Math.min(maxY, Math.max(0, Math.round(y)))
+          };
+        }
+
+        function battlefieldDropPosition(dropEvent) {
+          if (!dropEvent || !zoneEls.battlefield) return null;
+          var rect = zoneEls.battlefield.getBoundingClientRect();
+          var x = dropEvent.clientX - rect.left - battlefieldCardWidth / 2;
+          var y = dropEvent.clientY - rect.top - battlefieldCardHeight / 2;
+          return clampBattlefieldPosition(x, y);
+        }
+
+        function landSnapPosition(card, dropEvent) {
+          var base = battlefieldDropPosition(dropEvent);
+          var el = zoneEls.battlefield;
+          var maxY = 0;
+          if (el) {
+            maxY = Math.max(0, el.clientHeight - battlefieldCardHeight - 2);
+          }
+
+          var x = 0;
+          if (base) {
+            x = base.x;
+          } else {
+            var lands = [];
+            var bf = state.zones.battlefield;
+            for (var i = 0; i < bf.length; i++) {
+              if (isLandCard(bf[i])) lands.push(bf[i]);
+            }
+            var idx = lands.indexOf(card);
+            if (idx < 0) idx = Math.max(0, lands.length - 1);
+            x = idx * (battlefieldCardWidth + battlefieldSnapGap);
+          }
+          return clampBattlefieldPosition(x, maxY);
+        }
+
+        function battlefieldSnapPosition(card) {
+          var bf = state.zones.battlefield;
+          var idx = bf.indexOf(card);
+          if (idx < 0) idx = Math.max(0, bf.length - 1);
+
+          var width = zoneEls.battlefield ? zoneEls.battlefield.clientWidth : 720;
+          var columns = Math.max(1, Math.floor((width + battlefieldSnapGap) / (battlefieldCardWidth + battlefieldSnapGap)));
+          var col = idx % columns;
+          var row = Math.floor(idx / columns);
+          var x = col * (battlefieldCardWidth + battlefieldSnapGap);
+          var y = row * battlefieldSnapRow;
+          return clampBattlefieldPosition(x, y);
+        }
+
+        function setBattlefieldPosition(card, dropEvent, preferDropPoint) {
+          if (!card) return;
+
+          if (isLandCard(card)) {
+            var landPos = landSnapPosition(card, preferDropPoint ? dropEvent : null);
+            card.bfX = landPos.x;
+            card.bfY = landPos.y;
+            return;
+          }
+
+          var pos = null;
+          if (preferDropPoint) {
+            pos = battlefieldDropPosition(dropEvent);
+          }
+          if (!pos) {
+            pos = battlefieldSnapPosition(card);
+          }
+          card.bfX = pos.x;
+          card.bfY = pos.y;
+        }
+
+        function untapAllBattlefield() {
+          var untapped = 0;
+          var battlefield = state.zones.battlefield;
+          for (var i = 0; i < battlefield.length; i++) {
+            if (battlefield[i] && battlefield[i].tapped) {
+              battlefield[i].tapped = false;
+              untapped += 1;
+            }
+          }
+          return untapped;
+        }
+
+        function startOpening() {
+          state.phase = "opening";
+          state.turn = 0;
+          state.mulligans = 0;
+          state.commanderCasts = 0;
+          state.draggingCardID = null;
+          hidePreview();
+          setStatsOverlay(false);
+
+          state.zones.command = [];
+          state.zones.library = shuffle(buildLibrary(librarySeed));
+          state.zones.hand = [];
+          state.zones.battlefield = [];
+          state.zones.graveyard = [];
+          state.zones.exile = [];
+
+          if (commanderSeed && commanderSeed.name) {
+            state.zones.command.push(createCard(
+              commanderSeed.name,
+              commanderSeed.image_uri,
+              commanderSeed.type_line,
+              true
+            ));
+          }
+
+          drawCards(7);
+          setStatus("Opening hand ready. Keep or mulligan.");
+          render();
+        }
+
+        function keepOpening() {
+          if (state.phase !== "opening") return;
+          state.phase = "play";
+          state.turn = 1;
+          setStatus("Turn 1 started.");
+          render();
+        }
+
+        function mulliganOpening() {
+          if (state.phase !== "opening") return;
+
+          state.zones.library = state.zones.library.concat(state.zones.hand);
+          state.zones.hand = [];
+          shuffle(state.zones.library);
+          state.mulligans += 1;
+          drawCards(7);
+
+          setStatus("Mulligan " + state.mulligans + ": drew a fresh 7.");
+          render();
+        }
+
+        function drawOne() {
+          if (state.phase !== "play") {
+            setStatus("Keep your opening hand first.");
+            return;
+          }
+          var drew = drawCards(1);
+          if (drew === 0) {
+            setStatus("Library is empty.");
+          } else {
+            setStatus("Drew a card.");
+          }
+          render();
+        }
+
+        function nextTurn() {
+          if (state.phase !== "play") {
+            setStatus("Keep your opening hand first.");
+            return;
+          }
+          state.turn += 1;
+          var untapped = untapAllBattlefield();
+          var drew = drawCards(1);
+          var text = "Turn " + state.turn + ": ";
+          if (untapped > 0) {
+            text += "untapped " + untapped + " permanent(s), ";
+          }
+          text += drew > 0 ? "drew a card." : "no card to draw.";
+          setStatus(text);
+          render();
+        }
+
+        function canDrop(sourceZone, targetZone, card) {
+          if (!card) return false;
+
+          if (sourceZone === targetZone) {
+            return targetZone === "battlefield" || targetZone === "hand";
+          }
+
+          if (targetZone === "library") return false;
+          if (state.phase !== "play") return false;
+          return true;
+        }
+
+        function handInsertIndex(clientX, draggingCardID) {
+          if (!zoneEls.hand) return state.zones.hand.length;
+          var nodes = zoneEls.hand.querySelectorAll("[data-zone-card='hand']");
+          var insert = state.zones.hand.length;
+          for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            var nodeID = Number(node.dataset.cardId || 0);
+            if (nodeID === draggingCardID) continue;
+            var rect = node.getBoundingClientRect();
+            var mid = rect.left + rect.width / 2;
+            if (clientX < mid) {
+              var loc = findCard(nodeID);
+              if (loc && loc.zone === "hand") {
+                insert = loc.index;
+              }
+              break;
+            }
+          }
+          return insert;
+        }
+
+        function reorderHandCard(cardID, dropEvent) {
+          var found = findCard(cardID);
+          if (!found || found.zone !== "hand") return;
+          var hand = state.zones.hand;
+          var from = found.index;
+          var insert = hand.length;
+          if (dropEvent && typeof dropEvent.clientX === "number") {
+            insert = handInsertIndex(dropEvent.clientX, cardID);
+          }
+
+          var card = hand[from];
+          hand.splice(from, 1);
+          if (insert > from) insert -= 1;
+          insert = Math.max(0, Math.min(insert, hand.length));
+          hand.splice(insert, 0, card);
+        }
+
+        function moveCard(cardID, targetZone, dropEvent) {
+          var located = findCard(cardID);
+          if (!located) return;
+
+          if (!canDrop(located.zone, targetZone, located.card)) {
+            if (state.phase !== "play") {
+              setStatus("Complete keep/mulligan first.");
+            }
+            return;
+          }
+
+          if (located.zone === "hand" && targetZone === "hand") {
+            reorderHandCard(cardID, dropEvent);
+            render();
+            return;
+          }
+
+          if (located.zone === "battlefield" && targetZone === "battlefield") {
+            setBattlefieldPosition(located.card, dropEvent, true);
+            var bf = state.zones.battlefield;
+            bf.splice(located.index, 1);
+            bf.push(located.card);
+            setStatus(located.card.name + " repositioned.");
+            render();
+            return;
+          }
+
+          var source = getZoneArray(located.zone);
+          var target = getZoneArray(targetZone);
+          if (!source || !target) return;
+
+          source.splice(located.index, 1);
+          var card = located.card;
+
+          if (targetZone !== "battlefield") {
+            card.tapped = false;
+            card.bfX = null;
+            card.bfY = null;
+          }
+
+          if (card.isCommander && located.zone === "command" && targetZone === "battlefield") {
+            state.commanderCasts += 1;
+          }
+
+          target.push(card);
+
+          if (targetZone === "battlefield") {
+            setBattlefieldPosition(card, dropEvent, true);
+          }
+
+          setStatus(card.name + " moved to " + zoneLabel(targetZone) + ".");
+          render();
+        }
+
+        function clearDropHighlights() {
+          for (var i = 0; i < zoneOrder.length; i++) {
+            var zoneName = zoneOrder[i];
+            var el = zoneEls[zoneName];
+            if (el) el.classList.remove("pt-drop-zone--active");
+          }
+        }
+
+        function createCardNode(card, zoneName, isOpening) {
+          var node = document.createElement("article");
+          node.className = "pt-card";
+          if (isOpening) node.classList.add("pt-card--opening");
+          if (zoneName === "battlefield" && card.tapped) {
+            node.classList.add("pt-card--tapped");
+          }
+          if (zoneName === "command" || zoneName === "graveyard" || zoneName === "exile") {
+            node.classList.add("pt-card--stack");
+          }
+          node.setAttribute("draggable", "true");
+          node.dataset.cardId = String(card.id);
+          node.dataset.zoneCard = zoneName;
+
+          if (card.imageURI) {
+            var img = document.createElement("img");
+            img.className = "pt-card__image";
+            img.src = card.imageURI;
+            img.alt = card.name;
+            node.appendChild(img);
+          } else {
+            var fallback = document.createElement("div");
+            fallback.className = "pt-card__fallback";
+            fallback.textContent = card.name || "Unknown card";
+            node.appendChild(fallback);
+          }
+
+          var hasChip = false;
+          var chips = document.createElement("div");
+          chips.className = "pt-card__chips";
+          if (card.isCommander) {
+            var commanderChip = document.createElement("span");
+            commanderChip.className = "pt-chip pt-chip--commander";
+            commanderChip.textContent = "CMDR";
+            chips.appendChild(commanderChip);
+            hasChip = true;
+          }
+          if (zoneName === "battlefield" && card.tapped) {
+            var tappedChip = document.createElement("span");
+            tappedChip.className = "pt-chip pt-chip--tapped";
+            tappedChip.textContent = "Tapped";
+            chips.appendChild(tappedChip);
+            hasChip = true;
+          }
+          if (hasChip) node.appendChild(chips);
+
+          node.addEventListener("dragstart", function (e) {
+            state.draggingCardID = card.id;
+            hidePreview();
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", String(card.id));
+            }
+          });
+
+          node.addEventListener("dragend", function () {
+            state.draggingCardID = null;
+            clearDropHighlights();
+          });
+
+          if (zoneName === "hand") {
+            node.title = "Click to play to battlefield. Drag to reorder or move.";
+            node.addEventListener("mouseenter", function () { showPreview(card); });
+            node.addEventListener("mouseleave", hidePreview);
+            node.addEventListener("click", function () {
+              if (state.phase !== "play") return;
+              moveCard(card.id, "battlefield");
+            });
+          } else if (zoneName === "command") {
+            node.title = "Click to cast to battlefield. Drag to move zones.";
+            node.addEventListener("mouseenter", function () { showPreview(card); });
+            node.addEventListener("mouseleave", hidePreview);
+            node.addEventListener("click", function () {
+              if (state.phase !== "play") return;
+              moveCard(card.id, "battlefield");
+            });
+          } else if (zoneName === "battlefield") {
+            node.title = "Click to tap/untap. Drag to reposition or move.";
+            node.addEventListener("mouseenter", function () { showPreview(card); });
+            node.addEventListener("mouseleave", hidePreview);
+            node.addEventListener("click", function () {
+              card.tapped = !card.tapped;
+              var bf = state.zones.battlefield;
+              var idx = bf.indexOf(card);
+              if (idx >= 0) {
+                bf.splice(idx, 1);
+                bf.push(card);
+              }
+              render();
+            });
+          } else {
+            node.title = "Drag to move zones.";
+          }
+
+          return node;
+        }
+
+        function renderOpeningHand() {
+          if (!openingHandEl) return;
+          openingHandEl.innerHTML = "";
+          var hand = state.zones.hand;
+          if (!hand || hand.length === 0) {
+            var empty = document.createElement("p");
+            empty.className = "text-sm text-slate-500";
+            empty.textContent = "No cards in opening hand.";
+            openingHandEl.appendChild(empty);
+            return;
+          }
+          for (var i = 0; i < hand.length; i++) {
+            openingHandEl.appendChild(createCardNode(hand[i], "hand", true));
+          }
+        }
+
+        function renderLibraryZone(el) {
+          if (!el) return;
+          el.innerHTML = "";
+          if (state.zones.library.length === 0) {
+            var empty = document.createElement("p");
+            empty.className = "text-xs text-slate-500 text-center mt-14";
+            empty.textContent = "Empty.";
+            el.appendChild(empty);
+            return;
+          }
+
+          var stack = document.createElement("div");
+          stack.className = "pt-library-stack";
+          for (var i = 0; i < 3; i++) {
+            var back = document.createElement("div");
+            back.className = "pt-library-stack__card";
+            stack.appendChild(back);
+          }
+          el.appendChild(stack);
+
+          var label = document.createElement("p");
+          label.className = "text-[11px] text-slate-400 text-center mt-1";
+          label.textContent = state.zones.library.length + " cards";
+          el.appendChild(label);
+        }
+
+        function renderStackZone(zoneName, el) {
+          if (!el) return;
+          el.innerHTML = "";
+
+          var zone = getZoneArray(zoneName);
+          if (!zone || zone.length === 0) {
+            var empty = document.createElement("p");
+            empty.className = "text-xs text-slate-500 px-2 pt-14 text-center";
+            empty.textContent = "Empty.";
+            el.appendChild(empty);
+            return;
+          }
+
+          var visible = Math.min(zone.length, 5);
+          var start = zone.length - visible;
+
+          var wrap = document.createElement("div");
+          wrap.className = "relative";
+          wrap.style.height = "136px";
+          wrap.style.width = String(82 + Math.max(0, visible - 1) * stackedOffsetX) + "px";
+          wrap.style.margin = "6px auto 0";
+
+          for (var i = 0; i < visible; i++) {
+            var card = zone[start + i];
+            var node = createCardNode(card, zoneName, false);
+            node.style.position = "absolute";
+            node.style.left = String(i * stackedOffsetX) + "px";
+            node.style.top = String(i * stackedOffsetY) + "px";
+            node.style.zIndex = String(10 + i);
+            wrap.appendChild(node);
+          }
+
+          el.appendChild(wrap);
+        }
+
+        function renderHandZone() {
+          var el = zoneEls.hand;
+          if (!el) return;
+          el.innerHTML = "";
+
+          var hand = state.zones.hand;
+          if (!hand || hand.length === 0) {
+            var empty = document.createElement("p");
+            empty.className = "text-xs text-slate-500 px-2 pt-12";
+            empty.textContent = "Empty hand.";
+            el.appendChild(empty);
+            return;
+          }
+
+          for (var i = 0; i < hand.length; i++) {
+            el.appendChild(createCardNode(hand[i], "hand", false));
+          }
+        }
+
+        function renderBattlefieldZone() {
+          var el = zoneEls.battlefield;
+          if (!el) return;
+          el.innerHTML = "";
+
+          var zone = state.zones.battlefield;
+          if (!zone || zone.length === 0) {
+            var empty = document.createElement("p");
+            empty.className = "text-sm text-slate-500 absolute left-4 top-4";
+            empty.textContent = "Play cards from your hand onto the battlefield.";
+            el.appendChild(empty);
+            return;
+          }
+
+          for (var i = 0; i < zone.length; i++) {
+            var card = zone[i];
+            if (typeof card.bfX !== "number" || typeof card.bfY !== "number") {
+              setBattlefieldPosition(card, null, false);
+            }
+            var node = createCardNode(card, "battlefield", false);
+            node.style.position = "absolute";
+            node.style.left = String(card.bfX) + "px";
+            node.style.top = String(card.bfY) + "px";
+            node.style.zIndex = String(20 + i);
+            el.appendChild(node);
+          }
+        }
+
+        function bindDropZone(zoneName, el) {
+          if (!el) return;
+
+          el.addEventListener("dragover", function (e) {
+            var cardID = state.draggingCardID;
+            if (cardID == null) return;
+            var located = findCard(cardID);
+            if (!located) return;
+            if (!canDrop(located.zone, zoneName, located.card)) return;
+            e.preventDefault();
+            el.classList.add("pt-drop-zone--active");
+          });
+
+          el.addEventListener("dragleave", function () {
+            el.classList.remove("pt-drop-zone--active");
+          });
+
+          el.addEventListener("drop", function (e) {
+            e.preventDefault();
+            el.classList.remove("pt-drop-zone--active");
+
+            var cardID = state.draggingCardID;
+            if (cardID == null && e.dataTransfer) {
+              var raw = e.dataTransfer.getData("text/plain");
+              if (raw) cardID = Number(raw);
+            }
+            if (cardID == null) return;
+
+            moveCard(Number(cardID), zoneName, e);
+            state.draggingCardID = null;
+          });
+        }
+
+        function render() {
+          if (elTurn) elTurn.textContent = String(state.turn);
+          if (elMulligans) elMulligans.textContent = String(state.mulligans);
+          if (elCommanderTax) elCommanderTax.textContent = "+" + String(commanderTax());
+
+          for (var i = 0; i < zoneOrder.length; i++) {
+            var zoneName = zoneOrder[i];
+            var zone = getZoneArray(zoneName) || [];
+            var countEl = countEls[zoneName];
+            if (countEl) countEl.textContent = String(zone.length);
+          }
+
+          var opening = state.phase === "opening";
+          if (openingScreen) openingScreen.classList.toggle("hidden", !opening);
+          if (playSurface) playSurface.classList.toggle("hidden", opening);
+
+          renderOpeningHand();
+          renderBattlefieldZone();
+          renderHandZone();
+          renderStackZone("command", zoneEls.command);
+          renderStackZone("graveyard", zoneEls.graveyard);
+          renderStackZone("exile", zoneEls.exile);
+          renderLibraryZone(zoneEls.library);
+
+          if (btnDraw) btnDraw.disabled = opening || state.zones.library.length === 0;
+          if (btnNextTurn) btnNextTurn.disabled = opening;
+        }
+
+        if (btnReset) btnReset.addEventListener("click", startOpening);
+        if (btnDraw) btnDraw.addEventListener("click", drawOne);
+        if (btnNextTurn) btnNextTurn.addEventListener("click", nextTurn);
+        if (btnKeep) btnKeep.addEventListener("click", keepOpening);
+        if (btnMulligan) btnMulligan.addEventListener("click", mulliganOpening);
+
+        if (btnStatsToggle) {
+          btnStatsToggle.addEventListener("click", function () {
+            setStatsOverlay(!statsOverlayOpen());
+          });
+        }
+        if (btnStatsClose) {
+          btnStatsClose.addEventListener("click", function () {
+            setStatsOverlay(false);
+          });
+        }
+        if (btnStatsBackdrop) {
+          btnStatsBackdrop.addEventListener("click", function () {
+            setStatsOverlay(false);
+          });
+        }
+
+        bindDropZone("command", zoneEls.command);
+        bindDropZone("hand", zoneEls.hand);
+        bindDropZone("battlefield", zoneEls.battlefield);
+        bindDropZone("graveyard", zoneEls.graveyard);
+        bindDropZone("exile", zoneEls.exile);
+
+        document.addEventListener("keydown", function (e) {
+          var key = String(e.key || "").toLowerCase();
+          if (key === "escape" && statsOverlayOpen()) {
+            setStatsOverlay(false);
+            return;
+          }
+          if (statsOverlayOpen()) return;
+          if (key === "d") drawOne();
+          if (key === "n") nextTurn();
+          if (key === "m") mulliganOpening();
+          if (key === "k") keepOpening();
+        });
+
+        window.addEventListener("resize", function () {
+          if (state.phase !== "play") return;
+          var bf = state.zones.battlefield;
+          for (var i = 0; i < bf.length; i++) {
+            setBattlefieldPosition(bf[i], null, false);
+          }
+          render();
+        });
+
+        startOpening();
+      })();
+    </script>
+  </main>
+
+  {{ template "layout_footer" . }}
+{{ end }}

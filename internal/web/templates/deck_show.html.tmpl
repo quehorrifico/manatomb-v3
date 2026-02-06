@@ -77,6 +77,11 @@
 
       <div class="flex flex-wrap gap-2">
         {{ if not $isGuest }}
+        <a href="/decks/playtest/{{ $d.ID }}"
+          class="inline-flex items-center px-3 py-1.5 rounded-md bg-slate-100 text-slate-950 text-xs font-semibold hover:bg-white transition-colors">
+          Playtest
+        </a>
+
         <form method="POST" action="/decks/delete"
               onsubmit="return confirm('Delete this deck? This cannot be undone.');">
           <input type="hidden" name="id" value="{{ $d.ID }}">
@@ -87,13 +92,17 @@
         </form>
         {{ end }}
         {{ if $isGuest }}
+          <button type="button" id="guest-playtest"
+                  class="inline-flex items-center px-3 py-1.5 rounded-md bg-slate-100 text-slate-950 text-xs font-semibold hover:bg-white transition-colors">
+            Playtest
+          </button>
           {{ if .CurrentUser }}
             <button type="button" id="guest-save-to-account"
                     class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
               Save to my account
             </button>
           {{ else }}
-            <a href="/login?next={{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName) }}"
+            <a href="/login?next={{ if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
                class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
               Log in to save
             </a>
@@ -108,8 +117,67 @@
       <section class="space-y-4">
         <div class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
           <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Commander</h3>
+          {{ if and (not $isGuest) $ctx.CommanderCandidates }}
+            <form method="POST" action="/decks/commander" class="mb-3 flex flex-col sm:flex-row gap-2">
+              <input type="hidden" name="id" value="{{ $d.ID }}">
 
-          {{ if $c }}
+              <label class="flex-1 text-sm text-slate-200">
+                <span class="block text-xs font-medium text-slate-400 mb-1">Set commander from deck</span>
+                <select name="commander_name"
+                        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+                  <option value="" disabled {{ if not $d.CommanderName }}selected{{ end }}>Choose a card…</option>
+                  {{ range $ctx.CommanderCandidates }}
+                    <option value="{{ .CardName }}" {{ if eq .CardName $d.CommanderName }}selected{{ end }}>{{ .CardName }}</option>
+                  {{ end }}
+                </select>
+              </label>
+
+              <div class="flex items-end">
+                <button type="submit"
+                        class="inline-flex items-center justify-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
+                  Update
+                </button>
+              </div>
+            </form>
+          {{ else if not $isGuest }}
+            <p class="mb-3 text-xs text-slate-500">Add a legendary creature (or a card that says it can be your commander) to choose a commander.</p>
+          {{ end }}
+
+          {{ if $isGuest }}
+            <div class="mb-3 space-y-2">
+              <label class="block text-sm text-slate-200">
+                <span class="block text-xs font-medium text-slate-400 mb-1">Set commander from imported cards</span>
+                <select id="guest-commander-select"
+                        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+                  <option value="">Choose an eligible commander…</option>
+                </select>
+              </label>
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button"
+                        id="guest-commander-apply"
+                        class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
+                  Set commander
+                </button>
+                <button type="button"
+                        id="guest-commander-clear"
+                        class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
+                  Clear
+                </button>
+              </div>
+              <p id="guest-commander-status" class="text-xs text-slate-500" aria-live="polite"></p>
+            </div>
+          {{ end }}
+
+          {{ if and (not $isGuest) $d.CommanderName }}
+            <p class="mb-2 text-xs text-slate-500">Commander is treated as the 100th card and won’t appear in the list on the right.</p>
+          {{ end }}
+
+          {{ if $isGuest }}
+            <p class="text-sm text-slate-300">
+              <span class="font-medium">Commander:</span>
+              <span id="guest-commander-current">{{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Not selected{{ end }}</span>
+            </p>
+          {{ else if $c }}
             <div class="flex flex-col sm:flex-row gap-4">
               {{ if $c.ImageURI }}
                 <div class="sm:w-40 shrink-0">
@@ -134,7 +202,7 @@
             </div>
           {{ else }}
             <p class="text-sm text-slate-300">
-              <span class="font-medium">Commander:</span> {{ $d.CommanderName }}
+              <span class="font-medium">Commander:</span> {{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Not selected{{ end }}
             </p>
           {{ end }}
         </div>
@@ -218,7 +286,12 @@
           <div class="flex items-center justify-between gap-2 mb-3">
             <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Cards in deck
-            </h3>
+	              {{ if $isGuest }}
+	                <span id="guest-deck-count-label" class="normal-case text-slate-500">(0)</span>
+	              {{ else }}
+	                <span class="normal-case text-slate-500">({{ $ctx.VisibleCardCount }})</span>
+	              {{ end }}
+	            </h3>
             <!-- Could add total count here in future -->
           </div>
 
@@ -226,20 +299,22 @@
           {{ if $ctx.DeckCards }}
             <ul class="divide-y divide-slate-800 text-sm">
               {{ range $ctx.DeckCards }}
-                <li class="flex items-center justify-between gap-3 py-2">
-                  <div>
-                    <p class="font-medium text-slate-100">
-                      {{ .Quantity }}x {{ .CardName }}
-                    </p>
-                  </div>
-                  <form method="POST" action="/decks/{{ $d.ID }}" class="shrink-0">
-                    <input type="hidden" name="card_id" value="{{ .CardID }}">
-                    <button type="submit"
-                            class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                      −
-                    </button>
-                  </form>
-                </li>
+                {{ if ne .CardName $d.CommanderName }}
+                  <li class="flex items-center justify-between gap-3 py-2">
+                    <div>
+                      <p class="font-medium text-slate-100">
+                        {{ .Quantity }}x {{ .CardName }}
+                      </p>
+                    </div>
+                    <form method="POST" action="/decks/{{ $d.ID }}" class="shrink-0">
+                      <input type="hidden" name="card_id" value="{{ .CardID }}">
+                      <button type="submit"
+                              class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
+                        −
+                      </button>
+                    </form>
+                  </li>
+                {{ end }}
               {{ end }}
             </ul>
           {{ else }}
@@ -305,7 +380,7 @@
                   Save to my account
                 </button>
               {{ else }}
-                <a href="/login?next={{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName) }}"
+                <a href="/login?next={{ if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
                    class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
                   Log in to save
                 </a>
@@ -321,6 +396,7 @@
   <script>
   document.addEventListener('DOMContentLoaded', function () {
     var isGuest = {{ if $isGuest }}true{{ else }}false{{ end }};
+    var isSignedIn = {{ if .CurrentUser }}true{{ else }}false{{ end }};
 
     // ===== Logged-in inline edit behaviors (unchanged) =====
     if (!isGuest) {
@@ -391,6 +467,20 @@
     var copyBtn = document.getElementById('guest-copy-decklist');
     var copyStatus = document.getElementById('guest-copy-status');
     var addStatus = document.getElementById('guest-add-status');
+    var playtestBtn = document.getElementById('guest-playtest');
+    var commanderCurrentEl = document.getElementById('guest-commander-current');
+    var commanderSelect = document.getElementById('guest-commander-select');
+    var commanderApplyBtn = document.getElementById('guest-commander-apply');
+    var commanderClearBtn = document.getElementById('guest-commander-clear');
+    var commanderStatus = document.getElementById('guest-commander-status');
+    var deckCountLabel = document.getElementById('guest-deck-count-label');
+    var saveInProgress = false;
+    var shouldAutoSave = false;
+    try {
+      shouldAutoSave = (new URLSearchParams(window.location.search)).get('save_guest') === '1';
+    } catch (e) {
+      shouldAutoSave = false;
+    }
 
     function loadDraft() {
       try {
@@ -398,8 +488,25 @@
         if (!raw) return null;
         var d = JSON.parse(raw);
         if (!d || typeof d !== 'object') return null;
-        if (d.commanderName && d.commanderName !== commanderName) return null;
         if (!d.cards || typeof d.cards !== 'object') d.cards = {};
+
+        var urlCommander = normalizeName(commanderName);
+        var draftCommander = normalizeName(d.commanderName || '');
+        if (urlCommander && draftCommander && urlCommander.toLowerCase() !== draftCommander.toLowerCase()) {
+          if (shouldAutoSave || isSignedIn) {
+            // During auth-save flows, prefer the draft we already have over URL commander.
+            commanderName = draftCommander;
+          } else {
+            return null;
+          }
+        } else if (!draftCommander && urlCommander) {
+          d.commanderName = urlCommander;
+          draftCommander = urlCommander;
+        } else if (draftCommander && !urlCommander) {
+          commanderName = draftCommander;
+        }
+
+        if (!Array.isArray(d.commanderCandidates)) d.commanderCandidates = [];
         return d;
       } catch (e) {
         return null;
@@ -408,7 +515,16 @@
 
     function saveDraft(d) {
       try {
-        d.commanderName = commanderName;
+        var current = normalizeName(commanderName);
+        var stored = normalizeName(d && d.commanderName ? d.commanderName : '');
+        if (current) {
+          d.commanderName = current;
+        } else if (stored) {
+          commanderName = stored;
+          d.commanderName = stored;
+        } else {
+          d.commanderName = '';
+        }
         d.updatedAt = new Date().toISOString();
         localStorage.setItem(key, JSON.stringify(d));
       } catch (e) {
@@ -436,8 +552,67 @@
       }
     }
 
+    function buildCommanderCandidates(d) {
+      d = d || {};
+      var out = [];
+      var seen = {};
+
+      var source = Array.isArray(d.commanderCandidates) ? d.commanderCandidates : [];
+      source.forEach(function (item) {
+        var name = normalizeName(item);
+        if (!name) return;
+        var key = name.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push(name);
+      });
+
+      if (commanderName) {
+        var currentKey = commanderName.toLowerCase();
+        if (!seen[currentKey]) out.push(commanderName);
+      }
+
+      out.sort(function (a, b) { return a.localeCompare(b); });
+      return out;
+    }
+
+    function renderCommanderControls(d) {
+      var current = commanderName ? commanderName : 'Not selected';
+      if (commanderCurrentEl) commanderCurrentEl.textContent = current;
+      if (!commanderSelect) return;
+
+      var candidates = buildCommanderCandidates(d);
+      commanderSelect.innerHTML = '';
+
+      var placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = candidates.length > 0
+        ? 'Choose an eligible commander…'
+        : 'No eligible commanders found in this deck';
+      commanderSelect.appendChild(placeholder);
+
+      candidates.forEach(function (name) {
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        commanderSelect.appendChild(opt);
+      });
+
+      if (commanderName) {
+        commanderSelect.value = commanderName;
+      } else {
+        commanderSelect.value = '';
+      }
+    }
+
+    function currentCommanderForDraft(d) {
+      var fromDraft = normalizeName(d && d.commanderName ? d.commanderName : '');
+      if (fromDraft) return fromDraft;
+      return normalizeName(commanderName);
+    }
+
     function render(d) {
-      d = d || { commanderName: commanderName, cards: {} };
+      d = d || { commanderName: commanderName, commanderCandidates: [], cards: {} };
 
       // Name/description hydration (if present)
       if (nameEl && d.name) nameEl.textContent = d.name;
@@ -457,12 +632,19 @@
         return a[0].localeCompare(b[0]);
       });
 
-      if (emptyEl) emptyEl.classList.toggle('hidden', entries.length !== 0);
+      var visibleRows = 0;
+      var totalCards = 0;
 
       entries.forEach(function (pair) {
         var cardName = pair[0];
-        var qty = pair[1];
+        var qty = Number(pair[1] || 0);
         if (!qty || qty <= 0) return;
+        if (commanderName && cardName.toLowerCase() === commanderName.toLowerCase()) {
+          qty -= 1; // Commander occupies its own slot, not the 99 list.
+        }
+        if (qty <= 0) return;
+        visibleRows += 1;
+        totalCards += qty;
 
         var li = document.createElement('li');
         li.className = 'flex items-center justify-between gap-3 py-2';
@@ -509,15 +691,68 @@
 
         listEl.appendChild(li);
       });
+
+      if (emptyEl) emptyEl.classList.toggle('hidden', visibleRows !== 0);
+      if (deckCountLabel) deckCountLabel.textContent = '(' + totalCards + ')';
+      renderCommanderControls(d);
     }
 
     // Init
     var draft = loadDraft();
     if (!draft) {
-      draft = { commanderName: commanderName, name: (nameEl ? nameEl.textContent : ''), description: '', cards: {} };
+      draft = {
+        commanderName: commanderName,
+        commanderCandidates: [],
+        name: (nameEl ? nameEl.textContent : ''),
+        description: '',
+        cards: {}
+      };
       saveDraft(draft);
     }
+
+    var normalizedDraftCommander = normalizeName(draft.commanderName || '');
+    if (!commanderName && normalizedDraftCommander) {
+      commanderName = normalizedDraftCommander;
+    } else if (commanderName && !normalizedDraftCommander) {
+      draft.commanderName = commanderName;
+      saveDraft(draft);
+    }
+
     render(draft);
+
+    if (commanderApplyBtn && commanderSelect) {
+      commanderApplyBtn.addEventListener('click', function () {
+        var picked = normalizeName(commanderSelect.value);
+        if (!picked) {
+          if (commanderStatus) commanderStatus.textContent = 'Choose an eligible commander first.';
+          return;
+        }
+
+        commanderName = picked;
+        var dd = loadDraft() || { commanderName: commanderName, commanderCandidates: [], cards: {} };
+        dd.commanderName = commanderName;
+        if (!Array.isArray(dd.commanderCandidates)) dd.commanderCandidates = [];
+        if (dd.commanderCandidates.map(function (x) { return String(x || '').toLowerCase(); }).indexOf(commanderName.toLowerCase()) < 0) {
+          dd.commanderCandidates.push(commanderName);
+        }
+
+        saveDraft(dd);
+        render(dd);
+
+        if (commanderStatus) commanderStatus.textContent = 'Commander set to ' + commanderName + '.';
+      });
+    }
+
+    if (commanderClearBtn) {
+      commanderClearBtn.addEventListener('click', function () {
+        commanderName = '';
+        var dd = loadDraft() || { commanderName: '', commanderCandidates: [], cards: {} };
+        dd.commanderName = '';
+        saveDraft(dd);
+        render(dd);
+        if (commanderStatus) commanderStatus.textContent = 'Commander cleared.';
+      });
+    }
 
     if (addForm && addInput) {
       addForm.addEventListener('submit', async function (e) {
@@ -569,8 +804,9 @@
     if (copyBtn) {
       copyBtn.addEventListener('click', async function () {
         var dd = loadDraft() || { commanderName: commanderName, cards: {} };
+        var commanderForCopy = currentCommanderForDraft(dd);
         var lines = [];
-        lines.push('Commander: ' + commanderName);
+        lines.push('Commander: ' + (commanderForCopy || '(not set)'));
         lines.push('');
         var entries = Object.entries(dd.cards || {});
         entries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
@@ -605,13 +841,9 @@
       });
     }
 
-    async function importDraftToAccount() {
-      var dd = loadDraft();
-      if (!dd) {
-        if (copyStatus) copyStatus.textContent = 'No draft found to save.';
-        return;
-      }
-
+    function launchGuestPlaytest() {
+      var dd = loadDraft() || { commanderName: commanderName, cards: {} };
+      var commanderForPlaytest = currentCommanderForDraft(dd);
       var cards = Object.entries(dd.cards || {}).map(function (pair) {
         return { name: pair[0], qty: pair[1] };
       }).filter(function (x) {
@@ -619,12 +851,58 @@
       });
 
       var payload = {
-        commander_name: commanderName,
-        name: dd.name || commanderName,
+        commander_name: commanderForPlaytest,
+        name: (dd.name && dd.name.trim()) || (nameEl ? String(nameEl.textContent || '').trim() : '') || 'Guest Deck',
         description: dd.description || '',
         cards: cards,
       };
 
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/decks/playtest/guest';
+
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payload';
+      input.value = JSON.stringify(payload);
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    if (playtestBtn) {
+      playtestBtn.addEventListener('click', launchGuestPlaytest);
+    }
+
+    async function importDraftToAccount() {
+      if (saveInProgress) return false;
+
+      var dd = loadDraft();
+      if (!dd) {
+        if (copyStatus) copyStatus.textContent = 'No draft found to save.';
+        return false;
+      }
+
+      var commanderForSave = currentCommanderForDraft(dd);
+      var cards = Object.entries(dd.cards || {}).map(function (pair) {
+        return { name: pair[0], qty: pair[1] };
+      }).filter(function (x) {
+        return x && x.name && x.qty && x.qty > 0;
+      });
+      if (cards.length === 0) {
+        if (copyStatus) copyStatus.textContent = 'Add cards before saving this deck.';
+        return false;
+      }
+
+      var payload = {
+        commander_name: commanderForSave,
+        name: dd.name || commanderForSave || 'Imported Deck',
+        description: dd.description || '',
+        cards: cards,
+      };
+
+      saveInProgress = true;
       try {
         if (copyStatus) copyStatus.textContent = 'Saving…';
 
@@ -636,19 +914,23 @@
 
         if (!res.ok) {
           if (copyStatus) copyStatus.textContent = 'Could not save deck. Please try again.';
-          return;
+          return false;
         }
 
         var out = await res.json();
         if (out && out.deck_id) {
           try { localStorage.removeItem(key); } catch (e) {}
           window.location.href = '/decks/' + out.deck_id;
-          return;
+          return true;
         }
 
         if (copyStatus) copyStatus.textContent = 'Saved, but did not receive a deck id.';
+        return false;
       } catch (e) {
         if (copyStatus) copyStatus.textContent = 'Could not save deck. Please try again.';
+        return false;
+      } finally {
+        saveInProgress = false;
       }
     }
 
@@ -662,6 +944,20 @@
 
     bindSave('guest-save-to-account');
     bindSave('guest-save-to-account-2');
+
+    if (isSignedIn && shouldAutoSave) {
+      if (copyStatus) copyStatus.textContent = 'Signed in. Saving imported guest deck…';
+      try {
+        var cleaned = new URL(window.location.href);
+        cleaned.searchParams.delete('save_guest');
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, '', cleaned.pathname + cleaned.search);
+        }
+      } catch (e) {
+        // ignore URL cleanup errors
+      }
+      importDraftToAccount();
+    }
   });
   </script>
 

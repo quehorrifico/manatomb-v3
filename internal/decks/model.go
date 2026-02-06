@@ -20,6 +20,8 @@ type Deck struct {
 type DeckCard struct {
 	CardID   int64
 	CardName string
+	ImageURI string
+	TypeLine string
 	Quantity int
 }
 
@@ -71,7 +73,7 @@ func AddCard(ctx context.Context, db *sql.DB, deckID int64, cardID int64, delta 
 
 func ListDeckCards(ctx context.Context, db *sql.DB, deckID int64) ([]DeckCard, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT dc.card_id, c.name, dc.quantity
+		SELECT dc.card_id, c.name, COALESCE(c.image_uri, ''), COALESCE(c.type_line, ''), dc.quantity
 		FROM deck_cards dc
 		JOIN cards c ON c.id = dc.card_id
 		WHERE dc.deck_id = $1
@@ -85,7 +87,7 @@ func ListDeckCards(ctx context.Context, db *sql.DB, deckID int64) ([]DeckCard, e
 	var out []DeckCard
 	for rows.Next() {
 		var dc DeckCard
-		if err := rows.Scan(&dc.CardID, &dc.CardName, &dc.Quantity); err != nil {
+		if err := rows.Scan(&dc.CardID, &dc.CardName, &dc.ImageURI, &dc.TypeLine, &dc.Quantity); err != nil {
 			return nil, err
 		}
 		out = append(out, dc)

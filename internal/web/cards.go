@@ -57,6 +57,17 @@ func buildSearchResults(cardsIn []cards.Card) []searchResult {
 	return viewResults
 }
 
+func normalizeLocalReturnPath(raw, fallback string) string {
+	path := strings.TrimSpace(raw)
+	if path == "" {
+		return fallback
+	}
+	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
+		return fallback
+	}
+	return path
+}
+
 func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 	flash := readFlash(w, r)
@@ -230,14 +241,22 @@ func (a *App) HandleCommanderSearch(w http.ResponseWriter, r *http.Request) {
 	// Build view-model results with pre-encoded faces JSON for MDFC commanders.
 	viewResults := buildSearchResults(rawResults)
 
+	fallbackReturn := "/decks/new"
+	if user != nil {
+		fallbackReturn = "/decks/new?mode=commander"
+	}
+	returnTo := normalizeLocalReturnPath(r.URL.Query().Get("return_to"), fallbackReturn)
+
 	data := TemplateData{
 		CurrentUser: user,
 		Data: struct {
-			Query   string
-			Results []searchResult
+			Query    string
+			Results  []searchResult
+			ReturnTo string
 		}{
-			Query:   query,
-			Results: viewResults,
+			Query:    query,
+			Results:  viewResults,
+			ReturnTo: returnTo,
 		},
 		Flash: flash,
 		Error: errMsg,

@@ -11,9 +11,11 @@ import (
 var ErrCardNotFound = errors.New("card not found")
 
 type DBCard struct {
-	ID       int64
-	Name     string
-	ImageURI string
+	ID         int64
+	Name       string
+	TypeLine   string
+	OracleText string
+	ImageURI   string
 }
 
 // EnsureCardByName ensures that the card exists in our DB.
@@ -30,10 +32,10 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 	// 1) Try to find card already stored in DB by exact name
 	var existing DBCard
 	err := db.QueryRowContext(ctx, `
-		SELECT id, name, image_uri
+		SELECT id, name, type_line, oracle_text, image_uri
 		FROM cards
 		WHERE name = $1
-	`, name).Scan(&existing.ID, &existing.Name, &existing.ImageURI)
+	`, name).Scan(&existing.ID, &existing.Name, &existing.TypeLine, &existing.OracleText, &existing.ImageURI)
 	if err == nil {
 		return &existing, nil
 	}
@@ -120,9 +122,11 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 	}
 
 	return &DBCard{
-		ID:       newID,
-		Name:     c.Name,
-		ImageURI: c.ImageURI,
+		ID:         newID,
+		Name:       c.Name,
+		TypeLine:   c.TypeLine,
+		OracleText: c.OracleText,
+		ImageURI:   c.ImageURI,
 	}, nil
 }
 

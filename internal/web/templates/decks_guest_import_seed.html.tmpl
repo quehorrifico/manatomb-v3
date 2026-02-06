@@ -1,0 +1,61 @@
+{{ define "decks_guest_import_seed" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <main class="max-w-2xl mx-auto py-10 px-4 space-y-6">
+    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-6 shadow-md shadow-sky-500/10 space-y-3">
+      <h2 class="text-xl font-semibold tracking-tight text-slate-100">
+        Preparing your guest deck...
+      </h2>
+      <p class="text-sm text-slate-300">
+        Your imported cards are being loaded into the guest deck builder.
+      </p>
+      <p class="text-xs text-slate-500">
+        If you are not redirected, continue manually.
+      </p>
+      <a href="{{ if $ctx.CommanderName }}/decks/guest?commander_name={{ urlquery $ctx.CommanderName }}{{ else }}/decks/guest{{ end }}"
+         class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
+        Continue to guest deck
+      </a>
+    </section>
+  </main>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var payload = {{ $ctx.PayloadJSON }};
+    var key = 'manatomb.draftDeck';
+
+    try {
+      var cards = {};
+      if (payload && Array.isArray(payload.cards)) {
+        payload.cards.forEach(function (item) {
+          if (!item || !item.name || !item.qty) return;
+          if (item.qty <= 0) return;
+          cards[item.name] = (cards[item.name] || 0) + item.qty;
+        });
+      }
+
+      var draft = {
+        commanderName: payload.commander_name || '',
+        commanderCandidates: Array.isArray(payload.commander_candidates) ? payload.commander_candidates : [],
+        name: payload.name || payload.commander_name || 'Imported Deck',
+        description: payload.description || '',
+        cards: cards,
+        updatedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(key, JSON.stringify(draft));
+    } catch (e) {
+      // ignore storage failures
+    }
+
+    var target = '/decks/guest';
+    if (payload && payload.commander_name) {
+      target += '?commander_name=' + encodeURIComponent(payload.commander_name);
+    }
+    window.location.replace(target);
+  });
+  </script>
+
+  {{ template "layout_footer" . }}
+{{ end }}
