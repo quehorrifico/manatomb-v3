@@ -1,196 +1,184 @@
 {{ define "decks_new" }}
   {{ template "layout_header" . }}
   {{ $d := .Data }}
+  {{ $commanderReturn := "/decks/new" }}
+  {{ if .CurrentUser }}
+    {{ $commanderReturn = "/decks/new?mode=commander" }}
+  {{ end }}
+  {{ $showBack := false }}
+  {{ if and .CurrentUser $d.CommanderName }}
+    {{ $showBack = true }}
+  {{ end }}
+  {{ if ne $d.Mode "" }}
+    {{ $showBack = true }}
+  {{ end }}
+  {{ $backHref := "/decks/new" }}
+  {{ if and .CurrentUser $d.CommanderName }}
+    {{ $backHref = "/decks/new?mode=commander" }}
+  {{ end }}
 
   <main class="max-w-3xl mx-auto py-10 px-4 space-y-6">
-    <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h2 class="text-2xl font-semibold tracking-tight">
           <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-            New Deck
+            Deck Builder
           </span>
         </h2>
         <p class="text-sm text-slate-400 mt-1">
-          Step 2: You&apos;ve chosen a commander. Now name your deck and optionally add a description.
+          {{ if and .CurrentUser $d.CommanderName }}
+            Commander selected. Name your deck and start building.
+          {{ else if eq $d.Mode "commander" }}
+            Choose a commander to start your deck.
+          {{ else if eq $d.Mode "sandbox" }}
+            Sandbox mode is in progress.
+          {{ else if eq $d.Mode "import" }}
+            Paste a decklist and build from your card text.
+          {{ else }}
+            Choose how you want to build your deck.
+          {{ end }}
         </p>
       </div>
 
       <div class="flex flex-wrap gap-2">
-        {{ if .CurrentUser }}
-          <a href="/decks"
-             class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-            Back to my decks
+        {{ if $showBack }}
+          <a href="{{ $backHref }}"
+             class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
+            Back
           </a>
         {{ end }}
       </div>
     </div>
 
-    <!-- Form card -->
     <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
-
-      {{ if not .CurrentUser }}
-        <div class="mb-4 rounded-lg border border-amber-700/50 bg-amber-950/30 px-3 py-3">
-          <p class="text-sm text-amber-100 font-medium">You’re building a guest deck.</p>
-          <p class="mt-1 text-xs text-amber-200/80">
-            You can name this deck and build it in your browser, but you’ll need to log in to save it to your account.
-          </p>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <a href="/login?next={{ urlquery (print "/decks/new?commander_name=" $d.CommanderName) }}"
-               class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
-              Log in to save
-            </a>
-            <a href="/signup?next={{ urlquery (print "/decks/new?commander_name=" $d.CommanderName) }}"
-               class="inline-flex items-center px-3 py-1.5 rounded-md border border-amber-600/60 bg-transparent text-xs text-amber-100 hover:border-amber-300 transition-colors">
-              Create account
-            </a>
-          </div>
-        </div>
-      {{ end }}
-
-      <form method="POST" action="/decks/new" class="space-y-4">
-
-        <!-- Commander (read-only, highlighted) -->
-        <div class="text-sm text-slate-200">
-          <div class="rounded-lg border border-sky-700/60 bg-slate-950/90 px-3 py-3 flex items-start justify-between gap-3">
-            <div class="flex items-start gap-3">
-              <div class="h-10 w-10 shrink-0 rounded-md border border-sky-700/60 bg-gradient-to-br from-sky-500/30 via-cyan-400/20 to-transparent flex items-center justify-center">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-sky-200">
-                  Cmdr
-                </span>
+      {{ if and .CurrentUser $d.CommanderName }}
+        <form method="POST" action="/decks/new" class="space-y-4">
+          <div class="text-sm text-slate-200">
+            <div class="rounded-lg border border-sky-700/60 bg-slate-950/90 px-3 py-3 flex items-start justify-between gap-3">
+              <div class="flex items-start gap-3">
+                <div class="h-10 w-10 shrink-0 rounded-md border border-sky-700/60 bg-gradient-to-br from-sky-500/30 via-cyan-400/20 to-transparent flex items-center justify-center">
+                  <span class="text-[11px] font-semibold uppercase tracking-wide text-sky-200">Cmdr</span>
+                </div>
+                <div>
+                  <p class="text-xs font-medium text-slate-400 mb-1">Commander chosen</p>
+                  <p class="text-base font-semibold text-slate-50">{{ $d.CommanderName }}</p>
+                </div>
               </div>
-              <div>
-                <p class="text-xs font-medium text-slate-400 mb-1">
-                  Commander chosen
-                </p>
-                <p class="text-base font-semibold text-slate-50">
-                  {{ $d.CommanderName }}
-                </p>
-                <p class="mt-1 text-[11px] text-slate-500">
-                  This deck will be created as a Commander deck led by this card.
-                </p>
-              </div>
-            </div>
-            <div class="shrink-0">
-              <a href="/commanders/search"
-                 class="inline-flex items-center justify-center px-3 py-1.5 rounded-md 
-                        border border-slate-700 bg-slate-900 text-xs text-slate-200
-                        hover:border-sky-400 hover:text-sky-300 transition-colors">
+              <a href="/commanders/search?return_to={{ urlquery $commanderReturn }}"
+                 class="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
                 Change
               </a>
             </div>
+            <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
           </div>
-          <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
-        </div>
 
-        <!-- Deck name -->
-        <div class="text-sm text-slate-200">
-          <label class="block">
+          <label class="block text-sm text-slate-200">
             <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
             <input type="text"
-                   id="deckName"
                    name="name"
                    value="{{ $d.Name }}"
                    required
-                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 
-                          text-sm text-slate-100 placeholder:text-slate-500
-                          focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
           </label>
-        </div>
 
-        <!-- Description -->
-        <div class="text-sm text-slate-200">
-          <label class="block">
+          <label class="block text-sm text-slate-200">
             <span class="block text-xs font-medium text-slate-400 mb-1">Description (optional)</span>
-            <textarea id="deckDescription" name="description"
+            <textarea name="description"
                       rows="4"
-                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2
-                             text-sm text-slate-100 placeholder:text-slate-500
-                             focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.Description }}</textarea>
+                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.Description }}</textarea>
           </label>
-        </div>
 
-        <!-- Actions -->
-        <div class="flex justify-end gap-2">
-          {{ if .CurrentUser }}
-            <a href="/decks"
-               class="inline-flex items-center px-4 py-2 rounded-md border border-slate-700 
-                      bg-slate-900 text-sm text-slate-200 hover:border-slate-500 hover:text-slate-100 transition-colors">
-              Cancel
-            </a>
-
+          <div class="flex justify-end">
             <button type="submit"
-                    class="inline-flex items-center px-4 py-2 rounded-md 
-                           bg-sky-500 text-slate-950 text-sm font-semibold 
-                           hover:bg-sky-400 transition-colors focus:outline-none 
-                           focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
+                    class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
               Create deck
             </button>
-          {{ else }}
-            <a href="/commanders/search"
-               class="inline-flex items-center px-4 py-2 rounded-md border border-slate-700 
-                      bg-slate-900 text-sm text-slate-200 hover:border-slate-500 hover:text-slate-100 transition-colors">
-              Change commander
+          </div>
+        </form>
+
+      {{ else if eq $d.Mode "commander" }}
+        <div class="space-y-4">
+          <h3 class="text-sm font-semibold text-slate-200">Commander builder</h3>
+          <p class="text-xs text-slate-400">
+            Search for your commander, then continue to the deck page.
+            {{ if .CurrentUser }}
+              Your deck will be saved to your account.
+            {{ else }}
+              Your deck will be saved in this browser until you log in.
+            {{ end }}
+          </p>
+          <div class="flex justify-end">
+            <a href="/commanders/search?return_to={{ urlquery $commanderReturn }}"
+               class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
+              Choose commander
             </a>
-            <a href="/login?next={{ urlquery (print "/decks/new?commander_name=" $d.CommanderName) }}"
-               class="inline-flex items-center px-4 py-2 rounded-md bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200 transition-colors">
-              Log in to save
-            </a>
-          {{ end }}
+          </div>
         </div>
-      </form>
+
+      {{ else if eq $d.Mode "sandbox" }}
+        <div class="space-y-4">
+          <h3 class="text-sm font-semibold text-slate-200">Sandbox builder</h3>
+          <p class="text-xs text-slate-400">
+            Sandbox is being built right now. You can still preview the work-in-progress page.
+          </p>
+          <div class="flex justify-end">
+            <a href="/decks/sandbox"
+               class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
+              Open sandbox WIP
+            </a>
+          </div>
+        </div>
+
+      {{ else if eq $d.Mode "import" }}
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-200">Import deck text</h3>
+          <p class="text-xs text-slate-400">
+            Paste a decklist with lines like:
+            <span class="text-slate-300">1 Sol Ring</span>,
+            <span class="text-slate-300">4 Counterspell</span>,
+            <span class="text-slate-300">Commander: Atraxa, Grand Unifier</span>.
+          </p>
+
+          <form method="POST" action="/decks/import-text" class="space-y-3">
+            <label class="block text-sm text-slate-200">
+              <span class="block text-xs font-medium text-slate-400 mb-1">Decklist text</span>
+              <textarea name="decklist"
+                        rows="12"
+                        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.ImportText }}</textarea>
+            </label>
+
+            <div class="flex justify-end">
+              <button type="submit"
+                      class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
+                {{ if .CurrentUser }}Import deck{{ else }}Import to guest deck{{ end }}
+              </button>
+            </div>
+          </form>
+        </div>
+
+      {{ else }}
+        <div class="grid gap-3 sm:grid-cols-3">
+          <a href="/commanders/search?return_to={{ urlquery $commanderReturn }}"
+             class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 hover:border-slate-600 transition-colors">
+            <p class="text-sm font-semibold text-slate-100">Commander</p>
+            <p class="mt-1 text-xs text-slate-400">Search a commander and build around it.</p>
+          </a>
+
+          <a href="/decks/new?mode=sandbox"
+             class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 hover:border-slate-600 transition-colors">
+            <p class="text-sm font-semibold text-slate-100">Sandbox</p>
+            <p class="mt-1 text-xs text-slate-400">Try upcoming deck tools in a WIP space.</p>
+          </a>
+
+          <a href="/decks/new?mode=import"
+             class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 hover:border-slate-600 transition-colors">
+            <p class="text-sm font-semibold text-slate-100">Import</p>
+            <p class="mt-1 text-xs text-slate-400">Paste a decklist and create a deck from it.</p>
+          </a>
+        </div>
+      {{ end }}
     </section>
   </main>
-
-  <script>
-    (function () {
-      // Persist draft deck metadata for guest users.
-      // (Cards will be added in a follow-up step when we wire the builder UI.)
-      var isLoggedIn = {{ if .CurrentUser }}true{{ else }}false{{ end }};
-      if (isLoggedIn) return;
-
-      var key = "manatomb.draftDeck";
-      var commander = {{ printf "%q" $d.CommanderName }};
-
-      var nameEl = document.getElementById("deckName");
-      var descEl = document.getElementById("deckDescription");
-
-      function load() {
-        try {
-          var raw = localStorage.getItem(key);
-          if (!raw) return;
-          var d = JSON.parse(raw);
-          if (!d || typeof d !== "object") return;
-
-          // Only hydrate if this draft matches the current commander.
-          if (d.commanderName && d.commanderName !== commander) return;
-
-          if (nameEl && !nameEl.value && d.name) nameEl.value = d.name;
-          if (descEl && !descEl.value && d.description) descEl.value = d.description;
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      function save() {
-        try {
-          var d = {
-            commanderName: commander,
-            name: nameEl ? nameEl.value : "",
-            description: descEl ? descEl.value : "",
-            updatedAt: new Date().toISOString(),
-          };
-          localStorage.setItem(key, JSON.stringify(d));
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      load();
-      if (nameEl) nameEl.addEventListener("input", save);
-      if (descEl) descEl.addEventListener("input", save);
-    })();
-  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

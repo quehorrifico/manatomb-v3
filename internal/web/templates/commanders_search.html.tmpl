@@ -18,9 +18,9 @@
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <a href="/decks"
+        <a href="{{ $ctx.ReturnTo }}"
            class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-          Back to decks
+          Back to builder
         </a>
       </div>
     </div>
@@ -28,6 +28,7 @@
     <!-- Search form -->
     <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
       <form method="GET" action="/commanders/search" class="flex flex-col sm:flex-row gap-3">
+        <input type="hidden" name="return_to" value="{{ $ctx.ReturnTo }}">
         <label class="flex-1 text-sm text-slate-200">
           <span class="block text-xs font-medium text-slate-400 mb-1">Commander name</span>
           <input type="text"
@@ -49,7 +50,7 @@
         </div>
       </form>
       <p class="mt-2 text-xs text-slate-500">
-        Searches prioritize <span class="font-semibold text-slate-300">commander-legal</span> cards. After you pick a commander, we&apos;ll create a deck for you that you can rename and edit.
+        Searches prioritize <span class="font-semibold text-slate-300">commander-legal</span> cards. After you pick a commander, we&apos;ll move you into the matching deck builder flow.
       </p>
     </section>
 

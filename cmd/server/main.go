@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -14,22 +15,30 @@ import (
 	"manatomb/app/internal/web"
 )
 
-func ensureTables(ctx context.Context, database *sql.DB) {
+type methodRoute struct {
+	pattern string
+	get     http.HandlerFunc
+	post    http.HandlerFunc
+}
+
+func ensureTables(ctx context.Context, database *sql.DB) error {
 	if err := account.EnsureUserTable(ctx, database); err != nil {
-		log.Fatalf("failed to ensure users table: %v", err)
+		return fmt.Errorf("ensure users table: %w", err)
 	}
 
 	if err := account.EnsureSessionsTable(ctx, database); err != nil {
-		log.Fatalf("failed to ensure sessions table: %v", err)
+		return fmt.Errorf("ensure sessions table: %w", err)
 	}
 
 	if err := cards.EnsureCardsTable(ctx, database); err != nil {
-		log.Fatalf("failed to ensure cards table: %v", err)
+		return fmt.Errorf("ensure cards table: %w", err)
 	}
 
 	if err := decks.EnsureDeckTables(ctx, database); err != nil {
-		log.Fatalf("failed to ensure deck and deck_cards tables: %v", err)
+		return fmt.Errorf("ensure deck/deck_cards tables: %w", err)
 	}
+
+	return nil
 }
 
 // methodSwitch returns a handler that dispatches to the given GET / POST handlers
@@ -52,60 +61,98 @@ func methodSwitch(get, post http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// registerRoutes wires up all HTTP routes for the application.
-func registerRoutes(mux *http.ServeMux, app *web.App) {
-	// Home / auth
+func registerMethodRoutes(mux *http.ServeMux, routes []methodRoute) {
+	for _, rt := range routes {
+		mux.HandleFunc(rt.pattern, methodSwitch(rt.get, rt.post))
+	}
+}
+
+func registerHomeAndAuthRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/", app.HandleHome)
-	mux.HandleFunc("/signup", methodSwitch(app.HandleSignupShow, app.HandleSignupPost))
-	mux.HandleFunc("/login", methodSwitch(app.HandleLoginShow, app.HandleLoginPost))
 	mux.HandleFunc("/logout", app.HandleLogout)
 
-	// User settings
-	mux.HandleFunc("/settings", methodSwitch(app.HandleSettingsShow, app.HandleSettingsPost))
+	registerMethodRoutes(mux, []methodRoute{
+		{pattern: "/signup", get: app.HandleSignupShow, post: app.HandleSignupPost},
+		{pattern: "/login", get: app.HandleLoginShow, post: app.HandleLoginPost},
+	})
+}
 
-	// Decks
+func registerSettingsRoutes(mux *http.ServeMux, app *web.App) {
+	registerMethodRoutes(mux, []methodRoute{
+		{pattern: "/settings", get: app.HandleSettingsShow, post: app.HandleSettingsPost},
+	})
+}
+
+func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/decks", app.HandleDecksList)
-	mux.HandleFunc("/decks/new", methodSwitch(app.HandleDeckNewShow, app.HandleDeckNewPost))
-	mux.HandleFunc("/decks/edit", methodSwitch(app.HandleDeckEditShow, app.HandleDeckEditPost))
 	mux.HandleFunc("/decks/delete", app.HandleDeckDeletePost)
 	mux.HandleFunc("/decks/create-from-commander", app.HandleDeckCreateFromCommander)
 	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
 	mux.HandleFunc("/decks/guest", app.HandleGuestDeckShow)
 	mux.HandleFunc("/decks/import-draft", app.HandleDeckImportDraft)
-	mux.HandleFunc("/decks/", app.HandleDeckShow) // /decks/{id}
+	mux.HandleFunc("/decks/import-text", app.HandleDeckImportText)
+	mux.HandleFunc("/decks/sandbox", app.HandleDeckSandboxWIP)
+	mux.HandleFunc("/decks/commander", app.HandleDeckUpdateCommander)
 
-	// Cards / commanders / rules
+	registerMethodRoutes(mux, []methodRoute{
+		{pattern: "/decks/new", get: app.HandleDeckNewShow, post: app.HandleDeckNewPost},
+		{pattern: "/decks/edit", get: app.HandleDeckEditShow, post: app.HandleDeckEditPost},
+	})
+
+	// Keep before "/decks/" catch-all.
+	mux.HandleFunc("/decks/playtest/guest", app.HandleDeckPlaytestGuest)
+	mux.HandleFunc("/decks/playtest/", app.HandleDeckPlaytest)
+	mux.HandleFunc("/decks/", app.HandleDeckShow) // /decks/{id}
+}
+
+func registerCardAndRulesRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/cards/search", app.HandleCardSearch)
 	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
 	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
 	mux.HandleFunc("/rules", app.HandleRulesHome)
 }
 
-func main() {
+// registerRoutes wires up all HTTP routes for the application.
+func registerRoutes(mux *http.ServeMux, app *web.App) {
+	registerHomeAndAuthRoutes(mux, app)
+	registerSettingsRoutes(mux, app)
+	registerDeckRoutes(mux, app)
+	registerCardAndRulesRoutes(mux, app)
+}
+
+func wrapMiddleware(app *web.App, handler http.Handler) http.Handler {
+	// Middleware order matters; last wrapper here is the outermost handler.
+	handler = app.WithNotFoundMiddleware(handler)
+	handler = app.WithUserMiddleware(handler)
+	handler = app.WithRecoveryMiddleware(handler)
+	return handler
+}
+
+func run() error {
 	cfg := config.Load()
 	database := db.Open(cfg.DatabaseURL)
 	defer database.Close()
 
-	ensureTables(context.Background(), database)
+	if err := ensureTables(context.Background(), database); err != nil {
+		return err
+	}
 
-	renderer := web.NewRenderer()
 	app := &web.App{
 		DB:       database,
-		Renderer: renderer,
+		Renderer: web.NewRenderer(),
 	}
 
 	mux := http.NewServeMux()
 	registerRoutes(mux, app)
 
-	// Wrap with middleware (outermost last)
-	var handler http.Handler = mux
-	handler = app.WithNotFoundMiddleware(handler)
-	handler = app.WithUserMiddleware(handler)
-	handler = app.WithRecoveryMiddleware(handler)
-
+	handler := wrapMiddleware(app, mux)
 	addr := ":" + cfg.Port
 	log.Printf("Listening on %s...", addr)
-	if err := http.ListenAndServe(addr, handler); err != nil {
+	return http.ListenAndServe(addr, handler)
+}
+
+func main() {
+	if err := run(); err != nil {
 		log.Fatal(err)
 	}
 }
