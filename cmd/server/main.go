@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"manatomb/app/internal/account"
 	"manatomb/app/internal/cards"
@@ -137,6 +138,27 @@ func run() error {
 	if err := ensureTables(context.Background(), database); err != nil {
 		return err
 	}
+
+	// Keep the local cards catalog fresh from Scryfall bulk data.
+	syncCtx, cancelSync := context.WithTimeout(context.Background(), 2*time.Hour)
+	defer cancelSync()
+	due, err := cards.CardSyncDue(syncCtx, database, 24*time.Hour)
+	if err != nil {
+		log.Printf("cards sync due check failed: %v", err)
+	} else if due {
+		log.Printf("cards sync: starting startup bulk refresh")
+		result, syncErr := cards.SyncCardsFromScryfallBulk(syncCtx, database)
+		if syncErr != nil {
+			log.Printf("cards sync: startup refresh failed: %v", syncErr)
+		} else {
+			log.Printf(
+				"cards sync: startup refresh complete (%d cards, source updated %s)",
+				result.ImportedCards,
+				result.SourceUpdatedAt.UTC().Format(time.RFC3339),
+			)
+		}
+	}
+	cards.StartCardBulkSyncLoop(database, 24*time.Hour, log.Default())
 
 	app := &web.App{
 		DB:       database,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -21,139 +20,67 @@ type DBCard struct {
 	CMC           float64
 }
 
-// EnsureCardByName ensures that the card exists in our DB.
-// 1) Try to find it by exact name in the cards table.
-// 2) If not found, query Scryfall using an exact-name search.
-// 3) If Scryfall returns no results, return ErrCardNotFound.
-// 4) If found, insert a full row and return the DBCard.
+// EnsureCardByName resolves a card from the local cards table by name.
+// Runtime card reads are DB-only; bulk sync is responsible for refreshing data.
 func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ErrCardNotFound
 	}
 
-	// 1) Try to find card already stored in DB by exact name
 	var existing DBCard
 	err := db.QueryRowContext(ctx, `
 		SELECT id, name, COALESCE(mana_cost, ''), COALESCE(type_line, ''), COALESCE(oracle_text, ''), COALESCE(image_uri, ''), COALESCE(color_identity, ''), COALESCE(cmc, 0)
 		FROM cards
-		WHERE name = $1
+		WHERE lower(name) = lower($1)
+		ORDER BY id
+		LIMIT 1
 	`, name).Scan(&existing.ID, &existing.Name, &existing.ManaCost, &existing.TypeLine, &existing.OracleText, &existing.ImageURI, &existing.ColorIdentity, &existing.CMC)
 	if err == nil {
 		return &existing, nil
 	}
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-
-	// 2) Not in DB → search Scryfall using exact-name search: !"Card Name"
-	scry := NewScryfallClient()
-	query := fmt.Sprintf(`!"%s"`, name)
-
-	results, err := scry.SearchByName(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	if len(results) == 0 {
-		// Do NOT insert junk; the name isn't a real Scryfall card.
+	if err == sql.ErrNoRows {
 		return nil, ErrCardNotFound
 	}
-
-	c := results[0]
-
-	// 3) Insert card into DB using fields that match the normalized Card struct.
-	colors := ""
-	if len(c.Colors) > 0 {
-		colors = strings.Join(c.Colors, ",")
-	}
-	colorIdentity := ""
-	if len(c.ColorIdentity) > 0 {
-		colorIdentity = strings.Join(c.ColorIdentity, ",")
-	}
-
-	var newID int64
-	err = db.QueryRowContext(ctx, `
-		INSERT INTO cards (
-			name,
-			mana_cost,
-			type_line,
-			oracle_text,
-			image_uri,
-			colors,
-			color_identity,
-			cmc,
-			layout,
-			commander_legal,
-			price_usd,
-			artist,
-			edhrec_rank,
-			scryfall_uri,
-			set_code,
-			set_name,
-			scryfall_id,
-			oracle_id
-		)
-		VALUES (
-			$1, $2, $3, $4, $5,
-			$6, $7, $8, $9, $10,
-			$11, $12, $13, $14, $15,
-			$16, $17, $18
-		)
-		RETURNING id
-	`,
-		c.Name,
-		c.ManaCost,
-		c.TypeLine,
-		c.OracleText,
-		c.ImageURI,
-		colors,
-		colorIdentity,
-		c.CMC,
-		c.Layout,
-		c.CommanderLegal,
-		c.PriceUSD,
-		c.Artist,
-		c.EDHRecRank,
-		c.ScryfallURI,
-		c.SetCode,
-		c.SetName,
-		c.ID,
-		c.OracleID,
-	).Scan(&newID)
 	if err != nil {
 		return nil, err
 	}
-
-	return &DBCard{
-		ID:            newID,
-		Name:          c.Name,
-		ManaCost:      c.ManaCost,
-		TypeLine:      c.TypeLine,
-		OracleText:    c.OracleText,
-		ImageURI:      c.ImageURI,
-		ColorIdentity: colorIdentity,
-		CMC:           c.CMC,
-	}, nil
+	return nil, ErrCardNotFound
 }
 
 func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
-	// Base table definition (for new databases).
+	// Full cards table definition for new databases.
 	_, err := db.ExecContext(ctx, `
-        CREATE TABLE IF NOT EXISTS cards (
-            id BIGSERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            mana_cost TEXT,
-            type_line TEXT,
-            oracle_text TEXT,
-            image_uri TEXT
-        );
-    `)
+	        CREATE TABLE IF NOT EXISTS cards (
+	            id BIGSERIAL PRIMARY KEY,
+	            name TEXT NOT NULL,
+	            mana_cost TEXT,
+	            type_line TEXT,
+	            oracle_text TEXT,
+	            image_uri TEXT,
+	            card_faces_json JSONB,
+	            colors TEXT,
+	            color_identity TEXT,
+	            cmc DOUBLE PRECISION,
+	            layout TEXT,
+	            commander_legal BOOLEAN,
+	            price_usd TEXT,
+	            artist TEXT,
+	            edhrec_rank INTEGER,
+	            scryfall_uri TEXT,
+	            set_code TEXT,
+	            set_name TEXT,
+	            scryfall_id TEXT,
+	            oracle_id TEXT
+	        );
+	    `)
 	if err != nil {
 		return err
 	}
 
-	// Add new commander/MDFC-related columns if they don't exist yet.
+	// Existing installs might have older cards schema; keep it forward-compatible.
 	alterStmts := []string{
+		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS card_faces_json JSONB;`,
 		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS colors TEXT;`,
 		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS color_identity TEXT;`,
 		`ALTER TABLE cards ADD COLUMN IF NOT EXISTS cmc DOUBLE PRECISION;`,
@@ -173,6 +100,39 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			return err
 		}
+	}
+
+	// Runtime query indexes for DB-backed search/lookups.
+	indexStmts := []string{
+		`CREATE INDEX IF NOT EXISTS idx_cards_name_lower ON cards (LOWER(name));`,
+		`CREATE INDEX IF NOT EXISTS idx_cards_commander_legal ON cards (commander_legal);`,
+		`CREATE INDEX IF NOT EXISTS idx_cards_type_line_lower ON cards (LOWER(type_line));`,
+		`CREATE INDEX IF NOT EXISTS idx_cards_scryfall_id ON cards (scryfall_id);`,
+	}
+	for _, stmt := range indexStmts {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return err
+		}
+	}
+
+	// Single-row metadata table used by the daily bulk sync scheduler.
+	if _, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS card_sync_state (
+			id SMALLINT PRIMARY KEY CHECK (id = 1),
+			last_attempt_at TIMESTAMPTZ,
+			last_success_at TIMESTAMPTZ,
+			source_updated_at TIMESTAMPTZ,
+			last_error TEXT,
+			card_count INTEGER NOT NULL DEFAULT 0
+		);
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO card_sync_state (id) VALUES (1)
+		ON CONFLICT (id) DO NOTHING;
+	`); err != nil {
+		return err
 	}
 
 	return nil
