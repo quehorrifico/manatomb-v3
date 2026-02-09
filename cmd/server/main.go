@@ -130,6 +130,38 @@ func wrapMiddleware(app *web.App, handler http.Handler) http.Handler {
 	return handler
 }
 
+func startCardSyncWorkers(database *sql.DB) {
+	cards.StartCardBulkSyncLoop(database, 24*time.Hour, log.Default())
+
+	// Run a non-blocking startup sync check so readiness can pass quickly.
+	go func() {
+		checkCtx, cancelCheck := context.WithTimeout(context.Background(), 30*time.Second)
+		due, err := cards.CardSyncDue(checkCtx, database, 24*time.Hour)
+		cancelCheck()
+		if err != nil {
+			log.Printf("cards sync due check failed: %v", err)
+			return
+		}
+		if !due {
+			return
+		}
+
+		log.Printf("cards sync: starting background startup bulk refresh")
+		syncCtx, cancelSync := context.WithTimeout(context.Background(), 2*time.Hour)
+		result, syncErr := cards.SyncCardsFromScryfallBulk(syncCtx, database)
+		cancelSync()
+		if syncErr != nil {
+			log.Printf("cards sync: startup refresh failed: %v", syncErr)
+			return
+		}
+		log.Printf(
+			"cards sync: startup refresh complete (%d cards, source updated %s)",
+			result.ImportedCards,
+			result.SourceUpdatedAt.UTC().Format(time.RFC3339),
+		)
+	}()
+}
+
 func run() error {
 	cfg := config.Load()
 	database := db.Open(cfg.DatabaseURL)
@@ -138,27 +170,7 @@ func run() error {
 	if err := ensureTables(context.Background(), database); err != nil {
 		return err
 	}
-
-	// Keep the local cards catalog fresh from Scryfall bulk data.
-	syncCtx, cancelSync := context.WithTimeout(context.Background(), 2*time.Hour)
-	defer cancelSync()
-	due, err := cards.CardSyncDue(syncCtx, database, 24*time.Hour)
-	if err != nil {
-		log.Printf("cards sync due check failed: %v", err)
-	} else if due {
-		log.Printf("cards sync: starting startup bulk refresh")
-		result, syncErr := cards.SyncCardsFromScryfallBulk(syncCtx, database)
-		if syncErr != nil {
-			log.Printf("cards sync: startup refresh failed: %v", syncErr)
-		} else {
-			log.Printf(
-				"cards sync: startup refresh complete (%d cards, source updated %s)",
-				result.ImportedCards,
-				result.SourceUpdatedAt.UTC().Format(time.RFC3339),
-			)
-		}
-	}
-	cards.StartCardBulkSyncLoop(database, 24*time.Hour, log.Default())
+	startCardSyncWorkers(database)
 
 	app := &web.App{
 		DB:       database,
