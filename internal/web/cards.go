@@ -3,7 +3,6 @@ package web
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -80,44 +79,18 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	hasFilters := len(colorParams) > 0 || typeFilter != ""
 	hasSearched := query != "" || hasFilters
 
-	var searchQuery string
-	if hasSearched {
-		if query == "" {
-			// Allow "filter-only" searches (no name) by using wildcard
-			searchQuery = "*"
-		} else {
-			searchQuery = query
-		}
-
-		// Build color identity filter: id>=WUG etc.
-		if len(colorParams) > 0 {
-			var letters []string
-			for _, c := range colorParams {
-				upper := strings.ToUpper(c)
-				switch upper {
-				case "W", "U", "B", "R", "G":
-					letters = append(letters, upper)
-				}
-			}
-			if len(letters) > 0 {
-				searchQuery += " id>=" + strings.Join(letters, "")
-			}
-		}
-
-		// Type filter: t:creature, t:instant, etc.
-		if typeFilter != "" {
-			searchQuery += " t:" + typeFilter
-		}
-	}
-
 	var results []cards.Card
 	var errMsg string
 
 	if hasSearched {
-		scry := cards.NewScryfallClient()
-		found, err := scry.SearchByName(r.Context(), searchQuery)
+		found, err := cards.SearchCards(r.Context(), a.DB, cards.CardSearchParams{
+			Query:         query,
+			TypeFilter:    typeFilter,
+			ColorIdentity: colorParams,
+			CommanderOnly: false,
+			Limit:         120,
+		})
 		if err != nil {
-			log.Printf("card search error for %q (built query %q): %v", query, searchQuery, err)
 			errMsg = "We couldn't search for cards right now. Please try again."
 		} else if len(found) == 0 {
 			if query == "" && hasFilters {
@@ -226,12 +199,12 @@ func (a *App) HandleCommanderSearch(w http.ResponseWriter, r *http.Request) {
 	var errMsg string
 
 	if hasSearched {
-		scry := cards.NewScryfallClient()
-		// Bias search toward commander-legal cards
-		searchQuery := query + " is:commander"
-		found, err := scry.SearchByName(r.Context(), searchQuery)
+		found, err := cards.SearchCards(r.Context(), a.DB, cards.CardSearchParams{
+			Query:         query,
+			CommanderOnly: true,
+			Limit:         120,
+		})
 		if err != nil {
-			log.Printf("commander search error for %q (built query %q): %v", query, searchQuery, err)
 			errMsg = "There was a problem searching for commanders. Please try again."
 		} else {
 			rawResults = found

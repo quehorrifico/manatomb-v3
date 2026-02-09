@@ -30,11 +30,9 @@ func (a *App) lookupCommanderCard(ctx context.Context, commanderName string) *ca
 		return nil
 	}
 
-	scry := cards.NewScryfallClient()
-	results, err := scry.SearchByName(ctx, commanderName+" is:commander")
-	if err != nil || len(results) == 0 {
+	card, err := cards.GetCardByName(ctx, a.DB, commanderName)
+	if err != nil {
 		return nil
 	}
-
-	return &results[0]
+	return card
 }
