@@ -21,6 +21,10 @@ type importDraftRequest struct {
 		Name string `json:"name"`
 		Qty  int    `json:"qty"`
 	} `json:"cards"`
+	MaybeCards []struct {
+		Name string `json:"name"`
+		Qty  int    `json:"qty"`
+	} `json:"maybe_cards"`
 }
 
 type importDraftResponse struct {
@@ -42,6 +46,7 @@ type guestImportPayload struct {
 	Name                string                `json:"name"`
 	Description         string                `json:"description"`
 	Cards               []guestImportSeedCard `json:"cards"`
+	MaybeCards          []guestImportSeedCard `json:"maybe_cards,omitempty"`
 	CommanderCandidates []string              `json:"commander_candidates,omitempty"`
 }
 
@@ -101,6 +106,46 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_ = decks.AddCard(r.Context(), a.DB, d.ID, card.ID, qty) // best-effort
+	}
+
+	// Add maybeboard cards (optional for guest draft imports).
+	// Skip unknown cards instead of failing the whole import.
+	maybeByName := map[string]int64{}
+	existingMaybe, err := decks.ListDeckMaybeCards(r.Context(), a.DB, d.ID)
+	if err == nil {
+		for _, rec := range existingMaybe {
+			name := strings.ToLower(strings.TrimSpace(rec.CardName))
+			if name == "" {
+				continue
+			}
+			maybeByName[name] = rec.CardID
+		}
+	}
+
+	for _, item := range req.MaybeCards {
+		cardName := strings.TrimSpace(item.Name)
+		qty := item.Qty
+		if cardName == "" || qty <= 0 {
+			continue
+		}
+
+		card, err := cards.EnsureCardByName(r.Context(), a.DB, cardName)
+		if err != nil {
+			continue
+		}
+
+		targetCardID := card.ID
+		key := strings.ToLower(strings.TrimSpace(card.Name))
+		if key == "" {
+			key = strings.ToLower(cardName)
+		}
+		if existingID, ok := maybeByName[key]; ok && existingID > 0 {
+			targetCardID = existingID
+		}
+
+		if err := decks.AddMaybeCard(r.Context(), a.DB, d.ID, targetCardID, qty); err == nil {
+			maybeByName[key] = targetCardID
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

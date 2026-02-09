@@ -25,6 +25,7 @@ can be added without hunting through handler files.
 - `/decks/commander` -> update commander from cards in deck
 - `/decks/import-text` -> import from pasted text
 - `/decks/import-draft` -> guest draft save-to-account endpoint
+- `/decks/analytics` -> deck analytics JSON (saved deck or guest draft payload)
 - `/decks/create-from-commander` -> commander search handoff
 - `/decks/guest` -> guest deck builder
 - `/decks/sandbox` -> sandbox WIP page

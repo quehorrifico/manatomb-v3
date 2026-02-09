@@ -27,11 +27,19 @@
 
     try {
       var cards = {};
+      var maybeCards = {};
       if (payload && Array.isArray(payload.cards)) {
         payload.cards.forEach(function (item) {
           if (!item || !item.name || !item.qty) return;
           if (item.qty <= 0) return;
           cards[item.name] = (cards[item.name] || 0) + item.qty;
+        });
+      }
+      if (payload && Array.isArray(payload.maybe_cards)) {
+        payload.maybe_cards.forEach(function (item) {
+          if (!item || !item.name || !item.qty) return;
+          if (item.qty <= 0) return;
+          maybeCards[item.name] = (maybeCards[item.name] || 0) + item.qty;
         });
       }
 
@@ -41,6 +49,7 @@
         name: payload.name || payload.commander_name || 'Imported Deck',
         description: payload.description || '',
         cards: cards,
+        maybeCards: maybeCards,
         updatedAt: new Date().toISOString()
       };
 

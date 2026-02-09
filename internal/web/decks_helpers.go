@@ -134,3 +134,14 @@ func visibleDeckCardCount(deckCards []decks.DeckCard, commanderName string) int 
 
 	return total
 }
+
+func deckCardQuantityTotal(cards []decks.DeckCard) int {
+	total := 0
+	for _, dc := range cards {
+		if dc.Quantity <= 0 {
+			continue
+		}
+		total += dc.Quantity
+	}
+	return total
+}
