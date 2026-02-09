@@ -15,7 +15,10 @@ type commanderCandidate struct {
 type deckPageData struct {
 	Deck                *decks.Deck
 	DeckCards           []decks.DeckCard
+	MaybeDeckCards      []decks.DeckCard
 	VisibleCardCount    int
+	MaybeCardCount      int
+	Analytics           deckAnalyticsData
 	Commander           *cards.Card
 	CommanderCandidates []commanderCandidate
 	GuestMode           bool

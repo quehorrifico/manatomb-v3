@@ -67,7 +67,7 @@
     </header>
 
         <main class="flex-1">
-      <div class="max-w-5xl mx-auto px-4 py-6">
+      <div class="{{ if .WideLayout }}w-full px-0 py-6{{ else }}max-w-5xl mx-auto px-4 py-6{{ end }}">
         {{ if .Flash }}
           <div class="mb-3 rounded-md border border-sky-500/60 bg-sky-500/10 px-3 py-2 text-sm text-sky-200">
             {{ .Flash }}

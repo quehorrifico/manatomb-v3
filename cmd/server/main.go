@@ -89,6 +89,7 @@ func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/decks/create-from-commander", app.HandleDeckCreateFromCommander)
 	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
 	mux.HandleFunc("/decks/guest", app.HandleGuestDeckShow)
+	mux.HandleFunc("/decks/analytics", app.HandleDeckAnalytics)
 	mux.HandleFunc("/decks/import-draft", app.HandleDeckImportDraft)
 	mux.HandleFunc("/decks/import-text", app.HandleDeckImportText)
 	mux.HandleFunc("/decks/sandbox", app.HandleDeckSandboxWIP)

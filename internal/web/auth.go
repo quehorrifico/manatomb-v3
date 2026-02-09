@@ -39,6 +39,7 @@ type TemplateData struct {
 	Data        any
 	Flash       string
 	Error       string
+	WideLayout  bool
 }
 
 func (a *App) withCurrentUser(next http.Handler) http.Handler {

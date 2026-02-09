@@ -158,13 +158,17 @@ func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
 		Data: deckPageData{
 			Deck:             fakeDeck,
 			DeckCards:        nil,
+			MaybeDeckCards:   nil,
 			VisibleCardCount: 0,
+			MaybeCardCount:   0,
+			Analytics:        emptyDeckAnalytics(commanderName),
 			Commander:        commanderCard,
 			// CommanderCandidates is only used for saved (non-guest) decks.
 			CommanderCandidates: nil,
 			GuestMode:           true,
 		},
-		Flash: flash,
+		Flash:      flash,
+		WideLayout: true,
 	}
 
 	a.Renderer.Render(w, "deck_show", data)

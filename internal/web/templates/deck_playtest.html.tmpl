@@ -506,6 +506,7 @@
               name: {{ printf "%q" $deck.Name }},
               description: {{ printf "%q" $deck.Description }},
               cards: cards,
+              maybeCards: {},
               updatedAt: new Date().toISOString()
             };
 
