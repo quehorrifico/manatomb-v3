@@ -65,31 +65,33 @@ func scanCanonicalCard(
 	cmc float64,
 	layout string,
 	commanderLegal bool,
+	isCommanderCandidate bool,
 	priceUSD, artist string,
 	edhrecRank int,
 	scryfallURI, setCode, setName, releasedAt, facesJSON string,
 ) Card {
 	return Card{
-		ID:             strings.TrimSpace(oracleID),
-		OracleID:       strings.TrimSpace(oracleID),
-		Name:           strings.TrimSpace(name),
-		ManaCost:       strings.TrimSpace(manaCost),
-		TypeLine:       strings.TrimSpace(typeLine),
-		OracleText:     strings.TrimSpace(oracleText),
-		ImageURI:       strings.TrimSpace(imageURI),
-		Colors:         colors,
-		ColorIdentity:  colorIdentity,
-		CMC:            cmc,
-		Layout:         strings.TrimSpace(layout),
-		CommanderLegal: commanderLegal,
-		PriceUSD:       strings.TrimSpace(priceUSD),
-		Artist:         strings.TrimSpace(artist),
-		EDHRecRank:     edhrecRank,
-		ScryfallURI:    strings.TrimSpace(scryfallURI),
-		SetCode:        strings.TrimSpace(setCode),
-		SetName:        strings.TrimSpace(setName),
-		ReleasedAt:     strings.TrimSpace(releasedAt),
-		Faces:          decodeCardFacesJSON(facesJSON),
+		ID:                   strings.TrimSpace(oracleID),
+		OracleID:             strings.TrimSpace(oracleID),
+		Name:                 strings.TrimSpace(name),
+		ManaCost:             strings.TrimSpace(manaCost),
+		TypeLine:             strings.TrimSpace(typeLine),
+		OracleText:           strings.TrimSpace(oracleText),
+		ImageURI:             strings.TrimSpace(imageURI),
+		Colors:               colors,
+		ColorIdentity:        colorIdentity,
+		CMC:                  cmc,
+		Layout:               strings.TrimSpace(layout),
+		CommanderLegal:       commanderLegal,
+		IsCommanderCandidate: isCommanderCandidate,
+		PriceUSD:             strings.TrimSpace(priceUSD),
+		Artist:               strings.TrimSpace(artist),
+		EDHRecRank:           edhrecRank,
+		ScryfallURI:          strings.TrimSpace(scryfallURI),
+		SetCode:              strings.TrimSpace(setCode),
+		SetName:              strings.TrimSpace(setName),
+		ReleasedAt:           strings.TrimSpace(releasedAt),
+		Faces:                decodeCardFacesJSON(facesJSON),
 	}
 }
 
@@ -107,6 +109,7 @@ func canonicalCardSelectSQL() string {
 			COALESCE(oc.cmc, 0) AS cmc,
 			COALESCE(oc.layout, '') AS layout,
 			COALESCE(oc.commander_legal, false) AS commander_legal,
+			COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
 			COALESCE(oc.default_price_usd, '') AS price_usd,
 			COALESCE(oc.default_artist, '') AS artist,
 			COALESCE(oc.edhrec_rank, 0) AS edhrec_rank,
@@ -156,7 +159,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			releasedAt, facesJSON                                    string
 			colors, colorIdentity                                    []string
 			cmc                                                      float64
-			commanderLegal                                           bool
+			commanderLegal, isCommanderCandidate                     bool
 			edhrecRank                                               int
 		)
 		if err := rows.Scan(
@@ -171,6 +174,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			&cmc,
 			&layout,
 			&commanderLegal,
+			&isCommanderCandidate,
 			&priceUSD,
 			&artist,
 			&edhrecRank,
@@ -194,6 +198,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			cmc,
 			layout,
 			commanderLegal,
+			isCommanderCandidate,
 			priceUSD,
 			artist,
 			edhrecRank,

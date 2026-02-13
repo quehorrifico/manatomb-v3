@@ -36,11 +36,12 @@ type Card struct {
 	ImageURI   string
 	ReleasedAt string
 
-	Colors         []string
-	ColorIdentity  []string
-	CMC            float64
-	Layout         string
-	CommanderLegal bool
+	Colors               []string
+	ColorIdentity        []string
+	CMC                  float64
+	Layout               string
+	CommanderLegal       bool
+	IsCommanderCandidate bool
 
 	PriceUSD   string
 	Artist     string

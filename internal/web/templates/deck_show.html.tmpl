@@ -13,66 +13,82 @@
   <main class="w-full max-w-none py-8 px-3 sm:px-4 md:px-6 xl:px-8 2xl:px-10 space-y-6">
     <!-- Top bar: title + actions -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-      <div class="space-y-1">
-        {{ if not $isGuest }}
-        <!-- View state: click to edit -->
-        <button
-          type="button"
-          id="deck-name-view"
-          class="group text-left"
-          title="Click to rename this deck">
-          <h2 class="text-2xl font-semibold tracking-tight">
-            <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent group-hover:from-sky-300 group-hover:via-cyan-200">
-              {{ $d.Name }}
-            </span>
-          </h2>
-          <p class="text-xs text-slate-500 mt-0.5 group-hover:text-slate-400">
-            Click here to rename deck.
-          </p>
-        </button>
+      <div class="flex items-start gap-4">
+        <div id="deck-top-commander-art-wrap"
+             class="h-28 w-20 sm:h-32 sm:w-24 rounded overflow-hidden border border-slate-700 bg-slate-900 shrink-0 {{ if and $c $c.ImageURI }}{{ else }}hidden{{ end }}">
+          <img id="deck-top-commander-art"
+               src="{{ if and $c $c.ImageURI }}{{ $c.ImageURI }}{{ end }}"
+               alt="{{ if $d.CommanderName }}{{ $d.CommanderName }} commander art{{ else }}Commander art{{ end }}"
+               class="h-full w-full object-cover">
+        </div>
 
-        <!-- Edit state: inline form (hidden by default) -->
-        <form
-          id="deck-name-form"
-          method="POST"
-          action="/decks/edit"
-          class="hidden space-y-2">
-          <input type="hidden" name="id" value="{{ $d.ID }}">
-          <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
-          <input type="hidden" name="description" value="{{ $d.Description }}">
-
-          <label class="block text-sm text-slate-200">
-            <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
-            <input
-              type="text"
-              name="name"
-              value="{{ $d.Name }}"
-              required
-              class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-          </label>
-          <div class="flex items-center gap-2">
-            <button type="submit"
-                    class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-              Save name
-            </button>
-            <button type="button"
-                    id="deck-name-cancel"
-                    class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
-              Cancel
-            </button>
-          </div>
-        </form>
-        {{ end }}
-        {{ if $isGuest }}
-          <div class="space-y-1">
+        <div class="min-w-0 flex-1 space-y-1">
+          {{ if not $isGuest }}
+          <!-- View state: click to edit -->
+          <button
+            type="button"
+            id="deck-name-view"
+            class="group text-left"
+            title="Click to rename this deck">
             <h2 class="text-2xl font-semibold tracking-tight">
-              <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-                <span id="guest-deck-name">{{ $d.Name }}</span>
+              <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent group-hover:from-sky-300 group-hover:via-cyan-200">
+                {{ $d.Name }}
               </span>
             </h2>
-            <p class="text-xs text-amber-200/80">Guest deck — saved in this browser only.</p>
+            <p class="text-xs text-slate-500 mt-0.5 group-hover:text-slate-400">
+              Click here to rename deck.
+            </p>
+          </button>
+
+          <!-- Edit state: inline form (hidden by default) -->
+          <form
+            id="deck-name-form"
+            method="POST"
+            action="/decks/edit"
+            class="hidden space-y-2">
+            <input type="hidden" name="id" value="{{ $d.ID }}">
+            <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
+            <input type="hidden" name="description" value="{{ $d.Description }}">
+
+            <label class="block text-sm text-slate-200">
+              <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
+              <input
+                type="text"
+                name="name"
+                value="{{ $d.Name }}"
+                required
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+            </label>
+            <div class="flex items-center gap-2">
+              <button type="submit"
+                      class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+                Save name
+              </button>
+              <button type="button"
+                      id="deck-name-cancel"
+                      class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </form>
+          {{ end }}
+
+          {{ if $isGuest }}
+            <div class="space-y-1">
+              <h2 class="text-2xl font-semibold tracking-tight">
+                <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
+                  <span id="guest-deck-name">{{ $d.Name }}</span>
+                </span>
+              </h2>
+              <p class="text-xs text-amber-200/80">Guest deck — saved in this browser only.</p>
+            </div>
+          {{ end }}
+
+          <div class="min-w-0">
+            <p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Commander</p>
+            <p id="deck-top-commander" class="text-sm text-slate-200 leading-snug break-words">{{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Choose an eligible commander{{ end }}</p>
           </div>
-        {{ end }}
+        </div>
       </div>
 
       <div class="flex flex-wrap gap-2">

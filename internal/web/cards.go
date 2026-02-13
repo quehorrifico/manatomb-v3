@@ -34,14 +34,15 @@ type searchResult struct {
 }
 
 type cardResolveResponse struct {
-	OracleID   string            `json:"oracle_id,omitempty"`
-	Name       string            `json:"name"`
-	ManaCost   string            `json:"mana_cost,omitempty"`
-	TypeLine   string            `json:"type_line,omitempty"`
-	OracleText string            `json:"oracle_text,omitempty"`
-	CMC        float64           `json:"cmc"`
-	ImageURIs  map[string]string `json:"image_uris,omitempty"`
-	Prices     struct {
+	OracleID             string            `json:"oracle_id,omitempty"`
+	Name                 string            `json:"name"`
+	ManaCost             string            `json:"mana_cost,omitempty"`
+	TypeLine             string            `json:"type_line,omitempty"`
+	OracleText           string            `json:"oracle_text,omitempty"`
+	CMC                  float64           `json:"cmc"`
+	IsCommanderCandidate bool              `json:"is_commander_candidate"`
+	ImageURIs            map[string]string `json:"image_uris,omitempty"`
+	Prices               struct {
 		USD string `json:"usd,omitempty"`
 	} `json:"prices,omitempty"`
 }
@@ -279,12 +280,13 @@ func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := cardResolveResponse{
-		OracleID:   card.OracleID,
-		Name:       card.Name,
-		ManaCost:   card.ManaCost,
-		TypeLine:   card.TypeLine,
-		OracleText: card.OracleText,
-		CMC:        card.CMC,
+		OracleID:             card.OracleID,
+		Name:                 card.Name,
+		ManaCost:             card.ManaCost,
+		TypeLine:             card.TypeLine,
+		OracleText:           card.OracleText,
+		CMC:                  card.CMC,
+		IsCommanderCandidate: card.IsCommanderCandidate,
 	}
 	if card.ImageURI != "" {
 		resp.ImageURIs = map[string]string{

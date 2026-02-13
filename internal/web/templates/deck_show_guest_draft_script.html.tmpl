@@ -7,6 +7,9 @@
     var previewWrap = document.getElementById('deck-card-preview');
     var previewImg = document.getElementById('deck-card-preview-img');
     var previewFallback = document.getElementById('deck-card-preview-fallback');
+    var topCommanderNameEl = document.getElementById('deck-top-commander');
+    var topCommanderArtWrap = document.getElementById('deck-top-commander-art-wrap');
+    var topCommanderArtImg = document.getElementById('deck-top-commander-art');
     var exampleHandList = document.getElementById('deck-analytics-example-hand');
     var exampleHandEmpty = document.getElementById('deck-analytics-example-hand-empty');
     var exampleHandFreshBtn = document.getElementById('deck-analytics-new-hand');
@@ -178,6 +181,73 @@
       }
       analyticsCardImageCache[cacheKey] = imageURI || '';
       return analyticsCardImageCache[cacheKey];
+    }
+
+    function topCommanderPreviewData() {
+      var name = normalizeName(commanderName);
+      if (!name && topCommanderNameEl) {
+        name = normalizeName(topCommanderNameEl.textContent || '');
+      }
+      var imageURI = '';
+      if (topCommanderArtImg) {
+        imageURI = normalizeName(topCommanderArtImg.getAttribute('src') || '');
+      }
+      return { name: name, imageURI: imageURI };
+    }
+
+    function bindTopCommanderPreview() {
+      if (!topCommanderArtWrap) return;
+      if (topCommanderArtWrap.getAttribute('data-preview-bound') === '1') return;
+      topCommanderArtWrap.setAttribute('data-preview-bound', '1');
+
+      if (window.mtDeckCardPreview && window.mtDeckCardPreview.tapMode) {
+        topCommanderArtWrap.addEventListener('click', function (event) {
+          if (topCommanderArtWrap.classList.contains('hidden')) return;
+          var data = topCommanderPreviewData();
+          if (window.mtDeckCardPreview && window.mtDeckCardPreview.toggle) {
+            window.mtDeckCardPreview.toggle(data.imageURI, data.name || 'Commander', event, topCommanderArtWrap);
+          }
+          if (!data.imageURI && data.name) {
+            resolveCardImage(data.name, '', true).then(function (uri) {
+              if (!uri) return;
+              if (topCommanderArtImg) topCommanderArtImg.src = uri;
+              topCommanderArtWrap.classList.remove('hidden');
+            });
+          }
+        });
+        return;
+      }
+
+      topCommanderArtWrap.addEventListener('mouseenter', function (event) {
+        if (topCommanderArtWrap.classList.contains('hidden')) return;
+        var data = topCommanderPreviewData();
+        if (window.mtDeckCardPreview && window.mtDeckCardPreview.move) {
+          window.mtDeckCardPreview.move(event);
+        }
+        if (window.mtDeckCardPreview) {
+          window.mtDeckCardPreview.show(data.imageURI, data.name || 'Commander');
+        }
+        if (!data.imageURI && data.name) {
+          resolveCardImage(data.name, '', true).then(function (uri) {
+            if (!uri) return;
+            if (topCommanderArtImg) topCommanderArtImg.src = uri;
+            topCommanderArtWrap.classList.remove('hidden');
+            if (window.mtDeckCardPreview) {
+              window.mtDeckCardPreview.show(uri, data.name || 'Commander');
+            }
+          });
+        }
+      });
+      topCommanderArtWrap.addEventListener('mousemove', function (event) {
+        if (window.mtDeckCardPreview && window.mtDeckCardPreview.move) {
+          window.mtDeckCardPreview.move(event);
+        }
+      });
+      topCommanderArtWrap.addEventListener('mouseleave', function () {
+        if (window.mtDeckCardPreview) {
+          window.mtDeckCardPreview.hide();
+        }
+      });
     }
 
     function extraArtTarget(extraName) {
@@ -467,6 +537,7 @@
     };
     window.mtDeckSyncManaCurveBars = syncManaCurveBars;
     syncManaCurveBars();
+    bindTopCommanderPreview();
 
     // ===== Logged-in inline edit behaviors (unchanged) =====
     if (!isGuest) {
@@ -551,6 +622,9 @@
     var addStatus = document.getElementById('guest-add-status');
     var playtestBtn = document.getElementById('guest-playtest');
     var commanderCurrentEl = document.getElementById('guest-commander-current');
+    var commanderTopEl = topCommanderNameEl;
+    var commanderTopArtWrap = topCommanderArtWrap;
+    var commanderTopArt = topCommanderArtImg;
     var commanderSelect = document.getElementById('guest-commander-select');
     var commanderApplyBtn = document.getElementById('guest-commander-apply');
     var commanderClearBtn = document.getElementById('guest-commander-clear');
@@ -637,6 +711,7 @@
         cmc: cmc,
         priceUSD: normalizeName(meta.priceUSD || meta.price_usd || ''),
         imageURI: normalizeName(meta.imageURI || meta.image_uri || ''),
+        isCommanderCandidate: !!meta.isCommanderCandidate,
       };
     }
 
@@ -651,6 +726,7 @@
         cmc: cmc,
         priceUSD: normalizeName((data.prices && data.prices.usd) ? data.prices.usd : ''),
         imageURI: normalizeName(extractResolvedImageURI(data)),
+        isCommanderCandidate: !!data.is_commander_candidate,
       };
       return meta.name ? meta : null;
     }
@@ -669,6 +745,19 @@
         }
       }
       return null;
+    }
+
+    function draftCardNameKey(cardMap, cardName) {
+      if (!cardMap || typeof cardMap !== 'object') return '';
+      var normalized = normalizeName(cardName).toLowerCase();
+      if (!normalized) return '';
+      var names = Object.keys(cardMap);
+      for (var i = 0; i < names.length; i++) {
+        if (normalizeName(names[i]).toLowerCase() === normalized) {
+          return names[i];
+        }
+      }
+      return '';
     }
 
     function saveDraft(d) {
@@ -748,10 +837,13 @@
       }
     }
 
-    async function resolveCardByName(name) {
+    async function resolveCardByName(name, exactOnly) {
       var normalized = normalizeName(name);
       if (!normalized) return null;
       var url = '/cards/resolve?q=' + encodeURIComponent(normalized);
+      if (exactOnly) {
+        url += '&exact=1';
+      }
       try {
         var res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
         if (!res.ok) return null;
@@ -767,29 +859,81 @@
       d = d || {};
       var out = [];
       var seen = {};
+      function addUnique(name) {
+        var normalized = normalizeName(name);
+        if (!normalized) return;
+        var key = normalized.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push(normalized);
+      }
 
       var source = Array.isArray(d.commanderCandidates) ? d.commanderCandidates : [];
       source.forEach(function (item) {
-        var name = normalizeName(item);
-        if (!name) return;
-        var key = name.toLowerCase();
-        if (seen[key]) return;
-        seen[key] = true;
-        out.push(name);
+        addUnique(item);
       });
 
+      var cardsMap = (d && d.cards) || {};
+      var cardEntries = Object.entries(cardsMap);
+      for (var i = 0; i < cardEntries.length; i++) {
+        var cardName = normalizeName(cardEntries[i][0]);
+        var qty = Number(cardEntries[i][1] || 0);
+        if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
+        var cardMeta = draftMetaForCard(d, cardName);
+        if (!cardMeta || !cardMeta.isCommanderCandidate) continue;
+        addUnique(cardName);
+      }
+
       if (commanderName) {
-        var currentKey = commanderName.toLowerCase();
-        if (!seen[currentKey]) out.push(commanderName);
+        addUnique(commanderName);
       }
 
       out.sort(function (a, b) { return a.localeCompare(b); });
       return out;
     }
 
+    function setTopCommanderArt(imageURI, name) {
+      if (!commanderTopArtWrap || !commanderTopArt) return;
+      var uri = normalizeName(imageURI);
+      var cardName = normalizeName(name);
+      if (!uri) {
+        commanderTopArt.removeAttribute('src');
+        commanderTopArt.alt = 'Commander art';
+        commanderTopArtWrap.classList.add('hidden');
+        return;
+      }
+      commanderTopArt.src = uri;
+      commanderTopArt.alt = (cardName || 'Commander') + ' commander art';
+      commanderTopArtWrap.classList.remove('hidden');
+    }
+
+    function syncTopCommanderArt(d) {
+      var current = normalizeName(commanderName);
+      if (!current) {
+        setTopCommanderArt('', '');
+        return;
+      }
+
+      var meta = draftMetaForCard(d, current);
+      var imageURI = normalizeName(meta && meta.imageURI ? meta.imageURI : '');
+      if (imageURI) {
+        setTopCommanderArt(imageURI, current);
+        return;
+      }
+
+      setTopCommanderArt('', current);
+      resolveCardImage(current, '', true).then(function (uri) {
+        if (normalizeName(commanderName).toLowerCase() !== current.toLowerCase()) return;
+        if (!uri) return;
+        setTopCommanderArt(uri, current);
+      });
+    }
+
     function renderCommanderControls(d) {
       var current = commanderName ? commanderName : 'Choose an eligible commander';
       if (commanderCurrentEl) commanderCurrentEl.textContent = current;
+      if (commanderTopEl) commanderTopEl.textContent = current;
+      syncTopCommanderArt(d);
       if (!commanderSelect) return;
 
       var candidates = buildCommanderCandidates(d);
@@ -1316,16 +1460,45 @@
     render(draft);
 
     if (commanderApplyBtn && commanderSelect) {
-      commanderApplyBtn.addEventListener('click', function () {
+      commanderApplyBtn.addEventListener('click', async function () {
         var picked = normalizeName(commanderSelect.value);
         if (!picked) {
           if (commanderStatus) commanderStatus.textContent = 'Choose an eligible commander first.';
           return;
         }
 
+        var previousCommander = normalizeName(commanderName);
         var dd = loadDraft() || { commanderName: commanderName, commanderCandidates: [], cards: {}, maybeCards: {}, cardMeta: {} };
+        dd.cards = dd.cards || {};
+        dd.maybeCards = dd.maybeCards || {};
+        ensureDraftCardMetaMap(dd);
+
         commanderName = picked;
         dd.commanderName = commanderName;
+
+        // If the previous commander came from preselection and was not present in
+        // the deck list, swap it back into the 99 when choosing a new commander.
+        if (previousCommander && previousCommander.toLowerCase() !== commanderName.toLowerCase()) {
+          var previousKey = draftCardNameKey(dd.cards, previousCommander);
+          var previousQty = previousKey ? Number(dd.cards[previousKey] || 0) : 0;
+          if (!Number.isFinite(previousQty) || previousQty <= 0) {
+            var previousResolved = await resolveCardByName(previousCommander, true);
+            var previousCanonical = previousCommander;
+            if (previousResolved && previousResolved.name) {
+              var resolvedName = normalizeName(previousResolved.name);
+              if (resolvedName) previousCanonical = resolvedName;
+            }
+            var canonicalKey = draftCardNameKey(dd.cards, previousCanonical);
+            if (!canonicalKey) canonicalKey = previousCanonical;
+            dd.cards[canonicalKey] = Number(dd.cards[canonicalKey] || 0) + 1;
+
+            var previousMeta = buildDraftCardMeta(previousResolved);
+            if (previousMeta) {
+              dd.cardMeta[canonicalKey] = previousMeta;
+            }
+          }
+        }
+
         if (!Array.isArray(dd.commanderCandidates)) dd.commanderCandidates = [];
         if (dd.commanderCandidates.map(function (x) { return String(x || '').toLowerCase(); }).indexOf(commanderName.toLowerCase()) < 0) {
           dd.commanderCandidates.push(commanderName);
@@ -1418,6 +1591,12 @@
         var meta = buildDraftCardMeta(cardData);
         if (meta) {
           dd.cardMeta[canonical] = meta;
+          if (meta.isCommanderCandidate) {
+            if (!Array.isArray(dd.commanderCandidates)) dd.commanderCandidates = [];
+            if (dd.commanderCandidates.map(function (x) { return String(x || '').toLowerCase(); }).indexOf(canonical.toLowerCase()) < 0) {
+              dd.commanderCandidates.push(canonical);
+            }
+          }
         }
 
         saveDraft(dd);
