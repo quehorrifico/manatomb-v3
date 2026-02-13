@@ -4,7 +4,7 @@
   {{ $deck := $ctx.Deck }}
   {{ $authNext := $ctx.AuthNextPath }}
   {{ if not $authNext }}
-    {{ $authNext = "/decks/new?mode=commander" }}
+    {{ $authNext = "/decks/new" }}
   {{ end }}
 
   <main class="max-w-7xl mx-auto px-4 py-8 space-y-4">

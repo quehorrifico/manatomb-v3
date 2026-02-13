@@ -23,17 +23,16 @@ type deckListItem struct {
 }
 
 type deckNewPageData struct {
-	Mode          string
-	CommanderName string
-	Name          string
-	Description   string
-	ImportText    string
+	Mode            string
+	CommanderName   string
+	Name            string
+	Description     string
+	ImportText      string
+	ImportUnmatched []string
 }
 
 func normalizeDeckBuilderMode(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "scratch", "commander":
-		return "commander"
 	case "sandbox":
 		return "sandbox"
 	case "import":
@@ -92,23 +91,6 @@ func parseDeckIDFromForm(r *http.Request) (int64, error) {
 		return 0, errors.New("invalid deck id")
 	}
 	return id, nil
-}
-
-func isCommanderEligible(typeLine, oracleText string) bool {
-	tl := strings.ToLower(typeLine)
-	ot := strings.ToLower(oracleText)
-
-	// Explicit override text on some cards
-	if strings.Contains(ot, "can be your commander") {
-		return true
-	}
-
-	// Classic: Legendary Creature
-	if strings.Contains(tl, "legendary") && strings.Contains(tl, "creature") {
-		return true
-	}
-
-	return false
 }
 
 func parseJSONBody(r *http.Request, dst any) error {

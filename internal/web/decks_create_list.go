@@ -26,6 +26,18 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 
 	// Build a view model with optional commander art URIs, fetched via EnsureCardByName.
 	items := make([]deckListItem, 0, len(userDecks))
+	commanderNames := make([]string, 0, len(userDecks))
+	for _, d := range userDecks {
+		name := strings.TrimSpace(d.CommanderName)
+		if name != "" {
+			commanderNames = append(commanderNames, name)
+		}
+	}
+	commanderCards, err := cards.LookupCardsByNames(r.Context(), a.DB, commanderNames)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
 
 	for _, d := range userDecks {
 		item := deckListItem{
@@ -37,12 +49,10 @@ func (a *App) HandleDecksList(w http.ResponseWriter, r *http.Request) {
 
 		commanderName := strings.TrimSpace(d.CommanderName)
 		if commanderName != "" {
-			if c, err := cards.EnsureCardByName(r.Context(), a.DB, commanderName); err == nil {
-				if c.ImageURI != "" {
-					item.CommanderImageURI = c.ImageURI
-				}
+			if c, ok := commanderCards[strings.ToLower(commanderName)]; ok && c.ImageURI != "" {
+				item.CommanderImageURI = c.ImageURI
 			}
-			// If EnsureCardByName fails or has no image, we just show the placeholder in the UI.
+			// If lookup misses or has no image, we just show the placeholder in the UI.
 		}
 
 		items = append(items, item)
@@ -63,15 +73,6 @@ func (a *App) HandleDeckNewShow(w http.ResponseWriter, r *http.Request) {
 
 	mode := normalizeDeckBuilderMode(r.URL.Query().Get("mode"))
 	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
-	if commanderName != "" {
-		mode = "commander"
-	}
-
-	// Guests choosing commander flow should go straight to commander search.
-	if user == nil && mode == "commander" && commanderName == "" {
-		http.Redirect(w, r, "/commanders/search?return_to="+url.QueryEscape("/decks/new"), http.StatusSeeOther)
-		return
-	}
 
 	// Guests skip the naming step and go straight to the local draft builder.
 	if user == nil && commanderName != "" {
@@ -104,7 +105,7 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	// Require a commander
 	if commander == "" {
 		a.renderDeckNew(w, user, "", "Please choose a commander first.", deckNewPageData{
-			Mode:          "commander",
+			Mode:          "",
 			CommanderName: commander,
 			Name:          name,
 			Description:   desc,
@@ -115,7 +116,7 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	// Basic validation: require a name
 	if name == "" {
 		a.renderDeckNew(w, user, "", "Deck name is required.", deckNewPageData{
-			Mode:          "commander",
+			Mode:          "",
 			CommanderName: commander,
 			Name:          name,
 			Description:   desc,
@@ -141,12 +142,17 @@ func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 
 	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
+	isSandbox := strings.TrimSpace(r.URL.Query().Get("sandbox")) == "1"
+	deckName := "New Deck"
+	if isSandbox {
+		deckName = ""
+	}
 
 	// Fake deck object (ID=0) so the template can render.
 	fakeDeck := &decks.Deck{
 		ID:            0,
 		UserID:        0,
-		Name:          "New Deck",
+		Name:          deckName,
 		Description:   "",
 		CommanderName: commanderName,
 	}
@@ -166,6 +172,7 @@ func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
 			// CommanderCandidates is only used for saved (non-guest) decks.
 			CommanderCandidates: nil,
 			GuestMode:           true,
+			GuestSandbox:        isSandbox,
 		},
 		Flash:      flash,
 		WideLayout: true,
@@ -175,12 +182,7 @@ func (a *App) HandleGuestDeckShow(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleDeckSandboxWIP(w http.ResponseWriter, r *http.Request) {
-	data := TemplateData{
-		CurrentUser: CurrentUser(r),
-		Flash:       readFlash(w, r),
-	}
-
-	a.Renderer.Render(w, "decks_sandbox_wip", data)
+	http.Redirect(w, r, "/decks/guest?sandbox=1&reset=1", http.StatusSeeOther)
 }
 
 // HandleDeckCreateFromCommander starts the next builder step after commander pick.
@@ -210,6 +212,6 @@ func (a *App) HandleDeckCreateFromCommander(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Logged-in users: go to Step 2 (name/description) instead of auto-creating.
-	http.Redirect(w, r, "/decks/new?mode=commander&commander_name="+url.QueryEscape(commander), http.StatusSeeOther)
+	http.Redirect(w, r, "/decks/new?commander_name="+url.QueryEscape(commander), http.StatusSeeOther)
 	return
 }

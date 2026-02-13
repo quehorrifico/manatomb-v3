@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"net/http"
 	"sort"
@@ -51,9 +50,9 @@ type guestImportPayload struct {
 }
 
 type resolvedImportCard struct {
-	CardID int64
-	Name   string
-	Qty    int
+	OracleID string
+	Name     string
+	Qty      int
 }
 
 func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +91,19 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	allImportNames := make([]string, 0, len(req.Cards)+len(req.MaybeCards))
+	for _, item := range req.Cards {
+		allImportNames = append(allImportNames, item.Name)
+	}
+	for _, item := range req.MaybeCards {
+		allImportNames = append(allImportNames, item.Name)
+	}
+	resolvedImportCards, err := cards.ResolveCardNamesBatch(r.Context(), a.DB, allImportNames, 0.40)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
 	// Add cards; skip unknown cards instead of failing the whole import
 	for _, item := range req.Cards {
 		cardName := strings.TrimSpace(item.Name)
@@ -100,17 +112,17 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		card, err := cards.EnsureCardByName(r.Context(), a.DB, cardName)
-		if err != nil {
+		resolution, ok := resolvedImportCards[strings.ToLower(cardName)]
+		if !ok {
 			continue
 		}
 
-		_ = decks.AddCard(r.Context(), a.DB, d.ID, card.ID, qty) // best-effort
+		_ = decks.AddCard(r.Context(), a.DB, d.ID, resolution.Card.OracleID, qty) // best-effort
 	}
 
 	// Add maybeboard cards (optional for guest draft imports).
 	// Skip unknown cards instead of failing the whole import.
-	maybeByName := map[string]int64{}
+	maybeByName := map[string]string{}
 	existingMaybe, err := decks.ListDeckMaybeCards(r.Context(), a.DB, d.ID)
 	if err == nil {
 		for _, rec := range existingMaybe {
@@ -129,17 +141,17 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		card, err := cards.EnsureCardByName(r.Context(), a.DB, cardName)
-		if err != nil {
+		resolution, ok := resolvedImportCards[strings.ToLower(cardName)]
+		if !ok {
 			continue
 		}
 
-		targetCardID := card.ID
-		key := strings.ToLower(strings.TrimSpace(card.Name))
+		targetCardID := resolution.Card.OracleID
+		key := strings.ToLower(strings.TrimSpace(resolution.Card.Name))
 		if key == "" {
 			key = strings.ToLower(cardName)
 		}
-		if existingID, ok := maybeByName[key]; ok && existingID > 0 {
+		if existingID, ok := maybeByName[key]; ok && existingID != "" {
 			targetCardID = existingID
 		}
 
@@ -150,24 +162,6 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(importDraftResponse{DeckID: d.ID})
-}
-
-func buildImportWarningMessage(unknown []string) string {
-	if len(unknown) == 0 {
-		return ""
-	}
-
-	total := len(unknown)
-	display := unknown
-	if total > 10 {
-		display = unknown[:10]
-	}
-
-	msg := fmt.Sprintf("Imported with warnings: could not find %d card(s): %s", total, strings.Join(display, ", "))
-	if total > 10 {
-		msg += " ..."
-	}
-	return msg
 }
 
 func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
@@ -188,95 +182,170 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 	commanderName, items, err := decks.ParseCommanderDecklistText(decklist)
 	if err != nil {
 		a.renderDeckNew(w, user, readFlash(w, r), err.Error(), deckNewPageData{
-			Mode:       "import",
-			ImportText: decklist,
+			Mode:            "import",
+			ImportText:      decklist,
+			ImportUnmatched: nil,
 		})
 		return
 	}
 
-	deckName := strings.TrimSpace(commanderName)
+	lookupNames := make([]string, 0, len(items)+1)
+	if strings.TrimSpace(commanderName) != "" {
+		lookupNames = append(lookupNames, commanderName)
+	}
+	for _, it := range items {
+		if strings.TrimSpace(it.Name) == "" || it.Qty <= 0 {
+			continue
+		}
+		lookupNames = append(lookupNames, it.Name)
+	}
+
+	resolvedExact, err := cards.LookupCardsByNames(r.Context(), a.DB, lookupNames)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	missing := make([]string, 0)
+	missingSeen := make(map[string]struct{})
+	trackMissing := func(raw string) {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return
+		}
+		key := strings.ToLower(raw)
+		if _, ok := missingSeen[key]; ok {
+			return
+		}
+		missingSeen[key] = struct{}{}
+		missing = append(missing, raw)
+	}
+
+	if commander := strings.TrimSpace(commanderName); commander != "" {
+		key := strings.ToLower(commander)
+		if _, ok := resolvedExact[key]; !ok {
+			trackMissing(commander)
+		}
+	}
+	for _, it := range items {
+		cardName := strings.TrimSpace(it.Name)
+		if cardName == "" || it.Qty <= 0 {
+			continue
+		}
+		key := strings.ToLower(cardName)
+		if _, ok := resolvedExact[key]; !ok {
+			trackMissing(cardName)
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		a.renderDeckNew(w, user, readFlash(w, r), "Import failed. Every card name must match exactly before continuing.", deckNewPageData{
+			Mode:            "import",
+			ImportText:      decklist,
+			ImportUnmatched: missing,
+		})
+		return
+	}
+
+	canonicalCommander := strings.TrimSpace(commanderName)
+	if canonicalCommander != "" {
+		canonicalCommander = resolvedExact[strings.ToLower(canonicalCommander)].Name
+	}
+
+	resolvedByOracleID := make(map[string]*resolvedImportCard, len(items))
+	resolvedCardMeta := make(map[string]cards.DBCard, len(items))
+	total := 0
+	for _, it := range items {
+		cardName := strings.TrimSpace(it.Name)
+		if cardName == "" || it.Qty <= 0 {
+			continue
+		}
+
+		card := resolvedExact[strings.ToLower(cardName)]
+		if rec, ok := resolvedByOracleID[card.OracleID]; ok {
+			rec.Qty += it.Qty
+		} else {
+			resolvedByOracleID[card.OracleID] = &resolvedImportCard{
+				OracleID: card.OracleID,
+				Name:     card.Name,
+				Qty:      it.Qty,
+			}
+			resolvedCardMeta[card.OracleID] = card
+		}
+		total += it.Qty
+	}
+
+	// If the commander came from a dedicated "Commander:" line and is not
+	// already present in the imported deck rows, include one copy so users can
+	// explicitly choose it from commander candidates after import.
+	if canonicalCommander != "" {
+		if commanderCard, ok := resolvedExact[strings.ToLower(canonicalCommander)]; ok {
+			if _, exists := resolvedByOracleID[commanderCard.OracleID]; !exists {
+				resolvedByOracleID[commanderCard.OracleID] = &resolvedImportCard{
+					OracleID: commanderCard.OracleID,
+					Name:     commanderCard.Name,
+					Qty:      1,
+				}
+				resolvedCardMeta[commanderCard.OracleID] = commanderCard
+			}
+		}
+	}
+
+	if total == 0 {
+		a.renderDeckNew(w, user, readFlash(w, r), "Could not import any cards. Please check the names and try again.", deckNewPageData{
+			Mode:            "import",
+			ImportText:      decklist,
+			ImportUnmatched: nil,
+		})
+		return
+	}
+
+	resolvedCards := make([]resolvedImportCard, 0, len(resolvedByOracleID))
+	for _, rec := range resolvedByOracleID {
+		resolvedCards = append(resolvedCards, *rec)
+	}
+	sort.Slice(resolvedCards, func(i, j int) bool {
+		return resolvedCards[i].Name < resolvedCards[j].Name
+	})
+
+	commanderCandidates := make([]string, 0)
+	candidateSeen := make(map[string]struct{})
+	for _, rec := range resolvedCards {
+		cardRec := resolvedCardMeta[rec.OracleID]
+		if !cardRec.IsCommanderCandidate {
+			continue
+		}
+
+		candidateName := strings.TrimSpace(cardRec.Name)
+		if candidateName == "" {
+			continue
+		}
+
+		key := strings.ToLower(candidateName)
+		if _, ok := candidateSeen[key]; ok {
+			continue
+		}
+		candidateSeen[key] = struct{}{}
+		commanderCandidates = append(commanderCandidates, candidateName)
+	}
+	sort.Strings(commanderCandidates)
+
+	deckName := strings.TrimSpace(canonicalCommander)
 	if deckName == "" {
 		deckName = "Imported Deck"
 	}
 
-	// Guest imports should not depend on Scryfall/network lookups.
-	// We preserve parsed card names exactly as typed and seed localStorage.
 	if user == nil {
-		merged := make(map[string]guestImportSeedCard, len(items))
-		order := make([]string, 0, len(items))
-		total := 0
-
-		for _, it := range items {
-			name := strings.TrimSpace(it.Name)
-			if name == "" || it.Qty <= 0 {
-				continue
-			}
-			total += it.Qty
-
-			key := strings.ToLower(name)
-			if existing, ok := merged[key]; ok {
-				existing.Qty += it.Qty
-				merged[key] = existing
-				continue
-			}
-
-			merged[key] = guestImportSeedCard{
-				Name: name,
-				Qty:  it.Qty,
-			}
-			order = append(order, key)
-		}
-
-		if total == 0 {
-			a.renderDeckNew(w, user, readFlash(w, r), "Could not import any cards. Please check the names and try again.", deckNewPageData{
-				Mode:       "import",
-				ImportText: decklist,
+		guestCards := make([]guestImportSeedCard, 0, len(resolvedCards))
+		for _, rec := range resolvedCards {
+			guestCards = append(guestCards, guestImportSeedCard{
+				Name: rec.Name,
+				Qty:  rec.Qty,
 			})
-			return
 		}
-
-		guestCards := make([]guestImportSeedCard, 0, len(order))
-		for _, key := range order {
-			guestCards = append(guestCards, merged[key])
-		}
-		sort.Slice(guestCards, func(i, j int) bool {
-			return guestCards[i].Name < guestCards[j].Name
-		})
-
-		guestCommander := strings.TrimSpace(commanderName)
-		commanderCandidates := make([]string, 0)
-		candidateSeen := make(map[string]struct{})
-
-		// Best-effort candidate detection for guest mode.
-		// We never fail import if lookup/network misses.
-		for _, rec := range guestCards {
-			cardRec, err := cards.EnsureCardByName(r.Context(), a.DB, rec.Name)
-			if err != nil {
-				continue
-			}
-			if !isCommanderEligible(cardRec.TypeLine, cardRec.OracleText) {
-				continue
-			}
-
-			candidateName := strings.TrimSpace(cardRec.Name)
-			if candidateName == "" {
-				candidateName = strings.TrimSpace(rec.Name)
-			}
-			if candidateName == "" {
-				continue
-			}
-
-			key := strings.ToLower(candidateName)
-			if _, ok := candidateSeen[key]; ok {
-				continue
-			}
-			candidateSeen[key] = struct{}{}
-			commanderCandidates = append(commanderCandidates, candidateName)
-		}
-		sort.Strings(commanderCandidates)
 
 		payload := guestImportPayload{
-			CommanderName:       guestCommander,
+			CommanderName:       "",
 			Name:                deckName,
 			Description:         "",
 			Cards:               guestCards,
@@ -289,7 +358,7 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if guestCommander == "" && len(commanderCandidates) > 0 {
+		if len(commanderCandidates) > 0 {
 			setFlash(w, "Deck imported. Choose your commander from eligible imported cards.")
 		} else {
 			setFlash(w, "Deck imported into your guest deck.")
@@ -298,7 +367,7 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		data := TemplateData{
 			CurrentUser: user,
 			Data: guestImportSeedData{
-				CommanderName: guestCommander,
+				CommanderName: "",
 				PayloadJSON:   template.JS(b),
 			},
 		}
@@ -306,54 +375,7 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unknown := make([]string, 0)
-	resolvedByID := make(map[int64]*resolvedImportCard)
-	added := 0
-
-	for _, it := range items {
-		cn := strings.TrimSpace(it.Name)
-		if cn == "" || it.Qty <= 0 {
-			continue
-		}
-
-		card, err := cards.EnsureCardByName(r.Context(), a.DB, cn)
-		if err != nil {
-			unknown = append(unknown, cn)
-			continue
-		}
-
-		rec, ok := resolvedByID[card.ID]
-		if !ok {
-			resolvedByID[card.ID] = &resolvedImportCard{
-				CardID: card.ID,
-				Name:   card.Name,
-				Qty:    it.Qty,
-			}
-		} else {
-			rec.Qty += it.Qty
-		}
-		added += it.Qty
-	}
-
-	if added == 0 {
-		a.renderDeckNew(w, user, readFlash(w, r), "Could not import any cards. Please check the names and try again.", deckNewPageData{
-			Mode:       "import",
-			ImportText: decklist,
-		})
-		return
-	}
-
-	resolvedCards := make([]resolvedImportCard, 0, len(resolvedByID))
-	for _, rec := range resolvedByID {
-		resolvedCards = append(resolvedCards, *rec)
-	}
-	sort.Slice(resolvedCards, func(i, j int) bool {
-		return resolvedCards[i].Name < resolvedCards[j].Name
-	})
-
-	warningMsg := buildImportWarningMessage(unknown)
-
-	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, deckName, "", commanderName)
+	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, deckName, "", "")
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
@@ -361,7 +383,7 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 
 	persisted := 0
 	for _, rec := range resolvedCards {
-		if err := decks.AddCard(r.Context(), a.DB, d.ID, rec.CardID, rec.Qty); err == nil {
+		if err := decks.AddCard(r.Context(), a.DB, d.ID, rec.OracleID, rec.Qty); err == nil {
 			persisted += rec.Qty
 		}
 	}
@@ -369,17 +391,17 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 	if persisted == 0 {
 		_ = decks.DeleteDeck(r.Context(), a.DB, d.ID)
 		a.renderDeckNew(w, user, readFlash(w, r), "Could not import any cards. Please check the names and try again.", deckNewPageData{
-			Mode:       "import",
-			ImportText: decklist,
+			Mode:            "import",
+			ImportText:      decklist,
+			ImportUnmatched: nil,
 		})
 		return
 	}
 
-	if warningMsg != "" {
-		setFlash(w, warningMsg)
+	if len(commanderCandidates) > 0 {
+		setFlash(w, "Deck imported. Choose your commander from eligible cards in the deck.")
 	} else {
 		setFlash(w, "Deck imported!")
 	}
-
 	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
 }

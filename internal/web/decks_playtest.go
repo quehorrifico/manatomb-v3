@@ -46,6 +46,7 @@ type guestPlaytestPayload struct {
 	Name          string              `json:"name"`
 	Description   string              `json:"description"`
 	Cards         []guestPlaytestCard `json:"cards"`
+	Sandbox       bool                `json:"sandbox"`
 }
 
 func parsePlaytestDeckID(path string) (int64, error) {
@@ -118,6 +119,25 @@ func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, ro
 	commanderName = strings.TrimSpace(commanderName)
 	commander := playtestCommander{Name: commanderName}
 	out := make([]playtestCard, 0, len(rows))
+	missingNames := make([]string, 0, len(rows)+1)
+
+	for _, row := range rows {
+		name := strings.TrimSpace(row.Name)
+		if name == "" || row.Qty <= 0 {
+			continue
+		}
+		if strings.TrimSpace(row.ImageURI) == "" || strings.TrimSpace(row.TypeLine) == "" {
+			missingNames = append(missingNames, name)
+		}
+	}
+	if commanderName != "" {
+		missingNames = append(missingNames, commanderName)
+	}
+
+	resolvedByName, err := cards.LookupCardsByNames(ctx, a.DB, missingNames)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	for _, row := range rows {
 		name := strings.TrimSpace(row.Name)
@@ -128,15 +148,13 @@ func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, ro
 		imageURI := strings.TrimSpace(row.ImageURI)
 		typeLine := strings.TrimSpace(row.TypeLine)
 		if imageURI == "" || typeLine == "" {
-			if dbCard, err := cards.EnsureCardByName(ctx, a.DB, name); err == nil {
+			if dbCard, ok := resolvedByName[strings.ToLower(name)]; ok {
 				if imageURI == "" {
 					imageURI = strings.TrimSpace(dbCard.ImageURI)
 				}
 				if typeLine == "" {
 					typeLine = strings.TrimSpace(dbCard.TypeLine)
 				}
-			} else if !errors.Is(err, cards.ErrCardNotFound) {
-				return nil, nil, err
 			}
 		}
 
@@ -162,15 +180,13 @@ func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, ro
 	}
 
 	if commander.Name != "" && (commander.ImageURI == "" || commander.TypeLine == "") {
-		if dbCard, err := cards.EnsureCardByName(ctx, a.DB, commander.Name); err == nil {
+		if dbCard, ok := resolvedByName[strings.ToLower(commander.Name)]; ok {
 			if commander.ImageURI == "" {
 				commander.ImageURI = strings.TrimSpace(dbCard.ImageURI)
 			}
 			if commander.TypeLine == "" {
 				commander.TypeLine = strings.TrimSpace(dbCard.TypeLine)
 			}
-		} else if !errors.Is(err, cards.ErrCardNotFound) {
-			return nil, nil, err
 		}
 	}
 
@@ -266,7 +282,7 @@ func (a *App) HandleDeckPlaytest(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) HandleDeckPlaytestGuest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/decks/new?mode=commander", http.StatusSeeOther)
+		http.Redirect(w, r, "/decks/new", http.StatusSeeOther)
 		return
 	}
 
@@ -277,7 +293,7 @@ func (a *App) HandleDeckPlaytestGuest(w http.ResponseWriter, r *http.Request) {
 
 	rawPayload := strings.TrimSpace(r.Form.Get("payload"))
 	if rawPayload == "" {
-		http.Redirect(w, r, "/decks/new?mode=commander", http.StatusSeeOther)
+		http.Redirect(w, r, "/decks/new", http.StatusSeeOther)
 		return
 	}
 
@@ -310,7 +326,9 @@ func (a *App) HandleDeckPlaytestGuest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authNextPath := "/decks/guest"
-	if commanderName != "" {
+	if in.Sandbox {
+		authNextPath = "/decks/guest?sandbox=1&save_guest=1"
+	} else if commanderName != "" {
 		authNextPath = "/decks/guest?commander_name=" + url.QueryEscape(commanderName) + "&save_guest=1"
 	} else {
 		authNextPath = "/decks/guest?save_guest=1"

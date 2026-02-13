@@ -38,7 +38,7 @@
         </a>
 
         <nav class="flex items-center gap-3 text-sm">
-          <a href="/decks" class="text-slate-300 hover:text-sky-300 transition-colors">My Decks</a>
+          <a href="{{ if .CurrentUser }}/decks{{ else }}/decks/new{{ end }}" class="text-slate-300 hover:text-sky-300 transition-colors">My Decks</a>
           <a href="/cards/search" class="text-slate-300 hover:text-sky-300 transition-colors">Cards</a>
           <a href="/commanders/search" class="text-slate-300 hover:text-sky-300 transition-colors hidden sm:inline">
             Commanders

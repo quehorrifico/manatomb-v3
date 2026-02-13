@@ -1,5 +1,7 @@
 package cards
 
+import "strings"
+
 // CardFace represents one face of a multi-faced card (MDFC, split, etc.).
 type CardFace struct {
 	Name       string   `json:"name"`
@@ -12,18 +14,20 @@ type CardFace struct {
 	ColorID    []string `json:"color_identity"`
 }
 
-// Card is the normalized view of a card used by ManaTomb. It hides the
-// complexity of different Scryfall layouts (normal, MDFC, split, etc.) and
-// exposes a single "primary face" plus commander-relevant metadata.
+// Card is the normalized view returned by search/resolve APIs.
+// For canonical search rows, ID matches OracleID. For print rows, ID may be a
+// Scryfall printing id.
 type Card struct {
 	ID       string
 	OracleID string
+	Lang     string
 
 	Name       string
 	ManaCost   string
 	TypeLine   string
 	OracleText string
 	ImageURI   string
+	ReleasedAt string
 
 	Colors         []string
 	ColorIdentity  []string
@@ -31,22 +35,24 @@ type Card struct {
 	Layout         string
 	CommanderLegal bool
 
-	// Extra metadata used by the UI (not required to be persisted).
 	PriceUSD   string
 	Artist     string
 	EDHRecRank int
 
-	ScryfallURI string
-	SetCode     string
-	SetName     string
+	ScryfallURI     string
+	SetCode         string
+	SetName         string
+	CollectorNumber string
+	Rarity          string
 
-	// Faces contains all faces for MDFC/similar layouts. For normal cards this will be empty.
+	// Faces contains all faces for MDFC/similar layouts.
 	Faces []CardFace `json:"faces"`
 }
 
 type scryfallCard struct {
 	ID       string `json:"id"`
 	OracleID string `json:"oracle_id"`
+	Lang     string `json:"lang"`
 
 	Name       string            `json:"name"`
 	ManaCost   string            `json:"mana_cost"`
@@ -57,7 +63,9 @@ type scryfallCard struct {
 	SetType    string            `json:"set_type"`
 	Games      []string          `json:"games"`
 
-	// MDFC / modal double-faced cards
+	CollectorNumber string `json:"collector_number"`
+	Rarity          string `json:"rarity"`
+
 	CardFaces []struct {
 		Name       string            `json:"name"`
 		ManaCost   string            `json:"mana_cost"`
@@ -89,33 +97,56 @@ type scryfallCard struct {
 	SetName     string `json:"set_name"`
 }
 
-// normalizeScryfallCard flattens a raw Scryfall card (which may be MDFC or
-// other layouts) into a single Card value that the rest of the app can use.
+func preferredImageURI(imageURIs map[string]string) string {
+	if imageURIs == nil {
+		return ""
+	}
+	if v := strings.TrimSpace(imageURIs["normal"]); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(imageURIs["large"]); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(imageURIs["small"]); v != "" {
+		return v
+	}
+	return ""
+}
+
+func preferredPriceUSD(sc scryfallCard) string {
+	if v := strings.TrimSpace(sc.Prices.USD); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(sc.Prices.USDFoil); v != "" {
+		return v
+	}
+	return strings.TrimSpace(sc.Prices.USDEtched)
+}
+
+// normalizeScryfallCard flattens a raw Scryfall card into one Card row.
 func normalizeScryfallCard(sc scryfallCard) Card {
-	// Start with top-level fields.
-	name := sc.Name
-	manaCost := sc.ManaCost
-	typeLine := sc.TypeLine
-	oracleText := sc.OracleText
-	artist := sc.Artist
+	name := strings.TrimSpace(sc.Name)
+	manaCost := strings.TrimSpace(sc.ManaCost)
+	typeLine := strings.TrimSpace(sc.TypeLine)
+	oracleText := strings.TrimSpace(sc.OracleText)
+	artist := strings.TrimSpace(sc.Artist)
 	colors := sc.Colors
 	colorID := sc.ColorIdentity
 
-	// Pick an image URI, preferring primary face for MDFCs.
-	img := ""
+	img := preferredImageURI(sc.ImageURIs)
 	if len(sc.CardFaces) > 0 {
 		face := sc.CardFaces[0]
-		if face.ManaCost != "" {
-			manaCost = face.ManaCost
+		if v := strings.TrimSpace(face.ManaCost); v != "" {
+			manaCost = v
 		}
-		if face.TypeLine != "" {
-			typeLine = face.TypeLine
+		if v := strings.TrimSpace(face.TypeLine); v != "" {
+			typeLine = v
 		}
-		if face.OracleText != "" {
-			oracleText = face.OracleText
+		if v := strings.TrimSpace(face.OracleText); v != "" {
+			oracleText = v
 		}
-		if face.Artist != "" {
-			artist = face.Artist
+		if v := strings.TrimSpace(face.Artist); v != "" {
+			artist = v
 		}
 		if len(face.Colors) > 0 {
 			colors = face.Colors
@@ -123,87 +154,51 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 		if len(face.ColorID) > 0 {
 			colorID = face.ColorID
 		}
-		if face.ImageURIs != nil {
-			img = face.ImageURIs["normal"]
-			if img == "" {
-				img = face.ImageURIs["large"]
-			}
-			if img == "" {
-				img = face.ImageURIs["small"]
-			}
+		if faceImage := preferredImageURI(face.ImageURIs); faceImage != "" {
+			img = faceImage
 		}
-	}
-
-	// If we didn't get an image from faces, try the top-level image_uris.
-	if img == "" && sc.ImageURIs != nil {
-		img = sc.ImageURIs["normal"]
-		if img == "" {
-			img = sc.ImageURIs["large"]
-		}
-		if img == "" {
-			img = sc.ImageURIs["small"]
-		}
-	}
-
-	// Prefer non-foil USD, then fallback to other prices.
-	price := sc.Prices.USD
-	if price == "" {
-		price = sc.Prices.USDFoil
-	}
-	if price == "" {
-		price = sc.Prices.USDEtched
 	}
 
 	commanderLegal := false
-	if sc.Legalities != nil && sc.Legalities["commander"] == "legal" {
+	if sc.Legalities != nil && strings.EqualFold(strings.TrimSpace(sc.Legalities["commander"]), "legal") {
 		commanderLegal = true
 	}
 
-	// Build faces slice for MDFC and similar layouts.
 	faces := make([]CardFace, 0, len(sc.CardFaces))
-	for _, f := range sc.CardFaces {
-		faceImg := ""
-		if f.ImageURIs != nil {
-			faceImg = f.ImageURIs["normal"]
-			if faceImg == "" {
-				faceImg = f.ImageURIs["large"]
-			}
-			if faceImg == "" {
-				faceImg = f.ImageURIs["small"]
-			}
-		}
-
+	for _, face := range sc.CardFaces {
 		faces = append(faces, CardFace{
-			Name:       f.Name,
-			ManaCost:   f.ManaCost,
-			TypeLine:   f.TypeLine,
-			OracleText: f.OracleText,
-			ImageURI:   faceImg,
-			Artist:     f.Artist,
-			Colors:     f.Colors,
-			ColorID:    f.ColorID,
+			Name:       strings.TrimSpace(face.Name),
+			ManaCost:   strings.TrimSpace(face.ManaCost),
+			TypeLine:   strings.TrimSpace(face.TypeLine),
+			OracleText: strings.TrimSpace(face.OracleText),
+			ImageURI:   preferredImageURI(face.ImageURIs),
+			Artist:     strings.TrimSpace(face.Artist),
+			Colors:     face.Colors,
+			ColorID:    face.ColorID,
 		})
 	}
 
 	return Card{
-		ID:             sc.ID,
-		OracleID:       sc.OracleID,
+		ID:             strings.TrimSpace(sc.ID),
+		OracleID:       strings.TrimSpace(sc.OracleID),
+		Lang:           strings.TrimSpace(sc.Lang),
 		Name:           name,
 		ManaCost:       manaCost,
 		TypeLine:       typeLine,
 		OracleText:     oracleText,
 		ImageURI:       img,
+		ReleasedAt:     strings.TrimSpace(sc.ReleasedAt),
 		Colors:         colors,
 		ColorIdentity:  colorID,
 		CMC:            sc.CMC,
-		Layout:         sc.Layout,
+		Layout:         strings.TrimSpace(sc.Layout),
 		CommanderLegal: commanderLegal,
-		PriceUSD:       price,
+		PriceUSD:       preferredPriceUSD(sc),
 		Artist:         artist,
 		EDHRecRank:     sc.EDHRecRank,
-		ScryfallURI:    sc.ScryfallURI,
-		SetCode:        sc.Set,
-		SetName:        sc.SetName,
+		ScryfallURI:    strings.TrimSpace(sc.ScryfallURI),
+		SetCode:        strings.TrimSpace(sc.Set),
+		SetName:        strings.TrimSpace(sc.SetName),
 		Faces:          faces,
 	}
 }

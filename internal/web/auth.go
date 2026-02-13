@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,8 +31,9 @@ type notFoundRecorder struct {
 }
 
 type App struct {
-	DB       *sql.DB
-	Renderer *Renderer
+	DB                  *sql.DB
+	Renderer            *Renderer
+	SessionCookieSecure bool
 }
 
 type TemplateData struct {
@@ -157,8 +159,6 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 		next = "/decks"
 	}
 
-	log.Printf("signup attempt: email=%s displayName=%s", email, displayName)
-
 	// Basic validation
 	if displayName == "" || email == "" || password == "" {
 		data := TemplateData{
@@ -196,7 +196,7 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	u, err := account.CreateUser(r.Context(), a.DB, email, displayName, password)
 	if err != nil {
-		log.Printf("create user error: %v", err)
+		log.Printf("create user error during signup")
 		data := TemplateData{
 			Data: struct {
 				DisplayName string
@@ -237,7 +237,8 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 		Value:    sess.ID.String(),
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // set true in prod when behind HTTPS
+		Secure:   a.SessionCookieSecure,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	log.Printf("signup success: userID=%d, redirecting to %s", u.ID, next)
@@ -291,7 +292,9 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 
 	u, err := account.Authenticate(r.Context(), a.DB, email, password)
 	if err != nil {
-		log.Printf("authenticate error: %v", err)
+		if !errors.Is(err, account.ErrInvalidCredentials) {
+			log.Printf("authenticate error: %v", err)
+		}
 		data := TemplateData{
 			Data: struct {
 				Email string
@@ -328,7 +331,8 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		Value:    sess.ID.String(),
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   a.SessionCookieSecure,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	setFlash(w, "Welcome back!")
@@ -351,6 +355,8 @@ func (a *App) ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   a.SessionCookieSecure,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 

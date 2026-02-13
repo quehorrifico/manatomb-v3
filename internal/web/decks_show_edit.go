@@ -11,10 +11,10 @@ import (
 	"manatomb/app/internal/decks"
 )
 
-func deckCardIDForName(deckCards []decks.DeckCard, cardName string) (int64, bool) {
+func deckCardIDForName(deckCards []decks.DeckCard, cardName string) (string, bool) {
 	targetName := strings.TrimSpace(cardName)
 	if targetName == "" {
-		return 0, false
+		return "", false
 	}
 
 	for _, dc := range deckCards {
@@ -22,7 +22,7 @@ func deckCardIDForName(deckCards []decks.DeckCard, cardName string) (int64, bool
 			return dc.CardID, true
 		}
 	}
-	return 0, false
+	return "", false
 }
 
 // Show a single deck, its cards, and commander details.
@@ -48,16 +48,16 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cardName := r.Form.Get("card_name")
-		cardIDStr := r.Form.Get("card_id")
-		maybeCardIDStr := r.Form.Get("maybe_card_id")
+		cardID := strings.TrimSpace(r.Form.Get("card_id"))
+		maybeCardID := strings.TrimSpace(r.Form.Get("maybe_card_id"))
 		action := strings.TrimSpace(r.Form.Get("action"))
 		zone := strings.TrimSpace(r.Form.Get("zone"))
 
 		// Case 1: adding a new card by name (from the "Add card" form)
 		if cardName != "" {
-			c, err := cards.EnsureCardByName(r.Context(), a.DB, cardName)
+			resolved, err := cards.ResolveCardByNameFuzzy(r.Context(), a.DB, cardName)
 			if err != nil {
-				// If the card doesn't exist on Scryfall, show a friendly error on the deck page.
+				// If we can't find a suitable local card match, show a friendly error on the deck page.
 				if errors.Is(err, cards.ErrCardNotFound) {
 					d, derr := decks.GetDeck(r.Context(), a.DB, id, user.ID)
 					if derr != nil {
@@ -82,19 +82,18 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 					data := TemplateData{
 						CurrentUser: user,
 						Data: deckPageData{
-							Deck:             d,
-							DeckCards:        deckCards,
-							MaybeDeckCards:   maybeDeckCards,
-							VisibleCardCount: visibleDeckCardCount(deckCards, d.CommanderName),
-							MaybeCardCount:   deckCardQuantityTotal(maybeDeckCards),
-							Analytics:        computeDeckAnalyticsFromDeckCards(d.CommanderName, deckCards),
-							Commander:        commanderCard,
-							// No commander-candidate refresh needed for this error render.
+							Deck:                d,
+							DeckCards:           deckCards,
+							MaybeDeckCards:      maybeDeckCards,
+							VisibleCardCount:    visibleDeckCardCount(deckCards, d.CommanderName),
+							MaybeCardCount:      deckCardQuantityTotal(maybeDeckCards),
+							Analytics:           computeDeckAnalyticsFromDeckCards(d.CommanderName, deckCards),
+							Commander:           commanderCard,
 							CommanderCandidates: nil,
 							GuestMode:           false,
 						},
 						Flash:      flash,
-						Error:      fmt.Sprintf("No card found named \"%s\". Please check the spelling.", cardName),
+						Error:      fmt.Sprintf("No card found matching \"%s\". Please check the spelling.", cardName),
 						WideLayout: true,
 					}
 
@@ -109,14 +108,15 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 
 			// Valid card, add +1 copy to the chosen zone.
 			var addErr error
-			targetCardID := c.ID
+			targetCardID := resolved.OracleID
+			resolvedName := strings.TrimSpace(resolved.Name)
 			if zone == "maybe" {
 				maybeDeckCards, err := decks.ListDeckMaybeCards(r.Context(), a.DB, id)
 				if err != nil {
 					a.RenderServerError(w, r, err)
 					return
 				}
-				if existingID, ok := deckCardIDForName(maybeDeckCards, c.Name); ok {
+				if existingID, ok := deckCardIDForName(maybeDeckCards, resolvedName); ok {
 					targetCardID = existingID
 				}
 				addErr = decks.AddMaybeCard(r.Context(), a.DB, id, targetCardID, 1)
@@ -126,7 +126,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 					a.RenderServerError(w, r, err)
 					return
 				}
-				if existingID, ok := deckCardIDForName(deckCards, c.Name); ok {
+				if existingID, ok := deckCardIDForName(deckCards, resolvedName); ok {
 					targetCardID = existingID
 				}
 				addErr = decks.AddCard(r.Context(), a.DB, id, targetCardID, 1)
@@ -141,12 +141,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Case 2: move a mainboard card to the maybeboard.
-		if action == "inc_main" && cardIDStr != "" {
-			cardID, err := strconv.ParseInt(cardIDStr, 10, 64)
-			if err != nil {
-				http.Error(w, "invalid card id", http.StatusBadRequest)
-				return
-			}
+		if action == "inc_main" && cardID != "" {
 			if err := decks.AddCard(r.Context(), a.DB, id, cardID, 1); err != nil {
 				a.RenderServerError(w, r, err)
 				return
@@ -156,13 +151,8 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Case 3: increment an existing maybeboard card by maybe_card_id.
-		if action == "inc_maybe" && maybeCardIDStr != "" {
-			cardID, err := strconv.ParseInt(maybeCardIDStr, 10, 64)
-			if err != nil {
-				http.Error(w, "invalid maybeboard card id", http.StatusBadRequest)
-				return
-			}
-			if err := decks.AddMaybeCard(r.Context(), a.DB, id, cardID, 1); err != nil {
+		if action == "inc_maybe" && maybeCardID != "" {
+			if err := decks.AddMaybeCard(r.Context(), a.DB, id, maybeCardID, 1); err != nil {
 				a.RenderServerError(w, r, err)
 				return
 			}
@@ -171,12 +161,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Case 4: move a mainboard card to the maybeboard.
-		if action == "to_maybe" && cardIDStr != "" {
-			cardID, err := strconv.ParseInt(cardIDStr, 10, 64)
-			if err != nil {
-				http.Error(w, "invalid card id", http.StatusBadRequest)
-				return
-			}
+		if action == "to_maybe" && cardID != "" {
 			if err := decks.MoveCardToMaybe(r.Context(), a.DB, id, cardID); err != nil {
 				a.RenderServerError(w, r, err)
 				return
@@ -186,13 +171,8 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Case 5: move a maybeboard card to the mainboard.
-		if action == "to_main" && maybeCardIDStr != "" {
-			cardID, err := strconv.ParseInt(maybeCardIDStr, 10, 64)
-			if err != nil {
-				http.Error(w, "invalid maybeboard card id", http.StatusBadRequest)
-				return
-			}
-			if err := decks.MoveMaybeToDeck(r.Context(), a.DB, id, cardID); err != nil {
+		if action == "to_main" && maybeCardID != "" {
+			if err := decks.MoveMaybeToDeck(r.Context(), a.DB, id, maybeCardID); err != nil {
 				a.RenderServerError(w, r, err)
 				return
 			}
@@ -201,13 +181,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Case 6: decrement an existing mainboard card by card_id.
-		if cardIDStr != "" {
-			cardID, err := strconv.ParseInt(cardIDStr, 10, 64)
-			if err != nil {
-				http.Error(w, "invalid card id", http.StatusBadRequest)
-				return
-			}
-
+		if cardID != "" {
 			// Use delta = -1 to decrement; AddCard will delete row if quantity goes to 0
 			if err := decks.AddCard(r.Context(), a.DB, id, cardID, -1); err != nil {
 				a.RenderServerError(w, r, err)
@@ -219,14 +193,8 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Case 7: decrement an existing maybeboard card by maybe_card_id.
-		if maybeCardIDStr != "" {
-			cardID, err := strconv.ParseInt(maybeCardIDStr, 10, 64)
-			if err != nil {
-				http.Error(w, "invalid maybeboard card id", http.StatusBadRequest)
-				return
-			}
-
-			if err := decks.AddMaybeCard(r.Context(), a.DB, id, cardID, -1); err != nil {
+		if maybeCardID != "" {
+			if err := decks.AddMaybeCard(r.Context(), a.DB, id, maybeCardID, -1); err != nil {
 				a.RenderServerError(w, r, err)
 				return
 			}
@@ -259,21 +227,27 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	commanderCandidates := make([]commanderCandidate, 0)
+	deckCardNames := make([]string, 0, len(deckCards))
+	for _, dc := range deckCards {
+		name := strings.TrimSpace(dc.CardName)
+		if name == "" {
+			continue
+		}
+		deckCardNames = append(deckCardNames, name)
+	}
+	deckCardsByName, err := cards.LookupCardsByNames(r.Context(), a.DB, deckCardNames)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
 
 	for _, dc := range deckCards {
 		name := strings.TrimSpace(dc.CardName)
 		if name == "" {
 			continue
 		}
-
-		// Use whichever function you actually have:
-		// cardRec, err := cards.GetCardByName(ctx, db, name)
-		cardRec, err := cards.EnsureCardByName(r.Context(), a.DB, name)
-		if err != nil {
-			continue
-		}
-
-		if isCommanderEligible(cardRec.TypeLine, cardRec.OracleText) {
+		resolved, ok := deckCardsByName[strings.ToLower(name)]
+		if ok && resolved.IsCommanderCandidate {
 			commanderCandidates = append(commanderCandidates, commanderCandidate{CardName: name})
 		}
 	}
@@ -464,13 +438,13 @@ func (a *App) HandleDeckUpdateCommander(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	cardRec, err := cards.EnsureCardByName(r.Context(), a.DB, commander)
+	resolvedCommander, err := cards.LookupCardsByNames(r.Context(), a.DB, []string{picked.CardName})
 	if err != nil {
-		setFlash(w, "Could not update commander: card not found.")
-		http.Redirect(w, r, "/decks/"+strconv.FormatInt(deckID, 10), http.StatusSeeOther)
+		a.RenderServerError(w, r, err)
 		return
 	}
-	if !isCommanderEligible(cardRec.TypeLine, cardRec.OracleText) {
+	matched, ok := resolvedCommander[strings.ToLower(strings.TrimSpace(picked.CardName))]
+	if !ok || !matched.IsCommanderCandidate {
 		setFlash(w, "Could not update commander: that card is not a valid commander.")
 		http.Redirect(w, r, "/decks/"+strconv.FormatInt(deckID, 10), http.StatusSeeOther)
 		return
@@ -488,7 +462,7 @@ func (a *App) HandleDeckUpdateCommander(w http.ResponseWriter, r *http.Request) 
 	if oldCommander != "" && oldCommander != newCommander {
 		oldCard, err := cards.EnsureCardByName(r.Context(), a.DB, oldCommander)
 		if err == nil {
-			_ = decks.AddCard(r.Context(), a.DB, deckID, oldCard.ID, 1)
+			_ = decks.AddCard(r.Context(), a.DB, deckID, oldCard.OracleID, 1)
 		}
 	}
 

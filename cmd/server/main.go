@@ -108,7 +108,10 @@ func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 }
 
 func registerCardAndRulesRoutes(mux *http.ServeMux, app *web.App) {
+	mux.HandleFunc("/cards/search/deck", app.HandleDeckCardSearch)
 	mux.HandleFunc("/cards/search", app.HandleCardSearch)
+	mux.HandleFunc("/cards/resolve", app.HandleCardResolve)
+	mux.HandleFunc("/cards/versions", app.HandleCardVersions)
 	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
 	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
 	mux.HandleFunc("/rules", app.HandleRulesHome)
@@ -130,8 +133,16 @@ func wrapMiddleware(app *web.App, handler http.Handler) http.Handler {
 	return handler
 }
 
-func startCardSyncWorkers(database *sql.DB) {
-	cards.StartCardBulkSyncLoop(database, 24*time.Hour, log.Default())
+func startCardSyncWorkers(database *sql.DB, enabled bool, options cards.CardBulkSyncOptions) {
+	if !enabled {
+		log.Printf("cards sync disabled (CARD_SYNC_ENABLED=false)")
+		return
+	}
+	if options.MaxRows > 0 {
+		log.Printf("cards sync running in limited mode (CARD_SYNC_MAX_ROWS=%d)", options.MaxRows)
+	}
+
+	cards.StartCardBulkSyncLoop(database, 24*time.Hour, log.Default(), options)
 
 	// Run a non-blocking startup sync check so readiness can pass quickly.
 	go func() {
@@ -148,7 +159,7 @@ func startCardSyncWorkers(database *sql.DB) {
 
 		log.Printf("cards sync: starting background startup bulk refresh")
 		syncCtx, cancelSync := context.WithTimeout(context.Background(), 2*time.Hour)
-		result, syncErr := cards.SyncCardsFromScryfallBulk(syncCtx, database)
+		result, syncErr := cards.SyncCardsFromScryfallBulk(syncCtx, database, options)
 		cancelSync()
 		if syncErr != nil {
 			log.Printf("cards sync: startup refresh failed: %v", syncErr)
@@ -170,11 +181,14 @@ func run() error {
 	if err := ensureTables(context.Background(), database); err != nil {
 		return err
 	}
-	startCardSyncWorkers(database)
+	startCardSyncWorkers(database, cfg.CardSyncOn, cards.CardBulkSyncOptions{
+		MaxRows: cfg.CardSyncMaxRows,
+	})
 
 	app := &web.App{
-		DB:       database,
-		Renderer: web.NewRenderer(),
+		DB:                  database,
+		Renderer:            web.NewRenderer(),
+		SessionCookieSecure: cfg.SessionCookieSecure,
 	}
 
 	mux := http.NewServeMux()

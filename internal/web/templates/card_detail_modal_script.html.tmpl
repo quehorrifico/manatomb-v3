@@ -1,0 +1,326 @@
+{{ define "card_detail_modal_script" }}
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var modal = document.getElementById('card-detail-modal');
+    if (!modal) return;
+
+    var nameEl = modal.querySelector('[data-field="name"]');
+    var typeEl = modal.querySelector('[data-field="type-line"]');
+    var manaEl = modal.querySelector('[data-field="mana-cost"]');
+    var oracleEl = modal.querySelector('[data-field="oracle-text"]');
+    var imageEl = modal.querySelector('[data-field="image"]');
+    var priceEl = modal.querySelector('[data-field="price-usd"]');
+    var artistEl = modal.querySelector('[data-field="artist"]');
+    var printingSelectEl = modal.querySelector('[data-field="printing-select"]');
+    var printingMetaEl = modal.querySelector('[data-field="printing-meta"]');
+    var stickyNameInputEl = modal.querySelector('[data-field="sticky-name-input"]');
+    var flipBtn = modal.querySelector('[data-flip-card]');
+
+    var currentFaces = null;
+    var currentFaceIndex = 0;
+    var currentVersions = [];
+    var versionsRequestToken = 0;
+
+    function closeModal() {
+      modal.classList.add('hidden');
+    }
+
+    function renderManaSymbols(manaCost) {
+      if (!manaCost) return '';
+      var html = '';
+      var re = /\{([^}]+)\}/g;
+      var match;
+      while ((match = re.exec(manaCost)) !== null) {
+        var sym = match[1];
+        var encoded = encodeURIComponent(sym);
+        var src = 'https://svgs.scryfall.io/card-symbols/' + encoded + '.svg';
+        html += '<img src="' + src + '" alt="{' + sym + '}" class="inline-block h-5 align-text-bottom mr-0.5">';
+      }
+      return html;
+    }
+
+    function parseFaces(raw) {
+      if (!raw || raw === 'null') return [];
+      try {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        // ignore bad payloads
+      }
+      return [];
+    }
+
+    function normalizeVersion(input) {
+      var item = input || {};
+      return {
+        scryfall_id: item.scryfall_id || '',
+        lang: item.lang || '',
+        name: item.name || '',
+        mana_cost: item.mana_cost || '',
+        type_line: item.type_line || '',
+        oracle_text: item.oracle_text || '',
+        image_uri: item.image_uri || '',
+        price_usd: item.price_usd || '',
+        artist: item.artist || '',
+        set_code: item.set_code || '',
+        set_name: item.set_name || '',
+        collector_number: item.collector_number || '',
+        rarity: item.rarity || '',
+        released_at: item.released_at || '',
+        faces: Array.isArray(item.faces) ? item.faces : [],
+      };
+    }
+
+    function formatPrintingLabel(version, index) {
+      var setName = version.set_name || '';
+      var setCode = version.set_code ? version.set_code.toUpperCase() : '';
+      var release = version.released_at || '';
+
+      if (!setName && !setCode) {
+        return 'Printing ' + String(index + 1);
+      }
+
+      var label = setName || setCode;
+      if (setName && setCode) {
+        label += ' (' + setCode + ')';
+      }
+      if (version.collector_number) {
+        label += ' #' + version.collector_number;
+      }
+      if (release) {
+        label += ' · ' + release;
+      }
+      return label;
+    }
+
+    function setPrintingMeta(version) {
+      if (!printingMetaEl) return;
+      if (!version) {
+        printingMetaEl.textContent = '';
+        return;
+      }
+      var bits = [];
+      if (version.set_name) bits.push(version.set_name);
+      if (version.set_code) bits.push(version.set_code.toUpperCase());
+      if (version.collector_number) bits.push('#' + version.collector_number);
+      if (version.rarity) bits.push(version.rarity);
+      if (version.released_at) bits.push(version.released_at);
+      printingMetaEl.textContent = bits.join(' · ');
+    }
+
+    function populatePrintings(versions, selectedIndex) {
+      if (!printingSelectEl) return;
+      printingSelectEl.innerHTML = '';
+      if (!Array.isArray(versions) || versions.length === 0) {
+        var opt = document.createElement('option');
+        opt.value = '0';
+        opt.textContent = 'Latest printing';
+        printingSelectEl.appendChild(opt);
+        printingSelectEl.disabled = true;
+        return;
+      }
+
+      for (var i = 0; i < versions.length; i++) {
+        var option = document.createElement('option');
+        option.value = String(i);
+        option.textContent = formatPrintingLabel(versions[i], i);
+        printingSelectEl.appendChild(option);
+      }
+      printingSelectEl.disabled = versions.length <= 1;
+      var idx = Number(selectedIndex || 0);
+      if (!Number.isFinite(idx) || idx < 0 || idx >= versions.length) idx = 0;
+      printingSelectEl.value = String(idx);
+    }
+
+    function renderFace(face, fallback) {
+      if (!face) return;
+
+      var faceName = face.name || (fallback ? fallback.name : '') || '';
+      var faceMana = face.mana_cost || '';
+      var faceType = face.type_line || '';
+      var faceOracle = face.oracle_text || '';
+      var faceImage = face.image_uri || '';
+      var faceArtist = face.artist || (fallback ? fallback.artist : '') || '';
+
+      if (nameEl) nameEl.textContent = faceName;
+      if (typeEl) typeEl.textContent = faceType;
+      if (manaEl) manaEl.innerHTML = renderManaSymbols(faceMana);
+      if (oracleEl) oracleEl.textContent = faceOracle;
+
+      if (imageEl) {
+        if (faceImage) {
+          imageEl.src = faceImage;
+          imageEl.classList.remove('hidden');
+        } else {
+          imageEl.src = '';
+          imageEl.classList.add('hidden');
+        }
+      }
+
+      if (artistEl) {
+        artistEl.textContent = faceArtist || '—';
+      }
+    }
+
+    function applyVersion(version) {
+      if (!version) return;
+      setPrintingMeta(version);
+
+      currentFaces = Array.isArray(version.faces) ? version.faces : [];
+      currentFaceIndex = 0;
+
+      if (flipBtn) {
+        if (currentFaces.length > 1) {
+          flipBtn.classList.remove('hidden');
+        } else {
+          flipBtn.classList.add('hidden');
+        }
+      }
+
+      if (currentFaces.length > 0) {
+        renderFace(currentFaces[0], version);
+      } else {
+        if (nameEl) nameEl.textContent = version.name || '';
+        if (typeEl) typeEl.textContent = version.type_line || '';
+        if (manaEl) manaEl.innerHTML = renderManaSymbols(version.mana_cost || '');
+        if (oracleEl) oracleEl.textContent = version.oracle_text || '';
+
+        if (imageEl) {
+          if (version.image_uri) {
+            imageEl.src = version.image_uri;
+            imageEl.classList.remove('hidden');
+          } else {
+            imageEl.src = '';
+            imageEl.classList.add('hidden');
+          }
+        }
+
+        if (artistEl) {
+          artistEl.textContent = version.artist || '—';
+        }
+      }
+
+      if (priceEl) {
+        priceEl.textContent = version.price_usd ? ('$' + version.price_usd) : '—';
+      }
+    }
+
+    async function fetchCardVersions(cardName, oracleID) {
+      var token = ++versionsRequestToken;
+      async function requestVersions(url) {
+        var res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+        if (!res.ok) return null;
+        var data = await res.json();
+        if (token !== versionsRequestToken) return null;
+        if (!data || !Array.isArray(data.versions)) return null;
+        return data.versions.map(normalizeVersion);
+      }
+
+      try {
+        var url = '/cards/versions?name=' + encodeURIComponent(cardName);
+        if (oracleID) {
+          url += '&oracle_id=' + encodeURIComponent(oracleID);
+        }
+        var versions = await requestVersions(url);
+        if (versions) return versions;
+
+        if (!oracleID) return null;
+        var fallbackURL = '/cards/versions?name=' + encodeURIComponent(cardName);
+        return await requestVersions(fallbackURL);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        closeModal();
+      });
+    });
+
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+
+    if (printingSelectEl) {
+      printingSelectEl.addEventListener('change', function () {
+        var idx = Number(printingSelectEl.value || '0');
+        if (!Number.isFinite(idx) || idx < 0 || idx >= currentVersions.length) idx = 0;
+        applyVersion(currentVersions[idx]);
+      });
+    }
+
+    document.querySelectorAll('[data-card-detail]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var li = btn.closest('li');
+        if (!li) return;
+
+        var oracleNode = li.querySelector('.js-oracle-text');
+        var oracleText = oracleNode ? oracleNode.textContent : '';
+
+        var oracleID = btn.getAttribute('data-oracle-id') || '';
+        var name = btn.getAttribute('data-name') || '';
+        var manaCost = btn.getAttribute('data-mana-cost') || '';
+        var typeLine = btn.getAttribute('data-type-line') || '';
+        var imageURI = btn.getAttribute('data-image-uri') || '';
+        var price = btn.getAttribute('data-price') || '';
+        var artist = btn.getAttribute('data-artist') || '';
+        var setCode = btn.getAttribute('data-set-code') || '';
+        var setName = btn.getAttribute('data-set-name') || '';
+        var releasedAt = btn.getAttribute('data-released-at') || '';
+        var facesJSON = btn.getAttribute('data-faces');
+
+        if (stickyNameInputEl) {
+          stickyNameInputEl.value = name;
+        }
+
+        var fallbackVersion = normalizeVersion({
+          name: name,
+          mana_cost: manaCost,
+          type_line: typeLine,
+          oracle_text: oracleText,
+          image_uri: imageURI,
+          price_usd: price,
+          artist: artist,
+          set_code: setCode,
+          set_name: setName,
+          released_at: releasedAt,
+          faces: parseFaces(facesJSON),
+        });
+
+        currentVersions = [fallbackVersion];
+        populatePrintings(currentVersions, 0);
+        applyVersion(fallbackVersion);
+
+        modal.classList.remove('hidden');
+
+        var loadedVersions = await fetchCardVersions(name, oracleID);
+        if (!loadedVersions || loadedVersions.length === 0) {
+          return;
+        }
+
+        currentVersions = loadedVersions;
+        populatePrintings(currentVersions, 0);
+        applyVersion(currentVersions[0]);
+      });
+    });
+
+    if (flipBtn) {
+      flipBtn.addEventListener('click', function () {
+        if (!currentFaces || currentFaces.length < 2) return;
+        currentFaceIndex = (currentFaceIndex + 1) % currentFaces.length;
+        var selectedIdx = 0;
+        if (printingSelectEl) {
+          selectedIdx = Number(printingSelectEl.value || '0');
+          if (!Number.isFinite(selectedIdx) || selectedIdx < 0 || selectedIdx >= currentVersions.length) {
+            selectedIdx = 0;
+          }
+        }
+        renderFace(currentFaces[currentFaceIndex], currentVersions[selectedIdx] || null);
+      });
+    }
+  });
+  </script>
+{{ end }}

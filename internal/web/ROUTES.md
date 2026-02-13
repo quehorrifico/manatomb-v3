@@ -28,7 +28,7 @@ can be added without hunting through handler files.
 - `/decks/analytics` -> deck analytics JSON (saved deck or guest draft payload)
 - `/decks/create-from-commander` -> commander search handoff
 - `/decks/guest` -> guest deck builder
-- `/decks/sandbox` -> sandbox WIP page
+- `/decks/sandbox` -> sandbox guest builder (redirects to empty guest deck workbench)
 - `/decks/playtest/{id}` -> playtest deck
 - Files:
   - `internal/web/decks_helpers.go`

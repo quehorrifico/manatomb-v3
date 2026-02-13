@@ -22,6 +22,7 @@ type deckPageData struct {
 	Commander           *cards.Card
 	CommanderCandidates []commanderCandidate
 	GuestMode           bool
+	GuestSandbox        bool
 }
 
 func (a *App) lookupCommanderCard(ctx context.Context, commanderName string) *cards.Card {

@@ -13,7 +13,7 @@
       <p class="text-xs text-slate-500">
         If you are not redirected, continue manually.
       </p>
-      <a href="{{ if $ctx.CommanderName }}/decks/guest?commander_name={{ urlquery $ctx.CommanderName }}{{ else }}/decks/guest{{ end }}"
+      <a href="/decks/guest"
          class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
         Continue to guest deck
       </a>
@@ -58,11 +58,7 @@
       // ignore storage failures
     }
 
-    var target = '/decks/guest';
-    if (payload && payload.commander_name) {
-      target += '?commander_name=' + encodeURIComponent(payload.commander_name);
-    }
-    window.location.replace(target);
+    window.location.replace('/decks/guest');
   });
   </script>
 

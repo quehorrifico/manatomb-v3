@@ -12,7 +12,7 @@
           </span>
         </h2>
         <p class="text-sm text-slate-400 mt-1">
-          Search the Scryfall database and add cards directly to your decks.
+          Search ManaTomb's local card database and add cards directly to your decks.
         </p>
       </div>
 
@@ -120,7 +120,7 @@
             {{ end }}
           </h3>
           <p class="text-xs text-slate-500">
-            Click a card to see details.
+            Results show the latest printing first. Click a card to see details and switch versions.
           </p>
         </div>
 
@@ -132,12 +132,16 @@
                 type="button"
                 class="w-full flex items-center justify-center"
                 data-card-detail
+                data-oracle-id="{{ .OracleID }}"
                 data-name="{{ .Name }}"
                 data-mana-cost="{{ .ManaCost }}"
                 data-type-line="{{ .TypeLine }}"
                 data-image-uri="{{ .ImageURI }}"
                 data-price="{{ .PriceUSD }}"
                 data-artist="{{ .Artist }}"
+                data-set-code="{{ .SetCode }}"
+                data-set-name="{{ .SetName }}"
+                data-released-at="{{ .ReleasedAt }}"
                 data-faces='{{ .FacesJSON }}'>
                 {{ if .ImageURI }}
                   <img src="{{ .ImageURI }}"
@@ -187,6 +191,16 @@
 
         <div class="space-y-3 text-sm text-slate-200">
           <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
+          <div class="space-y-1">
+            <label for="printing-select" class="block text-xs font-medium uppercase tracking-wide text-slate-400">
+              Version
+            </label>
+            <select id="printing-select" data-field="printing-select"
+                    class="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+              <option value="">Latest printing</option>
+            </select>
+            <p class="text-[11px] text-slate-500" data-field="printing-meta"></p>
+          </div>
           <p class="text-xs uppercase tracking-wide text-slate-400">
             <span data-field="type-line"></span>
           </p>
@@ -224,165 +238,7 @@
     </div>
   </div>
 
-  <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    var modal = document.getElementById('card-detail-modal');
-    if (!modal) return;
-
-    var nameEl = modal.querySelector('[data-field="name"]');
-    var typeEl = modal.querySelector('[data-field="type-line"]');
-    var manaEl = modal.querySelector('[data-field="mana-cost"]');
-    var oracleEl = modal.querySelector('[data-field="oracle-text"]');
-    var imageEl = modal.querySelector('[data-field="image"]');
-    var priceEl = modal.querySelector('[data-field="price-usd"]');
-    var artistEl = modal.querySelector('[data-field="artist"]');
-    var flipBtn = modal.querySelector('[data-flip-card]');
-
-    var currentFaces = null;
-    var currentFaceIndex = 0;
-
-    function closeModal() {
-      modal.classList.add('hidden');
-    }
-
-    function renderManaSymbols(manaCost) {
-      if (!manaCost) return '';
-      var html = '';
-      var re = /\{([^}]+)\}/g;
-      var match;
-      while ((match = re.exec(manaCost)) !== null) {
-        var sym = match[1];
-        var encoded = encodeURIComponent(sym);
-        var src = 'https://svgs.scryfall.io/card-symbols/' + encoded + '.svg';
-        html += '<img src="' + src + '" alt="{' + sym + '}" class="inline-block h-5 align-text-bottom mr-0.5">';
-      }
-      return html;
-    }
-
-    function renderFace(face) {
-      if (!face) return;
-
-      var faceName = face.name || '';
-      var faceMana = face.mana_cost || '';
-      var faceType = face.type_line || '';
-      var faceOracle = face.oracle_text || '';
-      var faceImage = face.image_uri || '';
-      var faceArtist = face.artist || '';
-
-      if (nameEl) nameEl.textContent = faceName;
-      if (typeEl) typeEl.textContent = faceType;
-      if (manaEl) manaEl.innerHTML = renderManaSymbols(faceMana);
-      if (oracleEl) oracleEl.textContent = faceOracle;
-
-      if (imageEl) {
-        if (faceImage) {
-          imageEl.src = faceImage;
-          imageEl.classList.remove('hidden');
-        } else {
-          imageEl.src = '';
-          imageEl.classList.add('hidden');
-        }
-      }
-
-      if (artistEl && faceArtist) {
-        artistEl.textContent = faceArtist;
-      }
-    }
-
-    modal.querySelectorAll('[data-close-modal]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        closeModal();
-      });
-    });
-
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal) {
-        closeModal();
-      }
-    });
-
-    document.querySelectorAll('[data-card-detail]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var li = btn.closest('li');
-        if (!li) return;
-
-        var oracleNode = li.querySelector('.js-oracle-text');
-        var oracleText = oracleNode ? oracleNode.textContent : '';
-
-        var name = btn.getAttribute('data-name') || '';
-        var manaCost = btn.getAttribute('data-mana-cost') || '';
-        var typeLine = btn.getAttribute('data-type-line') || '';
-        var imageUri = btn.getAttribute('data-image-uri') || '';
-        var price = btn.getAttribute('data-price') || '';
-        var artist = btn.getAttribute('data-artist') || '';
-        var facesJSON = btn.getAttribute('data-faces');
-
-        // Reset faces state for this card
-        currentFaces = null;
-        currentFaceIndex = 0;
-        if (flipBtn) {
-          flipBtn.classList.add('hidden');
-        }
-
-        // Try to parse faces JSON for MDFC / multi-faced cards
-        if (facesJSON && facesJSON !== 'null' && facesJSON !== '') {
-          try {
-            var parsed = JSON.parse(facesJSON);
-            if (Array.isArray(parsed) && parsed.length > 1) {
-              currentFaces = parsed;
-              currentFaceIndex = 0;
-              if (flipBtn) {
-                flipBtn.classList.remove('hidden');
-              }
-            }
-          } catch (e) {
-            console.error('Failed to parse faces JSON', e);
-          }
-        }
-
-        // If we have faces, use the first face as the initial view.
-        if (currentFaces && currentFaces.length > 0) {
-          renderFace(currentFaces[0]);
-        } else {
-          // Fallback to single-face card behavior.
-          if (nameEl) nameEl.textContent = name;
-          if (typeEl) typeEl.textContent = typeLine;
-          if (manaEl) manaEl.innerHTML = renderManaSymbols(manaCost);
-          if (oracleEl) oracleEl.textContent = oracleText;
-
-          if (imageEl) {
-            if (imageUri) {
-              imageEl.src = imageUri;
-              imageEl.classList.remove('hidden');
-            } else {
-              imageEl.src = '';
-              imageEl.classList.add('hidden');
-            }
-          }
-
-          if (artistEl) {
-            artistEl.textContent = artist || '—';
-          }
-        }
-
-        // Price is always from the primary card data.
-        if (priceEl) {
-          priceEl.textContent = price ? ('$' + price) : '—';
-        }
-
-        modal.classList.remove('hidden');
-      });
-    });
-
-    if (flipBtn) {
-      flipBtn.addEventListener('click', function () {
-        if (!currentFaces || currentFaces.length < 2) return;
-        currentFaceIndex = (currentFaceIndex + 1) % currentFaces.length;
-        renderFace(currentFaces[currentFaceIndex]);
-      });
-    }
-  });
-  </script>
+  {{ template "card_detail_modal_script" . }}
 
   {{ template "layout_footer" . }}
 {{ end }}

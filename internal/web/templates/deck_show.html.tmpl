@@ -102,7 +102,7 @@
               Save to my account
             </button>
           {{ else }}
-            <a href="/login?next={{ if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
+            <a href="/login?next={{ if $ctx.GuestSandbox }}{{ urlquery "/decks/guest?sandbox=1&save_guest=1" }}{{ else if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
                class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
               Log in to save
             </a>
@@ -146,7 +146,7 @@
                 <span class="block text-xs font-medium text-slate-400 mb-1">Set commander from imported cards</span>
                 <select id="guest-commander-select"
                         class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-                  <option value="">Choose an eligible commander…</option>
+                  <option value="">Choose an eligible commander</option>
                 </select>
               </label>
               <div class="flex flex-wrap items-center gap-1.5">
@@ -172,7 +172,7 @@
           {{ if $isGuest }}
             <p class="text-sm text-slate-300">
               <span class="font-medium">Commander:</span>
-              <span id="guest-commander-current">{{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Not selected{{ end }}</span>
+              <span id="guest-commander-current">{{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Choose an eligible commander{{ end }}</span>
             </p>
           {{ else if $c }}
             <div class="flex gap-3">
@@ -199,7 +199,7 @@
             </div>
           {{ else }}
             <p class="text-sm text-slate-300">
-              <span class="font-medium">Commander:</span> {{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Not selected{{ end }}
+              <span class="font-medium">Commander:</span> {{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Choose an eligible commander{{ end }}
             </p>
           {{ end }}
         </div>
@@ -325,7 +325,7 @@
                   Save to my account
                 </button>
               {{ else }}
-                <a href="/login?next={{ if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
+                <a href="/login?next={{ if $ctx.GuestSandbox }}{{ urlquery "/decks/guest?sandbox=1&save_guest=1" }}{{ else if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
                    class="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
                   Log in to save
                 </a>
@@ -334,7 +334,7 @@
             <p id="guest-copy-status" class="text-xs text-slate-500" aria-live="polite"></p>
           {{ else }}
             <p class="text-xs text-slate-500">
-              Tip: for fuzzy/name+filter searches, use the full card search page.
+              Tip: use full Card Search for advanced filters and browsing.
             </p>
           {{ end }}
         </div>
@@ -778,42 +778,25 @@
     var exampleHandRenderToken = 0;
     var extrasRenderToken = 0;
 
-    function extractScryfallImageURI(data) {
+    function extractResolvedImageURI(data) {
       if (!data || typeof data !== 'object') return '';
       if (data.image_uris) {
         return data.image_uris.normal || data.image_uris.large || data.image_uris.small || '';
       }
-      if (Array.isArray(data.card_faces) && data.card_faces.length > 0) {
-        var face = data.card_faces[0] || {};
-        if (face.image_uris) {
-          return face.image_uris.normal || face.image_uris.large || face.image_uris.small || '';
-        }
-      }
       return '';
     }
 
-    async function fetchScryfallNamedImage(name) {
+    async function fetchLocalResolvedImage(name) {
       var normalized = normalizeName(name);
       if (!normalized) return '';
       try {
-        var res = await fetch('https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(normalized), { method: 'GET' });
+        var res = await fetch('/cards/resolve?q=' + encodeURIComponent(normalized), {
+          method: 'GET',
+          credentials: 'same-origin'
+        });
         if (!res.ok) return '';
         var data = await res.json();
-        return extractScryfallImageURI(data);
-      } catch (e) {
-        return '';
-      }
-    }
-
-    async function fetchScryfallSearchImage(query) {
-      var q = normalizeName(query);
-      if (!q) return '';
-      try {
-        var res = await fetch('https://api.scryfall.com/cards/search?q=' + encodeURIComponent(q) + '&unique=cards', { method: 'GET' });
-        if (!res.ok) return '';
-        var data = await res.json();
-        if (!data || !Array.isArray(data.data) || data.data.length === 0) return '';
-        return extractScryfallImageURI(data.data[0]);
+        return extractResolvedImageURI(data);
       } catch (e) {
         return '';
       }
@@ -829,10 +812,10 @@
 
       var imageURI = '';
       if (normalizedName) {
-        imageURI = await fetchScryfallNamedImage(normalizedName);
+        imageURI = await fetchLocalResolvedImage(normalizedName);
       }
       if (!imageURI && normalizedQuery) {
-        imageURI = await fetchScryfallSearchImage(normalizedQuery);
+        imageURI = await fetchLocalResolvedImage(normalizedQuery);
       }
       analyticsCardImageCache[cacheKey] = imageURI || '';
       return analyticsCardImageCache[cacheKey];
@@ -1181,7 +1164,15 @@
     }
 
     // ===== Guest draft deck behavior =====
-    var key = 'manatomb.draftDeck';
+    var urlParams;
+    try {
+      urlParams = new URLSearchParams(window.location.search);
+    } catch (e) {
+      urlParams = null;
+    }
+    var isSandboxDraft = !!(urlParams && urlParams.get('sandbox') === '1');
+    var shouldResetDraft = !!(urlParams && urlParams.get('reset') === '1');
+    var key = isSandboxDraft ? 'manatomb.draftDeck.sandbox' : 'manatomb.draftDeck';
 
     var nameEl = document.getElementById('guest-deck-name');
     var descEl = document.getElementById('guest-deck-desc');
@@ -1218,10 +1209,23 @@
     var guestMetaHydrating = false;
     var guestMetaRetryQueued = false;
     var guestMetaAttempts = {};
-    try {
-      shouldAutoSave = (new URLSearchParams(window.location.search)).get('save_guest') === '1';
-    } catch (e) {
-      shouldAutoSave = false;
+    shouldAutoSave = !!(urlParams && urlParams.get('save_guest') === '1');
+
+    if (shouldResetDraft) {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        // ignore storage failures
+      }
+      try {
+        var cleanedResetURL = new URL(window.location.href);
+        cleanedResetURL.searchParams.delete('reset');
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, '', cleanedResetURL.pathname + cleanedResetURL.search);
+        }
+      } catch (e) {
+        // ignore URL cleanup errors
+      }
     }
 
     function loadDraft() {
@@ -1287,7 +1291,7 @@
         oracleText: normalizeName(data.oracle_text || ''),
         cmc: cmc,
         priceUSD: normalizeName((data.prices && data.prices.usd) ? data.prices.usd : ''),
-        imageURI: normalizeName(extractScryfallImageURI(data)),
+        imageURI: normalizeName(extractResolvedImageURI(data)),
       };
       return meta.name ? meta : null;
     }
@@ -1351,7 +1355,10 @@
 
       var reqID = ++guestPreviewToken;
       try {
-        var res = await fetch('https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(normalized), { method: 'GET' });
+        var res = await fetch('/cards/resolve?q=' + encodeURIComponent(normalized), {
+          method: 'GET',
+          credentials: 'same-origin'
+        });
         if (!res.ok) {
           if (reqID !== guestPreviewToken) return;
           if (api.tapMode && api.toggle) {
@@ -1364,16 +1371,7 @@
         var data = await res.json();
         if (reqID !== guestPreviewToken) return;
 
-        var image = '';
-        if (data && data.image_uris) {
-          image = data.image_uris.normal || data.image_uris.large || data.image_uris.small || '';
-        }
-        if (!image && data && Array.isArray(data.card_faces) && data.card_faces.length > 0) {
-          var face = data.card_faces[0] || {};
-          if (face.image_uris) {
-            image = face.image_uris.normal || face.image_uris.large || face.image_uris.small || '';
-          }
-        }
+        var image = extractResolvedImageURI(data);
 
         guestPreviewCache[key] = image;
         if (api.tapMode && api.toggle) {
@@ -1391,12 +1389,12 @@
       }
     }
 
-    async function validateCardNameExact(name) {
-      // Use Scryfall exact-name lookup so we don't accept random strings.
-      // This avoids writing junk to our DB for guest drafts.
-      var url = 'https://api.scryfall.com/cards/named?exact=' + encodeURIComponent(name);
+    async function resolveCardByName(name) {
+      var normalized = normalizeName(name);
+      if (!normalized) return null;
+      var url = '/cards/resolve?q=' + encodeURIComponent(normalized);
       try {
-        var res = await fetch(url, { method: 'GET' });
+        var res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
         if (!res.ok) return null;
         var data = await res.json();
         if (!data || !data.name) return null;
@@ -1431,7 +1429,7 @@
     }
 
     function renderCommanderControls(d) {
-      var current = commanderName ? commanderName : 'Not selected';
+      var current = commanderName ? commanderName : 'Choose an eligible commander';
       if (commanderCurrentEl) commanderCurrentEl.textContent = current;
       if (!commanderSelect) return;
 
@@ -1440,9 +1438,7 @@
 
       var placeholder = document.createElement('option');
       placeholder.value = '';
-      placeholder.textContent = candidates.length > 0
-        ? 'Choose an eligible commander…'
-        : 'No eligible commanders found in this deck';
+      placeholder.textContent = 'Choose an eligible commander';
       commanderSelect.appendChild(placeholder);
 
       candidates.forEach(function (name) {
@@ -1721,7 +1717,7 @@
         var attemptKey = cardName.toLowerCase();
         guestMetaAttempts[attemptKey] = (guestMetaAttempts[attemptKey] || 0) + 1;
 
-        var data = await validateCardNameExact(cardName);
+        var data = await resolveCardByName(cardName);
         if (!data || !data.name) continue;
 
         var meta = buildDraftCardMeta(data);
@@ -2031,7 +2027,7 @@
           submitBtns[bi].disabled = true;
         }
 
-        var cardData = await validateCardNameExact(raw);
+        var cardData = await resolveCardByName(raw);
 
         for (var bj = 0; bj < submitBtns.length; bj++) {
           submitBtns[bj].disabled = false;
@@ -2039,13 +2035,13 @@
         pendingGuestAddZone = 'main';
 
         if (!cardData || !cardData.name) {
-          if (addStatus) addStatus.textContent = 'No MTG card found with that exact name. Check spelling (or use Card Search for fuzzy matches).';
+          if (addStatus) addStatus.textContent = 'No MTG card found close to that name. Check spelling or try Card Search.';
           return;
         }
 
         var canonical = normalizeName(cardData.name);
         if (!canonical) {
-          if (addStatus) addStatus.textContent = 'No MTG card found with that exact name. Check spelling (or use Card Search for fuzzy matches).';
+          if (addStatus) addStatus.textContent = 'No MTG card found close to that name. Check spelling or try Card Search.';
           return;
         }
 
@@ -2145,6 +2141,7 @@
         name: (dd.name && dd.name.trim()) || (nameEl ? String(nameEl.textContent || '').trim() : '') || 'Guest Deck',
         description: dd.description || '',
         cards: cards,
+        sandbox: isSandboxDraft,
       };
 
       var form = document.createElement('form');
@@ -2499,7 +2496,7 @@
         if (!name || !Number.isFinite(qty) || qty <= 0) continue;
 
         out.push({
-          cardID: toInt(node.getAttribute('data-card-id'), 0),
+          cardID: normalize(node.getAttribute('data-card-id')),
           name: name,
           qty: qty,
           typeLine: normalize(node.getAttribute('data-card-type-line')),

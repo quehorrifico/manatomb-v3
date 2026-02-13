@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -460,14 +459,20 @@ func (a *App) buildGuestDeckAnalytics(r *http.Request, commanderName string, req
 	normalized := normalizeAnalyticsRequestCards(requestCards)
 	rows := make([]deckAnalyticsCardInput, 0, len(normalized))
 
+	names := make([]string, 0, len(normalized))
 	for _, item := range normalized {
-		dbCard, err := cards.EnsureCardByName(r.Context(), a.DB, item.Name)
-		if err != nil {
-			// Skip unknown cards but fail on unexpected data/store errors.
-			if errors.Is(err, cards.ErrCardNotFound) {
-				continue
-			}
-			return deckAnalyticsData{}, err
+		names = append(names, item.Name)
+	}
+	byName, err := cards.LookupCardsByNames(r.Context(), a.DB, names)
+	if err != nil {
+		return deckAnalyticsData{}, err
+	}
+
+	for _, item := range normalized {
+		key := strings.ToLower(strings.TrimSpace(item.Name))
+		dbCard, ok := byName[key]
+		if !ok {
+			continue
 		}
 
 		rows = append(rows, deckAnalyticsCardInput{

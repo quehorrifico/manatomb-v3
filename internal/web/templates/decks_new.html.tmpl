@@ -2,9 +2,6 @@
   {{ template "layout_header" . }}
   {{ $d := .Data }}
   {{ $commanderReturn := "/decks/new" }}
-  {{ if .CurrentUser }}
-    {{ $commanderReturn = "/decks/new?mode=commander" }}
-  {{ end }}
   {{ $showBack := false }}
   {{ if and .CurrentUser $d.CommanderName }}
     {{ $showBack = true }}
@@ -13,9 +10,6 @@
     {{ $showBack = true }}
   {{ end }}
   {{ $backHref := "/decks/new" }}
-  {{ if and .CurrentUser $d.CommanderName }}
-    {{ $backHref = "/decks/new?mode=commander" }}
-  {{ end }}
 
   <main class="max-w-3xl mx-auto py-10 px-4 space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -28,8 +22,6 @@
         <p class="text-sm text-slate-400 mt-1">
           {{ if and .CurrentUser $d.CommanderName }}
             Commander selected. Name your deck and start building.
-          {{ else if eq $d.Mode "commander" }}
-            Choose a commander to start your deck.
           {{ else if eq $d.Mode "sandbox" }}
             Sandbox mode is in progress.
           {{ else if eq $d.Mode "import" }}
@@ -96,35 +88,16 @@
           </div>
         </form>
 
-      {{ else if eq $d.Mode "commander" }}
-        <div class="space-y-4">
-          <h3 class="text-sm font-semibold text-slate-200">Commander builder</h3>
-          <p class="text-xs text-slate-400">
-            Search for your commander, then continue to the deck page.
-            {{ if .CurrentUser }}
-              Your deck will be saved to your account.
-            {{ else }}
-              Your deck will be saved in this browser until you log in.
-            {{ end }}
-          </p>
-          <div class="flex justify-end">
-            <a href="/commanders/search?return_to={{ urlquery $commanderReturn }}"
-               class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
-              Choose commander
-            </a>
-          </div>
-        </div>
-
       {{ else if eq $d.Mode "sandbox" }}
         <div class="space-y-4">
           <h3 class="text-sm font-semibold text-slate-200">Sandbox builder</h3>
           <p class="text-xs text-slate-400">
-            Sandbox is being built right now. You can still preview the work-in-progress page.
+            Open an empty deck workbench using the same builder used for imports.
           </p>
           <div class="flex justify-end">
             <a href="/decks/sandbox"
                class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
-              Open sandbox WIP
+              Open sandbox builder
             </a>
           </div>
         </div>
@@ -137,6 +110,7 @@
             <span class="text-slate-300">1 Sol Ring</span>,
             <span class="text-slate-300">4 Counterspell</span>,
             <span class="text-slate-300">Commander: Atraxa, Grand Unifier</span>.
+            Card names must match your database exactly before import can continue.
           </p>
 
           <form method="POST" action="/decks/import-text" class="space-y-3">
@@ -155,6 +129,41 @@
             </div>
           </form>
         </div>
+        {{ if gt (len $d.ImportUnmatched) 0 }}
+          <div id="import-unmatched-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+            <div class="absolute inset-0 bg-slate-950/80"></div>
+            <div class="relative w-full max-w-xl rounded-xl border border-rose-500/60 bg-slate-900 p-4 shadow-xl shadow-rose-900/30">
+              <div class="flex items-center justify-between gap-3 mb-3">
+                <h4 class="text-sm font-semibold text-rose-200">Import blocked: unmatched card names</h4>
+                <button type="button"
+                        data-dismiss-import-unmatched
+                        class="inline-flex items-center px-2 py-1 rounded border border-slate-700 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100 transition-colors">
+                  Dismiss
+                </button>
+              </div>
+              <p class="text-xs text-slate-300 mb-3">
+                Fix these names in your pasted list, then try importing again.
+              </p>
+              <div class="max-h-56 overflow-y-auto rounded-md border border-rose-500/30 bg-slate-950/70 p-2">
+                <ul class="space-y-1">
+                  {{ range $name := $d.ImportUnmatched }}
+                    <li class="text-sm text-rose-200">{{ $name }}</li>
+                  {{ end }}
+                </ul>
+              </div>
+            </div>
+          </div>
+          <script>
+            (function () {
+              const modal = document.getElementById("import-unmatched-modal");
+              const dismiss = modal ? modal.querySelector("[data-dismiss-import-unmatched]") : null;
+              if (!modal || !dismiss) return;
+              dismiss.addEventListener("click", function () {
+                modal.classList.add("hidden");
+              });
+            })();
+          </script>
+        {{ end }}
 
       {{ else }}
         <div class="grid gap-3 sm:grid-cols-3">
@@ -164,10 +173,10 @@
             <p class="mt-1 text-xs text-slate-400">Search a commander and build around it.</p>
           </a>
 
-          <a href="/decks/new?mode=sandbox"
+          <a href="/decks/sandbox"
              class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 hover:border-slate-600 transition-colors">
             <p class="text-sm font-semibold text-slate-100">Sandbox</p>
-            <p class="mt-1 text-xs text-slate-400">Try upcoming deck tools in a WIP space.</p>
+            <p class="mt-1 text-xs text-slate-400">Open an empty deck workbench and start testing ideas.</p>
           </a>
 
           <a href="/decks/new?mode=import"
