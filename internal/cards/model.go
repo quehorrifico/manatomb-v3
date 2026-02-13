@@ -18,6 +18,7 @@ type DBCard struct {
 	ManaCost             string
 	TypeLine             string
 	OracleText           string
+	AllPartsJSON         string
 	ImageURI             string
 	ColorIdentity        string
 	CMC                  float64
@@ -56,12 +57,33 @@ func scanDBCardRow(
 	cmc float64,
 	isCommanderCandidate bool,
 ) DBCard {
+	return scanDBCardRowWithAllParts(
+		oracleID,
+		name,
+		manaCost,
+		typeLine,
+		oracleText,
+		"[]",
+		imageURI,
+		colorIdentity,
+		cmc,
+		isCommanderCandidate,
+	)
+}
+
+func scanDBCardRowWithAllParts(
+	oracleID, name, manaCost, typeLine, oracleText, allPartsJSON, imageURI string,
+	colorIdentity []string,
+	cmc float64,
+	isCommanderCandidate bool,
+) DBCard {
 	return DBCard{
 		OracleID:             strings.TrimSpace(oracleID),
 		Name:                 strings.TrimSpace(name),
 		ManaCost:             strings.TrimSpace(manaCost),
 		TypeLine:             strings.TrimSpace(typeLine),
 		OracleText:           strings.TrimSpace(oracleText),
+		AllPartsJSON:         strings.TrimSpace(allPartsJSON),
 		ImageURI:             strings.TrimSpace(imageURI),
 		ColorIdentity:        strings.Join(colorIdentity, ","),
 		CMC:                  cmc,
@@ -86,6 +108,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 				COALESCE(oc.mana_cost, '') AS mana_cost,
 				COALESCE(oc.type_line, '') AS type_line,
 				COALESCE(oc.oracle_text, '') AS oracle_text,
+				COALESCE(oc.all_parts::text, '[]') AS all_parts_json,
 				COALESCE(oc.default_image_uri, '') AS image_uri,
 				COALESCE(oc.color_identity, ARRAY[]::text[]) AS color_identity,
 				COALESCE(oc.cmc, 0) AS cmc,
@@ -105,6 +128,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			mana_cost,
 			type_line,
 			oracle_text,
+			all_parts_json,
 			image_uri,
 			color_identity,
 			cmc,
@@ -120,10 +144,10 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 	out := make(map[string]DBCard, len(searches))
 	for rows.Next() {
 		var (
-			nameSearch, oracleID, name, manaCost, typeLine, oracleText, imageURI string
-			colorIdentity                                                        []string
-			cmc                                                                  float64
-			isCommanderCandidate                                                 bool
+			nameSearch, oracleID, name, manaCost, typeLine, oracleText, allPartsJSON, imageURI string
+			colorIdentity                                                                      []string
+			cmc                                                                                float64
+			isCommanderCandidate                                                               bool
 		)
 		if err := rows.Scan(
 			&nameSearch,
@@ -132,6 +156,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			&manaCost,
 			&typeLine,
 			&oracleText,
+			&allPartsJSON,
 			&imageURI,
 			pq.Array(&colorIdentity),
 			&cmc,
@@ -139,12 +164,13 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 		); err != nil {
 			return nil, err
 		}
-		out[nameSearch] = scanDBCardRow(
+		out[nameSearch] = scanDBCardRowWithAllParts(
 			oracleID,
 			name,
 			manaCost,
 			typeLine,
 			oracleText,
+			allPartsJSON,
 			imageURI,
 			colorIdentity,
 			cmc,
@@ -165,10 +191,10 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 	}
 
 	var (
-		oracleID, rowName, manaCost, typeLine, oracleText, imageURI string
-		colorIdentity                                               []string
-		cmc                                                         float64
-		isCommanderCandidate                                        bool
+		oracleID, rowName, manaCost, typeLine, oracleText, allPartsJSON, imageURI string
+		colorIdentity                                                             []string
+		cmc                                                                       float64
+		isCommanderCandidate                                                      bool
 	)
 	err := db.QueryRowContext(ctx, `
 		SELECT
@@ -177,6 +203,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 			COALESCE(oc.mana_cost, ''),
 			COALESCE(oc.type_line, ''),
 			COALESCE(oc.oracle_text, ''),
+			COALESCE(oc.all_parts::text, '[]'),
 			COALESCE(oc.default_image_uri, ''),
 			COALESCE(oc.color_identity, ARRAY[]::text[]),
 			COALESCE(oc.cmc, 0),
@@ -191,6 +218,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		&manaCost,
 		&typeLine,
 		&oracleText,
+		&allPartsJSON,
 		&imageURI,
 		pq.Array(&colorIdentity),
 		&cmc,
@@ -203,12 +231,13 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		return nil, err
 	}
 
-	card := scanDBCardRow(
+	card := scanDBCardRowWithAllParts(
 		oracleID,
 		rowName,
 		manaCost,
 		typeLine,
 		oracleText,
+		allPartsJSON,
 		imageURI,
 		colorIdentity,
 		cmc,
@@ -316,6 +345,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 			color_identity TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
 			layout TEXT,
 			card_faces JSONB NOT NULL DEFAULT '[]'::jsonb,
+			all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
 			commander_legal BOOLEAN NOT NULL DEFAULT FALSE,
 			is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE,
 			edhrec_rank INTEGER,
@@ -340,6 +370,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_released_at DATE;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_scryfall_uri TEXT;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE;`,
+		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS all_parts JSONB NOT NULL DEFAULT '[]'::jsonb;`,
 	}
 	for _, stmt := range alterOracleStmts {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {

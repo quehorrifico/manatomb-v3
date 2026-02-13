@@ -257,7 +257,18 @@ func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	card, err := cards.ResolveCardByNameFuzzy(r.Context(), a.DB, query)
+	exactRaw := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("exact")))
+	exactOnly := exactRaw == "1" || exactRaw == "true" || exactRaw == "yes"
+
+	var (
+		card *cards.Card
+		err  error
+	)
+	if exactOnly {
+		card, err = cards.GetCardByName(r.Context(), a.DB, query)
+	} else {
+		card, err = cards.ResolveCardByNameFuzzy(r.Context(), a.DB, query)
+	}
 	if err != nil {
 		if errors.Is(err, cards.ErrCardNotFound) {
 			http.Error(w, "card not found", http.StatusNotFound)

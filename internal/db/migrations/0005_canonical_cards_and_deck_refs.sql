@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS oracle_cards (
   color_identity TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   layout TEXT,
   card_faces JSONB NOT NULL DEFAULT '[]'::jsonb,
+  all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
   commander_legal BOOLEAN NOT NULL DEFAULT FALSE,
   is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE,
   edhrec_rank INTEGER,
@@ -75,6 +76,7 @@ ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_set_name TEXT;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_released_at DATE;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_scryfall_uri TEXT;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS all_parts JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS card_faces_json JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 DO $$

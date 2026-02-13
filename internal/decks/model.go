@@ -25,6 +25,7 @@ type DeckCard struct {
 	ImageURI      string
 	TypeLine      string
 	OracleText    string
+	AllPartsJSON  string
 	CMC           float64
 	PriceUSD      string
 	ColorIdentity string
@@ -192,6 +193,7 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 			COALESCE(cp.image_uri, ''),
 			COALESCE(oc.type_line, ''),
 			COALESCE(oc.oracle_text, ''),
+			COALESCE(oc.all_parts::text, '[]'),
 			COALESCE(oc.cmc, 0),
 			COALESCE(cp.price_usd, ''),
 			COALESCE(array_to_string(oc.color_identity, ','), ''),
@@ -219,6 +221,7 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 			&dc.ImageURI,
 			&dc.TypeLine,
 			&dc.OracleText,
+			&dc.AllPartsJSON,
 			&dc.CMC,
 			&dc.PriceUSD,
 			&dc.ColorIdentity,

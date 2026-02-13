@@ -58,6 +58,7 @@ type oracleBulkRow struct {
 	ColorIdentity        []string
 	Layout               string
 	CardFacesJSON        string
+	AllPartsJSON         string
 	CommanderLegal       bool
 	IsCommanderCandidate bool
 	EDHRecRank           int
@@ -162,22 +163,11 @@ func isCommanderCandidate(sc scryfallCard) bool {
 	return false
 }
 
-func shouldExcludeToken(sc scryfallCard, c Card) bool {
-	if strings.EqualFold(strings.TrimSpace(sc.SetType), "token") {
-		return true
-	}
-	typeLine := strings.ToLower(strings.TrimSpace(c.TypeLine))
-	return strings.Contains(typeLine, "token")
-}
-
 func shouldIncludeOracleCard(sc scryfallCard, c Card) bool {
 	if strings.TrimSpace(c.OracleID) == "" || strings.TrimSpace(c.Name) == "" {
 		return false
 	}
 	if !supportsPaper(sc.Games) {
-		return false
-	}
-	if shouldExcludeToken(sc, c) {
 		return false
 	}
 	return true
@@ -188,9 +178,6 @@ func shouldIncludePrint(sc scryfallCard, c Card) bool {
 		return false
 	}
 	if !supportsPaper(sc.Games) {
-		return false
-	}
-	if shouldExcludeToken(sc, c) {
 		return false
 	}
 	if !strings.EqualFold(strings.TrimSpace(sc.Lang), "en") {
@@ -289,6 +276,12 @@ func decodeOracleRows(ctx context.Context, downloadURI string, maxRows int) ([]o
 				facesJSON = string(b)
 			}
 		}
+		allPartsJSON := "[]"
+		if len(raw.AllParts) > 0 {
+			if b, err := json.Marshal(raw.AllParts); err == nil {
+				allPartsJSON = string(b)
+			}
+		}
 
 		rows = append(rows, oracleBulkRow{
 			OracleID:             card.OracleID,
@@ -301,6 +294,7 @@ func decodeOracleRows(ctx context.Context, downloadURI string, maxRows int) ([]o
 			ColorIdentity:        nonNilStrings(card.ColorIdentity),
 			Layout:               card.Layout,
 			CardFacesJSON:        facesJSON,
+			AllPartsJSON:         allPartsJSON,
 			CommanderLegal:       card.CommanderLegal,
 			IsCommanderCandidate: isCommanderCandidate(raw),
 			EDHRecRank:           card.EDHRecRank,
@@ -463,6 +457,7 @@ func applyBulkRows(
 			color_identity TEXT[] NOT NULL,
 			layout TEXT,
 			card_faces JSONB,
+			all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
 			commander_legal BOOLEAN,
 			is_commander_candidate BOOLEAN,
 			edhrec_rank INTEGER
@@ -504,6 +499,7 @@ func applyBulkRows(
 		"color_identity",
 		"layout",
 		"card_faces",
+		"all_parts",
 		"commander_legal",
 		"is_commander_candidate",
 		"edhrec_rank",
@@ -523,6 +519,7 @@ func applyBulkRows(
 			pq.Array(nonNilStrings(row.ColorIdentity)),
 			row.Layout,
 			row.CardFacesJSON,
+			row.AllPartsJSON,
 			row.CommanderLegal,
 			row.IsCommanderCandidate,
 			row.EDHRecRank,
@@ -615,6 +612,7 @@ func applyBulkRows(
 			color_identity,
 			layout,
 			card_faces,
+			all_parts,
 			commander_legal,
 			is_commander_candidate,
 			edhrec_rank
@@ -630,6 +628,7 @@ func applyBulkRows(
 			s.color_identity,
 			s.layout,
 			s.card_faces,
+			s.all_parts,
 			s.commander_legal,
 			s.is_commander_candidate,
 			s.edhrec_rank
@@ -645,6 +644,7 @@ func applyBulkRows(
 			color_identity = EXCLUDED.color_identity,
 			layout = EXCLUDED.layout,
 			card_faces = EXCLUDED.card_faces,
+			all_parts = EXCLUDED.all_parts,
 			commander_legal = EXCLUDED.commander_legal,
 			is_commander_candidate = EXCLUDED.is_commander_candidate,
 			edhrec_rank = EXCLUDED.edhrec_rank

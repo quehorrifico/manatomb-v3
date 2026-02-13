@@ -14,6 +14,13 @@ type CardFace struct {
 	ColorID    []string `json:"color_identity"`
 }
 
+type RelatedPart struct {
+	Component string `json:"component"`
+	Name      string `json:"name"`
+	TypeLine  string `json:"type_line"`
+	URI       string `json:"uri"`
+}
+
 // Card is the normalized view returned by search/resolve APIs.
 // For canonical search rows, ID matches OracleID. For print rows, ID may be a
 // Scryfall printing id.
@@ -76,6 +83,8 @@ type scryfallCard struct {
 		Colors     []string          `json:"colors"`
 		ColorID    []string          `json:"color_identity"`
 	} `json:"card_faces"`
+
+	AllParts []RelatedPart `json:"all_parts"`
 
 	Colors        []string          `json:"colors"`
 	ColorIdentity []string          `json:"color_identity"`

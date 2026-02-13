@@ -58,6 +58,7 @@ type deckAnalyticsCardInput struct {
 	Name       string
 	TypeLine   string
 	OracleText string
+	AllParts   string
 	CMC        float64
 	Qty        int
 }
@@ -82,6 +83,7 @@ func computeDeckAnalyticsFromDeckCards(commanderName string, deckCards []decks.D
 			Name:       strings.TrimSpace(dc.CardName),
 			TypeLine:   strings.TrimSpace(dc.TypeLine),
 			OracleText: strings.TrimSpace(dc.OracleText),
+			AllParts:   strings.TrimSpace(dc.AllPartsJSON),
 			CMC:        dc.CMC,
 			Qty:        dc.Quantity,
 		})
@@ -176,7 +178,7 @@ func computeDeckAnalytics(commanderName string, rows []deckAnalyticsCardInput) d
 		}
 
 		oracle := strings.ToLower(strings.TrimSpace(row.OracleText))
-		collectDeckExtras(extraCounts, oracle, qty)
+		collectDeckExtras(extraCounts, oracle, row.AllParts, qty)
 		isCounterspell := strings.Contains(oracle, "counter target")
 		isRemoval := hasAny(oracle,
 			"destroy target",
@@ -300,8 +302,45 @@ func hasProtectionText(oracle string) bool {
 	)
 }
 
-func collectDeckExtras(counts map[string]int, oracle string, qty int) {
-	if qty <= 0 || oracle == "" {
+type deckAnalyticsRelatedPart struct {
+	Component string `json:"component"`
+	Name      string `json:"name"`
+	TypeLine  string `json:"type_line"`
+}
+
+func tokenExtraNameFromPart(name, typeLine string) string {
+	base := strings.ToLower(strings.TrimSpace(name))
+	line := strings.ToLower(strings.TrimSpace(typeLine))
+	combined := base + " " + line
+
+	switch {
+	case strings.Contains(combined, "treasure"):
+		return "Treasure tokens"
+	case strings.Contains(combined, "clue"):
+		return "Clue tokens"
+	case strings.Contains(combined, "food"):
+		return "Food tokens"
+	case strings.Contains(combined, "blood"):
+		return "Blood tokens"
+	case strings.Contains(combined, "map"):
+		return "Map tokens"
+	case strings.Contains(combined, "powerstone"):
+		return "Powerstone tokens"
+	case strings.Contains(combined, "incubator"):
+		return "Incubator tokens"
+	case strings.Contains(combined, "junk"):
+		return "Junk tokens"
+	case strings.Contains(combined, "role"):
+		return "Role tokens"
+	case strings.Contains(combined, "gold"):
+		return "Gold tokens"
+	default:
+		return "Other tokens"
+	}
+}
+
+func collectDeckExtras(counts map[string]int, oracle string, allParts string, qty int) {
+	if qty <= 0 {
 		return
 	}
 
@@ -311,30 +350,51 @@ func collectDeckExtras(counts map[string]int, oracle string, qty int) {
 		}
 	}
 
-	hasTreasure := strings.Contains(oracle, "treasure token")
-	hasClue := strings.Contains(oracle, "clue token")
-	hasFood := strings.Contains(oracle, "food token")
-	hasBlood := strings.Contains(oracle, "blood token")
-	hasMap := strings.Contains(oracle, "map token")
-	hasPowerstone := strings.Contains(oracle, "powerstone token")
-	hasIncubator := strings.Contains(oracle, "incubator token")
-	hasJunk := strings.Contains(oracle, "junk token")
-	hasRole := strings.Contains(oracle, "role token")
-	hasGold := strings.Contains(oracle, "gold token")
+	tokenComponentsFound := false
+	partsRaw := strings.TrimSpace(allParts)
+	if partsRaw != "" && partsRaw != "[]" {
+		var parts []deckAnalyticsRelatedPart
+		if err := json.Unmarshal([]byte(partsRaw), &parts); err == nil {
+			for _, part := range parts {
+				if !strings.EqualFold(strings.TrimSpace(part.Component), "token") {
+					continue
+				}
+				name := strings.TrimSpace(part.Name)
+				typeLine := strings.TrimSpace(part.TypeLine)
+				if name == "" && typeLine == "" {
+					continue
+				}
+				tokenComponentsFound = true
+				counts[tokenExtraNameFromPart(name, typeLine)] += qty
+			}
+		}
+	}
+	if !tokenComponentsFound {
+		hasTreasure := strings.Contains(oracle, "treasure token")
+		hasClue := strings.Contains(oracle, "clue token")
+		hasFood := strings.Contains(oracle, "food token")
+		hasBlood := strings.Contains(oracle, "blood token")
+		hasMap := strings.Contains(oracle, "map token")
+		hasPowerstone := strings.Contains(oracle, "powerstone token")
+		hasIncubator := strings.Contains(oracle, "incubator token")
+		hasJunk := strings.Contains(oracle, "junk token")
+		hasRole := strings.Contains(oracle, "role token")
+		hasGold := strings.Contains(oracle, "gold token")
 
-	add("Treasure tokens", hasTreasure)
-	add("Clue tokens", hasClue)
-	add("Food tokens", hasFood)
-	add("Blood tokens", hasBlood)
-	add("Map tokens", hasMap)
-	add("Powerstone tokens", hasPowerstone)
-	add("Incubator tokens", hasIncubator)
-	add("Junk tokens", hasJunk)
-	add("Role tokens", hasRole)
-	add("Gold tokens", hasGold)
+		add("Treasure tokens", hasTreasure)
+		add("Clue tokens", hasClue)
+		add("Food tokens", hasFood)
+		add("Blood tokens", hasBlood)
+		add("Map tokens", hasMap)
+		add("Powerstone tokens", hasPowerstone)
+		add("Incubator tokens", hasIncubator)
+		add("Junk tokens", hasJunk)
+		add("Role tokens", hasRole)
+		add("Gold tokens", hasGold)
 
-	isSpecificToken := hasTreasure || hasClue || hasFood || hasBlood || hasMap || hasPowerstone || hasIncubator || hasJunk || hasRole || hasGold
-	add("Other tokens", strings.Contains(oracle, "create") && strings.Contains(oracle, " token") && !isSpecificToken)
+		isSpecificToken := hasTreasure || hasClue || hasFood || hasBlood || hasMap || hasPowerstone || hasIncubator || hasJunk || hasRole || hasGold
+		add("Other tokens", strings.Contains(oracle, "create") && strings.Contains(oracle, " token") && !isSpecificToken)
+	}
 
 	add("City's blessing", strings.Contains(oracle, "city's blessing"))
 	add("The monarch", strings.Contains(oracle, "the monarch"))
@@ -479,6 +539,7 @@ func (a *App) buildGuestDeckAnalytics(r *http.Request, commanderName string, req
 			Name:       strings.TrimSpace(dbCard.Name),
 			TypeLine:   strings.TrimSpace(dbCard.TypeLine),
 			OracleText: strings.TrimSpace(dbCard.OracleText),
+			AllParts:   strings.TrimSpace(dbCard.AllPartsJSON),
 			CMC:        dbCard.CMC,
 			Qty:        item.Qty,
 		})
