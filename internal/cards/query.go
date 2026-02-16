@@ -126,7 +126,11 @@ func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []an
 	typeFilter := strings.TrimSpace(params.TypeFilter)
 	colorFilters := normalizeColorIdentityFilters(params.ColorIdentity)
 
-	clauses := make([]string, 0, 6)
+	// Keep generic card search results focused on playable cards.
+	clauses := []string{
+		"lower(btrim(COALESCE(oc.layout, ''))) <> 'token'",
+		"lower(btrim(COALESCE(oc.type_line, ''))) <> 'card'",
+	}
 	args := make([]any, 0, 1+len(colorFilters))
 	argN := startArg
 
