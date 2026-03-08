@@ -37,6 +37,21 @@
                 class="px-3 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400">
           Game stats
         </button>
+        <button id="pt-flip-coin"
+                class="px-3 py-2 rounded-md bg-amber-500 text-slate-950 text-sm font-semibold hover:bg-amber-400"
+                title="Flip a coin (F)">
+          Flip coin
+        </button>
+        <button id="pt-roll-dice"
+                class="px-3 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400"
+                title="Roll a die (R)">
+          Roll d20
+        </button>
+        <button id="pt-create-token"
+                class="px-3 py-2 rounded-md bg-fuchsia-500 text-white text-sm font-semibold hover:bg-fuchsia-400"
+                title="Create a token (T)">
+          Create token
+        </button>
         {{ if and $ctx.GuestMode (not .CurrentUser) }}
           <a id="pt-auth-login"
              href="/login?next={{ urlquery $authNext }}"
@@ -154,6 +169,69 @@
           <p>Exile: <span id="pt-count-exile" class="font-semibold text-slate-100">0</span></p>
           <p>Commander: <span id="pt-count-command" class="font-semibold text-slate-100">0</span></p>
         </div>
+      </section>
+    </div>
+
+    <div id="pt-token-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-token-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] rounded-xl border border-slate-700 bg-slate-950/95 p-4 shadow-2xl shadow-black/80 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-slate-100">Create Token</h2>
+          <button id="pt-token-close"
+                  type="button"
+                  class="px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500">
+            Close
+          </button>
+        </div>
+        <div class="space-y-2">
+          <div>
+            <label for="pt-token-name" class="block text-xs text-slate-400 mb-1">Name</label>
+            <input id="pt-token-name"
+                   type="text"
+                   value="Token"
+                   class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label for="pt-token-power" class="block text-xs text-slate-400 mb-1">Power</label>
+              <input id="pt-token-power"
+                     type="number"
+                     value="1"
+                     min="0"
+                     class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="pt-token-toughness" class="block text-xs text-slate-400 mb-1">Toughness</label>
+              <input id="pt-token-toughness"
+                     type="number"
+                     value="1"
+                     min="0"
+                     class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+            </div>
+          </div>
+          <div>
+            <label for="pt-token-type" class="block text-xs text-slate-400 mb-1">Type (optional)</label>
+            <input id="pt-token-type"
+                   type="text"
+                   placeholder="e.g. Creature — Soldier"
+                   class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 placeholder-slate-600 focus:border-sky-500 focus:outline-none">
+          </div>
+          <div>
+            <label for="pt-token-qty" class="block text-xs text-slate-400 mb-1">Quantity</label>
+            <input id="pt-token-qty"
+                   type="number"
+                   value="1"
+                   min="1"
+                   max="20"
+                   class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+          </div>
+        </div>
+        <button id="pt-token-submit"
+                class="w-full px-3 py-2 rounded-md bg-fuchsia-500 text-white text-sm font-semibold hover:bg-fuchsia-400">
+          Add to battlefield
+        </button>
       </section>
     </div>
 
@@ -1197,17 +1275,130 @@
         bindDropZone("graveyard", zoneEls.graveyard);
         bindDropZone("exile", zoneEls.exile);
 
-        document.addEventListener("keydown", function (e) {
-          var key = String(e.key || "").toLowerCase();
-          if (key === "escape" && statsOverlayOpen()) {
-            setStatsOverlay(false);
+        // --- Coin flip ---
+        var btnFlipCoin = document.getElementById("pt-flip-coin");
+        var diceValues = [4, 6, 8, 10, 12, 20, 100];
+        var currentDiceIndex = 5; // default d20
+
+        function flipCoin() {
+          var result = Math.random() < 0.5 ? "Heads" : "Tails";
+          setStatus("Coin flip: " + result + "!");
+        }
+
+        if (btnFlipCoin) btnFlipCoin.addEventListener("click", flipCoin);
+
+        // --- Dice roller ---
+        var btnRollDice = document.getElementById("pt-roll-dice");
+
+        function rollDice() {
+          var sides = diceValues[currentDiceIndex];
+          var result = Math.floor(Math.random() * sides) + 1;
+          setStatus("d" + sides + " roll: " + result + "!");
+        }
+
+        function cycleDice(e) {
+          e.preventDefault();
+          currentDiceIndex = (currentDiceIndex + 1) % diceValues.length;
+          var sides = diceValues[currentDiceIndex];
+          btnRollDice.textContent = "Roll d" + sides;
+        }
+
+        if (btnRollDice) {
+          btnRollDice.addEventListener("click", rollDice);
+          btnRollDice.addEventListener("contextmenu", cycleDice);
+          btnRollDice.title = "Roll a die (R). Right-click to change die type.";
+        }
+
+        // --- Token creation ---
+        var btnCreateToken = document.getElementById("pt-create-token");
+        var tokenOverlay = document.getElementById("pt-token-overlay");
+        var btnTokenClose = document.getElementById("pt-token-close");
+        var btnTokenBackdrop = document.getElementById("pt-token-backdrop");
+        var btnTokenSubmit = document.getElementById("pt-token-submit");
+        var inputTokenName = document.getElementById("pt-token-name");
+        var inputTokenPower = document.getElementById("pt-token-power");
+        var inputTokenToughness = document.getElementById("pt-token-toughness");
+        var inputTokenType = document.getElementById("pt-token-type");
+        var inputTokenQty = document.getElementById("pt-token-qty");
+
+        function setTokenOverlay(open) {
+          if (!tokenOverlay) return;
+          tokenOverlay.classList.toggle("hidden", !open);
+          if (open && inputTokenName) inputTokenName.focus();
+        }
+
+        function tokenOverlayOpen() {
+          if (!tokenOverlay) return false;
+          return !tokenOverlay.classList.contains("hidden");
+        }
+
+        function createTokens() {
+          if (state.phase !== "play") {
+            setStatus("Keep your opening hand first.");
+            setTokenOverlay(false);
             return;
           }
-          if (statsOverlayOpen()) return;
+
+          var name = (inputTokenName ? inputTokenName.value : "Token").trim() || "Token";
+          var power = inputTokenPower ? parseInt(inputTokenPower.value, 10) || 0 : 0;
+          var toughness = inputTokenToughness ? parseInt(inputTokenToughness.value, 10) || 0 : 0;
+          var typeLine = inputTokenType ? inputTokenType.value.trim() : "";
+          var qty = inputTokenQty ? Math.max(1, Math.min(20, parseInt(inputTokenQty.value, 10) || 1)) : 1;
+
+          var label = name + " " + power + "/" + toughness;
+          if (!typeLine) typeLine = "Token Creature";
+
+          for (var i = 0; i < qty; i++) {
+            var token = createCard(label, "", typeLine, false);
+            token.isToken = true;
+            state.zones.battlefield.push(token);
+            setBattlefieldPosition(token, null, false);
+          }
+
+          setStatus("Created " + qty + "x " + label + " token" + (qty > 1 ? "s" : "") + ".");
+          setTokenOverlay(false);
+          render();
+        }
+
+        if (btnCreateToken) {
+          btnCreateToken.addEventListener("click", function () {
+            if (state.phase !== "play") {
+              setStatus("Keep your opening hand first.");
+              return;
+            }
+            setTokenOverlay(true);
+          });
+        }
+        if (btnTokenClose) btnTokenClose.addEventListener("click", function () { setTokenOverlay(false); });
+        if (btnTokenBackdrop) btnTokenBackdrop.addEventListener("click", function () { setTokenOverlay(false); });
+        if (btnTokenSubmit) btnTokenSubmit.addEventListener("click", createTokens);
+
+        document.addEventListener("keydown", function (e) {
+          var key = String(e.key || "").toLowerCase();
+
+          // Close overlays on Escape
+          if (key === "escape") {
+            if (tokenOverlayOpen()) { setTokenOverlay(false); return; }
+            if (statsOverlayOpen()) { setStatsOverlay(false); return; }
+            return;
+          }
+
+          // Don't fire shortcuts if typing in an input
+          if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
+            if (key === "enter" && tokenOverlayOpen()) { createTokens(); e.preventDefault(); }
+            return;
+          }
+
+          if (statsOverlayOpen() || tokenOverlayOpen()) return;
           if (key === "d") drawOne();
           if (key === "n") nextTurn();
           if (key === "m") mulliganOpening();
           if (key === "k") keepOpening();
+          if (key === "f") flipCoin();
+          if (key === "r") rollDice();
+          if (key === "t") {
+            if (state.phase === "play") setTokenOverlay(true);
+          }
         });
 
         window.addEventListener("resize", function () {
