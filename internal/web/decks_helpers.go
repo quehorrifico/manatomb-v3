@@ -42,10 +42,6 @@ type deckNewPageData struct {
 	ImportUnmatched []string
 }
 
-type deckEditPageData struct {
-	Deck *decks.Deck
-}
-
 type publicDeckPageData struct {
 	Deck           *decks.Deck
 	DeckCards      []decks.DeckCard

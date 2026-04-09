@@ -116,7 +116,6 @@ func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/decks/analytics", app.HandleDeckAnalytics)
 	mux.HandleFunc("/decks/new/commander/", app.HandleDeckNewCommanderShow)
 	mux.HandleFunc("/decks/new/workbench", app.HandleDeckWorkbench)
-	mux.HandleFunc("/decks/new/workbench/return", app.HandleDeckWorkbenchReturnSeed)
 	mux.HandleFunc("/decks/new/sandbox", app.HandleDeckSandboxRedirect)
 	mux.HandleFunc("/decks/new/playtest", app.HandleDeckWorkbenchPlaytest)
 	mux.HandleFunc("/decks/import/save", app.HandleDeckImportDraft)
@@ -125,7 +124,7 @@ func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 	registerMethodRoutes(mux, []methodRoute{
 		{pattern: "/decks/new", get: app.HandleDeckNewShow, post: app.HandleDeckNewPost},
 		{pattern: "/decks/new/commander", get: app.HandleDeckNewCommanderRedirect, post: app.HandleDeckCommanderSelect},
-		{pattern: "/decks/new/commander/create", post: app.HandleDeckNewCommanderCreate},
+		{pattern: "/decks/new/commander/create", post: app.HandleDeckCommanderSelect},
 		{pattern: "/decks/import", get: app.HandleDeckImportShow, post: app.HandleDeckImportText},
 		{pattern: "/decks/settings", get: app.HandleDeckEditShow, post: app.HandleDeckEditPost},
 	})
@@ -148,7 +147,6 @@ func registerCardAndRulesRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/cards/view/", app.HandleCardShow)
 	mux.HandleFunc("/cards/resolve", app.HandleCardResolve)
 	mux.HandleFunc("/cards/versions", app.HandleCardVersions)
-	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
 	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
 	mux.HandleFunc("/rules", app.HandleRulesHome)
 

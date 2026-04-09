@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"manatomb/app/internal/cards"
-	"manatomb/app/internal/decks"
 
 	"github.com/google/uuid"
 )
@@ -57,6 +56,8 @@ type cardSearchPageData struct {
 	SetQuery        string
 	ArtistQuery     string
 	CommanderOnly   bool
+	Results         []searchResult
+	HasSearched     bool
 }
 
 type cardListPageData struct {
@@ -676,9 +677,28 @@ func (a *App) HandleCardList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	user := CurrentUser(r)
 	flash := readFlash(w, r)
 	req, errMsg := parseCardSearchRequest(r.URL.Query())
+
+	var results []cards.Card
+	if req.HasSearched && errMsg == "" {
+		found, err := cards.SearchCards(r.Context(), a.DB, req.searchParams(120))
+		if err != nil {
+			errMsg = "We couldn't search for cards right now. Please try again."
+		} else {
+			if singlePath := singleCardResultPath(found); singlePath != "" {
+				http.Redirect(w, r, singlePath, http.StatusSeeOther)
+				return
+			}
+			results = found
+		}
+	}
 
 	data := TemplateData{
 		CurrentUser: user,
@@ -696,6 +716,8 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 			SetQuery:        req.SetQuery,
 			ArtistQuery:     req.ArtistQuery,
 			CommanderOnly:   req.CommanderOnly,
+			Results:         buildSearchResults(results),
+			HasSearched:     req.HasSearched,
 		},
 		Flash: flash,
 		Error: errMsg,
@@ -750,61 +772,6 @@ func (a *App) HandleCardShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.Renderer.Render(w, "card_show", data)
-}
-
-func (a *App) HandleCardAddToDeck(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
-	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-
-	deckIDStr := r.Form.Get("deck_id")
-	cardName := r.Form.Get("card_name")
-
-	if deckIDStr == "" || cardName == "" {
-		http.Error(w, "missing deck or card", http.StatusBadRequest)
-		return
-	}
-
-	deckID, err := strconv.ParseInt(deckIDStr, 10, 64)
-	if err != nil {
-		http.Error(w, "invalid deck id", http.StatusBadRequest)
-		return
-	}
-
-	// Ensure deck belongs to current user
-	if _, err := decks.GetDeck(r.Context(), a.DB, deckID, user.ID); err != nil {
-		http.Error(w, "deck not found", http.StatusNotFound)
-		return
-	}
-
-	// Resolve best local card match so card add uses the same fuzzy logic as search.
-	resolved, err := cards.ResolveCardByNameFuzzy(r.Context(), a.DB, cardName)
-	if err != nil {
-		if errors.Is(err, cards.ErrCardNotFound) {
-			http.Error(w, "card not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "could not add card", http.StatusInternalServerError)
-		return
-	}
-	if err := decks.AddCard(r.Context(), a.DB, deckID, resolved.OracleID, 1); err != nil {
-		http.Error(w, "could not add card", http.StatusInternalServerError)
-		return
-	}
-
-	http.Redirect(w, r, "/decks/"+strconv.FormatInt(deckID, 10), http.StatusSeeOther)
 }
 
 func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {

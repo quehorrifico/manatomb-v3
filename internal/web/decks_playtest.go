@@ -82,26 +82,13 @@ type workbenchDraftSeed struct {
 	Sandbox             bool                                 `json:"sandbox"`
 }
 
-type workbenchSeedPageData struct {
-	PayloadJSON template.JS
-	NextPath    string
-	StorageKey  string
-}
-
 func parsePlaytestDeckID(path string) (int64, error) {
-	// Accept both:
-	//   /decks/playtest/{id}
-	//   /decks/{id}/playtest
-	var idStr string
-	if strings.HasPrefix(path, "/decks/playtest/") {
-		idStr = strings.TrimPrefix(path, "/decks/playtest/")
-	} else if strings.HasPrefix(path, "/decks/") && strings.HasSuffix(path, "/playtest") {
-		idStr = strings.TrimPrefix(path, "/decks/")
-		idStr = strings.TrimSuffix(idStr, "/playtest")
-	} else {
+	const prefix = "/decks/playtest/"
+	if !strings.HasPrefix(path, prefix) {
 		return 0, errors.New("invalid playtest path")
 	}
 
+	idStr := strings.TrimPrefix(path, prefix)
 	idStr = strings.Trim(idStr, "/")
 	deckID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || deckID <= 0 {
@@ -509,56 +496,4 @@ func (a *App) HandleDeckWorkbenchPlaytest(w http.ResponseWriter, r *http.Request
 		authNextPath,
 		true,
 	)
-}
-
-func (a *App) HandleDeckWorkbenchReturnSeed(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/decks/new", http.StatusSeeOther)
-		return
-	}
-
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-
-	rawPayload := strings.TrimSpace(r.Form.Get("payload"))
-	if rawPayload == "" {
-		http.Redirect(w, r, "/decks/new", http.StatusSeeOther)
-		return
-	}
-
-	var in workbenchPlaytestPayload
-	if err := json.Unmarshal([]byte(rawPayload), &in); err != nil {
-		http.Error(w, "invalid payload", http.StatusBadRequest)
-		return
-	}
-
-	draft := normalizeWorkbenchDraftSeed(in)
-	payloadJSON, err := json.Marshal(draft)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
-
-	storageKey := "manatomb.draftDeck"
-	if draft.Sandbox {
-		storageKey = "manatomb.draftDeck.sandbox"
-	}
-
-	nextPath := deckWorkbenchPath(deckWorkbenchOptions{
-		Format:  draft.Format,
-		Sandbox: draft.Sandbox,
-	})
-
-	data := TemplateData{
-		CurrentUser: CurrentUser(r),
-		Data: workbenchSeedPageData{
-			PayloadJSON: template.JS(payloadJSON),
-			NextPath:    nextPath,
-			StorageKey:  storageKey,
-		},
-	}
-
-	a.Renderer.Render(w, "decks_workbench_return_seed", data)
 }

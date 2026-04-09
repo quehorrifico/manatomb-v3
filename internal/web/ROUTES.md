@@ -23,7 +23,7 @@ can be added without hunting through handler files.
 - `/decks` -> list
 - `/decks/new` (GET/POST) -> deck-builder entry and saved deck creation
 - `/decks/new/commander/` -> commander deck launcher
-- `/decks/new/commander/create` -> open the commander deck editor
+- `/decks/new/commander` (POST) -> select a commander and continue to the deck editor
 - `/decks/new/workbench` -> local unsaved deck workbench
 - `/decks/new/sandbox` -> sandbox shortcut to an empty local workbench
 - `/decks/new/playtest` -> playtest the local workbench deck
@@ -36,7 +36,7 @@ can be added without hunting through handler files.
 - `/decks/analytics` -> deck analytics JSON (saved deck or local workbench payload)
 - `/decks/playtest/{id}` -> playtest deck
 - Compatibility aliases kept for older links:
-  `/decks/new/commander`, `/decks/new/leader`, `/decks/leader`, `/decks/select-leader`,
+  `/decks/new/commander/create`, `/decks/new/leader`, `/decks/leader`, `/decks/select-leader`,
   `/decks/create-from-leader`, `/decks/workbench`, `/decks/guest`,
   `/decks/sandbox`, `/decks/import-text`, `/decks/import-draft`,
   `/decks/edit`, `/decks/playtest/workbench`,
@@ -54,7 +54,6 @@ can be added without hunting through handler files.
 - `/cards/search` -> advanced card search
 - `/cards/view/{oracle_id}` -> dedicated card detail page
 - `/cards/autocomplete` -> deck-builder autocomplete results
-- `/cards/add-to-deck` -> add card to saved deck
 - `/commanders/search` -> commander search
 - Compatibility aliases kept for older links:
   `/cards/search/autocomplete`, `/cards/search/deck`

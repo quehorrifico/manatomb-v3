@@ -70,6 +70,10 @@ func CurrentUser(r *http.Request) *account.User {
 	return u
 }
 
+func authNextPath(raw string) string {
+	return normalizeLocalReturnPath(raw, "/decks")
+}
+
 // ===== Handlers =====
 
 func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
@@ -119,10 +123,7 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleSignupShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
 
-	next := strings.TrimSpace(r.URL.Query().Get("next"))
-	if next == "" || !strings.HasPrefix(next, "/") {
-		next = "/decks"
-	}
+	next := authNextPath(r.URL.Query().Get("next"))
 
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
@@ -159,10 +160,7 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 	displayName := strings.TrimSpace(r.Form.Get("display_name"))
 	password := r.Form.Get("password")
 
-	next := strings.TrimSpace(r.Form.Get("next"))
-	if next == "" || !strings.HasPrefix(next, "/") {
-		next = "/decks"
-	}
+	next := authNextPath(r.Form.Get("next"))
 
 	// Basic validation
 	if displayName == "" || email == "" || password == "" {
@@ -254,10 +252,7 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleLoginShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
 
-	next := strings.TrimSpace(r.URL.Query().Get("next"))
-	if next == "" || !strings.HasPrefix(next, "/") {
-		next = "/decks"
-	}
+	next := authNextPath(r.URL.Query().Get("next"))
 
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
@@ -290,10 +285,7 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.Form.Get("email"))
 	password := r.Form.Get("password")
 
-	next := strings.TrimSpace(r.Form.Get("next"))
-	if next == "" || !strings.HasPrefix(next, "/") {
-		next = "/decks"
-	}
+	next := authNextPath(r.Form.Get("next"))
 
 	u, err := account.Authenticate(r.Context(), a.DB, email, password)
 	if err != nil {

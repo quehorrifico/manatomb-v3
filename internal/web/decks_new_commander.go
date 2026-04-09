@@ -127,16 +127,3 @@ func (a *App) HandleDeckNewCommanderShow(w http.ResponseWriter, r *http.Request)
 		commanderDeckBuilderStateFromValues(r.URL.Query()),
 	)
 }
-
-func (a *App) HandleDeckNewCommanderCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "invalid form", http.StatusBadRequest)
-		return
-	}
-
-	a.startCommanderDeck(w, r, r.Form.Get("commander_name"))
-}
