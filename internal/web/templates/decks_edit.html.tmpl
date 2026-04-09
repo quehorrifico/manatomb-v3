@@ -1,104 +1,135 @@
 {{ define "decks_edit" }}
   {{ template "layout_header" . }}
-  {{ $d := .Data }}
+  {{ $ctx := .Data }}
+  {{ $d := $ctx.Deck }}
+  {{ $editFormat := "Sandbox" }}
+  {{ if eq $d.Format "Commander" }}
+    {{ $editFormat = "Commander" }}
+  {{ end }}
 
-  <main class="max-w-3xl mx-auto py-10 px-4 space-y-6">
-    <!-- Header -->
+  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">
-          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-            Edit Deck
-          </span>
-        </h2>
-        <p class="text-sm text-slate-400 mt-1">
-          Update this deck’s name, commander, or description.
-        </p>
+      <div class="space-y-2">
+        <p class="mt-kicker">Settings</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Deck Settings</h1>
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <a href="/decks/{{ $d.ID }}"
-           class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-          Back to deck
-        </a>
+        <a href="/decks/{{ $d.ID }}" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">Deck</a>
+        <a href="/" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">Home</a>
       </div>
     </div>
 
-    <!-- Form card -->
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
-      <form method="POST" action="/decks/edit" class="space-y-4">
+    <section class="mt-panel p-5 sm:p-6">
+      <form method="POST" action="/decks/settings" class="space-y-6">
         <input type="hidden" name="id" value="{{ $d.ID }}">
 
-        <!-- Deck name -->
-        <div class="text-sm text-slate-200">
+        <div>
           <label class="block">
-            <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
+            <span class="mt-field-label">Deck Name</span>
             <input type="text"
                    name="name"
                    value="{{ $d.Name }}"
                    required
-                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 
-                          text-sm text-slate-100 placeholder:text-slate-500
-                          focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+                   class="mt-control">
           </label>
         </div>
 
-        <!-- Commander -->
-        <div class="text-sm text-slate-200">
-          <label class="block">
-            <span class="block text-xs font-medium text-slate-400 mb-1">Commander name</span>
-            <div class="flex flex-col sm:flex-row gap-2">
-              <input type="text"
-                     name="commander_name"
-                     value="{{ $d.CommanderName }}"
-                     required
-                     class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2
-                            text-sm text-slate-100 placeholder:text-slate-500
-                            focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label class="block">
+              <span class="mt-field-label">Format</span>
+              <select name="format" class="mt-control">
+                <option value="Commander" {{ if eq $editFormat "Commander" }}selected{{ end }}>Commander</option>
+                <option value="Sandbox" {{ if eq $editFormat "Sandbox" }}selected{{ end }}>Sandbox</option>
+              </select>
+            </label>
+          </div>
 
-              <a href="/commanders/search"
-                 class="inline-flex items-center justify-center px-3 py-2 rounded-md 
-                        border border-slate-700 bg-slate-900 text-xs text-slate-200
-                        hover:border-sky-400 hover:text-sky-300 transition-colors">
-                Search commanders
-              </a>
-            </div>
-          </label>
-          <p class="mt-1 text-xs text-slate-500">
-            Changing this will change which commander is displayed for this deck.
-          </p>
+          <div id="deck-settings-power-bracket" {{ if ne $editFormat "Commander" }}class="hidden"{{ end }}>
+            <label class="block">
+              <span class="mt-field-label">Power Bracket</span>
+              <select name="power_bracket" class="mt-control">
+                {{ range supportedPowerBrackets }}
+                  <option value="{{ . }}" {{ if eq . $d.PowerBracket }}selected{{ end }}>
+                    {{ if . }}{{ . }}{{ else }}Not set{{ end }}
+                  </option>
+                {{ end }}
+              </select>
+            </label>
+          </div>
         </div>
 
-        <!-- Description -->
-        <div class="text-sm text-slate-200">
+        <div>
           <label class="block">
-            <span class="block text-xs font-medium text-slate-400 mb-1">Description</span>
+            <span class="mt-field-label">Description</span>
             <textarea name="description"
                       rows="4"
-                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2
-                             text-sm text-slate-100 placeholder:text-slate-500
-                             focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.Description }}</textarea>
+                      class="mt-control">{{ $d.Description }}</textarea>
           </label>
         </div>
 
-        <!-- Actions -->
+        <section class="mt-subpanel space-y-4">
+          <input type="hidden" name="sharing_submitted" value="1">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-100">Sharing</h3>
+            </div>
+            <label class="mt-check-pill">
+              <input type="checkbox"
+                     name="is_public"
+                     value="1"
+                     class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500"
+                     {{ if $d.IsPublic }}checked{{ end }}>
+              <span>Public</span>
+            </label>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="block">
+                <span class="mt-field-label">Public Slug</span>
+                <input type="text"
+                       name="public_slug"
+                       value="{{ $d.PublicSlug }}"
+                       placeholder="auto-generated from deck name"
+                       class="mt-control">
+              </label>
+              <p class="mt-1 text-xs text-slate-500">
+                Preview: `/decks/public/{{ if $d.PublicSlug }}{{ $d.PublicSlug }}{{ else }}your-deck-slug{{ end }}`
+              </p>
+            </div>
+
+            <div class="mt-note text-xs">
+              <p class="font-medium text-slate-300">Status</p>
+              <p class="mt-1">{{ if $d.IsPublic }}Published{{ else }}Private{{ end }}</p>
+            </div>
+          </div>
+        </section>
+
         <div class="flex justify-end gap-2">
-          <a href="/decks/{{ $d.ID }}"
-             class="inline-flex items-center px-4 py-2 rounded-md border border-slate-700 
-                    bg-slate-900 text-sm text-slate-200 hover:border-slate-500 hover:text-slate-100 transition-colors">
-            Cancel
-          </a>
-          <button type="submit"
-                  class="inline-flex items-center px-4 py-2 rounded-md 
-                         bg-sky-500 text-slate-950 text-sm font-semibold 
-                         hover:bg-sky-400 transition-colors focus:outline-none 
-                         focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
-            Save changes
-          </button>
+          <a href="/decks/{{ $d.ID }}" class="mt-btn mt-btn--secondary">Cancel</a>
+          <button type="submit" class="mt-btn mt-btn--primary">Save Changes</button>
         </div>
       </form>
     </section>
   </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const formatSelect = document.querySelector('select[name="format"]');
+      const powerBracketSection = document.getElementById("deck-settings-power-bracket");
+      if (!formatSelect) return;
+
+      function syncFormatSections() {
+        const isCommander = String(formatSelect.value || "") === "Commander";
+        if (powerBracketSection) powerBracketSection.classList.toggle("hidden", !isCommander);
+      }
+
+      formatSelect.addEventListener("change", syncFormatSections);
+      syncFormatSections();
+    });
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

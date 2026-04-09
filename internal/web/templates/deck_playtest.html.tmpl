@@ -7,167 +7,164 @@
     {{ $authNext = "/decks/new" }}
   {{ end }}
 
-  <main class="max-w-7xl mx-auto px-4 py-8 space-y-4">
-    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-100">Commander Goldfish Playtest</h1>
-        <p class="text-sm text-slate-400">{{ $deck.Name }}</p>
-        {{ if $deck.CommanderName }}
-          <p class="text-xs text-slate-500 mt-1">Commander: {{ $deck.CommanderName }}</p>
-        {{ end }}
-        {{ if and $ctx.GuestMode (not .CurrentUser) }}
-          <p class="text-xs text-amber-200/80 mt-1">Guest session: this run is not saved to an account.</p>
-        {{ end }}
-      </div>
+  <main class="max-w-[1680px] mx-auto px-4 xl:px-6 overflow-hidden">
+    <div class="pt-playtest-root">
+      <section class="mt-panel p-4 sm:p-5 flex-1 min-h-0 flex flex-col">
+        <p id="pt-status" class="sr-only" aria-live="polite"></p>
 
-      <div class="flex flex-wrap gap-2">
-        <button id="pt-reset"
-                class="px-3 py-2 rounded-md bg-slate-800 text-slate-100 text-sm hover:bg-slate-700">
-          Reset game
-        </button>
-        <button id="pt-draw"
-                class="px-3 py-2 rounded-md bg-slate-100 text-slate-950 text-sm font-semibold hover:bg-white">
-          Draw card
-        </button>
-        <button id="pt-next-turn"
-                class="px-3 py-2 rounded-md bg-violet-500 text-white text-sm font-semibold hover:bg-violet-400">
-          Next turn
-        </button>
-        <button id="pt-stats-toggle"
-                class="px-3 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400">
-          Game stats
-        </button>
-        <button id="pt-flip-coin"
-                class="px-3 py-2 rounded-md bg-amber-500 text-slate-950 text-sm font-semibold hover:bg-amber-400"
-                title="Flip a coin (F)">
-          Flip coin
-        </button>
-        <button id="pt-roll-dice"
-                class="px-3 py-2 rounded-md bg-emerald-500 text-slate-950 text-sm font-semibold hover:bg-emerald-400"
-                title="Roll a die (R)">
-          Roll d20
-        </button>
-        <button id="pt-create-token"
-                class="px-3 py-2 rounded-md bg-fuchsia-500 text-white text-sm font-semibold hover:bg-fuchsia-400"
-                title="Create a token (T)">
-          Create token
-        </button>
-        {{ if and $ctx.GuestMode (not .CurrentUser) }}
-          <a id="pt-auth-login"
-             href="/login?next={{ urlquery $authNext }}"
-             class="px-3 py-2 rounded-md bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200">
-            Log in
-          </a>
-          <a id="pt-auth-signup"
-             href="/signup?next={{ urlquery $authNext }}"
-             class="px-3 py-2 rounded-md border border-sky-500 text-sky-200 text-sm font-semibold hover:bg-sky-900/40">
-            Sign up
-          </a>
-        {{ end }}
-      </div>
-    </div>
-
-    <p id="pt-status" class="text-xs text-sky-300" aria-live="polite"></p>
-
-    <section id="pt-opening-screen" class="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
-      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
-        <div>
-          <h2 class="text-sm font-semibold text-slate-200">Opening Hand</h2>
-          <p class="text-xs text-slate-400">Review your random 7 cards, then keep or mulligan.</p>
+        <div class="relative flex-1 min-h-0">
+          <div class="pt-battlefield-toolbar">
+            <div class="pt-battlefield-metrics">
+              <div class="pt-overlay-metric">
+                <span class="pt-overlay-metric__label">Turn</span>
+                <span id="pt-turn-count" class="pt-overlay-metric__value">0</span>
+              </div>
+              <div class="pt-overlay-metric pt-overlay-metric--life">
+                <span class="pt-overlay-metric__label">Life</span>
+                <button id="pt-life-down"
+                        type="button"
+                        class="pt-overlay-metric__step"
+                        aria-label="Lose 1 life">
+                  -
+                </button>
+                <span id="pt-life-total" class="pt-overlay-metric__value">0</span>
+                <button id="pt-life-up"
+                        type="button"
+                        class="pt-overlay-metric__step"
+                        aria-label="Gain 1 life">
+                  +
+                </button>
+              </div>
+            </div>
+            <div class="pt-battlefield-actions">
+              <button id="pt-end-turn"
+                      type="button"
+                      class="mt-btn mt-btn--secondary mt-btn--xs">
+                End Turn
+              </button>
+              <button id="pt-game-menu-toggle"
+                      type="button"
+                      class="mt-btn mt-btn--secondary mt-btn--xs">
+                Game Menu
+              </button>
+            </div>
+          </div>
+          <div id="pt-zone-battlefield"
+               data-zone="battlefield"
+               class="pt-drop-zone pt-battlefield-zone h-full rounded-xl bg-slate-950/80 p-3 relative overflow-hidden"></div>
         </div>
-        <div class="flex gap-2">
-          <button id="pt-mulligan"
-                  class="px-3 py-2 rounded-md bg-amber-300 text-slate-950 text-sm font-semibold hover:bg-amber-200">
-            Mulligan
-          </button>
-          <button id="pt-keep"
-                  class="px-3 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400">
-            Keep
-          </button>
-        </div>
-      </div>
-      <div id="pt-opening-hand" class="min-h-[176px] rounded-lg bg-slate-950/80 p-2 flex flex-wrap gap-2 content-start"></div>
-    </section>
-
-    <section id="pt-play-surface" class="hidden flex flex-col gap-3 min-h-[calc(100vh-182px)]">
-      <section class="rounded-xl border border-slate-800 bg-slate-950/60 p-3 flex-1 min-h-[380px]">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-200">Battlefield</h2>
-          <span class="text-xs text-slate-400">Drag to reposition. Lands snap to the bottom row.</span>
-        </div>
-        <div id="pt-zone-battlefield"
-             data-zone="battlefield"
-             class="pt-drop-zone mt-2 h-[calc(100%-28px)] min-h-[340px] rounded-lg bg-slate-950/80 p-2 relative overflow-hidden"></div>
       </section>
 
-      <section class="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-        <div class="flex items-end gap-4 overflow-x-auto pb-1">
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center justify-between mb-1">
+      <section class="pt-zones-section flex flex-col min-h-0">
+        <div class="pt-zones-grid flex-1 min-h-0">
+          <div class="pt-zone-card">
+            <div class="flex items-center justify-between gap-2">
               <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Hand</p>
-              <p class="text-[11px] text-slate-500">Drag to reorder, click to play</p>
+              <span id="pt-count-hand" class="text-xs font-semibold text-slate-200">0</span>
             </div>
             <div id="pt-zone-hand"
                  data-zone="hand"
-                 class="pt-drop-zone pt-hand-zone min-h-[146px] rounded-md bg-slate-950/80 p-1 flex gap-2 overflow-x-auto overflow-y-hidden items-start"></div>
+                 class="pt-drop-zone pt-hand-zone mt-2 flex-1 min-h-0 rounded-xl bg-slate-950/80 p-1.5 flex gap-1.5 overflow-x-auto overflow-y-hidden items-start"></div>
           </div>
 
-          <div class="flex items-end gap-2 shrink-0">
-            <div class="w-[114px]">
-              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Graveyard</p>
-              <div id="pt-zone-graveyard"
-                   data-zone="graveyard"
-                   class="pt-drop-zone pt-stack-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
-            </div>
-
-            <div class="w-[114px]">
-              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Exile</p>
-              <div id="pt-zone-exile"
-                   data-zone="exile"
-                   class="pt-drop-zone pt-stack-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
-            </div>
-
-            <div class="w-[114px]">
-              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Commander</p>
-              <div id="pt-zone-command"
-                   data-zone="command"
-                   class="pt-drop-zone pt-stack-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
-            </div>
-
-            <div class="w-[114px]">
-              <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 mb-1 text-center">Library</p>
+          <div class="pt-side-grid">
+            <div class="pt-zone-card">
+              <div class="relative flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Library</p>
+                  <button id="pt-library-menu-toggle"
+                          type="button"
+                          class="pt-menu-trigger"
+                          aria-label="Library menu">
+                    ...
+                  </button>
+                </div>
+                <span id="pt-count-library" class="text-xs font-semibold text-slate-200">0</span>
+                <div id="pt-library-menu"
+                     class="hidden pt-inline-menu right-0 top-full mt-2">
+                  <button id="pt-library-menu-shuffle"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Shuffle
+                  </button>
+                  <button id="pt-library-menu-scry-1"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Scry 1
+                  </button>
+                  <button id="pt-library-menu-scry-2"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Scry 2
+                  </button>
+                  <button id="pt-library-menu-scry-3"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Scry 3
+                  </button>
+                </div>
+              </div>
               <div id="pt-zone-library"
                    data-zone="library"
-                   class="pt-drop-zone h-[146px] rounded-md bg-slate-950/80 relative overflow-hidden"></div>
+                   class="pt-drop-zone pt-side-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden cursor-pointer"></div>
+            </div>
+
+            <div class="pt-zone-card">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Graveyard</p>
+                <span id="pt-count-graveyard" class="text-xs font-semibold text-slate-200">0</span>
+              </div>
+              <div id="pt-zone-graveyard"
+                   data-zone="graveyard"
+                   class="pt-drop-zone pt-side-zone pt-stack-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden"></div>
+            </div>
+
+            <div class="pt-zone-card">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Exile</p>
+                <span id="pt-count-exile" class="text-xs font-semibold text-slate-200">0</span>
+              </div>
+              <div id="pt-zone-exile"
+                   data-zone="exile"
+                   class="pt-drop-zone pt-side-zone pt-stack-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden"></div>
+            </div>
+
+            <div class="pt-zone-card">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Command</p>
+                <span id="pt-count-command" class="text-xs font-semibold text-slate-200">0</span>
+              </div>
+              <div id="pt-zone-command"
+                   data-zone="command"
+                   class="pt-drop-zone pt-side-zone pt-stack-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden"></div>
             </div>
           </div>
         </div>
       </section>
-    </section>
+    </div>
 
-    <div id="pt-stats-overlay" class="hidden fixed inset-0 z-40">
-      <button id="pt-stats-backdrop"
-              type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
-      <section class="absolute right-4 top-20 w-[min(460px,92vw)] rounded-xl border border-slate-700 bg-slate-950/95 p-4 shadow-2xl shadow-black/80 space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-100">Game Stats</h2>
-          <button id="pt-stats-close"
-                  type="button"
-                  class="px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500">
-            Close
-          </button>
+    <div id="pt-opening-screen" class="pt-opening-overlay">
+      <div class="pt-opening-overlay__backdrop"></div>
+      <section class="pt-opening-dialog">
+        <div class="pt-opening-dialog__hero">
+          <div class="pt-opening-title-row">
+            <h1 id="pt-opening-label" class="pt-opening-label">Opening Hand</h1>
+            <span id="pt-opening-progress" class="mt-chip">7 cards</span>
+          </div>
+          <p id="pt-opening-hint" class="pt-opening-hint">Review this hand, then keep or take a fresh seven.</p>
         </div>
-        <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
-          <p>Turn: <span id="pt-turn" class="font-semibold text-slate-100">0</span></p>
-          <p>Mulligans: <span id="pt-mulligans" class="font-semibold text-slate-100">0</span></p>
-          <p>Commander tax: <span id="pt-commander-tax" class="font-semibold text-slate-100">+0</span></p>
-          <p>Library: <span id="pt-count-library" class="font-semibold text-slate-100">0</span></p>
-          <p>Hand: <span id="pt-count-hand" class="font-semibold text-slate-100">0</span></p>
-          <p>Battlefield: <span id="pt-count-battlefield" class="font-semibold text-slate-100">0</span></p>
-          <p>Graveyard: <span id="pt-count-graveyard" class="font-semibold text-slate-100">0</span></p>
-          <p>Exile: <span id="pt-count-exile" class="font-semibold text-slate-100">0</span></p>
-          <p>Commander: <span id="pt-count-command" class="font-semibold text-slate-100">0</span></p>
+
+        <div id="pt-opening-hand" class="pt-opening-hand-grid"></div>
+
+        <div class="pt-opening-actions">
+          <button id="pt-mulligan"
+                  class="mt-btn mt-btn--warning pt-opening-action">
+            Mulligan (0)
+          </button>
+          <button id="pt-keep"
+                  class="mt-btn mt-btn--primary pt-opening-action">
+            Keep
+          </button>
         </div>
       </section>
     </div>
@@ -176,12 +173,12 @@
       <button id="pt-token-backdrop"
               type="button"
               class="absolute inset-0 bg-slate-950/70"></button>
-      <section class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] rounded-xl border border-slate-700 bg-slate-950/95 p-4 shadow-2xl shadow-black/80 space-y-3">
+      <section class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] mt-panel bg-slate-950/95 p-4 space-y-3">
         <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-100">Create Token</h2>
+          <h2 class="text-sm font-semibold text-slate-100">Token</h2>
           <button id="pt-token-close"
                   type="button"
-                  class="px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500">
+                  class="mt-btn mt-btn--secondary mt-btn--xs">
             Close
           </button>
         </div>
@@ -191,7 +188,7 @@
             <input id="pt-token-name"
                    type="text"
                    value="Token"
-                   class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+                   class="mt-control mt-control--sm">
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -200,7 +197,7 @@
                      type="number"
                      value="1"
                      min="0"
-                     class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+                     class="mt-control mt-control--sm">
             </div>
             <div>
               <label for="pt-token-toughness" class="block text-xs text-slate-400 mb-1">Toughness</label>
@@ -208,15 +205,15 @@
                      type="number"
                      value="1"
                      min="0"
-                     class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+                     class="mt-control mt-control--sm">
             </div>
           </div>
           <div>
-            <label for="pt-token-type" class="block text-xs text-slate-400 mb-1">Type (optional)</label>
+            <label for="pt-token-type" class="block text-xs text-slate-400 mb-1">Type</label>
             <input id="pt-token-type"
                    type="text"
                    placeholder="e.g. Creature — Soldier"
-                   class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 placeholder-slate-600 focus:border-sky-500 focus:outline-none">
+                   class="mt-control mt-control--sm">
           </div>
           <div>
             <label for="pt-token-qty" class="block text-xs text-slate-400 mb-1">Quantity</label>
@@ -225,31 +222,327 @@
                    value="1"
                    min="1"
                    max="20"
-                   class="w-full px-2 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-sm text-slate-100 focus:border-sky-500 focus:outline-none">
+                   class="mt-control mt-control--sm">
           </div>
         </div>
         <button id="pt-token-submit"
-                class="w-full px-3 py-2 rounded-md bg-fuchsia-500 text-white text-sm font-semibold hover:bg-fuchsia-400">
-          Add to battlefield
+                class="mt-btn mt-btn--primary w-full">
+          Add to Battlefield
         </button>
       </section>
     </div>
 
-    <aside id="pt-hover-preview"
-           class="hidden pointer-events-none fixed right-4 top-24 z-50">
-      <div class="w-[300px] rounded-xl overflow-hidden bg-slate-950/95 shadow-2xl shadow-black/80">
-        <img id="pt-hover-preview-img"
-             alt=""
-             class="w-full h-auto hidden">
-        <div id="pt-hover-preview-fallback"
-             class="hidden p-4 text-sm text-slate-300 bg-gradient-to-br from-slate-900 to-slate-800"></div>
-      </div>
-    </aside>
+    <div id="pt-game-menu-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-game-menu-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="pt-game-menu-dialog">
+        <div class="pt-opening-dialog__hero">
+          <div class="pt-opening-title-row">
+            <h2 class="pt-opening-label">Game Menu</h2>
+          </div>
+          <p class="pt-opening-hint">Leave playtest to return to deck editing, or close this menu and keep goldfishing.</p>
+        </div>
+
+        <div class="pt-opening-actions">
+          <a id="pt-game-menu-return"
+             href="{{ $authNext }}"
+             class="mt-btn mt-btn--primary pt-opening-action">
+            Back to Deck
+          </a>
+          <button id="pt-game-menu-restart"
+                  type="button"
+                  class="mt-btn mt-btn--warning pt-opening-action">
+            Restart Playtest
+          </button>
+          <button id="pt-game-menu-close"
+                  type="button"
+                  class="mt-btn mt-btn--secondary pt-opening-action">
+            Resume Playtest
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div id="pt-scry-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-scry-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="pt-opening-dialog">
+        <div class="pt-opening-dialog__hero">
+          <div class="pt-opening-title-row">
+            <h2 class="pt-opening-label">Scry</h2>
+          </div>
+          <p id="pt-scry-hint" class="pt-opening-hint">Choose which cards stay on top and which go to the bottom.</p>
+        </div>
+
+        <div id="pt-scry-cards" class="pt-opening-hand-grid"></div>
+
+        <div class="pt-opening-actions">
+          <button id="pt-scry-cancel"
+                  type="button"
+                  class="mt-btn mt-btn--secondary pt-opening-action">
+            Cancel
+          </button>
+          <button id="pt-scry-finish"
+                  type="button"
+                  class="mt-btn mt-btn--primary pt-opening-action">
+            Done
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div id="pt-card-menu-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-card-menu-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="pt-game-menu-dialog">
+        <div class="pt-opening-dialog__hero">
+          <div class="pt-opening-title-row">
+            <h2 id="pt-card-menu-title" class="pt-opening-label">Card</h2>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <button id="pt-card-menu-details"
+                  type="button"
+                  class="mt-btn mt-btn--primary w-full">
+            View Details
+          </button>
+
+          <div class="space-y-2">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Move To</p>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="hand">Hand</button>
+              <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="graveyard">Graveyard</button>
+              <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="exile">Exile</button>
+              <button id="pt-card-menu-move-command" type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="command">Command</button>
+            </div>
+          </div>
+
+          <button id="pt-card-menu-close"
+                  type="button"
+                  class="mt-btn mt-btn--secondary w-full">
+            Close
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div id="pt-card-detail-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-card-detail-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="pt-card-detail-dialog">
+        <div class="flex items-start justify-between gap-4">
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center gap-3">
+              <h2 id="pt-card-detail-name" class="pt-opening-label">Card</h2>
+              <div id="pt-card-detail-mana" class="flex flex-wrap items-center gap-1"></div>
+            </div>
+            <p id="pt-card-detail-type" class="text-sm text-slate-400"></p>
+          </div>
+          <button id="pt-card-detail-close"
+                  type="button"
+                  class="mt-btn mt-btn--secondary mt-btn--xs">
+            Close
+          </button>
+        </div>
+
+        <div class="pt-card-detail-grid">
+          <div class="pt-card-detail-art">
+            <img id="pt-card-detail-image"
+                 alt=""
+                 class="w-full h-auto rounded-xl bg-slate-900 hidden">
+            <div id="pt-card-detail-fallback"
+                 class="hidden min-h-[320px] rounded-xl bg-slate-900 p-6 text-center text-sm text-slate-300"></div>
+          </div>
+          <div class="space-y-4 min-w-0">
+            <div class="space-y-2">
+              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Oracle Text</p>
+              <div id="pt-card-detail-oracle"
+                   class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 text-sm leading-6 text-slate-200 whitespace-pre-wrap"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
 
     <style>
+      .pt-playtest-root {
+        height: calc(100vh - 1.5rem);
+        height: calc(100dvh - 1.5rem);
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        overflow: hidden;
+      }
+
+      .pt-zones-section {
+        flex: 0 0 clamp(198px, 28vh, 244px);
+        height: auto;
+      }
+
+      .pt-zones-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(480px, 1fr);
+        gap: 0.55rem;
+        min-height: 0;
+      }
+
+      .pt-side-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.55rem;
+        min-height: 0;
+      }
+
+      .pt-zone-card {
+        position: relative;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(30, 41, 59, 0.92);
+        background: rgba(2, 6, 23, 0.58);
+        padding: 0.5rem 0.55rem;
+      }
+
+      .pt-battlefield-toolbar {
+        position: absolute;
+        top: 0.7rem;
+        left: 0.7rem;
+        right: 0.7rem;
+        z-index: 30;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .pt-battlefield-metrics {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .pt-battlefield-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      .pt-overlay-metric {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(51, 65, 85, 0.94);
+        border-radius: 9999px;
+        background: rgba(2, 6, 23, 0.92);
+        box-shadow: 0 12px 24px rgba(2, 6, 23, 0.35);
+        padding: 0.35rem 0.6rem;
+        color: rgb(226 232 240);
+        backdrop-filter: blur(8px);
+      }
+
+      .pt-overlay-metric__label {
+        font-size: 0.63rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgb(148 163 184);
+      }
+
+      .pt-overlay-metric__value {
+        min-width: 1.2rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+        line-height: 1;
+        color: rgb(248 250 252);
+        text-align: center;
+      }
+
+      .pt-overlay-metric__step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 9999px;
+        background: rgba(15, 23, 42, 0.96);
+        color: rgb(226 232 240);
+        font-size: 0.8rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .pt-overlay-metric__step:hover {
+        background: rgba(30, 41, 59, 0.98);
+        color: rgb(248 250 252);
+      }
+
+      .pt-menu-trigger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.45rem;
+        height: 1.45rem;
+        border-radius: 9999px;
+        border: 1px solid rgba(51, 65, 85, 0.92);
+        background: rgba(15, 23, 42, 0.9);
+        color: rgb(203 213 225);
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+      }
+
+      .pt-menu-trigger:hover {
+        border-color: rgba(56, 189, 248, 0.45);
+        color: rgb(240 249 255);
+      }
+
+      .pt-inline-menu {
+        position: absolute;
+        z-index: 20;
+        min-width: 8.5rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(51, 65, 85, 0.92);
+        background: rgba(2, 6, 23, 0.96);
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.42);
+        padding: 0.35rem;
+      }
+
+      .pt-inline-menu__item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        border-radius: 0.65rem;
+        padding: 0.55rem 0.7rem;
+        font-size: 0.8rem;
+        color: rgb(226 232 240);
+        text-align: left;
+      }
+
+      .pt-inline-menu__item:hover {
+        background: rgba(15, 23, 42, 0.94);
+        color: rgb(240 249 255);
+      }
+
       .pt-drop-zone.pt-drop-zone--active {
         background: rgb(8 47 73 / 0.62);
         box-shadow: 0 0 0 2px rgb(14 116 144 / 0.5) inset;
+      }
+
+      .pt-battlefield-zone {
+        background-image:
+          linear-gradient(rgba(51, 65, 85, 0.14) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(51, 65, 85, 0.14) 1px, transparent 1px),
+          radial-gradient(circle at top, rgba(14, 165, 233, 0.08), transparent 55%);
+        background-size: 24px 24px, 24px 24px, auto;
+        background-position: center;
       }
 
       .pt-card {
@@ -273,11 +566,11 @@
       }
 
       .pt-card.pt-card--opening {
-        width: 108px;
+        width: clamp(140px, 11vw, 190px);
       }
 
       .pt-card.pt-card--stack {
-        width: 82px;
+        width: 72px;
       }
 
       .pt-card.pt-card--tapped {
@@ -315,6 +608,14 @@
         display: flex;
         flex-wrap: wrap;
         gap: 4px;
+      }
+
+      .pt-card__menu {
+        position: absolute;
+        top: 50%;
+        right: 4px;
+        transform: translateY(-50%);
+        z-index: 3;
       }
 
       .pt-chip {
@@ -363,21 +664,192 @@
         border-radius: 999px;
       }
 
+      .pt-side-zone {
+        min-height: 0;
+        flex: 1;
+      }
+
+      .pt-opening-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+      }
+
+      .pt-opening-overlay__backdrop {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at top, rgba(14, 165, 233, 0.16), transparent 34%),
+          linear-gradient(180deg, rgba(2, 6, 23, 0.86), rgba(2, 6, 23, 0.94));
+        backdrop-filter: blur(10px);
+      }
+
+      .pt-opening-dialog {
+        position: absolute;
+        inset: 1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        border-radius: 1.2rem;
+        border: 1px solid rgba(71, 85, 105, 0.88);
+        background:
+          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
+          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+        padding: 1.35rem 1.4rem 1.2rem;
+        overflow: hidden;
+        box-shadow:
+          0 24px 60px rgba(2, 6, 23, 0.58),
+          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+      }
+
+      .pt-opening-dialog__hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        text-align: center;
+      }
+
+      .pt-opening-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .pt-opening-label {
+        font-size: clamp(1.5rem, 2vw, 2rem);
+        line-height: 1.05;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: rgb(248 250 252);
+      }
+
+      .pt-opening-hint {
+        max-width: 48rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: rgb(148 163 184);
+      }
+
+      .pt-opening-hand-grid {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(144px, 1fr));
+        justify-items: center;
+        align-content: center;
+        gap: 1rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 0.3rem 0.2rem 0.4rem;
+      }
+
+      .pt-opening-actions {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+      }
+
+      .pt-opening-action {
+        min-width: 170px;
+      }
+
+      .pt-game-menu-dialog {
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: min(460px, calc(100vw - 2rem));
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        border-radius: 1.2rem;
+        border: 1px solid rgba(71, 85, 105, 0.88);
+        background:
+          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
+          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+        padding: 1.35rem 1.4rem 1.2rem;
+        box-shadow:
+          0 24px 60px rgba(2, 6, 23, 0.58),
+          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+      }
+
+      .pt-card-detail-dialog {
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: min(980px, calc(100vw - 2rem));
+        max-height: calc(100vh - 2rem);
+        max-height: calc(100dvh - 2rem);
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        overflow: auto;
+        border-radius: 1.2rem;
+        border: 1px solid rgba(71, 85, 105, 0.88);
+        background:
+          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
+          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+        padding: 1.35rem 1.4rem 1.2rem;
+        box-shadow:
+          0 24px 60px rgba(2, 6, 23, 0.58),
+          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+      }
+
+      .pt-card-detail-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+        gap: 1.25rem;
+        align-items: start;
+      }
+
+      .pt-card-detail-art {
+        min-width: 0;
+      }
+
+      .pt-scry-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        align-items: center;
+      }
+
+      .pt-scry-card__toggle {
+        min-width: 110px;
+      }
+
+      .pt-card--selected {
+        box-shadow:
+          0 0 0 2px rgba(56, 189, 248, 0.9),
+          0 16px 28px rgba(2, 6, 23, 0.55);
+        transform: translateY(-2px);
+      }
+
       .pt-library-stack {
         position: relative;
-        width: 86px;
-        height: 122px;
-        margin: 10px auto 0;
+        width: 74px;
+        height: 104px;
+        margin: 2px auto 0;
       }
 
       .pt-library-stack__card {
         position: absolute;
         inset: 0;
         border-radius: 0.65rem;
+        border: 1px solid rgba(15, 23, 42, 0.92);
         background:
-          radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.3), transparent 45%),
-          radial-gradient(circle at 80% 80%, rgba(14, 116, 144, 0.45), transparent 50%),
-          linear-gradient(165deg, rgba(15, 23, 42, 1), rgba(30, 41, 59, 0.95));
+          radial-gradient(circle at 18% 20%, rgba(220, 38, 38, 0.82), transparent 6%),
+          radial-gradient(circle at 29% 10%, rgba(245, 158, 11, 0.84), transparent 6%),
+          radial-gradient(circle at 43% 6%, rgba(250, 204, 21, 0.9), transparent 6%),
+          radial-gradient(circle at 57% 10%, rgba(34, 197, 94, 0.84), transparent 6%),
+          radial-gradient(circle at 68% 20%, rgba(59, 130, 246, 0.84), transparent 6%),
+          radial-gradient(circle at center, rgba(221, 194, 124, 0.62) 0%, rgba(143, 94, 46, 0.74) 22%, transparent 24%),
+          radial-gradient(circle at center, rgba(21, 69, 122, 0.98) 0%, rgba(21, 69, 122, 0.98) 34%, rgba(58, 35, 16, 1) 36%, rgba(136, 87, 37, 0.96) 47%, rgba(39, 22, 8, 1) 61%, rgba(90, 56, 20, 0.96) 73%, rgba(14, 21, 34, 1) 100%);
+        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.42);
       }
 
       .pt-library-stack__card:nth-child(2) {
@@ -387,27 +859,84 @@
       .pt-library-stack__card:nth-child(3) {
         transform: translate(-10px, 8px);
       }
+
+      .pt-library-stack__card::before {
+        content: "MAGIC";
+        position: absolute;
+        left: 50%;
+        top: 17px;
+        transform: translateX(-50%);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        color: rgba(255, 226, 170, 0.92);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+      }
+
+      .pt-library-stack__card::after {
+        content: "THE GATHERING";
+        position: absolute;
+        left: 50%;
+        bottom: 15px;
+        transform: translateX(-50%);
+        font-size: 6px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        color: rgba(243, 244, 246, 0.86);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      }
     </style>
 
     <script>
       (function () {
         var librarySeed = {{ $ctx.CardsJSON }};
         var commanderSeed = {{ $ctx.CommanderJSON }};
+        var workbenchDraftSeed = {{ if $ctx.WorkbenchJSON }}{{ $ctx.WorkbenchJSON }}{{ else }}null{{ end }};
+        var deckFormat = {{ printf "%q" $deck.Format }};
+        var isWorkbenchPlaytest = {{ if $ctx.WorkbenchMode }}true{{ else }}false{{ end }};
         var cardIDSeed = 1;
 
         var battlefieldCardWidth = 96;
         var battlefieldCardHeight = 136;
         var battlefieldSnapGap = 8;
         var battlefieldSnapRow = 32;
+        var stackedCardWidth = 72;
+        var stackedCardHeight = 104;
         var stackedOffsetX = 8;
         var stackedOffsetY = 3;
 
-        function createCard(name, imageURI, typeLine, isCommander) {
+        function manaSymbolAssetName(symbol) {
+          var normalized = String(symbol || "").trim().toUpperCase();
+          if (!normalized) return "";
+          return normalized.replace(/\//g, "");
+        }
+
+        function renderManaSymbols(manaCost) {
+          var cost = String(manaCost || "").trim();
+          if (!cost) return "";
+          var html = "";
+          var re = /\{([^}]+)\}/g;
+          var match;
+          while ((match = re.exec(cost)) !== null) {
+            var sym = String(match[1] || "").trim();
+            if (!sym) continue;
+            var assetName = manaSymbolAssetName(sym);
+            if (!assetName) continue;
+            html += '<img src="https://svgs.scryfall.io/card-symbols/' +
+              encodeURIComponent(assetName) +
+              '.svg" alt="{' + sym + '}" class="inline-block h-5 w-5 align-text-bottom">';
+          }
+          return html;
+        }
+
+        function createCard(name, imageURI, manaCost, typeLine, oracleText, isCommander) {
           return {
             id: cardIDSeed++,
             name: String(name || "").trim(),
             imageURI: String(imageURI || "").trim(),
+            manaCost: String(manaCost || "").trim(),
             typeLine: String(typeLine || "").trim(),
+            oracleText: String(oracleText || "").trim(),
             tapped: false,
             isCommander: !!isCommander,
             bfX: null,
@@ -436,18 +965,20 @@
             var row = seedRows[i] || {};
             var name = String(row.name || "").trim();
             var imageURI = String(row.image_uri || "").trim();
+            var manaCost = String(row.mana_cost || "").trim();
             var typeLine = String(row.type_line || "").trim();
+            var oracleText = String(row.oracle_text || "").trim();
             var qty = Number(row.qty || 0);
             if (!name || qty <= 0) continue;
             for (var q = 0; q < qty; q++) {
-              lib.push(createCard(name, imageURI, typeLine, false));
+              lib.push(createCard(name, imageURI, manaCost, typeLine, oracleText, false));
             }
           }
           return lib;
         }
 
         function zoneLabel(zone) {
-          if (zone === "command") return "Commander";
+          if (zone === "command") return "Command";
           if (zone === "library") return "Library";
           if (zone === "hand") return "Hand";
           if (zone === "battlefield") return "Battlefield";
@@ -458,8 +989,38 @@
 
         var zoneOrder = ["command", "library", "hand", "battlefield", "graveyard", "exile"];
 
+        function startingLifeTotal(format) {
+          switch (String(format || "").trim().toLowerCase()) {
+            case "commander":
+              return 40;
+            case "duel commander":
+            case "standard":
+            case "pioneer":
+            case "modern":
+            case "legacy":
+            case "vintage":
+            case "pauper":
+            case "historic":
+            case "explorer":
+            case "timeless":
+            case "alchemy":
+            case "oathbreaker":
+            case "premodern":
+            case "draft":
+            case "sealed":
+            case "cube":
+            case "casual":
+              return 20;
+            case "brawl":
+            case "historic brawl":
+              return 25;
+            default:
+              return 20;
+          }
+        }
+
         var state = {
-          phase: "opening", // opening | play
+          phase: "opening", // opening | cleanup | play
           zones: {
             command: [],
             library: [],
@@ -469,14 +1030,19 @@
             exile: []
           },
           turn: 0,
+          life: startingLifeTotal(deckFormat),
           mulligans: 0,
-          commanderCasts: 0,
-          draggingCardID: null
+          openingSelectionIDs: [],
+          draggingCardID: null,
+          activeCardID: null,
+          scryCards: []
         };
 
         var openingScreen = document.getElementById("pt-opening-screen");
         var openingHandEl = document.getElementById("pt-opening-hand");
-        var playSurface = document.getElementById("pt-play-surface");
+        var openingLabelEl = document.getElementById("pt-opening-label");
+        var openingHintEl = document.getElementById("pt-opening-hint");
+        var openingProgressEl = document.getElementById("pt-opening-progress");
 
         var zoneEls = {
           command: document.getElementById("pt-zone-command"),
@@ -488,160 +1054,253 @@
         };
 
         var elStatus = document.getElementById("pt-status");
-        var elTurn = document.getElementById("pt-turn");
-        var elMulligans = document.getElementById("pt-mulligans");
-        var elCommanderTax = document.getElementById("pt-commander-tax");
+        var elTurnCount = document.getElementById("pt-turn-count");
+        var elLifeTotal = document.getElementById("pt-life-total");
         var countEls = {
           command: document.getElementById("pt-count-command"),
           library: document.getElementById("pt-count-library"),
           hand: document.getElementById("pt-count-hand"),
-          battlefield: document.getElementById("pt-count-battlefield"),
           graveyard: document.getElementById("pt-count-graveyard"),
           exile: document.getElementById("pt-count-exile")
         };
 
-        var btnReset = document.getElementById("pt-reset");
-        var btnDraw = document.getElementById("pt-draw");
-        var btnNextTurn = document.getElementById("pt-next-turn");
         var btnKeep = document.getElementById("pt-keep");
         var btnMulligan = document.getElementById("pt-mulligan");
+        var btnLifeDown = document.getElementById("pt-life-down");
+        var btnLifeUp = document.getElementById("pt-life-up");
+        var btnEndTurn = document.getElementById("pt-end-turn");
+        var btnGameMenuToggle = document.getElementById("pt-game-menu-toggle");
+        var btnLibraryMenuToggle = document.getElementById("pt-library-menu-toggle");
+        var libraryMenu = document.getElementById("pt-library-menu");
+        var btnLibraryMenuShuffle = document.getElementById("pt-library-menu-shuffle");
+        var btnLibraryMenuScry1 = document.getElementById("pt-library-menu-scry-1");
+        var btnLibraryMenuScry2 = document.getElementById("pt-library-menu-scry-2");
+        var btnLibraryMenuScry3 = document.getElementById("pt-library-menu-scry-3");
+        var gameMenuOverlay = document.getElementById("pt-game-menu-overlay");
+        var btnGameMenuBackdrop = document.getElementById("pt-game-menu-backdrop");
+        var btnGameMenuRestart = document.getElementById("pt-game-menu-restart");
+        var btnGameMenuClose = document.getElementById("pt-game-menu-close");
+        var gameMenuReturnLink = document.getElementById("pt-game-menu-return");
+        var scryOverlay = document.getElementById("pt-scry-overlay");
+        var btnScryBackdrop = document.getElementById("pt-scry-backdrop");
+        var btnScryCancel = document.getElementById("pt-scry-cancel");
+        var btnScryFinish = document.getElementById("pt-scry-finish");
+        var scryCardsEl = document.getElementById("pt-scry-cards");
+        var cardMenuOverlay = document.getElementById("pt-card-menu-overlay");
+        var btnCardMenuBackdrop = document.getElementById("pt-card-menu-backdrop");
+        var btnCardMenuClose = document.getElementById("pt-card-menu-close");
+        var btnCardMenuDetails = document.getElementById("pt-card-menu-details");
+        var cardMenuTitle = document.getElementById("pt-card-menu-title");
+        var btnCardMenuMoveCommand = document.getElementById("pt-card-menu-move-command");
+        var cardMoveButtons = document.querySelectorAll(".pt-card-move-btn");
+        var cardDetailOverlay = document.getElementById("pt-card-detail-overlay");
+        var btnCardDetailBackdrop = document.getElementById("pt-card-detail-backdrop");
+        var btnCardDetailClose = document.getElementById("pt-card-detail-close");
+        var cardDetailName = document.getElementById("pt-card-detail-name");
+        var cardDetailMana = document.getElementById("pt-card-detail-mana");
+        var cardDetailType = document.getElementById("pt-card-detail-type");
+        var cardDetailOracle = document.getElementById("pt-card-detail-oracle");
+        var cardDetailImage = document.getElementById("pt-card-detail-image");
+        var cardDetailFallback = document.getElementById("pt-card-detail-fallback");
 
-        var btnStatsToggle = document.getElementById("pt-stats-toggle");
-        var statsOverlay = document.getElementById("pt-stats-overlay");
-        var btnStatsClose = document.getElementById("pt-stats-close");
-        var btnStatsBackdrop = document.getElementById("pt-stats-backdrop");
-        var authLoginLink = document.getElementById("pt-auth-login");
-        var authSignupLink = document.getElementById("pt-auth-signup");
+        function buildWorkbenchReturnPayload() {
+          if (!isWorkbenchPlaytest) return null;
+          var baseDraft = (workbenchDraftSeed && typeof workbenchDraftSeed === "object") ? workbenchDraftSeed : {};
+          var commanderName = String(baseDraft.commanderName || "").trim();
+          var format = String(baseDraft.format || "").trim() === "Commander" ? "Commander" : "Sandbox";
 
-        var previewWrap = document.getElementById("pt-hover-preview");
-        var previewImg = document.getElementById("pt-hover-preview-img");
-        var previewFallback = document.getElementById("pt-hover-preview-fallback");
+          var cardEntries = [];
+          var cardSource = (baseDraft && baseDraft.cards && typeof baseDraft.cards === "object") ? baseDraft.cards : {};
+          var cardNames = Object.keys(cardSource);
+          for (var n = 0; n < cardNames.length; n++) {
+            var cardName = String(cardNames[n] || "").trim();
+            var qty = Number(cardSource[cardName] || 0);
+            if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
+            cardEntries.push({ name: cardName, qty: qty });
+          }
 
-        function seedGuestDraftFromPlaytest() {
-          if (!({{ if and $ctx.GuestMode (not .CurrentUser) }}true{{ else }}false{{ end }})) return;
+          var maybeEntries = [];
+          var maybeCards = (baseDraft && baseDraft.maybeCards && typeof baseDraft.maybeCards === "object") ? baseDraft.maybeCards : {};
+          var maybeNames = Object.keys(maybeCards);
+          for (var m = 0; m < maybeNames.length; m++) {
+            var maybeName = String(maybeNames[m] || "").trim();
+            var maybeQty = Number(maybeCards[maybeName] || 0);
+            if (!maybeName || !Number.isFinite(maybeQty) || maybeQty <= 0) continue;
+            maybeEntries.push({ name: maybeName, qty: maybeQty });
+          }
+
+          return {
+            commander_name: commanderName,
+            format: format,
+            name: "New Guest Deck",
+            description: String(baseDraft.description || "").trim(),
+            tags: String(baseDraft.tags || "").trim(),
+            cards: cardEntries,
+            maybe_cards: maybeEntries,
+            commander_candidates: Array.isArray(baseDraft.commanderCandidates) ? baseDraft.commanderCandidates.slice() : [],
+            card_meta: (baseDraft && baseDraft.cardMeta && typeof baseDraft.cardMeta === "object") ? baseDraft.cardMeta : {},
+            sandbox: !!(baseDraft && baseDraft.sandbox)
+          };
+        }
+
+        function persistWorkbenchDraftLocally() {
+          if (!isWorkbenchPlaytest) return;
 
           try {
+            var payload = buildWorkbenchReturnPayload();
+            if (!payload) return;
+
+            var storageKey = payload.sandbox ? "manatomb.draftDeck.sandbox" : "manatomb.draftDeck";
             var cards = {};
-            var commanderName = "";
-            var hasStateCards = false;
+            var maybeCards = {};
 
-            function addCardCount(name, qty) {
-              name = String(name || "").trim();
-              qty = Number(qty || 0);
-              if (!name || qty <= 0) return;
-              cards[name] = (cards[name] || 0) + qty;
-            }
-
-            // Prefer live state so login/save keeps up with current game zones.
-            if (state && state.zones) {
-              for (var i = 0; i < zoneOrder.length; i++) {
-                var zoneName = zoneOrder[i];
-                var zone = state.zones[zoneName];
-                if (!Array.isArray(zone)) continue;
-                for (var j = 0; j < zone.length; j++) {
-                  var card = zone[j] || {};
-                  var nameFromState = String(card.name || "").trim();
-                  if (!nameFromState) continue;
-                  addCardCount(nameFromState, 1);
-                  hasStateCards = true;
-                  if (!commanderName && card.isCommander) {
-                    commanderName = nameFromState;
-                  }
-                }
+            if (Array.isArray(payload.cards)) {
+              for (var i = 0; i < payload.cards.length; i++) {
+                var card = payload.cards[i] || {};
+                var cardName = String(card.name || "").trim();
+                var cardQty = Number(card.qty || 0);
+                if (!cardName || !Number.isFinite(cardQty) || cardQty <= 0) continue;
+                cards[cardName] = (cards[cardName] || 0) + cardQty;
               }
             }
 
-            // Fallback to seed payload if this runs before game state initializes.
-            if (!hasStateCards) {
-              for (var i = 0; i < librarySeed.length; i++) {
-                var row = librarySeed[i] || {};
-                var name = String(row.name || "").trim();
-                var qty = Number(row.qty || 0);
-                if (!name || qty <= 0) continue;
-                addCardCount(name, qty);
+            if (Array.isArray(payload.maybe_cards)) {
+              for (var j = 0; j < payload.maybe_cards.length; j++) {
+                var maybeCard = payload.maybe_cards[j] || {};
+                var maybeName = String(maybeCard.name || "").trim();
+                var maybeQty = Number(maybeCard.qty || 0);
+                if (!maybeName || !Number.isFinite(maybeQty) || maybeQty <= 0) continue;
+                maybeCards[maybeName] = (maybeCards[maybeName] || 0) + maybeQty;
               }
-            }
-
-            if (!hasStateCards && commanderSeed && commanderSeed.name) {
-              commanderName = String(commanderSeed.name || "").trim();
-              if (commanderName) {
-                addCardCount(commanderName, 1);
-              }
-            } else if (!commanderName && commanderSeed && commanderSeed.name) {
-              commanderName = String(commanderSeed.name || "").trim();
-            } else if (commanderName && !cards[commanderName]) {
-              addCardCount(commanderName, 1);
-            }
-
-            var candidates = [];
-            if (commanderName) {
-              candidates.push(commanderName);
             }
 
             var draft = {
-              commanderName: commanderName,
-              commanderCandidates: candidates,
-              name: {{ printf "%q" $deck.Name }},
-              description: {{ printf "%q" $deck.Description }},
+              commanderName: String(payload.commander_name || "").trim(),
+              format: String(payload.format || "").trim() || "Sandbox",
+              name: "New Guest Deck",
+              description: String(payload.description || "").trim(),
+              tags: String(payload.tags || "").trim(),
               cards: cards,
-              maybeCards: {},
+              maybeCards: maybeCards,
+              cardMeta: (payload.card_meta && typeof payload.card_meta === "object") ? payload.card_meta : {},
+              commanderCandidates: Array.isArray(payload.commander_candidates) ? payload.commander_candidates : [],
+              sandbox: !!payload.sandbox,
               updatedAt: new Date().toISOString()
             };
 
-            localStorage.setItem("manatomb.draftDeck", JSON.stringify(draft));
+            var raw = JSON.stringify(draft);
+            localStorage.setItem(storageKey, raw);
+            try {
+              sessionStorage.setItem(storageKey + ".playtestReturn", raw);
+            } catch (e) {
+              // ignore session storage failures
+            }
           } catch (e) {
-            // ignore storage errors
+            // ignore storage failures
           }
         }
 
-        if (authLoginLink) authLoginLink.addEventListener("click", seedGuestDraftFromPlaytest);
-        if (authSignupLink) authSignupLink.addEventListener("click", seedGuestDraftFromPlaytest);
-        seedGuestDraftFromPlaytest();
+        function submitWorkbenchReturn() {
+          if (!isWorkbenchPlaytest) {
+            if (gameMenuReturnLink && gameMenuReturnLink.href) {
+              window.location.assign(gameMenuReturnLink.href);
+            }
+            return;
+          }
+
+          try {
+            persistWorkbenchDraftLocally();
+            if (gameMenuReturnLink && gameMenuReturnLink.href) {
+              window.location.assign(gameMenuReturnLink.href);
+              return;
+            }
+            window.location.assign("/decks/new/workbench");
+          } catch (e) {
+            if (gameMenuReturnLink && gameMenuReturnLink.href) {
+              window.location.assign(gameMenuReturnLink.href);
+            }
+          }
+        }
 
         function setStatus(msg) {
-          if (elStatus) elStatus.textContent = msg || "";
-        }
-
-        function setStatsOverlay(open) {
-          if (!statsOverlay) return;
-          statsOverlay.classList.toggle("hidden", !open);
-        }
-
-        function statsOverlayOpen() {
-          if (!statsOverlay) return false;
-          return !statsOverlay.classList.contains("hidden");
-        }
-
-        function showPreview(card) {
-          if (!previewWrap || !card) return;
-          if (card.imageURI) {
-            if (previewImg) {
-              previewImg.src = card.imageURI;
-              previewImg.alt = card.name || "Card preview";
-              previewImg.classList.remove("hidden");
-            }
-            if (previewFallback) previewFallback.classList.add("hidden");
-          } else {
-            if (previewImg) previewImg.classList.add("hidden");
-            if (previewFallback) {
-              previewFallback.textContent = card.name || "Unknown card";
-              previewFallback.classList.remove("hidden");
-            }
-          }
-          previewWrap.classList.remove("hidden");
-        }
-
-        function hidePreview() {
-          if (!previewWrap) return;
-          previewWrap.classList.add("hidden");
+          var text = String(msg || "").trim();
+          if (elStatus) elStatus.textContent = text;
         }
 
         function getZoneArray(zone) {
           return state.zones[zone] || null;
         }
 
-        function commanderTax() {
-          return state.commanderCasts * 2;
+        function libraryMenuOpen() {
+          return !!libraryMenu && !libraryMenu.classList.contains("hidden");
+        }
+
+        function setLibraryMenu(open) {
+          if (!libraryMenu) return;
+          libraryMenu.classList.toggle("hidden", !open);
+        }
+
+        function setScryOverlay(open) {
+          if (!scryOverlay) return;
+          if (open) setLibraryMenu(false);
+          scryOverlay.classList.toggle("hidden", !open);
+          if (open) {
+            renderScryCards();
+          }
+        }
+
+        function scryOverlayOpen() {
+          return !!scryOverlay && !scryOverlay.classList.contains("hidden");
+        }
+
+        function setCardMenuOverlay(open, cardID) {
+          if (!cardMenuOverlay) return;
+          if (open) setLibraryMenu(false);
+          if (typeof cardID === "number") {
+            state.activeCardID = cardID;
+          }
+          cardMenuOverlay.classList.toggle("hidden", !open);
+          if (open) renderCardMenu();
+        }
+
+        function cardMenuOverlayOpen() {
+          return !!cardMenuOverlay && !cardMenuOverlay.classList.contains("hidden");
+        }
+
+        function setCardDetailOverlay(open) {
+          if (!cardDetailOverlay) return;
+          cardDetailOverlay.classList.toggle("hidden", !open);
+          if (!open) return;
+          renderCardDetail();
+        }
+
+        function cardDetailOverlayOpen() {
+          return !!cardDetailOverlay && !cardDetailOverlay.classList.contains("hidden");
+        }
+
+        function requiredOpeningReturns() {
+          return Math.max(0, Math.min(state.mulligans, state.zones.hand.length));
+        }
+
+        function isOpeningSelected(cardID) {
+          return Array.isArray(state.openingSelectionIDs) && state.openingSelectionIDs.indexOf(cardID) >= 0;
+        }
+
+        function toggleOpeningSelection(cardID) {
+          if (state.phase !== "cleanup") return;
+          var required = requiredOpeningReturns();
+          if (required <= 0) return;
+
+          var next = Array.isArray(state.openingSelectionIDs) ? state.openingSelectionIDs.slice() : [];
+          var idx = next.indexOf(cardID);
+          if (idx >= 0) {
+            next.splice(idx, 1);
+          } else if (next.length < required) {
+            next.push(cardID);
+          }
+
+          state.openingSelectionIDs = next;
+          render();
         }
 
         function findCard(cardID) {
@@ -660,6 +1319,11 @@
             }
           }
           return null;
+        }
+
+        function activeCard() {
+          if (typeof state.activeCardID !== "number") return null;
+          return findCard(state.activeCardID);
         }
 
         function drawCards(count) {
@@ -774,11 +1438,17 @@
         function startOpening() {
           state.phase = "opening";
           state.turn = 0;
+          state.life = startingLifeTotal(deckFormat);
           state.mulligans = 0;
-          state.commanderCasts = 0;
+          state.openingSelectionIDs = [];
           state.draggingCardID = null;
-          hidePreview();
-          setStatsOverlay(false);
+          state.activeCardID = null;
+          state.scryCards = [];
+          setLibraryMenu(false);
+          setGameMenuOverlay(false);
+          setCardMenuOverlay(false);
+          setCardDetailOverlay(false);
+          setScryOverlay(false);
 
           state.zones.command = [];
           state.zones.library = shuffle(buildLibrary(librarySeed));
@@ -791,21 +1461,42 @@
             state.zones.command.push(createCard(
               commanderSeed.name,
               commanderSeed.image_uri,
+              commanderSeed.mana_cost,
               commanderSeed.type_line,
+              commanderSeed.oracle_text,
               true
             ));
           }
 
           drawCards(7);
-          setStatus("Opening hand ready. Keep or mulligan.");
+          setStatus("");
+          render();
+        }
+
+        function adjustLife(delta) {
+          delta = Number(delta || 0);
+          if (!Number.isFinite(delta) || delta === 0) return;
+          state.life += delta;
           render();
         }
 
         function keepOpening() {
+          if (state.phase === "cleanup") {
+            commitOpeningSelection();
+            return;
+          }
           if (state.phase !== "opening") return;
+          var required = requiredOpeningReturns();
+          if (required > 0) {
+            state.phase = "cleanup";
+            state.openingSelectionIDs = [];
+            setStatus("");
+            render();
+            return;
+          }
           state.phase = "play";
           state.turn = 1;
-          setStatus("Turn 1 started.");
+          setStatus("");
           render();
         }
 
@@ -818,7 +1509,46 @@
           state.mulligans += 1;
           drawCards(7);
 
-          setStatus("Mulligan " + state.mulligans + ": drew a fresh 7.");
+          setStatus("");
+          render();
+        }
+
+        function commitOpeningSelection() {
+          if (state.phase !== "cleanup") return;
+
+          var required = requiredOpeningReturns();
+          var selected = Array.isArray(state.openingSelectionIDs) ? state.openingSelectionIDs.slice() : [];
+          if (selected.length !== required) {
+            setStatus("");
+            return;
+          }
+
+          var selectedMap = {};
+          for (var i = 0; i < selected.length; i++) {
+            selectedMap[selected[i]] = true;
+          }
+
+          var kept = [];
+          var returned = [];
+          var hand = state.zones.hand || [];
+          for (var j = 0; j < hand.length; j++) {
+            var card = hand[j];
+            if (card && selectedMap[card.id]) {
+              card.tapped = false;
+              card.bfX = null;
+              card.bfY = null;
+              returned.push(card);
+            } else {
+              kept.push(card);
+            }
+          }
+
+          state.zones.hand = kept;
+          state.zones.library = returned.concat(state.zones.library);
+          state.openingSelectionIDs = [];
+          state.phase = "play";
+          state.turn = 1;
+          setStatus("");
           render();
         }
 
@@ -833,6 +1563,89 @@
           } else {
             setStatus("Drew a card.");
           }
+          render();
+        }
+
+        function shuffleLibrary() {
+          if (state.phase !== "play") {
+            setStatus("Keep your opening hand first.");
+            return;
+          }
+          if (!state.zones.library.length) {
+            setStatus("Library is empty.");
+            return;
+          }
+          shuffle(state.zones.library);
+          setStatus("Library shuffled.");
+          render();
+        }
+
+        function startScry(count) {
+          count = Number(count || 0);
+          if (state.phase !== "play") {
+            setStatus("Keep your opening hand first.");
+            return;
+          }
+          if (!Number.isFinite(count) || count <= 0) return;
+          if (!state.zones.library.length) {
+            setStatus("Library is empty.");
+            return;
+          }
+
+          setLibraryMenu(false);
+          state.scryCards = [];
+
+          var limit = Math.min(count, state.zones.library.length);
+          for (var i = 0; i < limit; i++) {
+            var card = state.zones.library.pop();
+            if (!card) continue;
+            card.scryBottom = false;
+            state.scryCards.push(card);
+          }
+
+          setScryOverlay(true);
+        }
+
+        function cancelScry() {
+          if (!Array.isArray(state.scryCards) || state.scryCards.length === 0) {
+            setScryOverlay(false);
+            return;
+          }
+          for (var i = state.scryCards.length - 1; i >= 0; i--) {
+            delete state.scryCards[i].scryBottom;
+            state.zones.library.push(state.scryCards[i]);
+          }
+          state.scryCards = [];
+          setScryOverlay(false);
+          render();
+        }
+
+        function finishScry() {
+          var cards = Array.isArray(state.scryCards) ? state.scryCards.slice() : [];
+          var keepTop = [];
+          var moveBottom = [];
+          for (var i = 0; i < cards.length; i++) {
+            if (cards[i] && cards[i].scryBottom) {
+              moveBottom.push(cards[i]);
+            } else if (cards[i]) {
+              keepTop.push(cards[i]);
+            }
+          }
+
+          if (moveBottom.length > 0) {
+            for (var k = 0; k < moveBottom.length; k++) {
+              delete moveBottom[k].scryBottom;
+            }
+            state.zones.library = moveBottom.concat(state.zones.library);
+          }
+          for (var j = keepTop.length - 1; j >= 0; j--) {
+            delete keepTop[j].scryBottom;
+            state.zones.library.push(keepTop[j]);
+          }
+
+          state.scryCards = [];
+          setScryOverlay(false);
+          setStatus("Scry finished.");
           render();
         }
 
@@ -861,6 +1674,7 @@
           }
 
           if (targetZone === "library") return false;
+          if (targetZone === "command" && !card.isCommander) return false;
           if (state.phase !== "play") return false;
           return true;
         }
@@ -943,10 +1757,6 @@
             card.bfY = null;
           }
 
-          if (card.isCommander && located.zone === "command" && targetZone === "battlefield") {
-            state.commanderCasts += 1;
-          }
-
           target.push(card);
 
           if (targetZone === "battlefield") {
@@ -969,13 +1779,14 @@
           var node = document.createElement("article");
           node.className = "pt-card";
           if (isOpening) node.classList.add("pt-card--opening");
+          if (isOpening && isOpeningSelected(card.id)) node.classList.add("pt-card--selected");
           if (zoneName === "battlefield" && card.tapped) {
             node.classList.add("pt-card--tapped");
           }
           if (zoneName === "command" || zoneName === "graveyard" || zoneName === "exile") {
             node.classList.add("pt-card--stack");
           }
-          node.setAttribute("draggable", "true");
+          node.setAttribute("draggable", isOpening ? "false" : "true");
           node.dataset.cardId = String(card.id);
           node.dataset.zoneCard = zoneName;
 
@@ -1011,40 +1822,65 @@
           }
           if (hasChip) node.appendChild(chips);
 
-          node.addEventListener("dragstart", function (e) {
-            state.draggingCardID = card.id;
-            hidePreview();
-            if (e.dataTransfer) {
-              e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData("text/plain", String(card.id));
-            }
-          });
+          if (!isOpening && zoneName === "battlefield") {
+            var menuBtn = document.createElement("button");
+            menuBtn.type = "button";
+            menuBtn.className = "pt-menu-trigger pt-card__menu";
+            menuBtn.textContent = "...";
+            menuBtn.setAttribute("aria-label", "Card menu");
+            menuBtn.draggable = false;
+            menuBtn.addEventListener("mousedown", function (e) {
+              e.stopPropagation();
+            });
+            menuBtn.addEventListener("click", function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              setCardMenuOverlay(true, card.id);
+            });
+            node.appendChild(menuBtn);
+          }
 
-          node.addEventListener("dragend", function () {
-            state.draggingCardID = null;
-            clearDropHighlights();
-          });
+          if (!isOpening) {
+            node.addEventListener("dragstart", function (e) {
+              state.draggingCardID = card.id;
+              if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", String(card.id));
+              }
+            });
+
+            node.addEventListener("dragend", function () {
+              state.draggingCardID = null;
+              clearDropHighlights();
+            });
+          }
+
+          if (isOpening) {
+            node.title = state.phase === "cleanup"
+              ? "Click to select this card to put back."
+              : "Review your opening hand.";
+            node.addEventListener("click", function () {
+              if (state.phase === "cleanup") {
+                toggleOpeningSelection(card.id);
+              }
+            });
+            return node;
+          }
 
           if (zoneName === "hand") {
             node.title = "Click to play to battlefield. Drag to reorder or move.";
-            node.addEventListener("mouseenter", function () { showPreview(card); });
-            node.addEventListener("mouseleave", hidePreview);
             node.addEventListener("click", function () {
               if (state.phase !== "play") return;
               moveCard(card.id, "battlefield");
             });
           } else if (zoneName === "command") {
             node.title = "Click to cast to battlefield. Drag to move zones.";
-            node.addEventListener("mouseenter", function () { showPreview(card); });
-            node.addEventListener("mouseleave", hidePreview);
             node.addEventListener("click", function () {
               if (state.phase !== "play") return;
               moveCard(card.id, "battlefield");
             });
           } else if (zoneName === "battlefield") {
             node.title = "Click to tap/untap. Drag to reposition or move.";
-            node.addEventListener("mouseenter", function () { showPreview(card); });
-            node.addEventListener("mouseleave", hidePreview);
             node.addEventListener("click", function () {
               card.tapped = !card.tapped;
               var bf = state.zones.battlefield;
@@ -1062,13 +1898,96 @@
           return node;
         }
 
+        function renderScryCards() {
+          if (!scryCardsEl) return;
+          scryCardsEl.innerHTML = "";
+
+          var cards = Array.isArray(state.scryCards) ? state.scryCards : [];
+          if (cards.length === 0) {
+            var empty = document.createElement("p");
+            empty.className = "text-sm text-slate-500 self-center";
+            empty.textContent = "No cards to scry.";
+            scryCardsEl.appendChild(empty);
+            return;
+          }
+
+          for (var i = 0; i < cards.length; i++) {
+            (function (card) {
+              var wrap = document.createElement("div");
+              wrap.className = "pt-scry-card";
+
+              var node = createCardNode(card, "hand", true);
+              wrap.appendChild(node);
+
+              var toggle = document.createElement("button");
+              toggle.type = "button";
+              toggle.className = "mt-btn mt-btn--secondary mt-btn--xs pt-scry-card__toggle";
+              toggle.textContent = card.scryBottom ? "Bottom" : "Top";
+              toggle.addEventListener("click", function () {
+                card.scryBottom = !card.scryBottom;
+                renderScryCards();
+              });
+              wrap.appendChild(toggle);
+
+              scryCardsEl.appendChild(wrap);
+            })(cards[i]);
+          }
+        }
+
+        function renderCardMenu() {
+          var located = activeCard();
+          var card = located ? located.card : null;
+          if (!card) {
+            setCardMenuOverlay(false);
+            return;
+          }
+          if (cardMenuTitle) cardMenuTitle.textContent = card.name || "Card";
+          if (btnCardMenuMoveCommand) {
+            btnCardMenuMoveCommand.classList.toggle("hidden", !card.isCommander);
+          }
+        }
+
+        function renderCardDetail() {
+          var located = activeCard();
+          var card = located ? located.card : null;
+          if (!card) {
+            setCardDetailOverlay(false);
+            return;
+          }
+
+          if (cardDetailName) cardDetailName.textContent = card.name || "Card";
+          if (cardDetailMana) {
+            cardDetailMana.innerHTML = renderManaSymbols(card.manaCost);
+            cardDetailMana.classList.toggle("hidden", !String(card.manaCost || "").trim());
+          }
+          if (cardDetailType) cardDetailType.textContent = card.typeLine || "";
+          if (cardDetailOracle) {
+            cardDetailOracle.textContent = card.oracleText || "No oracle text.";
+          }
+          if (cardDetailImage) {
+            if (card.imageURI) {
+              cardDetailImage.src = card.imageURI;
+              cardDetailImage.alt = card.name || "Card";
+              cardDetailImage.classList.remove("hidden");
+              if (cardDetailFallback) cardDetailFallback.classList.add("hidden");
+            } else {
+              cardDetailImage.src = "";
+              cardDetailImage.classList.add("hidden");
+              if (cardDetailFallback) {
+                cardDetailFallback.textContent = card.name || "Unknown card";
+                cardDetailFallback.classList.remove("hidden");
+              }
+            }
+          }
+        }
+
         function renderOpeningHand() {
           if (!openingHandEl) return;
           openingHandEl.innerHTML = "";
           var hand = state.zones.hand;
           if (!hand || hand.length === 0) {
             var empty = document.createElement("p");
-            empty.className = "text-sm text-slate-500";
+            empty.className = "text-sm text-slate-500 self-center";
             empty.textContent = "No cards in opening hand.";
             openingHandEl.appendChild(empty);
             return;
@@ -1081,9 +2000,10 @@
         function renderLibraryZone(el) {
           if (!el) return;
           el.innerHTML = "";
+          el.title = state.phase === "play" ? "Click to draw a card." : "";
           if (state.zones.library.length === 0) {
             var empty = document.createElement("p");
-            empty.className = "text-xs text-slate-500 text-center mt-14";
+            empty.className = "text-xs text-slate-500 text-center mt-10";
             empty.textContent = "Empty.";
             el.appendChild(empty);
             return;
@@ -1099,7 +2019,7 @@
           el.appendChild(stack);
 
           var label = document.createElement("p");
-          label.className = "text-[11px] text-slate-400 text-center mt-1";
+          label.className = "text-[11px] text-slate-400 text-center mt-0.5";
           label.textContent = state.zones.library.length + " cards";
           el.appendChild(label);
         }
@@ -1111,7 +2031,7 @@
           var zone = getZoneArray(zoneName);
           if (!zone || zone.length === 0) {
             var empty = document.createElement("p");
-            empty.className = "text-xs text-slate-500 px-2 pt-14 text-center";
+            empty.className = "text-xs text-slate-500 px-2 pt-6 text-center";
             empty.textContent = "Empty.";
             el.appendChild(empty);
             return;
@@ -1122,9 +2042,9 @@
 
           var wrap = document.createElement("div");
           wrap.className = "relative";
-          wrap.style.height = "136px";
-          wrap.style.width = String(82 + Math.max(0, visible - 1) * stackedOffsetX) + "px";
-          wrap.style.margin = "6px auto 0";
+          wrap.style.height = String(stackedCardHeight + 12) + "px";
+          wrap.style.width = String(stackedCardWidth + Math.max(0, visible - 1) * stackedOffsetX) + "px";
+          wrap.style.margin = "4px auto 0";
 
           for (var i = 0; i < visible; i++) {
             var card = zone[start + i];
@@ -1144,10 +2064,18 @@
           if (!el) return;
           el.innerHTML = "";
 
+          if (state.phase !== "play") {
+            var waiting = document.createElement("p");
+            waiting.className = "text-xs text-slate-500 px-2 pt-6";
+            waiting.textContent = "Opening hand is shown in the start overlay.";
+            el.appendChild(waiting);
+            return;
+          }
+
           var hand = state.zones.hand;
           if (!hand || hand.length === 0) {
             var empty = document.createElement("p");
-            empty.className = "text-xs text-slate-500 px-2 pt-12";
+            empty.className = "text-xs text-slate-500 px-2 pt-6";
             empty.textContent = "Empty hand.";
             el.appendChild(empty);
             return;
@@ -1165,10 +2093,6 @@
 
           var zone = state.zones.battlefield;
           if (!zone || zone.length === 0) {
-            var empty = document.createElement("p");
-            empty.className = "text-sm text-slate-500 absolute left-4 top-4";
-            empty.textContent = "Play cards from your hand onto the battlefield.";
-            el.appendChild(empty);
             return;
           }
 
@@ -1220,10 +2144,6 @@
         }
 
         function render() {
-          if (elTurn) elTurn.textContent = String(state.turn);
-          if (elMulligans) elMulligans.textContent = String(state.mulligans);
-          if (elCommanderTax) elCommanderTax.textContent = "+" + String(commanderTax());
-
           for (var i = 0; i < zoneOrder.length; i++) {
             var zoneName = zoneOrder[i];
             var zone = getZoneArray(zoneName) || [];
@@ -1231,9 +2151,39 @@
             if (countEl) countEl.textContent = String(zone.length);
           }
 
-          var opening = state.phase === "opening";
-          if (openingScreen) openingScreen.classList.toggle("hidden", !opening);
-          if (playSurface) playSurface.classList.toggle("hidden", opening);
+          if (elTurnCount) elTurnCount.textContent = String(state.turn);
+          if (elLifeTotal) elLifeTotal.textContent = String(state.life);
+
+          var pregame = state.phase !== "play";
+          var required = requiredOpeningReturns();
+          var selected = Array.isArray(state.openingSelectionIDs) ? state.openingSelectionIDs.length : 0;
+          if (openingScreen) openingScreen.classList.toggle("hidden", !pregame);
+          if (openingLabelEl) {
+            openingLabelEl.textContent = state.phase === "cleanup" ? "Choose Cards to Put Back" : "Opening Hand";
+          }
+          if (openingHintEl) {
+            openingHintEl.textContent = state.phase === "cleanup"
+              ? ("Choose " + required + " card(s) to put on the bottom of your library.")
+              : "Review this hand, then keep or take a fresh seven.";
+          }
+          if (openingProgressEl) {
+            openingProgressEl.textContent = state.phase === "cleanup"
+              ? (selected + "/" + required + " selected")
+              : ((state.zones.hand || []).length + " cards");
+          }
+          if (btnMulligan) {
+            btnMulligan.textContent = "Mulligan (" + state.mulligans + ")";
+            btnMulligan.classList.toggle("hidden", state.phase !== "opening");
+          }
+          if (btnKeep) {
+            if (state.phase === "cleanup") {
+              btnKeep.textContent = "Begin (" + selected + "/" + required + ")";
+              btnKeep.disabled = selected !== required;
+            } else {
+              btnKeep.textContent = "Keep";
+              btnKeep.disabled = state.phase !== "opening";
+            }
+          }
 
           renderOpeningHand();
           renderBattlefieldZone();
@@ -1242,32 +2192,10 @@
           renderStackZone("graveyard", zoneEls.graveyard);
           renderStackZone("exile", zoneEls.exile);
           renderLibraryZone(zoneEls.library);
-
-          if (btnDraw) btnDraw.disabled = opening || state.zones.library.length === 0;
-          if (btnNextTurn) btnNextTurn.disabled = opening;
         }
 
-        if (btnReset) btnReset.addEventListener("click", startOpening);
-        if (btnDraw) btnDraw.addEventListener("click", drawOne);
-        if (btnNextTurn) btnNextTurn.addEventListener("click", nextTurn);
         if (btnKeep) btnKeep.addEventListener("click", keepOpening);
         if (btnMulligan) btnMulligan.addEventListener("click", mulliganOpening);
-
-        if (btnStatsToggle) {
-          btnStatsToggle.addEventListener("click", function () {
-            setStatsOverlay(!statsOverlayOpen());
-          });
-        }
-        if (btnStatsClose) {
-          btnStatsClose.addEventListener("click", function () {
-            setStatsOverlay(false);
-          });
-        }
-        if (btnStatsBackdrop) {
-          btnStatsBackdrop.addEventListener("click", function () {
-            setStatsOverlay(false);
-          });
-        }
 
         bindDropZone("command", zoneEls.command);
         bindDropZone("hand", zoneEls.hand);
@@ -1275,42 +2203,48 @@
         bindDropZone("graveyard", zoneEls.graveyard);
         bindDropZone("exile", zoneEls.exile);
 
-        // --- Coin flip ---
-        var btnFlipCoin = document.getElementById("pt-flip-coin");
-        var diceValues = [4, 6, 8, 10, 12, 20, 100];
-        var currentDiceIndex = 5; // default d20
+        if (zoneEls.library) {
+          zoneEls.library.addEventListener("click", function () {
+            drawOne();
+          });
+        }
+        if (btnLibraryMenuToggle) {
+          btnLibraryMenuToggle.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            setLibraryMenu(!libraryMenuOpen());
+          });
+        }
+        if (btnLibraryMenuShuffle) {
+          btnLibraryMenuShuffle.addEventListener("click", function () {
+            setLibraryMenu(false);
+            shuffleLibrary();
+          });
+        }
+        if (btnLibraryMenuScry1) {
+          btnLibraryMenuScry1.addEventListener("click", function () { startScry(1); });
+        }
+        if (btnLibraryMenuScry2) {
+          btnLibraryMenuScry2.addEventListener("click", function () { startScry(2); });
+        }
+        if (btnLibraryMenuScry3) {
+          btnLibraryMenuScry3.addEventListener("click", function () { startScry(3); });
+        }
 
+        // --- Coin flip ---
         function flipCoin() {
           var result = Math.random() < 0.5 ? "Heads" : "Tails";
           setStatus("Coin flip: " + result + "!");
         }
 
-        if (btnFlipCoin) btnFlipCoin.addEventListener("click", flipCoin);
-
         // --- Dice roller ---
-        var btnRollDice = document.getElementById("pt-roll-dice");
-
         function rollDice() {
-          var sides = diceValues[currentDiceIndex];
+          var sides = 20;
           var result = Math.floor(Math.random() * sides) + 1;
           setStatus("d" + sides + " roll: " + result + "!");
         }
 
-        function cycleDice(e) {
-          e.preventDefault();
-          currentDiceIndex = (currentDiceIndex + 1) % diceValues.length;
-          var sides = diceValues[currentDiceIndex];
-          btnRollDice.textContent = "Roll d" + sides;
-        }
-
-        if (btnRollDice) {
-          btnRollDice.addEventListener("click", rollDice);
-          btnRollDice.addEventListener("contextmenu", cycleDice);
-          btnRollDice.title = "Roll a die (R). Right-click to change die type.";
-        }
-
         // --- Token creation ---
-        var btnCreateToken = document.getElementById("pt-create-token");
         var tokenOverlay = document.getElementById("pt-token-overlay");
         var btnTokenClose = document.getElementById("pt-token-close");
         var btnTokenBackdrop = document.getElementById("pt-token-backdrop");
@@ -1332,6 +2266,18 @@
           return !tokenOverlay.classList.contains("hidden");
         }
 
+        function setGameMenuOverlay(open) {
+          if (!gameMenuOverlay) return;
+          if (open) setLibraryMenu(false);
+          gameMenuOverlay.classList.toggle("hidden", !open);
+          if (open && btnGameMenuClose) btnGameMenuClose.focus();
+        }
+
+        function gameMenuOverlayOpen() {
+          if (!gameMenuOverlay) return false;
+          return !gameMenuOverlay.classList.contains("hidden");
+        }
+
         function createTokens() {
           if (state.phase !== "play") {
             setStatus("Keep your opening hand first.");
@@ -1349,7 +2295,7 @@
           if (!typeLine) typeLine = "Token Creature";
 
           for (var i = 0; i < qty; i++) {
-            var token = createCard(label, "", typeLine, false);
+            var token = createCard(label, "", "", typeLine, "", false);
             token.isToken = true;
             state.zones.battlefield.push(token);
             setBattlefieldPosition(token, null, false);
@@ -1360,26 +2306,70 @@
           render();
         }
 
-        if (btnCreateToken) {
-          btnCreateToken.addEventListener("click", function () {
-            if (state.phase !== "play") {
-              setStatus("Keep your opening hand first.");
-              return;
-            }
-            setTokenOverlay(true);
-          });
-        }
         if (btnTokenClose) btnTokenClose.addEventListener("click", function () { setTokenOverlay(false); });
         if (btnTokenBackdrop) btnTokenBackdrop.addEventListener("click", function () { setTokenOverlay(false); });
         if (btnTokenSubmit) btnTokenSubmit.addEventListener("click", createTokens);
+        if (btnLifeDown) btnLifeDown.addEventListener("click", function () { adjustLife(-1); });
+        if (btnLifeUp) btnLifeUp.addEventListener("click", function () { adjustLife(1); });
+        if (btnEndTurn) btnEndTurn.addEventListener("click", nextTurn);
+        if (btnGameMenuToggle) btnGameMenuToggle.addEventListener("click", function () { setGameMenuOverlay(true); });
+        if (btnGameMenuRestart) btnGameMenuRestart.addEventListener("click", function () {
+          setGameMenuOverlay(false);
+          startOpening();
+        });
+        if (gameMenuReturnLink && isWorkbenchPlaytest) {
+          gameMenuReturnLink.addEventListener("click", function (e) {
+            e.preventDefault();
+            submitWorkbenchReturn();
+          });
+        }
+        if (btnGameMenuClose) btnGameMenuClose.addEventListener("click", function () { setGameMenuOverlay(false); });
+        if (btnGameMenuBackdrop) btnGameMenuBackdrop.addEventListener("click", function () { setGameMenuOverlay(false); });
+        if (isWorkbenchPlaytest) {
+          window.addEventListener("pagehide", persistWorkbenchDraftLocally);
+        }
+        if (btnScryCancel) btnScryCancel.addEventListener("click", cancelScry);
+        if (btnScryBackdrop) btnScryBackdrop.addEventListener("click", cancelScry);
+        if (btnScryFinish) btnScryFinish.addEventListener("click", finishScry);
+        if (btnCardMenuClose) btnCardMenuClose.addEventListener("click", function () { setCardMenuOverlay(false); });
+        if (btnCardMenuBackdrop) btnCardMenuBackdrop.addEventListener("click", function () { setCardMenuOverlay(false); });
+        if (btnCardMenuDetails) {
+          btnCardMenuDetails.addEventListener("click", function () {
+            setCardMenuOverlay(false);
+            setCardDetailOverlay(true);
+          });
+        }
+        cardMoveButtons.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var zone = String(btn.dataset.zone || "").trim();
+            var located = activeCard();
+            if (!located || !zone) return;
+            setCardMenuOverlay(false);
+            moveCard(located.card.id, zone);
+          });
+        });
+        if (btnCardDetailClose) btnCardDetailClose.addEventListener("click", function () { setCardDetailOverlay(false); });
+        if (btnCardDetailBackdrop) btnCardDetailBackdrop.addEventListener("click", function () { setCardDetailOverlay(false); });
+
+        document.addEventListener("click", function (e) {
+          if (!libraryMenuOpen()) return;
+          var target = e.target;
+          if (libraryMenu && libraryMenu.contains(target)) return;
+          if (btnLibraryMenuToggle && btnLibraryMenuToggle.contains(target)) return;
+          setLibraryMenu(false);
+        });
 
         document.addEventListener("keydown", function (e) {
           var key = String(e.key || "").toLowerCase();
 
           // Close overlays on Escape
           if (key === "escape") {
+            if (cardDetailOverlayOpen()) { setCardDetailOverlay(false); return; }
+            if (cardMenuOverlayOpen()) { setCardMenuOverlay(false); return; }
+            if (scryOverlayOpen()) { cancelScry(); return; }
+            if (gameMenuOverlayOpen()) { setGameMenuOverlay(false); return; }
             if (tokenOverlayOpen()) { setTokenOverlay(false); return; }
-            if (statsOverlayOpen()) { setStatsOverlay(false); return; }
+            if (libraryMenuOpen()) { setLibraryMenu(false); return; }
             return;
           }
 
@@ -1389,7 +2379,7 @@
             return;
           }
 
-          if (statsOverlayOpen() || tokenOverlayOpen()) return;
+          if (tokenOverlayOpen() || gameMenuOverlayOpen() || scryOverlayOpen() || cardMenuOverlayOpen() || cardDetailOverlayOpen() || libraryMenuOpen()) return;
           if (key === "d") drawOne();
           if (key === "n") nextTurn();
           if (key === "m") mulliganOpening();

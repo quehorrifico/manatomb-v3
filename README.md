@@ -1,7 +1,7 @@
 # Mana Tomb
 
-Mana Tomb is a hobby web application for *Magic: The Gathering* Commander players.  
-Search for cards using the Scryfall API, build and edit Commander decks, and explore various gameplay tools as the project evolves.
+Mana Tomb is a hobby web application for *Magic: The Gathering* players.
+Search cards from a local Scryfall-powered database, build decks across formats, publish public deck pages, and explore gameplay tools as the project evolves.
 
 This project also serves as a full‑stack learning environment focused on **Go**, **PostgreSQL**, **TailwindCSS**, and maintainable backend architecture.
 
@@ -11,13 +11,14 @@ This project also serves as a full‑stack learning environment focused on **Go*
 
 ## Features
 
-- Card search powered by Scryfall  
-- Commander search and quick “Use as commander” flow  
-- Deck builder (create, edit, add/remove cards)  
-- User accounts and session-based authentication  
-- TailwindCSS dark UI theme  
-- Dockerized Go backend deployed on DigitalOcean  
-- PostgreSQL database schema for users, decks, cards, and sessions  
+- Card search with local canonical card data and print-version browsing
+- Commander search plus local deck creation for other MTG formats
+- Deck builder with saved decks, guest decks, maybeboard support, and import flows
+- Public deck publishing, browse, detail pages, and fork-to-account flow
+- Deck analytics with format-aware validation warnings
+- Goldfish playtest with mulligans, drag/drop zones, coin flip, dice roll, and token creation
+- User accounts, session-based authentication, and account settings
+- Dockerized Go backend with PostgreSQL persistence
 
 ---
 
@@ -49,10 +50,12 @@ cp .env.example .env
 
 Example values:
 
-```
-MT_DB_DSN=postgres://username:password@localhost:5432/manatomb?sslmode=disable
-MT_SESSION_KEY=dev-session-key-change-me
-SCRYFALL_BASE_URL=https://api.scryfall.com
+```env
+DATABASE_URL=postgres://username:password@localhost:5432/manatomb?sslmode=disable
+SESSION_SECRET=dev-session-secret-change-me
+SESSION_COOKIE_SECURE=false
+CARD_SYNC_ENABLED=true
+CARD_SYNC_ON_START=false
 PORT=8080
 ```
 
@@ -60,7 +63,9 @@ PORT=8080
 
 ```
 docker run --name manatomb-db \
+  -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=manatomb \
   -p 5432:5432 \
   -d postgres:15
 ```
@@ -70,6 +75,19 @@ docker run --name manatomb-db \
 ```
 go run ./cmd/server
 ```
+
+The app reads `.env` automatically when you run it from the repo root.
+
+To force a full Scryfall bulk sync immediately on startup:
+
+```
+go run ./cmd/server --sync-now
+```
+
+Sync behavior:
+
+- The app schedules a bulk sync every 24 hours from process start.
+- You can force an immediate startup sync with `--sync-now` or `CARD_SYNC_ON_START=true`.
 
 Navigate to:
 
@@ -92,12 +110,13 @@ docker run -p 8080:8080 --env-file .env manatomb
 
 Mana Tomb is deployed on DigitalOcean App Platform.
 
-- Environment variables configure the app (no secrets in code).  
+- Environment variables configure the app.
 - Backend connects to a managed PostgreSQL instance.  
 - The server ensures required database tables exist on startup.  
 - Deployments are triggered from changes to the `main` branch.
+- Health checks can target `GET /healthz`.
 
-Sensitive credentials, connection strings, and production notes should be kept in a private ops document outside this repository.
+Sensitive credentials and connection strings should be kept outside this repository.
 
 ---
 

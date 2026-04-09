@@ -1,207 +1,72 @@
 {{ define "home" }}
   {{ template "layout_header" . }}
-  <style>
-    header { display: none; }
-  </style>
+  {{ $ctx := .Data }}
 
-  {{ if .CurrentUser }}
-  {{ $u := .CurrentUser }}
-
-  <section class="max-w-2xl mx-auto py-10 space-y-10">
-
-    <!-- Hero -->
+  <section class="max-w-3xl mx-auto py-10 px-4 space-y-6">
     <div class="text-center space-y-3">
-      <h1 class="text-4xl sm:text-5xl font-semibold tracking-tight">
-        <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-          Mana Tomb
-        </span>
+      <p class="mt-kicker">{{ if .CurrentUser }}Welcome Back{{ else }}Build MTG Decks{{ end }}</p>
+      <h1 class="mt-title">
+        {{ if .CurrentUser }}
+          Build. Test. Win. Repeat.
+        {{ else }}
+          Across every format.
+          <br/>
+          Absolutely free.
+        {{ end }}
       </h1>
-
-      <p class="text-sm sm:text-base text-slate-300">
-        Welcome back, <span class="text-sky-300 font-medium">{{ $u.DisplayName }}</span>.
-      </p>
     </div>
 
-    <!-- Search -->
-    <div>
-      <form action="/cards/search" method="GET" class="relative">
-        <label for="q" class="sr-only">Search for a Magic card</label>
-        <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 shadow-inner shadow-sky-500/10 focus-within:border-sky-400/80 focus-within:shadow-sky-500/25 transition-all">
-          <input
-            id="q"
-            name="q"
-            type="text"
-            placeholder="Search for a Magic card (e.g. Sol Ring, Mana Drain)..."
-            class="flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
-            autocomplete="off"
-          />
-          <button
-            type="submit"
-            class="inline-flex items-center rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-colors"
-          >
-            Search
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Primary actions (4 buttons) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-3 rounded-xl border border-slate-800 bg-slate-950/80 p-2 shadow-md shadow-sky-500/10">
-
-      <!-- My Decks -->
-      <a href="/decks"
-         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
-        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
-          My Decks
-        </p>
-        <p class="text-[0.78rem] text-slate-400">View and edit your Commander decks.</p>
-      </a>
-
-      <!-- Browse Decks -->
-      <a href="/decks/public"
-         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
-        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
-          Browse Decks
-        </p>
-        <p class="text-[0.78rem] text-slate-400">Explore community-created decks.</p>
-      </a>
-
-      <!-- Rulings Search -->
-      <a href="/rules"
-         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
-        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
-          Rulings Search
-        </p>
-        <p class="text-[0.78rem] text-slate-400">Look up Judge-style clarifications.</p>
-      </a>
-
-      <!-- Deck Builder -->
-      <a href="/decks/new"
-         class="group flex flex-col items-center justify-center rounded-lg px-4 py-4 text-center text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
-        <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
-          Deck Builder
-        </p>
-        <p class="text-[0.78rem] text-slate-400">Start a Commander, Sandbox, or Import build.</p>
-      </a>
-
-    </div>
-  </section>
-
-  {{ else }}
-    <section class="max-w-2xl mx-auto py-10 space-y-10">
-      <!-- Logo / Hero -->
-      <div class="text-center space-y-4">
-        <h1 class="text-4xl sm:text-5xl font-semibold tracking-tight">
-          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-            Mana Tomb
-          </span>
-        </h1>
-
-        <p class="text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
-          Search Magic cards, explore decks, and learn rulings — no account required.
-        </p>
-      </div>
-
-      <!-- TODO: Rotating art placeholder
-      <div class="mt-6">
-        <div class="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950/80 py-6 px-4 flex flex-col items-center justify-center">
-          <div class="mb-3 h-28 w-full max-w-md rounded-lg bg-gradient-to-br from-sky-500/40 via-slate-800 to-slate-950 opacity-80"></div>
-          <p class="text-[0.7rem] text-slate-400 text-center max-w-md">
-            Future rotating Mana Tomb art will appear here. In the future, this will showcase community logos and artwork with credit links.
-          </p>
-        </div>
-      </div> -->
-
-      <!-- Card Search + Primary actions -->
-      <div class="space-y-6">
-        <div>
-          <form action="/cards/search" method="GET" class="relative">
-            <label for="q" class="sr-only">Search for a Magic card</label>
-            <div class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 shadow-inner shadow-sky-500/10 focus-within:border-sky-400/80 focus-within:shadow-sky-500/25 transition-all">
+    <div class="mt-panel p-5 sm:p-6 space-y-5">
+      <div class="space-y-3">
+        <form action="/cards" method="GET">
+          <label for="home-card-search" class="sr-only">Search for a Magic card</label>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1" data-card-autocomplete-root>
               <input
-                id="q"
+                id="home-card-search"
                 name="q"
                 type="text"
-                placeholder="Search for a Magic card (e.g. Sol Ring, Mana Drain)..."
-                class="flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+                placeholder="Search for a card"
+                class="mt-control flex-1"
                 autocomplete="off"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-haspopup="listbox"
+                data-card-autocomplete-input
               />
-              <button
-                type="submit"
-                class="inline-flex items-center rounded-md bg-sky-500 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900 transition-colors"
-              >
-                Search
-              </button>
+              <div
+                data-card-autocomplete-menu
+                class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                role="listbox"></div>
             </div>
-          </form>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded-xl border border-slate-800 bg-slate-950/80 p-1.5 shadow-md shadow-sky-500/10">
-          <!-- Browse Decks -->
-          <a href="/decks/public"
-             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
-            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
-              Browse Decks
-            </p>
-            <p class="text-[0.72rem] text-slate-400">
-              Explore community decks and see what other players are brewing.
-            </p>
-          </a>
-
-          <!-- Rulings Search -->
-          <a href="/rules"
-             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
-            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
-              Rulings Search
-            </p>
-            <p class="text-[0.72rem] text-slate-400">
-              Ask tricky rules questions and learn how cards interact.
-            </p>
-          </a>
-
-          <!-- Deck Builder -->
-          <a href="/decks/new"
-             class="group flex flex-col items-center justify-center rounded-lg px-3 py-3 text-center text-xs sm:text-sm font-medium text-slate-200 hover:bg-slate-900/80 hover:border-sky-400/60 border border-transparent transition-all">
-            <p class="mb-1 text-[0.7rem] uppercase tracking-[0.18em] text-sky-300/80 group-hover:text-sky-200">
-              Deck Builder
-            </p>
-            <p class="text-[0.72rem] text-slate-400">
-              Choose Commander, Sandbox, or Import to get started.
-            </p>
-          </a>
-        </div>
+            <button type="submit" class="mt-btn mt-btn--primary">Search</button>
+          </div>
+        </form>
       </div>
 
-      <!-- Supporting text -->
-      
-    </section>
-  {{ end }}
+      {{ if not .CurrentUser }}
+        <div class="flex flex-wrap justify-center gap-3">
+          <a href="/decks/new" class="mt-btn mt-btn--primary">Builder</a>
+          <a href="/cards/search" class="mt-btn mt-btn--secondary">Advanced Search</a>
+          <a href="/decks/public" class="mt-btn mt-btn--secondary">Browse Decks</a>
+        </div>
+      {{ end }}
 
-  <!-- Bottom credit near footer -->
-  <div class="mt-24 space-y-1 text-center">
-    <p class="text-xs text-slate-500">
-      Card data and images courtesy of
-      <a href="https://scryfall.com" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Scryfall</a>.
-    </p>
-
-    {{ if .CurrentUser }}
-      <p class="text-xs text-slate-500 space-x-4">
-        <a href="/settings" class="text-sky-300 hover:text-sky-200 font-medium">Settings</a>
-        <a href="/logout" class="text-sky-300 hover:text-sky-200 font-medium">Sign out</a>
-      </p>
-    {{ else }}
-      <p class="text-xs text-slate-500">
-        Want to save decks and sync between devices?
-        <a href="/signup" class="text-sky-300 hover:text-sky-200 font-medium">
-          Create an account
-        </a>
-        or
-        <a href="/login" class="text-sky-300 hover:text-sky-200 font-medium">
-          log in
-        </a>.
-      </p>
-    {{ end }}
-  </div>
+      {{ if .CurrentUser }}
+        {{ $recent := $ctx.RecentDecks }}
+        <div class="pt-1 space-y-3">
+          <p class="mt-section-label text-center">Recent Decks</p>
+          <div class="flex flex-wrap justify-center gap-2">
+            {{ range $recent }}
+              <a href="/decks/{{ .ID }}" class="mt-btn mt-btn--secondary mt-btn--xs">{{ .Name }}</a>
+            {{ else }}
+              <p class="text-xs text-slate-500">No decks.</p>
+            {{ end }}
+          </div>
+        </div>
+      {{ end }}
+    </div>
+  </section>
 
   {{ template "layout_footer" . }}
 {{ end }}

@@ -2,243 +2,425 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
-    <!-- Page header -->
+  <main class="max-w-6xl mx-auto py-10 px-4 space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">
-          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-            Card Search
-          </span>
-        </h2>
-        <p class="text-sm text-slate-400 mt-1">
-          Search ManaTomb's local card database and add cards directly to your decks.
-        </p>
+      <div class="space-y-2">
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Advanced Card Search</h1>
       </div>
 
-      {{ if .CurrentUser }}
-        <div class="flex flex-wrap gap-2">
-          <a href="/decks"
-             class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-            My decks
-          </a>
-        </div>
-      {{ end }}
+      <div class="flex flex-wrap gap-2">
+        {{ if .CurrentUser }}
+          <a href="/decks" class="mt-btn mt-btn--secondary mt-btn--sm">Decks</a>
+        {{ end }}
+        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
+      </div>
     </div>
 
-    <!-- Search + filters -->
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 space-y-4 shadow-md shadow-sky-500/10">
-      <form method="GET" action="/cards/search" class="space-y-4">
-        <div class="flex flex-col md:flex-row gap-3">
-          <label class="flex-1 text-sm text-slate-200">
-            <span class="block text-xs font-medium text-slate-400 mb-1">Name</span>
-            <input type="text"
-                   name="q"
-                   value="{{ $ctx.Query }}"
-                   placeholder="Search by name (e.g. Sol Ring, Lightning Bolt)"
-                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-          </label>
-        </div>
+    <section class="mt-panel p-5 sm:p-6 space-y-6">
 
-        <div class="grid gap-4 md:grid-cols-2">
-          <fieldset class="text-sm text-slate-200">
-            <legend class="block text-xs font-medium text-slate-400 mb-1">
-              Colors (color identity)
-            </legend>
-            <div class="flex flex-wrap gap-3">
-              <label class="inline-flex items-center gap-1">
-                <input type="checkbox" name="color" value="W"
-                       class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500">
-                <span>W</span>
-              </label>
-              <label class="inline-flex items-center gap-1">
-                <input type="checkbox" name="color" value="U"
-                       class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500">
-                <span>U</span>
-              </label>
-              <label class="inline-flex items-center gap-1">
-                <input type="checkbox" name="color" value="B"
-                       class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500">
-                <span>B</span>
-              </label>
-              <label class="inline-flex items-center gap-1">
-                <input type="checkbox" name="color" value="R"
-                       class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500">
-                <span>R</span>
-              </label>
-              <label class="inline-flex items-center gap-1">
-                <input type="checkbox" name="color" value="G"
-                       class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500">
-                <span>G</span>
+      <form method="GET" action="/cards" class="space-y-6">
+        <section class="space-y-3">
+          <div class="grid gap-4 lg:grid-cols-3">
+            <label class="block text-sm text-slate-200">
+              <span class="mt-field-label">Name</span>
+              <div class="relative" data-card-autocomplete-root>
+                <input type="text"
+                       name="q"
+                       value="{{ $ctx.NameQuery }}"
+                       placeholder="Thassa's Oracle"
+                       class="mt-control"
+                       autocomplete="off"
+                       aria-autocomplete="list"
+                       aria-expanded="false"
+                       aria-haspopup="listbox"
+                       data-card-autocomplete-input>
+                <div
+                  data-card-autocomplete-menu
+                  class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                  role="listbox"></div>
+              </div>
+            </label>
+
+            <label class="block text-sm text-slate-200">
+              <span class="mt-field-label">Text</span>
+              <input type="text"
+                     name="text"
+                     value="{{ $ctx.TextQuery }}"
+                     placeholder="When this creature enters, look at the top X cards of your library..."
+                     class="mt-control">
+            </label>
+
+            <div class="space-y-2" data-type-filter-root>
+              <div class="flex items-center justify-between gap-2">
+                <span class="mt-field-label !mb-0">Type Line</span>
+                <span class="text-[11px] text-slate-500">Add one or more types.</span>
+              </div>
+
+              <div class="space-y-3">
+                <div class="relative">
+                  <div class="flex gap-2">
+                    <input type="text"
+                           data-type-filter-input
+                           placeholder="Search card types"
+                           autocomplete="off"
+                           class="mt-control">
+                    <button type="button"
+                            data-type-filter-toggle
+                            class="mt-btn mt-btn--secondary mt-btn--sm"
+                            aria-label="Show card types">
+                      Types
+                    </button>
+                    <button type="button"
+                            data-type-filter-add
+                            class="mt-btn mt-btn--secondary mt-btn--sm">
+                      Add
+                    </button>
+                  </div>
+
+                  <div data-type-filter-menu hidden class="absolute left-0 right-0 z-20 mt-2 rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl shadow-slate-950/60">
+                    <div class="max-h-56 overflow-y-auto p-2 space-y-1">
+                      {{ range $ctx.TypeOptions }}
+                        <button type="button"
+                                data-type-filter-option="{{ . }}"
+                                class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800 hover:text-slate-50">
+                          {{ . }}
+                        </button>
+                      {{ end }}
+                      <div data-type-filter-empty hidden class="rounded-lg px-3 py-2 text-sm text-slate-500">
+                        No matching types.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div data-type-filter-selected class="flex flex-wrap gap-2"></div>
+                <div data-type-filter-hidden>
+                  {{ range $ctx.TypeFilters }}
+                    <input type="hidden" name="type_value" value="{{ .Value }}">
+                    <input type="hidden" name="type_mode" value="{{ .Mode }}">
+                  {{ end }}
+                </div>
+                <p data-type-filter-status class="mt-hint">Each type can be set to `IS` or `NOT`.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="space-y-3">
+          <div class="mt-subpanel space-y-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p class="mt-field-label !mb-0">Colors</p>
+              <label class="text-[11px] text-slate-400">
+                <span class="sr-only">Color match mode</span>
+                <select name="color_mode" class="mt-control mt-control--sm text-xs text-slate-200">
+                  <option value="exact" {{ if eq $ctx.ColorMode "exact" }}selected{{ end }}>Exactly these colors</option>
+                  <option value="includes" {{ if eq $ctx.ColorMode "includes" }}selected{{ end }}>Including these colors</option>
+                  <option value="at_most" {{ if eq $ctx.ColorMode "at_most" }}selected{{ end }}>At most these colors</option>
+                </select>
               </label>
             </div>
-            <p class="mt-1 text-xs text-slate-500">
-              Leave empty for any colors.
-            </p>
-          </fieldset>
 
-          <div class="text-sm text-slate-200">
-            <label class="block text-xs font-medium text-slate-400 mb-1">
-              Type
-            </label>
-            <select name="type"
-                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-              <option value="">Any type</option>
-              <option value="creature">Creature</option>
-              <option value="instant">Instant</option>
-              <option value="sorcery">Sorcery</option>
-              <option value="artifact">Artifact</option>
-              <option value="enchantment">Enchantment</option>
-              <option value="planeswalker">Planeswalker</option>
-              <option value="land">Land</option>
-            </select>
-            <p class="mt-1 text-xs text-slate-500">
-              Simple Scryfall type filter (e.g. creature, instant, land).
-            </p>
+            <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <label class="mt-check-pill justify-between">
+                <span>White</span>
+                <input type="checkbox" name="color" value="W" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "W" }}checked{{ end }}>
+              </label>
+              <label class="mt-check-pill justify-between">
+                <span>Blue</span>
+                <input type="checkbox" name="color" value="U" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "U" }}checked{{ end }}>
+              </label>
+              <label class="mt-check-pill justify-between">
+                <span>Black</span>
+                <input type="checkbox" name="color" value="B" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "B" }}checked{{ end }}>
+              </label>
+              <label class="mt-check-pill justify-between">
+                <span>Red</span>
+                <input type="checkbox" name="color" value="R" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "R" }}checked{{ end }}>
+              </label>
+              <label class="mt-check-pill justify-between">
+                <span>Green</span>
+                <input type="checkbox" name="color" value="G" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "G" }}checked{{ end }}>
+              </label>
+              <label class="mt-check-pill justify-between">
+                <span>Colorless</span>
+                <input type="checkbox" name="color" value="C" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "C" }}checked{{ end }}>
+              </label>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div class="flex justify-end">
-          <button type="submit"
-                  class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
-            Search
-          </button>
+        <section class="space-y-3">
+          <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+
+            <label class="block text-sm text-slate-200">
+              <span class="mt-field-label">Rarity</span>
+              <select name="rarity" class="mt-control">
+                <option value="">Any rarity</option>
+                <option value="common" {{ if eq $ctx.Rarity "common" }}selected{{ end }}>Common</option>
+                <option value="uncommon" {{ if eq $ctx.Rarity "uncommon" }}selected{{ end }}>Uncommon</option>
+                <option value="rare" {{ if eq $ctx.Rarity "rare" }}selected{{ end }}>Rare</option>
+                <option value="mythic" {{ if eq $ctx.Rarity "mythic" }}selected{{ end }}>Mythic</option>
+              </select>
+            </label>
+
+            <label class="block text-sm text-slate-200">
+              <span class="mt-field-label">Set</span>
+              <input type="text"
+                     name="set"
+                     value="{{ $ctx.SetQuery }}"
+                     placeholder="Set name or code"
+                     class="mt-control">
+            </label>
+          </div>
+
+          <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <label class="block text-sm text-slate-200">
+              <span class="mt-field-label">Artist</span>
+              <input type="text"
+                     name="artist"
+                     value="{{ $ctx.ArtistQuery }}"
+                     placeholder="Artist name"
+                     class="mt-control">
+            </label>
+
+            <div class="flex items-end">
+              <label class="mt-check-pill">
+                <input type="checkbox" name="commander" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderOnly }}checked{{ end }}>
+                <span>Commander cards only</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <div class="flex flex-wrap justify-end gap-2">
+          <a href="/cards/search" class="mt-btn mt-btn--secondary">Clear</a>
+          <button type="submit" class="mt-btn mt-btn--primary">Search Cards</button>
         </div>
       </form>
     </section>
-
-    <!-- Results -->
-    <section class="space-y-3">
-      {{ if $ctx.HasSearched }}
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-slate-100">
-            Results
-            {{ if $ctx.Results }}
-              <span class="ml-1 text-xs text-slate-500">
-                ({{ len $ctx.Results }})
-              </span>
-            {{ end }}
-          </h3>
-          <p class="text-xs text-slate-500">
-            Results show the latest printing first. Click a card to see details and switch versions.
-          </p>
-        </div>
-
-        {{ if $ctx.Results }}
-        <ul class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {{ range $ctx.Results }}
-            <li class="rounded-xl border border-slate-800 bg-slate-950/80 p-2 shadow-md shadow-sky-500/10">
-              <button
-                type="button"
-                class="w-full flex items-center justify-center"
-                data-card-detail
-                data-oracle-id="{{ .OracleID }}"
-                data-name="{{ .Name }}"
-                data-mana-cost="{{ .ManaCost }}"
-                data-type-line="{{ .TypeLine }}"
-                data-image-uri="{{ .ImageURI }}"
-                data-price="{{ .PriceUSD }}"
-                data-artist="{{ .Artist }}"
-                data-set-code="{{ .SetCode }}"
-                data-set-name="{{ .SetName }}"
-                data-released-at="{{ .ReleasedAt }}"
-                data-faces='{{ .FacesJSON }}'>
-                {{ if .ImageURI }}
-                  <img src="{{ .ImageURI }}"
-                       alt="{{ .Name }}"
-                       class="w-full h-auto rounded-md border border-slate-800 shadow-md shadow-slate-900/80">
-                {{ else }}
-                  <div class="w-full aspect-[3/4] flex items-center justify-center text-xs text-slate-400">
-                    No image
-                  </div>
-                {{ end }}
-              </button>
-              <div class="hidden js-oracle-text">
-                {{ .OracleText }}
-              </div>
-            </li>
-          {{ end }}
-        </ul>
-        {{ else }}
-          <p class="text-sm text-slate-400">
-            No results. Try adjusting your name, colors, or type filters.
-          </p>
-        {{ end }}
-      {{ else }}
-        <p class="text-sm text-slate-400">
-          Enter a name or choose filters above to begin searching.
-        </p>
-      {{ end }}
-    </section>
   </main>
 
-  <!-- Card detail modal -->
-  <div id="card-detail-modal"
-       class="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-50 hidden">
-    <div class="max-w-xl w-full mx-4 rounded-xl border border-slate-800 bg-slate-950 p-4 shadow-lg shadow-sky-500/20 relative">
-      <button type="button"
-              class="absolute top-2 right-2 text-slate-400 hover:text-slate-200 text-xs"
-              data-close-modal>
-        Close
-      </button>
+  <script id="cards-type-filters-data" type="application/json">{{ $ctx.TypeFiltersJSON }}</script>
+  <script>
+    (function () {
+      const root = document.querySelector("[data-type-filter-root]");
+      if (!root) return;
 
-      <div class="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] items-start">
-        <div class="flex items-center justify-center">
-          <img data-field="image"
-               alt=""
-               class="w-full max-w-xs h-auto rounded-md border border-slate-800 shadow-md shadow-slate-900/80">
-        </div>
+      const filtersData = document.getElementById("cards-type-filters-data");
+      const input = root.querySelector("[data-type-filter-input]");
+      const toggleButton = root.querySelector("[data-type-filter-toggle]");
+      const addButton = root.querySelector("[data-type-filter-add]");
+      const menu = root.querySelector("[data-type-filter-menu]");
+      const options = Array.from(root.querySelectorAll("[data-type-filter-option]"));
+      const emptyState = root.querySelector("[data-type-filter-empty]");
+      const selected = root.querySelector("[data-type-filter-selected]");
+      const hidden = root.querySelector("[data-type-filter-hidden]");
+      const status = root.querySelector("[data-type-filter-status]");
+      const colorInputs = Array.from(document.querySelectorAll('input[name="color"]'));
+      const colorlessInput = document.querySelector('input[name="color"][value="C"]');
 
-        <div class="space-y-3 text-sm text-slate-200">
-          <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
-          <div class="space-y-1">
-            <label for="printing-select" class="block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Version
-            </label>
-            <select id="printing-select" data-field="printing-select"
-                    class="w-full rounded-md border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-              <option value="">Latest printing</option>
-            </select>
-            <p class="text-[11px] text-slate-500" data-field="printing-meta"></p>
-          </div>
-          <p class="text-xs uppercase tracking-wide text-slate-400">
-            <span data-field="type-line"></span>
-          </p>
+      let filters = [];
+      try {
+        filters = JSON.parse(filtersData ? filtersData.textContent : "[]");
+      } catch (error) {
+        filters = [];
+      }
 
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
-            <span>
-              <span class="font-medium text-slate-200">Cost:</span>
-              <span data-field="mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
-            </span>
-            <span>
-              <span class="font-medium text-slate-200">Price:</span>
-              <span data-field="price-usd">—</span>
-            </span>
-            <span>
-              <span class="font-medium text-slate-200">Artist:</span>
-              <span data-field="artist">—</span>
-            </span>
-          </div>
+      function setStatus(message) {
+        if (!status) return;
+        status.textContent = message || "Pick a type, then set each one to IS or NOT.";
+      }
 
-          <p class="text-xs text-slate-500">
-            Prices via Scryfall (USD, approximate).
-          </p>
+      function canonicalType(value) {
+        const raw = (value || "").trim().toLowerCase();
+        if (!raw) return "";
+        for (const option of options) {
+          const optionValue = option.dataset.typeFilterOption || "";
+          if (optionValue.toLowerCase() === raw) {
+            return optionValue;
+          }
+        }
+        return "";
+      }
 
-          <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
+      function showMenu() {
+        filterOptions();
+        menu.hidden = false;
+      }
 
-          <div class="mt-4 flex justify-end">
-            <button type="button"
-                    class="px-3 py-1.5 text-xs rounded-md bg-sky-500 text-slate-950 font-semibold hover:bg-sky-400 hidden"
-                    data-flip-card>
-              Flip card
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+      function hideMenu() {
+        menu.hidden = true;
+      }
 
-  {{ template "card_detail_modal_script" . }}
+      function renderFilters() {
+        selected.innerHTML = "";
+        hidden.innerHTML = "";
+
+        filters.forEach(function (filter, index) {
+          const chip = document.createElement("div");
+          chip.className = "inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 pl-3 pr-1 py-1 text-sm text-slate-100";
+
+          const value = document.createElement("span");
+          value.textContent = filter.value;
+          chip.appendChild(value);
+
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.textContent = filter.mode === "not" ? "NOT" : "IS";
+          toggle.className = filter.mode === "not"
+            ? "rounded-full border border-rose-500/50 bg-rose-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-200 transition-colors hover:bg-rose-500/25"
+            : "rounded-full border border-sky-500/50 bg-sky-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-200 transition-colors hover:bg-sky-500/25";
+          toggle.addEventListener("click", function () {
+            filters[index].mode = filters[index].mode === "not" ? "is" : "not";
+            renderFilters();
+          });
+          chip.appendChild(toggle);
+
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.textContent = "X";
+          remove.className = "rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50";
+          remove.addEventListener("click", function () {
+            filters.splice(index, 1);
+            renderFilters();
+            filterOptions();
+          });
+          chip.appendChild(remove);
+
+          selected.appendChild(chip);
+
+          const valueInput = document.createElement("input");
+          valueInput.type = "hidden";
+          valueInput.name = "type_value";
+          valueInput.value = filter.value;
+          hidden.appendChild(valueInput);
+
+          const modeInput = document.createElement("input");
+          modeInput.type = "hidden";
+          modeInput.name = "type_mode";
+          modeInput.value = filter.mode;
+          hidden.appendChild(modeInput);
+        });
+      }
+
+      function filterOptions() {
+        const query = (input.value || "").trim().toLowerCase();
+        let visibleCount = 0;
+
+        options.forEach(function (option) {
+          const value = option.dataset.typeFilterOption || "";
+          const alreadySelected = filters.some(function (filter) {
+            return filter.value.toLowerCase() === value.toLowerCase();
+          });
+          const matches = query === "" || value.toLowerCase().includes(query);
+          const visible = !alreadySelected && matches;
+          option.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+
+        if (emptyState) {
+          emptyState.hidden = visibleCount !== 0;
+        }
+      }
+
+      function addFilter(rawValue) {
+        const value = canonicalType(rawValue);
+        if (!value) {
+          setStatus("Choose a type from the list.");
+          return;
+        }
+        const exists = filters.some(function (filter) {
+          return filter.value.toLowerCase() === value.toLowerCase();
+        });
+        if (exists) {
+          setStatus("That type is already added.");
+          return;
+        }
+        filters.push({ value: value, mode: "is" });
+        input.value = "";
+        setStatus("");
+        renderFilters();
+        hideMenu();
+      }
+
+      input.addEventListener("focus", function () {
+        setStatus("");
+        showMenu();
+      });
+      input.addEventListener("click", function () {
+        showMenu();
+      });
+      input.addEventListener("input", function () {
+        showMenu();
+      });
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          hideMenu();
+          return;
+        }
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+
+        const firstVisible = options.find(function (option) {
+          return !option.hidden;
+        });
+        if (firstVisible) {
+          addFilter(firstVisible.dataset.typeFilterOption || "");
+          return;
+        }
+        addFilter(input.value);
+      });
+
+      toggleButton.addEventListener("click", function () {
+        if (menu.hidden) {
+          input.focus();
+          showMenu();
+          return;
+        }
+        hideMenu();
+      });
+
+      addButton.addEventListener("click", function () {
+        addFilter(input.value);
+      });
+
+      options.forEach(function (option) {
+        option.addEventListener("mousedown", function (event) {
+          event.preventDefault();
+          addFilter(option.dataset.typeFilterOption || "");
+        });
+      });
+
+      root.addEventListener("focusin", function () {
+        showMenu();
+      });
+
+      document.addEventListener("mousedown", function (event) {
+        if (!root.contains(event.target)) {
+          hideMenu();
+        }
+      });
+
+      colorInputs.forEach(function (inputEl) {
+        inputEl.addEventListener("change", function () {
+          if (!colorlessInput) return;
+          if (inputEl.value === "C" && inputEl.checked) {
+            colorInputs.forEach(function (other) {
+              if (other !== inputEl) other.checked = false;
+            });
+            return;
+          }
+          if (inputEl.value !== "C" && inputEl.checked) {
+            colorlessInput.checked = false;
+          }
+        });
+      });
+
+      renderFilters();
+      filterOptions();
+      hideMenu();
+    })();
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

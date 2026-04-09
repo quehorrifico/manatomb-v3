@@ -42,6 +42,9 @@ type TemplateData struct {
 	Flash       string
 	Error       string
 	WideLayout  bool
+	HomeHeader  bool
+	HideHeader  bool
+	HideFooter  bool
 }
 
 func (a *App) withCurrentUser(next http.Handler) http.Handler {
@@ -79,6 +82,7 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 			CurrentUser: nil,
 			Data:        nil, // no extra data needed
 			Flash:       flash,
+			HomeHeader:  true,
 		}
 		a.Renderer.Render(w, "home", data)
 		return
@@ -105,7 +109,8 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 		Data: homeData{
 			RecentDecks: userDecks,
 		},
-		Flash: flash,
+		Flash:      flash,
+		HomeHeader: true,
 	}
 
 	a.Renderer.Render(w, "home", data)

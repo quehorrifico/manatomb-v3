@@ -47,6 +47,8 @@ type deckAnalyticsData struct {
 	Curve6Count           int                  `json:"curve_6_count"`
 	Curve7PlusCount       int                  `json:"curve_7_plus_count"`
 	DeckExtras            []deckAnalyticsExtra `json:"deck_extras"`
+	GuideChecks           []deckGuideCheck     `json:"guide_checks,omitempty"`
+	ValidationWarnings    []string             `json:"validation_warnings,omitempty"`
 }
 
 type deckAnalyticsExtra struct {
@@ -54,17 +56,27 @@ type deckAnalyticsExtra struct {
 	Count int    `json:"count"`
 }
 
+type deckGuideCheck struct {
+	Label  string `json:"label"`
+	Value  string `json:"value"`
+	Target string `json:"target,omitempty"`
+	Hint   string `json:"hint,omitempty"`
+	Tone   string `json:"tone"`
+}
+
 type deckAnalyticsCardInput struct {
 	Name       string
 	TypeLine   string
 	OracleText string
 	AllParts   string
+	ColorID    string
 	CMC        float64
 	Qty        int
 }
 
 type deckAnalyticsRequest struct {
 	DeckID        int64  `json:"deck_id"`
+	Format        string `json:"format"`
 	CommanderName string `json:"commander_name"`
 	Cards         []struct {
 		Name string `json:"name"`
@@ -72,11 +84,11 @@ type deckAnalyticsRequest struct {
 	} `json:"cards"`
 }
 
-func emptyDeckAnalytics(commanderName string) deckAnalyticsData {
-	return computeDeckAnalytics(commanderName, nil)
+func emptyDeckAnalytics(format, commanderName string) deckAnalyticsData {
+	return computeDeckAnalytics(format, commanderName, nil)
 }
 
-func computeDeckAnalyticsFromDeckCards(commanderName string, deckCards []decks.DeckCard) deckAnalyticsData {
+func computeDeckAnalyticsFromDeckCards(format, commanderName string, deckCards []decks.DeckCard) deckAnalyticsData {
 	rows := make([]deckAnalyticsCardInput, 0, len(deckCards))
 	for _, dc := range deckCards {
 		rows = append(rows, deckAnalyticsCardInput{
@@ -84,16 +96,18 @@ func computeDeckAnalyticsFromDeckCards(commanderName string, deckCards []decks.D
 			TypeLine:   strings.TrimSpace(dc.TypeLine),
 			OracleText: strings.TrimSpace(dc.OracleText),
 			AllParts:   strings.TrimSpace(dc.AllPartsJSON),
+			ColorID:    strings.TrimSpace(dc.ColorIdentity),
 			CMC:        dc.CMC,
 			Qty:        dc.Quantity,
 		})
 	}
-	return computeDeckAnalytics(commanderName, rows)
+	return computeDeckAnalytics(format, commanderName, rows)
 }
 
-func computeDeckAnalytics(commanderName string, rows []deckAnalyticsCardInput) deckAnalyticsData {
+func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCardInput) deckAnalyticsData {
+	format = decks.NormalizeFormat(format)
 	commanderName = strings.TrimSpace(commanderName)
-	commanderSet := commanderName != ""
+	commanderSet := decks.FormatRequiresCommander(format) && commanderName != ""
 
 	out := deckAnalyticsData{
 		CommanderSet:      commanderSet,
@@ -237,6 +251,8 @@ func computeDeckAnalytics(commanderName string, rows []deckAnalyticsCardInput) d
 		out.AverageCMCDisplay = fmt.Sprintf("%.2f", out.AverageCMC)
 	}
 	out.DeckExtras = orderedDeckExtras(extraCounts)
+	out.GuideChecks = buildDeckGuideChecks(format, out)
+	out.ValidationWarnings = buildDeckValidationWarnings(format, commanderName, rows, out)
 
 	return out
 }
@@ -300,6 +316,288 @@ func hasProtectionText(oracle string) bool {
 		"ward {",
 		"can't be countered",
 	)
+}
+
+func isBasicLandCard(name, typeLine string) bool {
+	typeLine = strings.ToLower(strings.TrimSpace(typeLine))
+	if strings.Contains(typeLine, "basic") && strings.Contains(typeLine, "land") {
+		return true
+	}
+
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "plains", "island", "swamp", "mountain", "forest", "wastes":
+		return true
+	default:
+		return false
+	}
+}
+
+func buildDeckValidationWarnings(format, commanderName string, rows []deckAnalyticsCardInput, analytics deckAnalyticsData) []string {
+	warnings := make([]string, 0, 4)
+	targetSize := decks.FormatTargetMainboardSize(format)
+	copyLimit := decks.FormatCopyLimit(format)
+	requiresCommander := decks.FormatRequiresCommander(format)
+
+	if requiresCommander && strings.TrimSpace(commanderName) == "" {
+		warnings = append(warnings, format+" decks need a commander card set.")
+	}
+
+	if targetSize > 0 {
+		currentCount := analytics.MainboardCards
+		label := "mainboard"
+		if requiresCommander {
+			currentCount = analytics.TotalCards
+			label = "deck"
+		}
+		if currentCount < targetSize {
+			warnings = append(warnings, fmt.Sprintf("%s usually wants %d cards. This %s has %d.", format, targetSize, label, currentCount))
+		} else if requiresCommander && currentCount > targetSize {
+			warnings = append(warnings, fmt.Sprintf("%s decks should be %d cards. This deck has %d.", format, targetSize, currentCount))
+		}
+	}
+
+	if copyLimit > 0 {
+		for _, row := range rows {
+			qty := row.Qty
+			if requiresCommander && strings.EqualFold(strings.TrimSpace(row.Name), commanderName) {
+				qty -= 1
+			}
+			if qty <= copyLimit || isBasicLandCard(row.Name, row.TypeLine) {
+				continue
+			}
+			if copyLimit == 1 {
+				warnings = append(warnings, fmt.Sprintf("%s has %d copies of %s. %s is a singleton format outside basic lands.", format, qty, row.Name, format))
+			} else {
+				warnings = append(warnings, fmt.Sprintf("%s has %d copies of %s. Most %s decks cap non-basic cards at %d copies.", format, qty, row.Name, format, copyLimit))
+			}
+			if len(warnings) >= 6 {
+				break
+			}
+		}
+	}
+
+	return warnings
+}
+
+func buildDeckGuideChecks(format string, analytics deckAnalyticsData) []deckGuideCheck {
+	format = decks.NormalizeFormat(format)
+	targetSize := decks.FormatTargetMainboardSize(format)
+	requiresCommander := decks.FormatRequiresCommander(format)
+
+	checks := []deckGuideCheck{
+		buildDeckSizeGuideCheck(format, analytics, targetSize, requiresCommander),
+	}
+
+	sampleFloor := 12
+	if targetSize > 0 {
+		sampleFloor = maxInt(sampleFloor, targetSize/2)
+	}
+
+	if analytics.MainboardCards < sampleFloor {
+		checks = append(checks,
+			deckGuideCheck{
+				Label:  "Mana Base",
+				Value:  fmt.Sprintf("%d", analytics.LandCount),
+				Target: defaultLandGuideTarget(format),
+				Hint:   "Add more cards before mana guidance becomes useful.",
+				Tone:   "info",
+			},
+		)
+		if requiresCommander {
+			checks = append(checks,
+				deckGuideCheck{Label: "Ramp", Value: fmt.Sprintf("%d", analytics.RampCount), Target: "8-12", Hint: "Add more cards to judge acceleration.", Tone: "info"},
+				deckGuideCheck{Label: "Card Draw", Value: fmt.Sprintf("%d", analytics.CardDrawCount), Target: "8-12", Hint: "Add more cards to judge sustained draw.", Tone: "info"},
+				deckGuideCheck{Label: "Interaction", Value: fmt.Sprintf("%d", analytics.InteractionCount), Target: "8-12", Hint: "Add more cards to judge your answers.", Tone: "info"},
+			)
+		} else {
+			checks = append(checks,
+				deckGuideCheck{Label: "Early Plays", Value: fmt.Sprintf("%d", analytics.LowCMCNonLandCount), Target: defaultEarlyPlaysGuideTarget(format), Hint: "Add more cards to judge your early curve.", Tone: "info"},
+				deckGuideCheck{Label: "Card Flow", Value: fmt.Sprintf("%d", analytics.CardDrawCount), Target: defaultCardFlowGuideTarget(format), Hint: "Add more cards to judge your draw density.", Tone: "info"},
+				deckGuideCheck{Label: "Interaction", Value: fmt.Sprintf("%d", analytics.InteractionCount), Target: defaultInteractionGuideTarget(format), Hint: "Add more cards to judge your answers.", Tone: "info"},
+			)
+		}
+		return checks
+	}
+
+	landMin, landMax, landWarnPad := landGuideRange(format)
+	checks = append(checks, buildRangeGuideCheck(
+		"Mana Base",
+		analytics.LandCount,
+		fmt.Sprintf("%d-%d", landMin, landMax),
+		landMin,
+		landMax,
+		landWarnPad,
+		"Consider a few more lands for smoother draws.",
+		"You may have more lands than you need.",
+	))
+
+	if requiresCommander {
+		checks = append(checks,
+			buildRangeGuideCheck("Ramp", analytics.RampCount, "8-12", 8, 12, 2, "A little more ramp should help you deploy faster.", "You already have a lot of acceleration."),
+			buildRangeGuideCheck("Card Draw", analytics.CardDrawCount, "8-12", 8, 12, 2, "More card draw will help you keep cards flowing.", "You already have a lot of draw effects."),
+			buildRangeGuideCheck("Interaction", analytics.InteractionCount, "8-12", 8, 12, 2, "Add a few more answers so the deck can respond.", "You already have plenty of interaction."),
+		)
+		return checks
+	}
+
+	earlyMin, earlyMax, earlyWarnPad := earlyPlaysGuideRange(format)
+	drawMin, drawMax, drawWarnPad := cardFlowGuideRange(format)
+	interactionMin, interactionMax, interactionWarnPad := interactionGuideRange(format)
+	checks = append(checks,
+		buildRangeGuideCheck("Early Plays", analytics.LowCMCNonLandCount, fmt.Sprintf("%d-%d", earlyMin, earlyMax), earlyMin, earlyMax, earlyWarnPad, "More cheap spells can smooth your starts.", "You may be very low to the ground already."),
+		buildRangeGuideCheck("Card Flow", analytics.CardDrawCount, fmt.Sprintf("%d-%d", drawMin, drawMax), drawMin, drawMax, drawWarnPad, "A little more draw or selection can improve consistency.", "You already have a lot of card flow."),
+		buildRangeGuideCheck("Interaction", analytics.InteractionCount, fmt.Sprintf("%d-%d", interactionMin, interactionMax), interactionMin, interactionMax, interactionWarnPad, "More interaction can help you answer opposing threats.", "You already have a lot of interaction."),
+	)
+
+	return checks
+}
+
+func buildDeckSizeGuideCheck(format string, analytics deckAnalyticsData, targetSize int, requiresCommander bool) deckGuideCheck {
+	currentCount := analytics.MainboardCards
+	targetLabel := "Flexible"
+	value := fmt.Sprintf("%d", currentCount)
+	tone := "info"
+	hint := "This format does not have a fixed deck size target here."
+
+	if requiresCommander {
+		currentCount = analytics.TotalCards
+		value = fmt.Sprintf("%d", currentCount)
+	}
+
+	switch {
+	case targetSize <= 0:
+		return deckGuideCheck{
+			Label:  "Deck Size",
+			Value:  value,
+			Target: targetLabel,
+			Hint:   hint,
+			Tone:   tone,
+		}
+	case requiresCommander:
+		targetLabel = fmt.Sprintf("%d", targetSize)
+		if currentCount == targetSize {
+			tone = "good"
+			hint = "Right on size. This is ready for refinement and playtesting."
+		} else if currentCount < targetSize {
+			tone = "alert"
+			hint = fmt.Sprintf("Add %d more cards to reach %d.", targetSize-currentCount, targetSize)
+		} else {
+			tone = "alert"
+			hint = fmt.Sprintf("Cut %d cards to get back to %d.", currentCount-targetSize, targetSize)
+		}
+	default:
+		targetLabel = fmt.Sprintf("%d+", targetSize)
+		if currentCount >= targetSize {
+			tone = "good"
+			hint = "Size looks good. Tune the mix next."
+		} else {
+			tone = "alert"
+			hint = fmt.Sprintf("Add at least %d more cards.", targetSize-currentCount)
+		}
+	}
+
+	return deckGuideCheck{
+		Label:  "Deck Size",
+		Value:  value,
+		Target: targetLabel,
+		Hint:   hint,
+		Tone:   tone,
+	}
+}
+
+func buildRangeGuideCheck(label string, value int, target string, idealMin, idealMax, warnPad int, lowHint, highHint string) deckGuideCheck {
+	tone := "good"
+	hint := "Right in range."
+
+	switch {
+	case value < idealMin-warnPad:
+		tone = "alert"
+		hint = lowHint
+	case value < idealMin:
+		tone = "warn"
+		hint = lowHint
+	case value > idealMax+warnPad:
+		tone = "alert"
+		hint = highHint
+	case value > idealMax:
+		tone = "warn"
+		hint = highHint
+	}
+
+	return deckGuideCheck{
+		Label:  label,
+		Value:  fmt.Sprintf("%d", value),
+		Target: target,
+		Hint:   hint,
+		Tone:   tone,
+	}
+}
+
+func landGuideRange(format string) (min, max, warnPad int) {
+	switch decks.NormalizeFormat(format) {
+	case "Commander", "Duel Commander":
+		return 35, 40, 2
+	case "Brawl", "Historic Brawl", "Oathbreaker":
+		return 24, 28, 2
+	case "Draft", "Sealed":
+		return 16, 18, 1
+	default:
+		return 22, 27, 2
+	}
+}
+
+func earlyPlaysGuideRange(format string) (min, max, warnPad int) {
+	switch decks.NormalizeFormat(format) {
+	case "Draft", "Sealed":
+		return 8, 14, 2
+	default:
+		return 12, 20, 3
+	}
+}
+
+func cardFlowGuideRange(format string) (min, max, warnPad int) {
+	switch decks.NormalizeFormat(format) {
+	case "Draft", "Sealed":
+		return 2, 5, 1
+	default:
+		return 4, 8, 2
+	}
+}
+
+func interactionGuideRange(format string) (min, max, warnPad int) {
+	switch decks.NormalizeFormat(format) {
+	case "Draft", "Sealed":
+		return 4, 8, 1
+	default:
+		return 5, 10, 2
+	}
+}
+
+func defaultLandGuideTarget(format string) string {
+	min, max, _ := landGuideRange(format)
+	return fmt.Sprintf("%d-%d", min, max)
+}
+
+func defaultEarlyPlaysGuideTarget(format string) string {
+	min, max, _ := earlyPlaysGuideRange(format)
+	return fmt.Sprintf("%d-%d", min, max)
+}
+
+func defaultCardFlowGuideTarget(format string) string {
+	min, max, _ := cardFlowGuideRange(format)
+	return fmt.Sprintf("%d-%d", min, max)
+}
+
+func defaultInteractionGuideTarget(format string) string {
+	min, max, _ := interactionGuideRange(format)
+	return fmt.Sprintf("%d-%d", min, max)
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 type deckAnalyticsRelatedPart struct {
@@ -512,7 +810,7 @@ func normalizeAnalyticsRequestCards(raw []struct {
 	return out
 }
 
-func (a *App) buildGuestDeckAnalytics(r *http.Request, commanderName string, requestCards []struct {
+func (a *App) buildWorkbenchDeckAnalytics(r *http.Request, format, commanderName string, requestCards []struct {
 	Name string `json:"name"`
 	Qty  int    `json:"qty"`
 }) (deckAnalyticsData, error) {
@@ -540,12 +838,13 @@ func (a *App) buildGuestDeckAnalytics(r *http.Request, commanderName string, req
 			TypeLine:   strings.TrimSpace(dbCard.TypeLine),
 			OracleText: strings.TrimSpace(dbCard.OracleText),
 			AllParts:   strings.TrimSpace(dbCard.AllPartsJSON),
+			ColorID:    strings.TrimSpace(dbCard.ColorIdentity),
 			CMC:        dbCard.CMC,
 			Qty:        item.Qty,
 		})
 	}
 
-	return computeDeckAnalytics(commanderName, rows), nil
+	return computeDeckAnalytics(format, commanderName, rows), nil
 }
 
 func (a *App) HandleDeckAnalytics(w http.ResponseWriter, r *http.Request) {
@@ -581,10 +880,10 @@ func (a *App) HandleDeckAnalytics(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		analytics = computeDeckAnalyticsFromDeckCards(d.CommanderName, deckCards)
+		analytics = computeDeckAnalyticsFromDeckCards(d.Format, d.CommanderName, deckCards)
 	} else {
 		var err error
-		analytics, err = a.buildGuestDeckAnalytics(r, req.CommanderName, req.Cards)
+		analytics, err = a.buildWorkbenchDeckAnalytics(r, req.Format, req.CommanderName, req.Cards)
 		if err != nil {
 			a.RenderServerError(w, r, err)
 			return

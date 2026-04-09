@@ -3,658 +3,973 @@
   {{ $d := $ctx.Deck }}
   {{ $c := $ctx.Commander }}
   {{ $isGuest := false }}
-  {{ if $ctx.GuestMode }}
+  {{ if $ctx.WorkbenchMode }}
     {{ $isGuest = true }}
   {{ else }}
     {{ $isGuest = not .CurrentUser }}
   {{ end }}
+  {{ $isCommanderDeck := eq $d.Format "Commander" }}
+  {{ $overviewFormat := "Sandbox" }}
+  {{ if $isCommanderDeck }}
+    {{ $overviewFormat = "Commander" }}
+  {{ end }}
   {{ template "layout_header" . }}
 
-  <main class="w-full max-w-none py-8 px-3 sm:px-4 md:px-6 xl:px-8 2xl:px-10 space-y-6">
-    <!-- Top bar: title + actions -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-      <div class="flex items-start gap-4">
-        <div id="deck-top-commander-art-wrap"
-             class="h-28 w-20 sm:h-32 sm:w-24 rounded overflow-hidden border border-slate-700 bg-slate-900 shrink-0 {{ if and $c $c.ImageURI }}{{ else }}hidden{{ end }}">
-          <img id="deck-top-commander-art"
-               src="{{ if and $c $c.ImageURI }}{{ $c.ImageURI }}{{ end }}"
-               alt="{{ if $d.CommanderName }}{{ $d.CommanderName }} commander art{{ else }}Commander art{{ end }}"
-               class="h-full w-full object-cover">
-        </div>
-
-        <div class="min-w-0 flex-1 space-y-1">
-          {{ if not $isGuest }}
-          <!-- View state: click to edit -->
-          <button
-            type="button"
-            id="deck-name-view"
-            class="group text-left"
-            title="Click to rename this deck">
-            <h2 class="text-2xl font-semibold tracking-tight">
-              <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent group-hover:from-sky-300 group-hover:via-cyan-200">
-                {{ $d.Name }}
-              </span>
-            </h2>
-            <p class="text-xs text-slate-500 mt-0.5 group-hover:text-slate-400">
-              Click here to rename deck.
-            </p>
-          </button>
-
-          <!-- Edit state: inline form (hidden by default) -->
-          <form
-            id="deck-name-form"
-            method="POST"
-            action="/decks/edit"
-            class="hidden space-y-2">
-            <input type="hidden" name="id" value="{{ $d.ID }}">
-            <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
-            <input type="hidden" name="description" value="{{ $d.Description }}">
-
-            <label class="block text-sm text-slate-200">
-              <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
-              <input
-                type="text"
-                name="name"
-                value="{{ $d.Name }}"
-                required
-                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-            </label>
-            <div class="flex items-center gap-2">
-              <button type="submit"
-                      class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-                Save name
-              </button>
-              <button type="button"
-                      id="deck-name-cancel"
-                      class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
-                Cancel
-              </button>
-            </div>
-          </form>
-          {{ end }}
-
-          {{ if $isGuest }}
-            <div class="space-y-1">
-              <h2 class="text-2xl font-semibold tracking-tight">
-                <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-                  <span id="guest-deck-name">{{ $d.Name }}</span>
-                </span>
-              </h2>
-              <p class="text-xs text-amber-200/80">Guest deck — saved in this browser only.</p>
-            </div>
-          {{ end }}
-
-          <div class="min-w-0">
-            <p class="text-[11px] font-medium uppercase tracking-wide text-slate-400">Commander</p>
-            <p id="deck-top-commander" class="text-sm text-slate-200 leading-snug break-words">{{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Choose an eligible commander{{ end }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        {{ if not $isGuest }}
-        <a href="/decks/playtest/{{ $d.ID }}"
-          class="inline-flex items-center px-3 py-1.5 rounded-md bg-slate-100 text-slate-950 text-xs font-semibold hover:bg-white transition-colors">
-          Playtest
-        </a>
-
-        <form method="POST" action="/decks/delete"
-              onsubmit="return confirm('Delete this deck? This cannot be undone.');">
-          <input type="hidden" name="id" value="{{ $d.ID }}">
-          <button type="submit"
-                  class="inline-flex items-center px-3 py-1.5 rounded-md border border-red-800/70 bg-red-900/40 text-xs text-red-300 hover:border-red-500 hover:text-red-200 transition-colors">
-            Delete deck
-          </button>
-        </form>
-        {{ end }}
-        {{ if $isGuest }}
-          <button type="button" id="guest-playtest"
-                  class="inline-flex items-center px-3 py-1.5 rounded-md bg-slate-100 text-slate-950 text-xs font-semibold hover:bg-white transition-colors">
-            Playtest
-          </button>
-          {{ if .CurrentUser }}
-            <button type="button" id="guest-save-to-account"
-                    class="inline-flex items-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
-              Save to my account
-            </button>
-          {{ else }}
-            <a href="/login?next={{ if $ctx.GuestSandbox }}{{ urlquery "/decks/guest?sandbox=1&save_guest=1" }}{{ else if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
-               class="inline-flex items-center px-3 py-1.5 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
-              Log in to save
-            </a>
-          {{ end }}
-        {{ end }}
-      </div>
-    </div>
-
-    <!-- cEDH workbench: compact top panel, then cards, then analytics -->
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-3 shadow-md shadow-sky-500/10">
-      <div class="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.95fr)_minmax(0,1.2fr)] items-start">
-        <div class="space-y-2 xl:pr-3 xl:border-r xl:border-slate-800">
-          <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Commander</h3>
-          {{ if and (not $isGuest) $ctx.CommanderCandidates }}
-            <form method="POST" action="/decks/commander" class="flex flex-col sm:flex-row gap-1.5">
-              <input type="hidden" name="id" value="{{ $d.ID }}">
-              <label class="flex-1 text-sm text-slate-200">
-                <span class="block text-xs font-medium text-slate-400 mb-1">Set commander from deck</span>
-                <select name="commander_name"
-                        class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-                  <option value="" disabled {{ if not $d.CommanderName }}selected{{ end }}>Choose a card…</option>
-                  {{ range $ctx.CommanderCandidates }}
-                    <option value="{{ .CardName }}" {{ if eq .CardName $d.CommanderName }}selected{{ end }}>{{ .CardName }}</option>
-                  {{ end }}
-                </select>
-              </label>
-              <div class="flex items-end">
-                <button type="submit"
-                        class="inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
-                  Update
-                </button>
-              </div>
-            </form>
-          {{ else if not $isGuest }}
-            <p class="text-xs text-slate-500">Add a legendary creature (or a card that says it can be your commander) to choose a commander.</p>
-          {{ end }}
-
-          {{ if $isGuest }}
-            <div class="space-y-1.5">
-              <label class="block text-sm text-slate-200">
-                <span class="block text-xs font-medium text-slate-400 mb-1">Set commander from imported cards</span>
-                <select id="guest-commander-select"
-                        class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-                  <option value="">Choose an eligible commander</option>
-                </select>
-              </label>
-              <div class="flex flex-wrap items-center gap-1.5">
-                <button type="button"
-                        id="guest-commander-apply"
-                        class="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
-                  Set commander
-                </button>
-                <button type="button"
-                        id="guest-commander-clear"
-                        class="inline-flex items-center px-2.5 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
-                  Clear
-                </button>
-              </div>
-              <p id="guest-commander-status" class="text-xs text-slate-500" aria-live="polite"></p>
-            </div>
-          {{ end }}
-
-          {{ if and (not $isGuest) $d.CommanderName }}
-            <p class="text-[11px] text-slate-500">Commander is treated as the 100th card and won’t appear in the list.</p>
-          {{ end }}
-
-          {{ if $isGuest }}
-            <p class="text-sm text-slate-300">
-              <span class="font-medium">Commander:</span>
-              <span id="guest-commander-current">{{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Choose an eligible commander{{ end }}</span>
-            </p>
-          {{ else if $c }}
-            <div class="flex gap-3">
-              {{ if $c.ImageURI }}
-                <div class="w-24 shrink-0">
-                  <img src="{{ $c.ImageURI }}"
-                       alt="{{ $c.Name }}"
-                       class="w-full h-auto rounded-md shadow-md shadow-slate-900/70 border border-slate-800">
-                </div>
-              {{ end }}
-              <div class="space-y-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-50 leading-tight">
-                  {{ $c.Name }}
-                  <span id="deck-commander-mana-cost"
-                        data-mana-cost="{{ $c.ManaCost }}"
-                        class="ml-1 inline-flex items-center gap-0.5 align-middle"></span>
-                  <noscript>
-                    <span class="ml-1 text-slate-300 text-xs">{{ $c.ManaCost }}</span>
-                  </noscript>
-                </p>
-                <p class="text-[11px] uppercase tracking-wide text-slate-400 leading-tight">{{ $c.TypeLine }}</p>
-                <p class="text-xs text-slate-200 whitespace-pre-line max-h-28 overflow-y-auto pr-1">{{ $c.OracleText }}</p>
-              </div>
-            </div>
-          {{ else }}
-            <p class="text-sm text-slate-300">
-              <span class="font-medium">Commander:</span> {{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}Choose an eligible commander{{ end }}
-            </p>
-          {{ end }}
-        </div>
-
-        <div class="space-y-2 xl:px-3 xl:border-r xl:border-slate-800 text-sm">
-          <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Description</h3>
-          {{ if not $isGuest }}
-            <button type="button"
-                    id="deck-desc-view"
-                    class="w-full text-left rounded-md border border-transparent px-1.5 py-1 hover:border-slate-700 hover:bg-slate-900/60 transition-colors">
-              {{ if $d.Description }}
-                <p class="text-sm text-slate-200 whitespace-pre-line">{{ $d.Description }}</p>
-              {{ else }}
-                <p class="text-sm text-slate-500 italic">Click to add a description for this deck.</p>
-              {{ end }}
-            </button>
-            <form id="deck-desc-form"
-                  method="POST"
-                  action="/decks/edit"
-                  class="hidden space-y-1.5">
-              <input type="hidden" name="id" value="{{ $d.ID }}">
-              <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
-              <input type="hidden" name="name" value="{{ $d.Name }}">
-              <label class="block text-sm text-slate-200">
-                <span class="block text-xs font-medium text-slate-400 mb-1">Deck description</span>
-                <textarea name="description"
-                          rows="3"
-                          class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.Description }}</textarea>
-              </label>
-              <div class="flex items-center gap-1.5">
-                <button type="submit"
-                        class="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-                  Save description
-                </button>
-                <button type="button"
-                        id="deck-desc-cancel"
-                        class="inline-flex items-center px-2.5 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          {{ else }}
-            <div class="w-full rounded-md border border-slate-800 bg-slate-950 px-2.5 py-1.5">
-              <p id="guest-deck-desc" class="text-sm text-slate-200 whitespace-pre-line">{{ $d.Description }}</p>
-              <p id="guest-deck-desc-empty" class="text-sm text-slate-500 italic hidden">No description yet.</p>
-            </div>
-          {{ end }}
-
-          <p class="text-[11px] text-slate-500">
-            <span class="uppercase tracking-wide">Format:</span>
-            <span class="text-slate-300">{{ if $d.Format }}{{ $d.Format }}{{ else }}Commander{{ end }}</span>
-          </p>
-        </div>
-
-        <div class="space-y-2 xl:pl-3">
-          <div class="flex items-center justify-between gap-2">
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Card Search</h3>
-          </div>
-          {{ if not $isGuest }}
-            <form method="POST" action="/decks/{{ $d.ID }}" class="flex flex-col md:flex-row gap-1.5">
-              <label class="flex-1 text-sm text-slate-200">
-                <span class="block text-xs font-medium text-slate-400 mb-1">Card name</span>
-                <input type="text"
-                       id="guest-card-name"
-                       name="card_name"
-                       required
-                       placeholder="Start typing a card name..."
-                       class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-              </label>
-              <div class="flex items-end gap-1.5">
-                <button type="submit"
-                        name="zone"
-                        value="main"
-                        class="inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
-                  Add to deck
-                </button>
-                <button type="submit"
-                        name="zone"
-                        value="maybe"
-                        class="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-sm font-semibold text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                  Add to maybeboard
-                </button>
-              </div>
-            </form>
-          {{ else }}
-            <form id="guest-add-card-form" class="flex flex-col md:flex-row gap-1.5" novalidate>
-              <label class="flex-1 text-sm text-slate-200">
-                <span class="block text-xs font-medium text-slate-400 mb-1">Card name</span>
-                <input type="text"
-                       id="guest-card-name"
-                       name="card_name"
-                       required
-                       placeholder="Start typing a card name..."
-                       class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-              </label>
-              <div class="flex items-end gap-1.5">
-                <button type="submit"
-                        name="zone"
-                        value="main"
-                        class="inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
-                  Add to deck
-                </button>
-                <button type="submit"
-                        name="zone"
-                        value="maybe"
-                        class="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-sm font-semibold text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                  Add to maybeboard
-                </button>
-              </div>
-            </form>
-          {{ end }}
-
-          {{ if $isGuest }}
-            <p id="guest-add-status" class="text-xs text-slate-500" aria-live="polite"></p>
-            <div class="flex flex-wrap gap-1.5">
-              <button type="button" id="guest-copy-decklist"
-                      class="inline-flex items-center px-2.5 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                Copy decklist
-              </button>
-              {{ if .CurrentUser }}
-                <button type="button" id="guest-save-to-account-2"
-                        class="inline-flex items-center px-2.5 py-1 rounded-md bg-sky-500 text-slate-950 text-xs font-semibold hover:bg-sky-400 transition-colors">
-                  Save to my account
-                </button>
-              {{ else }}
-                <a href="/login?next={{ if $ctx.GuestSandbox }}{{ urlquery "/decks/guest?sandbox=1&save_guest=1" }}{{ else if $d.CommanderName }}{{ urlquery (print "/decks/guest?commander_name=" $d.CommanderName "&save_guest=1") }}{{ else }}{{ urlquery "/decks/guest?save_guest=1" }}{{ end }}"
-                   class="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-300 text-slate-950 text-xs font-semibold hover:bg-amber-200 transition-colors">
-                  Log in to save
-                </a>
-              {{ end }}
-            </div>
-            <p id="guest-copy-status" class="text-xs text-slate-500" aria-live="polite"></p>
-          {{ else }}
-            <p class="text-xs text-slate-500">
-              Tip: use full Card Search for advanced filters and browsing.
-            </p>
-          {{ end }}
-        </div>
-      </div>
-    </section>
-
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
-      <div class="flex items-center justify-between gap-2 mb-3">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Cards in deck
-          {{ if $isGuest }}
-            <span id="guest-deck-count-label" class="normal-case text-slate-500">(0)</span>
-          {{ else }}
-            <span id="signed-deck-count-label" class="normal-case text-slate-500">({{ $ctx.VisibleCardCount }})</span>
-          {{ end }}
-        </h3>
-      </div>
-
-      <div id="signed-deck-view-controls" class="mb-3 flex flex-wrap items-end gap-2">
-        <label class="text-[11px] text-slate-400">
-          <span class="block mb-1 uppercase tracking-wide">View As</span>
-          <select id="signed-layout-mode"
-                  class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-            <option value="text">Text</option>
-            <option value="table">Table</option>
-            <option value="art_stacked">Stacks</option>
-            <option value="art_grid">Grid</option>
-          </select>
-        </label>
-        <label class="text-[11px] text-slate-400">
-          <span class="block mb-1 uppercase tracking-wide">Group by</span>
-          <select id="signed-group-mode"
-                  class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-            <option value="none">None</option>
-            <option value="type">Type</option>
-            <option value="cmc">Mana Value</option>
-            <option value="category">Category</option>
-          </select>
-        </label>
-        <label class="text-[11px] text-slate-400">
-          <span class="block mb-1 uppercase tracking-wide">Sort by</span>
-          <select id="signed-sort-mode"
-                  class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-            <option value="name">Alphabet</option>
-            <option value="cmc">Mana Value</option>
-            <option value="type">Type</option>
-            <option value="price">Price</option>
-          </select>
-        </label>
-        <label class="text-[11px] text-slate-400">
-          <span class="block mb-1 uppercase tracking-wide">Order</span>
-          <select id="signed-sort-direction"
-                  class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-        </label>
-      </div>
-      <div id="signed-deck-cards-view" class="hidden"></div>
-
-      {{ if not $isGuest }}
-        <ul id="signed-deck-cards-source"
-            class="divide-y divide-slate-800 text-sm {{ if eq $ctx.VisibleCardCount 0 }}hidden{{ end }}">
-          {{ range $ctx.DeckCards }}
-            {{ if ne .CardName $d.CommanderName }}
-              <li class="flex items-center justify-between gap-3 py-2"
-                  data-card-id="{{ .CardID }}"
-                  data-card-name="{{ .CardName }}"
-                  data-card-qty="{{ .Quantity }}"
-                  data-card-type-line="{{ .TypeLine }}"
-                  data-card-oracle-text="{{ .OracleText }}"
-                  data-card-cmc="{{ printf "%.2f" .CMC }}"
-                  data-card-price="{{ .PriceUSD }}"
-                  data-card-image-uri="{{ .ImageURI }}">
-                <div>
-                  <p class="font-medium text-slate-100">{{ .Quantity }}x {{ .CardName }}</p>
-                </div>
-                <div class="shrink-0 flex items-center gap-1.5">
-                  <form method="POST" action="/decks/{{ $d.ID }}">
-                    <input type="hidden" name="card_id" value="{{ .CardID }}">
-                    <input type="hidden" name="action" value="inc_main">
-                    <button type="submit"
-                            class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                      +
-                    </button>
-                  </form>
-                  <form method="POST" action="/decks/{{ $d.ID }}">
-                    <input type="hidden" name="card_id" value="{{ .CardID }}">
-                    <button type="submit"
-                            class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                      −
-                    </button>
-                  </form>
-                </div>
-              </li>
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <section class="space-y-4">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0">
+          <p class="mt-kicker">{{ if $isGuest }}Workspace{{ else }}Deck{{ end }}</p>
+          <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-slate-50">
+            {{ if $isGuest }}
+              <span id="guest-deck-name">New Guest Deck</span>
+            {{ else }}
+              <span id="saved-deck-name">{{ $d.Name }}</span>
             {{ end }}
-          {{ end }}
-        </ul>
-        <p id="signed-deck-cards-empty" class="text-sm text-slate-400 {{ if gt $ctx.VisibleCardCount 0 }}hidden{{ end }}">
-          No cards yet. Use card search above to start adding cards.
-        </p>
-      {{ else }}
-        <ul id="guest-deck-cards" class="divide-y divide-slate-800 text-sm"></ul>
-        <p id="guest-deck-cards-empty" class="text-sm text-slate-400 hidden">
-          No cards yet. Use card search above to start adding cards.
-        </p>
-      {{ end }}
-    </section>
+          </h1>
+        </div>
 
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
-      <div class="flex items-center justify-between gap-2 mb-3">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Maybeboard
+        <div class="flex flex-wrap gap-2">
           {{ if $isGuest }}
-            <span id="guest-maybeboard-count-label" class="normal-case text-slate-500">(0)</span>
+            <button type="button" id="guest-playtest" class="mt-btn mt-btn--light mt-btn--sm">Playtest</button>
+            {{ if .CurrentUser }}
+              <button type="button" id="guest-save-to-account" class="mt-btn mt-btn--primary mt-btn--sm">Save</button>
+            {{ end }}
           {{ else }}
-            <span id="signed-maybeboard-count-label" class="normal-case text-slate-500">({{ $ctx.MaybeCardCount }})</span>
+            <button type="button" id="deck-menu-open" class="mt-btn mt-btn--secondary mt-btn--sm">Deck Menu</button>
+            <a href="/decks/playtest/{{ $d.ID }}" class="mt-btn mt-btn--light mt-btn--sm">Playtest</a>
           {{ end }}
-        </h3>
+        </div>
       </div>
-
-      {{ if not $isGuest }}
-        <ul id="signed-maybeboard-cards"
-            class="divide-y divide-slate-800 text-sm {{ if eq $ctx.MaybeCardCount 0 }}hidden{{ end }}">
-          {{ range $ctx.MaybeDeckCards }}
-            <li class="flex items-center justify-between gap-3 py-2">
-              <div>
-                <p class="font-medium text-slate-100">{{ .Quantity }}x {{ .CardName }}</p>
-              </div>
-              <div class="shrink-0 flex items-center gap-1.5">
-                <form method="POST" action="/decks/{{ $d.ID }}">
-                  <input type="hidden" name="maybe_card_id" value="{{ .CardID }}">
-                  <input type="hidden" name="action" value="to_main">
-                  <button type="submit"
-                          class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                    + Deck
-                  </button>
-                </form>
-                <form method="POST" action="/decks/{{ $d.ID }}">
-                  <input type="hidden" name="maybe_card_id" value="{{ .CardID }}">
-                  <input type="hidden" name="action" value="inc_maybe">
-                  <button type="submit"
-                          class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                    +
-                  </button>
-                </form>
-                <form method="POST" action="/decks/{{ $d.ID }}">
-                  <input type="hidden" name="maybe_card_id" value="{{ .CardID }}">
-                  <button type="submit"
-                          class="inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                    −
-                  </button>
-                </form>
-              </div>
-            </li>
-          {{ end }}
-        </ul>
-        <p id="signed-maybeboard-empty" class="text-sm text-slate-400 {{ if gt $ctx.MaybeCardCount 0 }}hidden{{ end }}">
-          No maybeboard cards yet. Use "Add to maybeboard" in Card Search.
-        </p>
-      {{ else }}
-        <ul id="guest-maybeboard-cards" class="divide-y divide-slate-800 text-sm"></ul>
-        <p id="guest-maybeboard-empty" class="text-sm text-slate-400 hidden">
-          No maybeboard cards yet. Use "Add to maybeboard" in Card Search.
-        </p>
-      {{ end }}
     </section>
 
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
-      <div class="flex items-center justify-between gap-2 mb-3">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">Deck analytics</h3>
-        {{ if $isGuest }}
-          <span id="guest-analytics-status" class="text-[11px] text-slate-500">Syncing...</span>
-        {{ end }}
-      </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 text-xs">
-        <div class="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-2">
-          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Total cards</p>
-          <p id="deck-analytics-total" class="text-slate-100 text-sm font-semibold">{{ $ctx.Analytics.TotalCards }}</p>
-        </div>
-        <div class="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-2">
-          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Mainboard</p>
-          <p id="deck-analytics-mainboard" class="text-slate-100 text-sm font-semibold">{{ $ctx.Analytics.MainboardCards }}</p>
-        </div>
-        <div class="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-2">
-          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Commander set</p>
-          <p id="deck-analytics-commander-set" class="text-slate-100 text-sm font-semibold">{{ if $ctx.Analytics.CommanderSet }}Yes{{ else }}No{{ end }}</p>
-        </div>
-        <div class="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-2">
-          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Average CMC</p>
-          <p id="deck-analytics-avg-cmc" class="text-slate-100 text-sm font-semibold">{{ $ctx.Analytics.AverageCMCDisplay }}</p>
-        </div>
-        <div class="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-2">
-          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Lands</p>
-          <p id="deck-analytics-lands" class="text-slate-100 text-sm font-semibold">{{ $ctx.Analytics.LandCount }}</p>
-        </div>
-        <div class="rounded-md border border-slate-800 bg-slate-950 px-2.5 py-2">
-          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Nonlands</p>
-          <p id="deck-analytics-nonlands" class="text-slate-100 text-sm font-semibold">{{ $ctx.Analytics.NonLandCount }}</p>
-        </div>
+    <section class="mt-panel p-4 sm:p-6 space-y-5">
+      <div>
+        <p class="mt-kicker">Overview</p>
       </div>
 
-      <div class="mt-4 grid gap-4 xl:grid-cols-2">
-        <div>
-          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Type breakdown</p>
-          <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-300">
-            <p class="flex items-center justify-between"><span>Creatures</span><span id="deck-analytics-type-creature">{{ $ctx.Analytics.CreatureCount }}</span></p>
-            <p class="flex items-center justify-between"><span>Artifacts</span><span id="deck-analytics-type-artifact">{{ $ctx.Analytics.ArtifactCount }}</span></p>
-            <p class="flex items-center justify-between"><span>Enchantments</span><span id="deck-analytics-type-enchantment">{{ $ctx.Analytics.EnchantmentCount }}</span></p>
-            <p class="flex items-center justify-between"><span>Instants</span><span id="deck-analytics-type-instant">{{ $ctx.Analytics.InstantCount }}</span></p>
-            <p class="flex items-center justify-between"><span>Sorceries</span><span id="deck-analytics-type-sorcery">{{ $ctx.Analytics.SorceryCount }}</span></p>
-            <p class="flex items-center justify-between"><span>Planeswalkers</span><span id="deck-analytics-type-planeswalker">{{ $ctx.Analytics.PlaneswalkerCount }}</span></p>
-            <p class="flex items-center justify-between"><span>Battles</span><span id="deck-analytics-type-battle">{{ $ctx.Analytics.BattleCount }}</span></p>
+      <div id="deck-overview-layout"
+           class="{{ if $isCommanderDeck }}grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]{{ else }}space-y-4{{ end }}">
+        <div id="deck-overview-side"
+             class="space-y-4 min-w-0 {{ if not $isCommanderDeck }}hidden{{ end }}">
+
+            <section id="deck-commander-panel" class="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 space-y-3">
+              <div id="deck-top-commander-art-wrap"
+                   class="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}{{ else }}hidden{{ end }}">
+                <img id="deck-top-commander-art"
+                     src="{{ if and $c $c.ImageURI }}{{ $c.ImageURI }}{{ else if and $c (gt (len $c.Faces) 0) }}{{ (index $c.Faces 0).ImageURI }}{{ end }}"
+                     alt="{{ if $d.CommanderName }}{{ $d.CommanderName }} commander art{{ else }}Commander art{{ end }}"
+                     class="block w-full h-auto object-cover">
+              </div>
+              <div id="deck-top-commander-placeholder"
+                   class="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}hidden{{ end }}">
+                <div class="flex aspect-[5/7] items-center justify-center rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
+                  <div class="space-y-4 text-center px-6">
+                    <div class="mx-auto h-32 w-24 rounded-2xl border border-slate-700 bg-slate-800/80 shadow-inner shadow-slate-950/80"></div>
+                    <p class="text-sm font-medium text-slate-200">Select a commander from Deck.</p>
+                  </div>
+                </div>
+              </div>
+              <button type="button"
+                      id="deck-commander-flip"
+                      class="mt-btn mt-btn--secondary mt-btn--sm w-full {{ if and $c (gt (len $c.Faces) 1) }}{{ else }}hidden{{ end }}">Turn Over</button>
+
+              <div class="space-y-3">
+                <div>
+                  <h3 id="deck-commander-name" class="mt-1 text-2xl font-semibold text-slate-50 break-words">
+                    {{ if $c }}{{ $c.Name }}{{ else if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}No commander selected{{ end }}
+                  </h3>
+                </div>
+
+                <div>
+                  <p class="text-[11px] uppercase tracking-wide text-slate-400">Mana Cost</p>
+                  <div class="mt-1 min-h-[1.2rem]">
+                    <span id="deck-commander-mana-cost"
+                          data-mana-cost="{{ if $c }}{{ $c.ManaCost }}{{ end }}"
+                          class="inline-flex flex-wrap items-center gap-1 align-middle text-sm text-slate-100">
+                      {{ if $c }}{{ if not $c.ManaCost }}None{{ end }}{{ else }}None{{ end }}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <p class="text-[11px] uppercase tracking-wide text-slate-400">Type</p>
+                  <p id="deck-commander-type-line" class="mt-1 text-sm text-slate-300">
+                    {{ if $c }}{{ $c.TypeLine }}{{ end }}
+                  </p>
+                </div>
+
+                <div>
+                  <p class="text-[11px] uppercase tracking-wide text-slate-400">Oracle Text</p>
+                  <p id="deck-commander-oracle-text" class="mt-1 min-h-[112px] whitespace-pre-line text-sm leading-6 text-slate-100">
+                    {{ if $c }}{{ $c.OracleText }}{{ else }}Use the 3 dot menu on a card in Deck to set your commander.{{ end }}
+                  </p>
+                </div>
+              </div>
+            </section>
+        </div>
+
+        <div class="space-y-3.5 min-w-0">
+          <input type="hidden" id="deck-overview-tags-hidden" value="{{ $d.Tags }}">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block text-sm text-slate-200">
+              <span class="mt-field-label">Format</span>
+              <select id="deck-overview-format" class="mt-control">
+                <option value="Commander" {{ if $isCommanderDeck }}selected{{ end }}>Commander</option>
+                <option value="Sandbox" {{ if not $isCommanderDeck }}selected{{ end }}>Sandbox</option>
+              </select>
+            </label>
+          </div>
+          <div class="space-y-2.5">
+            <span class="mt-field-label">Tags</span>
+            <div id="deck-overview-tags-list" class="flex flex-wrap gap-2"></div>
+            <p class="mt-hint">Select from the supported deck styles.</p>
+            <div class="flex flex-wrap gap-2">
+              {{ range supportedDeckTags }}
+                <button type="button"
+                        class="{{ deckTagButtonClass . }}"
+                        data-tag-suggestion="{{ . }}">
+                  {{ . }}
+                </button>
+              {{ end }}
+            </div>
+          </div>
+
+          <label class="block text-sm text-slate-200">
+            <span class="mt-field-label">Notes</span>
+            <textarea id="deck-overview-notes"
+                      rows="5"
+                      class="mt-control">{{ $d.Description }}</textarea>
+          </label>
+          <p id="deck-overview-status" class="text-xs text-slate-500">{{ if $isGuest }}Local changes save automatically.{{ else }}Changes save automatically.{{ end }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mt-panel p-4 sm:p-6 space-y-5">
+      <div>
+        <p class="mt-kicker">Deck</p>
+      </div>
+
+      <form id="deck-add-card-form" {{ if not $isGuest }}method="POST" action="/decks/{{ $d.ID }}"{{ else }}novalidate{{ end }} class="space-y-3">
+        <label class="block text-sm text-slate-200">
+          <span class="mt-field-label">Card Search</span>
+          <div class="relative">
+            <input type="text"
+                   id="guest-card-name"
+                   name="card_name"
+                   required
+                   autocomplete="off"
+                   placeholder="Type a card name"
+                   class="mt-control"
+                   aria-autocomplete="list"
+                   aria-expanded="false"
+                   aria-haspopup="listbox"
+                   aria-controls="deck-card-suggestions">
+            <div id="deck-card-suggestions"
+                 class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                 role="listbox"></div>
+          </div>
+        </label>
+        <p class="mt-hint">Choose a suggestion or press Enter to add the card to the deck.</p>
+      </form>
+
+      <p id="deck-add-status" class="text-xs text-slate-500" aria-live="polite"></p>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="text-lg font-semibold text-slate-50">
+            Cards
+            <span id="deck-count-label" class="text-sm font-medium text-slate-500">{{ if $isGuest }}(0){{ else }}({{ $ctx.VisibleCardCount }}){{ end }}</span>
+          </h3>
+          <div class="flex items-center flex-wrap justify-end gap-3">
+            <label class="flex items-center gap-2 text-xs text-slate-400">
+              <span class="uppercase tracking-wide">Group By</span>
+              <select id="deck-group-mode" class="mt-control mt-control--sm !w-auto !min-w-[9rem]">
+                <option value="none">None</option>
+                <option value="alphabet">Alphabet</option>
+                <option value="type">Type</option>
+                <option value="mv">Mana Value</option>
+                <option value="price">Price</option>
+              </select>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-slate-400">
+              <span class="uppercase tracking-wide">Sort By</span>
+              <select id="deck-sort-mode" class="mt-control mt-control--sm !w-auto !min-w-[9rem]">
+                <option value="alphabet">Alphabet</option>
+                <option value="mv">Mana Value</option>
+                <option value="type">Type</option>
+                <option value="price">Price</option>
+              </select>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-slate-400">
+              <span class="uppercase tracking-wide">View As</span>
+              <select id="deck-view-mode" class="mt-control mt-control--sm !w-auto !min-w-[8rem]">
+                <option value="stacks">Stacks</option>
+                <option value="text">Text</option>
+                <option value="grid">Grid</option>
+                <option value="table">Table</option>
+              </select>
+            </label>
           </div>
         </div>
+        <div id="deck-cards-list" class="space-y-3"></div>
+        <p id="deck-cards-empty" class="text-sm text-slate-400 {{ if gt $ctx.VisibleCardCount 0 }}hidden{{ else }}hidden{{ end }}">
+          No cards yet.
+        </p>
+      </div>
+    </section>
 
+    <section class="mt-panel p-4 sm:p-6 space-y-5">
+      <div class="flex items-center justify-between gap-3">
         <div>
-          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Mana curve (nonland spells)</p>
-          <div class="rounded-md border border-slate-800 bg-slate-950/80 p-2">
-            <div class="h-24 overflow-hidden flex items-end gap-1.5">
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-0" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve0Count }}</p>
-                <div id="deck-curve-bar-0" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">0</p>
+          <p class="mt-kicker">Analysis</p>
+        </div>
+        <span id="deck-analytics-status" class="text-[11px] text-slate-500">{{ if $isGuest }}Updating...{{ end }}</span>
+      </div>
+
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div class="mt-stat-card">
+          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Cards</p>
+          <p id="deck-analytics-total" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.TotalCards }}</p>
+        </div>
+        <div class="mt-stat-card">
+          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Lands</p>
+          <p id="deck-analytics-lands" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.LandCount }}</p>
+        </div>
+        <div class="mt-stat-card">
+          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Avg MV</p>
+          <p id="deck-analytics-avg-cmc" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.AverageCMCDisplay }}</p>
+        </div>
+        <div class="mt-stat-card">
+          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Ramp</p>
+          <p id="deck-analytics-ramp" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.RampCount }}</p>
+        </div>
+        <div class="mt-stat-card">
+          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Draw</p>
+          <p id="deck-analytics-card-draw" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.CardDrawCount }}</p>
+        </div>
+        <div class="mt-stat-card">
+          <p class="text-slate-500 uppercase tracking-wide text-[10px]">Interaction</p>
+          <p id="deck-analytics-interaction" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.InteractionCount }}</p>
+        </div>
+      </div>
+
+      {{ if $ctx.Analytics.ValidationWarnings }}
+        <div id="deck-guide-warnings-panel" class="rounded-xl border border-amber-500/40 bg-amber-950/20 p-3">
+          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-amber-200">Notes</h3>
+          <ul id="deck-guide-warnings-list" class="mt-2 space-y-1 text-xs text-amber-100">
+            {{ range $ctx.Analytics.ValidationWarnings }}
+              <li>{{ . }}</li>
+            {{ end }}
+          </ul>
+        </div>
+      {{ else }}
+        <div id="deck-guide-warnings-panel" class="hidden rounded-xl border border-amber-500/40 bg-amber-950/20 p-3">
+          <h3 class="text-[11px] font-semibold uppercase tracking-wide text-amber-200">Notes</h3>
+          <ul id="deck-guide-warnings-list" class="mt-2 space-y-1 text-xs text-amber-100"></ul>
+        </div>
+      {{ end }}
+
+      <div class="grid gap-4 xl:grid-cols-2">
+        <div class="space-y-3">
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Mana Curve</p>
+            <div class="rounded-md border border-slate-800 bg-slate-950/80 p-2">
+              <div class="h-24 overflow-hidden flex items-end gap-1.5">
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-0" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve0Count }}</p>
+                  <div id="deck-curve-bar-0" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">0</p>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-1" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve1Count }}</p>
+                  <div id="deck-curve-bar-1" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">1</p>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-2" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve2Count }}</p>
+                  <div id="deck-curve-bar-2" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">2</p>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-3" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve3Count }}</p>
+                  <div id="deck-curve-bar-3" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">3</p>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-4" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve4Count }}</p>
+                  <div id="deck-curve-bar-4" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">4</p>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-5" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve5Count }}</p>
+                  <div id="deck-curve-bar-5" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">5</p>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-6" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve6Count }}</p>
+                  <div id="deck-curve-bar-6" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">6</p>
+                </div>
+                <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
+                  <p id="deck-analytics-curve-7p" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve7PlusCount }}</p>
+                  <div id="deck-curve-bar-7p" class="w-5 rounded-t bg-cyan-300/80 h-[4px] transition-all duration-200"></div>
+                  <p class="text-slate-500 text-[10px]">7+</p>
+                </div>
               </div>
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-1" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve1Count }}</p>
-                <div id="deck-curve-bar-1" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">1</p>
-              </div>
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-2" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve2Count }}</p>
-                <div id="deck-curve-bar-2" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">2</p>
-              </div>
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-3" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve3Count }}</p>
-                <div id="deck-curve-bar-3" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">3</p>
-              </div>
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-4" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve4Count }}</p>
-                <div id="deck-curve-bar-4" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">4</p>
-              </div>
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-5" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve5Count }}</p>
-                <div id="deck-curve-bar-5" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">5</p>
-              </div>
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-6" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve6Count }}</p>
-                <div id="deck-curve-bar-6" class="w-5 rounded-t bg-sky-400/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">6</p>
-              </div>
-              <div class="flex-1 min-w-0 flex flex-col items-center justify-end">
-                <p id="deck-analytics-curve-7p" class="mb-1 text-slate-100 text-[11px] leading-none">{{ $ctx.Analytics.Curve7PlusCount }}</p>
-                <div id="deck-curve-bar-7p" class="w-5 rounded-t bg-cyan-300/80 h-[4px] transition-all duration-200"></div>
-                <p class="text-slate-500 text-[10px]">7+</p>
-              </div>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Type Mix</p>
+            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-300">
+              <p class="flex items-center justify-between"><span>Creatures</span><span id="deck-analytics-type-creature">{{ $ctx.Analytics.CreatureCount }}</span></p>
+              <p class="flex items-center justify-between"><span>Artifacts</span><span id="deck-analytics-type-artifact">{{ $ctx.Analytics.ArtifactCount }}</span></p>
+              <p class="flex items-center justify-between"><span>Enchantments</span><span id="deck-analytics-type-enchantment">{{ $ctx.Analytics.EnchantmentCount }}</span></p>
+              <p class="flex items-center justify-between"><span>Instants</span><span id="deck-analytics-type-instant">{{ $ctx.Analytics.InstantCount }}</span></p>
+              <p class="flex items-center justify-between"><span>Sorceries</span><span id="deck-analytics-type-sorcery">{{ $ctx.Analytics.SorceryCount }}</span></p>
+              <p class="flex items-center justify-between"><span>Planeswalkers</span><span id="deck-analytics-type-planeswalker">{{ $ctx.Analytics.PlaneswalkerCount }}</span></p>
+              <p class="flex items-center justify-between"><span>Battles</span><span id="deck-analytics-type-battle">{{ $ctx.Analytics.BattleCount }}</span></p>
             </div>
           </div>
         </div>
 
-        <div>
-          <div class="flex items-center justify-between gap-2 mb-1">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Example hand</p>
-            <button type="button"
-                    id="deck-analytics-new-hand"
-                    class="inline-flex items-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-[11px] text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-              Fresh seven
-            </button>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Example Opening Hand</p>
+            <button type="button" id="deck-analytics-new-hand" class="mt-btn mt-btn--secondary mt-btn--xs">New Hand</button>
           </div>
           <div class="rounded-md border border-slate-800 bg-slate-950/80 p-2.5">
-            <ul id="deck-analytics-example-hand" class="flex items-start gap-2 overflow-x-auto pb-1"></ul>
-            <p id="deck-analytics-example-hand-empty" class="text-xs text-slate-500">Add cards to generate an example hand.</p>
-          </div>
-        </div>
-
-        <div>
-          <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Deck tokens and extras</p>
-          <div class="rounded-md border border-slate-800 bg-slate-950/80 p-2.5">
-            <ul id="deck-analytics-extras" class="flex items-start gap-2 overflow-x-auto pb-1">
-              {{ if $ctx.Analytics.DeckExtras }}
-                {{ range $ctx.Analytics.DeckExtras }}
-                  <li data-extra-name="{{ .Name }}" data-extra-count="{{ .Count }}" class="text-xs text-slate-300">
-                    <span>{{ .Name }}</span>
-                    <span>{{ .Count }}</span>
-                  </li>
-                {{ end }}
-              {{ else }}
-                <li id="deck-analytics-extras-empty" class="text-slate-500">No deck extras detected yet.</li>
-              {{ end }}
-            </ul>
+            <ul id="deck-analytics-example-hand" class="grid grid-cols-2 gap-2 sm:grid-cols-4"></ul>
+            <p id="deck-analytics-example-hand-empty" class="text-xs text-slate-500">Add cards to sample a hand.</p>
           </div>
         </div>
       </div>
     </section>
   </main>
 
-  {{ template "deck_show_preview_overlay" . }}
+  {{ if not $isGuest }}
+    <div id="deck-menu-overlay"
+         class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 px-4 py-6">
+      <div class="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950/95 p-5 shadow-2xl shadow-slate-950/80">
+        <div class="space-y-2">
+          <p class="mt-kicker">Deck Menu</p>
+          <h2 class="text-xl font-semibold text-slate-50">{{ $d.Name }}</h2>
+          <p class="text-sm text-slate-400">Manage this deck without leaving the editor.</p>
+        </div>
+
+        <div class="mt-5 space-y-3">
+          <div class="space-y-2">
+            <label for="deck-menu-name-input" class="mt-field-label">Deck Name</label>
+            <div class="flex gap-2">
+              <input type="text"
+                     id="deck-menu-name-input"
+                     class="mt-control flex-1"
+                     value="{{ $d.Name }}"
+                     maxlength="120"
+                     autocomplete="off">
+              <button type="button" id="deck-menu-name-save" class="mt-btn mt-btn--primary">Save</button>
+            </div>
+          </div>
+          <button type="button" id="deck-menu-copy" class="mt-btn mt-btn--secondary w-full justify-center">Copy Decklist</button>
+          <button type="button" id="deck-menu-visibility" class="mt-btn mt-btn--secondary w-full justify-center">
+            {{ if $d.IsPublic }}Set Private{{ else }}Set Public{{ end }}
+          </button>
+          <form id="deck-menu-delete-form"
+                method="POST"
+                action="/decks/delete"
+                onsubmit="return confirm('Delete this deck? This cannot be undone.');">
+            <input type="hidden" name="id" value="{{ $d.ID }}">
+            <button type="submit" class="mt-btn mt-btn--danger w-full justify-center">Delete Deck</button>
+          </form>
+        </div>
+
+        <p id="deck-menu-status" class="mt-4 text-center text-xs text-slate-500" aria-live="polite"></p>
+
+        <div class="mt-5 flex justify-end">
+          <button type="button" id="deck-menu-close" class="mt-btn mt-btn--primary mt-btn--sm">Close</button>
+        </div>
+      </div>
+    </div>
+  {{ end }}
+
+  <script id="deck-workspace-seed" type="application/json">
+    {{ if not $isGuest }}{{ toJSON $ctx.WorkspaceState }}{{ else }}null{{ end }}
+  </script>
 
   {{ template "deck_show_guest_draft_script" . }}
-  {{ template "deck_show_cards_view_script" . }}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var isGuest = {{ if .Data.WorkbenchMode }}true{{ else if .CurrentUser }}false{{ else }}true{{ end }};
+      var supportedTagOptions = {{ toJSON (supportedDeckTags) }};
+      var tagThemeMap = {{ toJSON (deckTagThemeMap) }};
+      var addForm = document.getElementById('deck-add-card-form');
+      var addInput = document.getElementById('guest-card-name');
+      var suggestions = document.getElementById('deck-card-suggestions');
+      var tagHidden = document.getElementById('deck-overview-tags-hidden');
+      var tagList = document.getElementById('deck-overview-tags-list');
+      var tagButtons = Array.prototype.slice.call(document.querySelectorAll('[data-tag-suggestion]'));
+      var noteField = document.getElementById('deck-overview-notes');
+      var formatField = document.getElementById('deck-overview-format');
+      var overviewLayout = document.getElementById('deck-overview-layout');
+      var overviewSide = document.getElementById('deck-overview-side');
+      var commanderPanel = document.getElementById('deck-commander-panel');
+      var overviewFormatText = document.getElementById('deck-overview-format-text');
+      var overviewStatus = document.getElementById('deck-overview-status');
+      var flipButton = document.getElementById('deck-commander-flip');
+      var commanderNameEl = document.getElementById('deck-commander-name');
+      var commanderManaEl = document.getElementById('deck-commander-mana-cost');
+      var commanderTypeEl = document.getElementById('deck-commander-type-line');
+      var commanderOracleEl = document.getElementById('deck-commander-oracle-text');
+      var commanderArtWrapEl = document.getElementById('deck-top-commander-art-wrap');
+      var commanderPlaceholderEl = document.getElementById('deck-top-commander-placeholder');
+      var commanderArtEl = document.getElementById('deck-top-commander-art');
+      var commanderFaces = {{ if and $c (gt (len $c.Faces) 0) }}{{ toJSON $c.Faces }}{{ else }}[]{{ end }};
+      var commanderFallback = {
+        name: {{ if $c }}{{ printf "%q" $c.Name }}{{ else }}""{{ end }},
+        mana_cost: {{ if $c }}{{ printf "%q" $c.ManaCost }}{{ else }}""{{ end }},
+        type_line: {{ if $c }}{{ printf "%q" $c.TypeLine }}{{ else }}""{{ end }},
+        oracle_text: {{ if $c }}{{ printf "%q" $c.OracleText }}{{ else }}""{{ end }},
+        image_uri: {{ if $c }}{{ printf "%q" $c.ImageURI }}{{ else }}""{{ end }}
+      };
+      var commanderRequiresSelection = {{ if $isCommanderDeck }}true{{ else }}false{{ end }};
+      var currentCommanderFaces = [];
+      var currentCommanderFaceIndex = 0;
+      var lastGoodCommanderArt = normalizeTag((commanderArtEl && commanderArtEl.getAttribute('src')) || '');
+
+      function commanderEmptyName() {
+        return commanderRequiresSelection ? 'No commander selected' : 'No commander used';
+      }
+
+      function commanderEmptyOracle() {
+        return commanderRequiresSelection
+          ? 'Use the 3 dot menu on a card in Deck to set your commander.'
+          : 'Sandbox decks do not use a commander.';
+      }
+
+      function isUsableCommanderImageURI(value) {
+        var uri = normalizeTag(value);
+        if (!uri) return false;
+        if (uri === '[object Object]') return false;
+        if (uri === 'null' || uri === 'undefined') return false;
+        return /^https?:\/\//i.test(uri) || /^data:/i.test(uri) || uri.charAt(0) === '/';
+      }
+
+      function syncOverviewFormatLayout(isCommander) {
+        commanderRequiresSelection = !!isCommander;
+        var nextFormat = isCommander ? 'Commander' : 'Sandbox';
+        if (overviewFormatText) overviewFormatText.textContent = nextFormat;
+        if (overviewLayout) {
+          overviewLayout.classList.toggle('grid', !!isCommander);
+          overviewLayout.classList.toggle('gap-4', !!isCommander);
+          overviewLayout.classList.toggle('xl:grid-cols-[320px_minmax(0,1fr)]', !!isCommander);
+          overviewLayout.classList.toggle('space-y-4', !isCommander);
+        }
+        if (overviewSide) {
+          overviewSide.classList.toggle('hidden', !isCommander);
+        }
+        if (commanderPanel) {
+          commanderPanel.classList.toggle('hidden', !isCommander);
+        }
+        if (!isCommander) {
+          if (commanderNameEl) commanderNameEl.textContent = commanderEmptyName();
+          if (commanderManaEl) {
+            commanderManaEl.setAttribute('data-mana-cost', '');
+            commanderManaEl.textContent = 'None';
+          }
+          if (commanderTypeEl) commanderTypeEl.textContent = '';
+          if (commanderOracleEl) commanderOracleEl.textContent = commanderEmptyOracle();
+          if (commanderArtWrapEl) commanderArtWrapEl.classList.add('hidden');
+          if (commanderPlaceholderEl) commanderPlaceholderEl.classList.add('hidden');
+          if (flipButton) flipButton.classList.add('hidden');
+        } else {
+          renderCommanderOverviewFace(currentCommanderFaceIndex);
+        }
+      }
+      window.mtDeckSetOverviewFormat = syncOverviewFormatLayout;
+
+      function normalizeTag(value) {
+        return String(value || '').replace(/\s+/g, ' ').trim();
+      }
+
+      function canonicalDeckTag(value) {
+        var normalized = normalizeTag(value).toLowerCase();
+        if (!normalized) return '';
+        for (var i = 0; i < supportedTagOptions.length; i++) {
+          if (String(supportedTagOptions[i] || '').toLowerCase() === normalized) {
+            return supportedTagOptions[i];
+          }
+        }
+        return '';
+      }
+
+      function normalizeCommanderFace(face) {
+        if (!face || typeof face !== 'object') return null;
+        var normalized = {
+          name: normalizeTag(face.name || ''),
+          mana_cost: normalizeTag(face.mana_cost || face.manaCost || ''),
+          type_line: normalizeTag(face.type_line || face.typeLine || ''),
+          oracle_text: normalizeTag(face.oracle_text || face.oracleText || ''),
+          image_uri: normalizeTag(face.image_uri || face.imageURI || '')
+        };
+        if (!normalized.name && !normalized.type_line && !normalized.oracle_text && !normalized.image_uri) {
+          return null;
+        }
+        return normalized;
+      }
+
+      function normalizedCommanderFaces(faces) {
+        if (!Array.isArray(faces)) return [];
+        var out = [];
+        for (var i = 0; i < faces.length; i++) {
+          var face = normalizeCommanderFace(faces[i]);
+          if (face) out.push(face);
+        }
+        return out;
+      }
+
+      function extractCommanderImageURI(cardData) {
+        if (!cardData || typeof cardData !== 'object') return '';
+        if (cardData.image_uris && typeof cardData.image_uris === 'object') {
+          return normalizeTag(cardData.image_uris.normal || cardData.image_uris.large || cardData.image_uris.small || '');
+        }
+        return normalizeTag(cardData.image_uri || cardData.imageURI || '');
+      }
+
+      function syncCommanderFlipVisibility() {
+        if (!flipButton) return;
+        flipButton.classList.toggle('hidden', currentCommanderFaces.length <= 1);
+      }
+
+      function renderCommanderOverviewFace(index) {
+        var face = currentCommanderFaces.length > 0
+          ? (currentCommanderFaces[index] || currentCommanderFaces[0])
+          : null;
+
+        var name = face ? face.name : normalizeTag(commanderFallback.name || '');
+        var manaCost = face ? face.mana_cost : normalizeTag(commanderFallback.mana_cost || '');
+        var typeLine = face ? face.type_line : normalizeTag(commanderFallback.type_line || '');
+        var oracleText = face ? face.oracle_text : normalizeTag(commanderFallback.oracle_text || '');
+        var imageURI = face ? face.image_uri : normalizeTag(commanderFallback.image_uri || '');
+        var hasCommanderSelection = !!name;
+        if (hasCommanderSelection && !isUsableCommanderImageURI(imageURI) && isUsableCommanderImageURI(commanderFallback.image_uri || '')) {
+          imageURI = normalizeTag(commanderFallback.image_uri || '');
+        }
+        if (hasCommanderSelection && !isUsableCommanderImageURI(imageURI) && isUsableCommanderImageURI(lastGoodCommanderArt)) {
+          imageURI = lastGoodCommanderArt;
+        }
+        if (!hasCommanderSelection) {
+          manaCost = '';
+          typeLine = '';
+          oracleText = commanderEmptyOracle();
+          imageURI = '';
+        }
+
+        if (commanderNameEl) commanderNameEl.textContent = name || commanderEmptyName();
+        if (commanderManaEl) {
+          commanderManaEl.setAttribute('data-mana-cost', manaCost);
+          commanderManaEl.textContent = manaCost ? '' : 'None';
+          if (window.mtRenderManaCostPips) window.mtRenderManaCostPips(commanderManaEl);
+        }
+        if (commanderTypeEl) commanderTypeEl.textContent = typeLine || '';
+        if (commanderOracleEl) commanderOracleEl.textContent = oracleText || commanderEmptyOracle();
+
+        if (commanderArtEl) {
+          if (isUsableCommanderImageURI(imageURI)) {
+            commanderArtEl.src = imageURI;
+            commanderArtEl.alt = (name || 'Commander') + ' commander art';
+          } else {
+            commanderArtEl.removeAttribute('src');
+            commanderArtEl.alt = 'Commander art';
+          }
+        }
+        if (commanderArtWrapEl) {
+          commanderArtWrapEl.classList.toggle('hidden', !isUsableCommanderImageURI(imageURI));
+        }
+        if (commanderPlaceholderEl) {
+          commanderPlaceholderEl.classList.toggle('hidden', hasCommanderSelection);
+        }
+      }
+
+      function setCommanderOverview(cardData) {
+        if (!cardData || typeof cardData !== 'object') {
+          commanderFallback = {
+            name: '',
+            mana_cost: '',
+            type_line: '',
+            oracle_text: '',
+            image_uri: ''
+          };
+          currentCommanderFaces = [];
+          currentCommanderFaceIndex = 0;
+          syncCommanderFlipVisibility();
+          renderCommanderOverviewFace(0);
+          return;
+        }
+
+        commanderFallback = {
+          name: normalizeTag(cardData.name || ''),
+          mana_cost: normalizeTag(cardData.mana_cost || cardData.manaCost || ''),
+          type_line: normalizeTag(cardData.type_line || cardData.typeLine || ''),
+          oracle_text: normalizeTag(cardData.oracle_text || cardData.oracleText || ''),
+          image_uri: extractCommanderImageURI(cardData)
+        };
+        currentCommanderFaces = normalizedCommanderFaces(cardData.faces);
+        currentCommanderFaceIndex = 0;
+        syncCommanderFlipVisibility();
+        renderCommanderOverviewFace(currentCommanderFaceIndex);
+      }
+
+      window.mtDeckSetCommanderOverview = setCommanderOverview;
+
+      if (commanderArtEl) {
+        commanderArtEl.addEventListener('load', function () {
+          var next = normalizeTag(commanderArtEl.getAttribute('src') || '');
+          if (isUsableCommanderImageURI(next)) {
+            lastGoodCommanderArt = next;
+          }
+        });
+        commanderArtEl.addEventListener('error', function () {
+          if (isUsableCommanderImageURI(commanderFallback.image_uri || '') &&
+              normalizeTag(commanderArtEl.getAttribute('src') || '') !== normalizeTag(commanderFallback.image_uri || '')) {
+            commanderArtEl.src = normalizeTag(commanderFallback.image_uri || '');
+            return;
+          }
+          if (isUsableCommanderImageURI(lastGoodCommanderArt) &&
+              normalizeTag(commanderArtEl.getAttribute('src') || '') !== lastGoodCommanderArt) {
+            commanderArtEl.src = lastGoodCommanderArt;
+            return;
+          }
+          if (commanderArtWrapEl) commanderArtWrapEl.classList.add('hidden');
+        });
+      }
+
+      function parseTags(raw) {
+        if (!raw) return [];
+        var parts = String(raw).split(/[,\n\r\t]+/);
+        var out = [];
+        var seen = {};
+        for (var i = 0; i < parts.length; i++) {
+          var tag = canonicalDeckTag(parts[i]);
+          if (!tag) continue;
+          var key = tag.toLowerCase();
+          if (seen[key]) continue;
+          seen[key] = true;
+          out.push(tag);
+          if (out.length >= 12) break;
+        }
+        return out;
+      }
+
+      var tags = parseTags(tagHidden ? tagHidden.value : '');
+
+      function syncTags() {
+        if (tagHidden) tagHidden.value = tags.join(', ');
+      }
+
+      function updateTagButtons() {
+        for (var i = 0; i < tagButtons.length; i++) {
+          var button = tagButtons[i];
+          var tagValue = canonicalDeckTag(button.getAttribute('data-tag-suggestion') || '');
+          var tone = tagToneClasses(tagValue);
+          var active = tags.some(function (tag) {
+            return tag.toLowerCase() === tagValue.toLowerCase();
+          });
+          button.className = active ? tone.button_active : tone.button;
+          button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+      }
+
+      function queueOverviewSave() {
+        if (!window.mtDeckWorkspaceUpdateOverview) return;
+        window.mtDeckWorkspaceUpdateOverview({
+          tags: tagHidden ? tagHidden.value : '',
+          description: noteField ? noteField.value : '',
+          format: formatField ? formatField.value : ''
+        });
+      }
+
+      function renderTags() {
+        if (!tagList) return;
+        tagList.innerHTML = '';
+        if (tags.length === 0) {
+          var empty = document.createElement('p');
+          empty.className = 'text-sm text-slate-500';
+          empty.textContent = 'No tags yet.';
+          tagList.appendChild(empty);
+          updateTagButtons();
+          return;
+        }
+
+        for (var i = 0; i < tags.length; i++) {
+          (function (tagValue) {
+            var tone = tagToneClasses(tagValue);
+            var chip = document.createElement('span');
+            chip.className = tone.editor_chip;
+            chip.textContent = tagValue;
+
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = tone.editor_remove;
+            remove.textContent = 'x';
+            remove.setAttribute('aria-label', 'Remove ' + tagValue);
+            remove.addEventListener('click', function () {
+              tags = tags.filter(function (tag) {
+                return tag.toLowerCase() !== tagValue.toLowerCase();
+              });
+              syncTags();
+              renderTags();
+              queueOverviewSave();
+            });
+
+            chip.appendChild(remove);
+            tagList.appendChild(chip);
+          })(tags[i]);
+        }
+        updateTagButtons();
+      }
+
+      function tagToneClasses(tagValue) {
+        var key = canonicalDeckTag(tagValue);
+        return tagThemeMap[key] || {
+          public: 'inline-flex items-center rounded-full border border-slate-600 bg-slate-800/80 px-2.5 py-1 text-xs font-medium text-slate-100',
+          editor_chip: 'inline-flex items-center gap-2 rounded-full border border-slate-600 bg-slate-800/80 px-3 py-1 text-sm font-medium text-slate-100',
+          editor_remove: 'text-slate-300/80 hover:text-slate-50',
+          button: 'mt-btn mt-btn--xs border border-slate-600 bg-slate-800/80 !text-slate-100 hover:bg-slate-700/90',
+          button_active: 'mt-btn mt-btn--xs border border-slate-300/80 bg-slate-700 !text-slate-50'
+        };
+      }
+
+      function addTag(value) {
+        var normalized = canonicalDeckTag(value);
+        if (!normalized) return;
+        var exists = tags.some(function (tag) {
+          return tag.toLowerCase() === normalized.toLowerCase();
+        });
+        if (exists || tags.length >= supportedTagOptions.length) {
+          return;
+        }
+        tags.push(normalized);
+        syncTags();
+        renderTags();
+        queueOverviewSave();
+      }
+
+      function removeTag(value) {
+        var normalized = canonicalDeckTag(value);
+        if (!normalized) return;
+        tags = tags.filter(function (tag) {
+          return tag.toLowerCase() !== normalized.toLowerCase();
+        });
+        syncTags();
+        renderTags();
+        queueOverviewSave();
+      }
+
+      for (var s = 0; s < tagButtons.length; s++) {
+        tagButtons[s].addEventListener('click', function () {
+          var tagValue = canonicalDeckTag(this.getAttribute('data-tag-suggestion') || '');
+          var exists = tags.some(function (tag) {
+            return tag.toLowerCase() === tagValue.toLowerCase();
+          });
+          if (exists) {
+            removeTag(tagValue);
+            return;
+          }
+          addTag(tagValue);
+        });
+      }
+
+      syncTags();
+      renderTags();
+
+      if (formatField) {
+        formatField.addEventListener('change', function () {
+          syncOverviewFormatLayout(String(formatField.value || '') === 'Commander');
+          queueOverviewSave();
+        });
+      }
+
+      if (noteField) {
+        var noteTimer = null;
+        noteField.addEventListener('input', function () {
+          if (noteTimer) window.clearTimeout(noteTimer);
+          noteTimer = window.setTimeout(function () {
+            queueOverviewSave();
+            if (overviewStatus) {
+              overviewStatus.textContent = isGuest ? 'Local changes save automatically.' : 'Changes save automatically.';
+            }
+          }, 140);
+        });
+      }
+
+      if (addForm && addInput && suggestions) {
+        var activeIndex = -1;
+        var items = [];
+        var requestToken = 0;
+
+        function closeSuggestions() {
+          suggestions.innerHTML = '';
+          suggestions.classList.add('hidden');
+          addInput.setAttribute('aria-expanded', 'false');
+          activeIndex = -1;
+          items = [];
+        }
+
+        function submitCard(name) {
+          var value = String(name || '').trim();
+          if (!value) return;
+          addInput.value = value;
+          closeSuggestions();
+          if (typeof addForm.requestSubmit === 'function') {
+            addForm.requestSubmit();
+          } else {
+            addForm.submit();
+          }
+        }
+
+        function setActive(nextIndex) {
+          activeIndex = nextIndex;
+          for (var i = 0; i < items.length; i++) {
+            var active = i === activeIndex;
+            items[i].classList.toggle('bg-slate-800', active);
+            items[i].classList.toggle('text-sky-200', active);
+          }
+        }
+
+        function renderSuggestions(results) {
+          suggestions.innerHTML = '';
+          items = [];
+          activeIndex = -1;
+
+          if (!Array.isArray(results) || results.length === 0) {
+            closeSuggestions();
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var result = results[i] || {};
+            var name = String(result.name || '').trim();
+            if (!name) continue;
+
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-200 first:border-t-0 hover:bg-slate-900 hover:text-sky-200';
+            button.textContent = name;
+            button.setAttribute('role', 'option');
+            button.addEventListener('mousedown', function (event) {
+              event.preventDefault();
+              submitCard(this.textContent || '');
+            });
+            suggestions.appendChild(button);
+            items.push(button);
+          }
+
+          if (items.length === 0) {
+            closeSuggestions();
+            return;
+          }
+
+          suggestions.classList.remove('hidden');
+          addInput.setAttribute('aria-expanded', 'true');
+        }
+
+        async function fetchSuggestions() {
+          var query = String(addInput.value || '').trim();
+          if (query.length < 2) {
+            closeSuggestions();
+            return;
+          }
+
+          var token = ++requestToken;
+          try {
+            var res = await fetch('/cards/autocomplete?q=' + encodeURIComponent(query) + '&limit=8', {
+              method: 'GET',
+              credentials: 'same-origin'
+            });
+            if (!res.ok) {
+              closeSuggestions();
+              return;
+            }
+            var data = await res.json();
+            if (token !== requestToken) return;
+            renderSuggestions(data && Array.isArray(data.results) ? data.results : []);
+          } catch (e) {
+            if (token !== requestToken) return;
+            closeSuggestions();
+          }
+        }
+
+        addInput.addEventListener('input', fetchSuggestions);
+        addInput.addEventListener('focus', function () {
+          if (String(addInput.value || '').trim().length >= 2) fetchSuggestions();
+        });
+        addInput.addEventListener('keydown', function (event) {
+          if (suggestions.classList.contains('hidden') || items.length === 0) {
+            return;
+          }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActive(activeIndex < items.length - 1 ? activeIndex + 1 : 0);
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActive(activeIndex > 0 ? activeIndex - 1 : items.length - 1);
+            return;
+          }
+          if (event.key === 'Enter' && activeIndex >= 0 && activeIndex < items.length) {
+            event.preventDefault();
+            submitCard(items[activeIndex].textContent || '');
+            return;
+          }
+          if (event.key === 'Escape') {
+            closeSuggestions();
+          }
+        });
+
+        document.addEventListener('click', function (event) {
+          if (event.target === addInput || suggestions.contains(event.target)) return;
+          closeSuggestions();
+        });
+      }
+
+      document.addEventListener('click', function (event) {
+        var openMenus = document.querySelectorAll('details[data-card-action-menu][open]');
+        for (var i = 0; i < openMenus.length; i++) {
+          if (openMenus[i].contains(event.target)) continue;
+          openMenus[i].open = false;
+        }
+      });
+
+      currentCommanderFaces = normalizedCommanderFaces(commanderFaces);
+      setCommanderOverview({
+        name: commanderFallback.name,
+        mana_cost: commanderFallback.mana_cost,
+        type_line: commanderFallback.type_line,
+        oracle_text: commanderFallback.oracle_text,
+        image_uri: commanderFallback.image_uri,
+        faces: currentCommanderFaces
+      });
+      syncOverviewFormatLayout({{ if $isCommanderDeck }}true{{ else }}false{{ end }});
+      if (isGuest && window.mtDeckCurrentGuestDraft) {
+        syncOverviewFormatLayout(String(window.mtDeckCurrentGuestDraft.format || '') === 'Commander');
+      }
+      if (isGuest && window.mtDeckCurrentGuestDraft && window.mtDeckGuestSyncCommanderOverview) {
+        window.mtDeckGuestSyncCommanderOverview(window.mtDeckCurrentGuestDraft);
+      }
+
+      if (flipButton) {
+        flipButton.addEventListener('click', function () {
+          if (currentCommanderFaces.length <= 1) return;
+          currentCommanderFaceIndex = (currentCommanderFaceIndex + 1) % currentCommanderFaces.length;
+          renderCommanderOverviewFace(currentCommanderFaceIndex);
+        });
+      }
+    });
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

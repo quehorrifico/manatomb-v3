@@ -1,22 +1,18 @@
-{{ define "decks_guest_import_seed" }}
+{{ define "decks_workbench_import_seed" }}
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-2xl mx-auto py-10 px-4 space-y-6">
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-6 shadow-md shadow-sky-500/10 space-y-3">
-      <h2 class="text-xl font-semibold tracking-tight text-slate-100">
-        Preparing your guest deck...
-      </h2>
-      <p class="text-sm text-slate-300">
-        Your imported cards are being loaded into the guest deck builder.
-      </p>
-      <p class="text-xs text-slate-500">
-        If you are not redirected, continue manually.
-      </p>
-      <a href="/decks/guest"
-         class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
-        Continue to guest deck
-      </a>
+  <main class="max-w-3xl mx-auto py-10 px-4 space-y-5">
+    <section class="mt-panel p-5 sm:p-6 space-y-4">
+      <div class="space-y-2">
+        <p class="mt-kicker">Import</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-100">Loading deck.</h1>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <a href="/" class="mt-btn mt-btn--secondary">Home</a>
+        <a href="/decks/new/workbench" class="mt-btn mt-btn--primary">Open Deck</a>
+      </div>
     </section>
   </main>
 
@@ -24,6 +20,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     var payload = {{ $ctx.PayloadJSON }};
     var key = 'manatomb.draftDeck';
+    var returnKey = key + '.playtestReturn';
 
     try {
       var cards = {};
@@ -45,20 +42,33 @@
 
       var draft = {
         commanderName: payload.commander_name || '',
+        format: payload.format || 'Sandbox',
         commanderCandidates: Array.isArray(payload.commander_candidates) ? payload.commander_candidates : [],
         name: payload.name || payload.commander_name || 'Imported Deck',
         description: payload.description || '',
+        tags: '',
         cards: cards,
         maybeCards: maybeCards,
+        cardMeta: {},
         updatedAt: new Date().toISOString()
       };
 
-      localStorage.setItem(key, JSON.stringify(draft));
+      var raw = JSON.stringify(draft);
+      localStorage.setItem(key, raw);
+      try {
+        sessionStorage.setItem(returnKey, raw);
+      } catch (e) {
+        // ignore session storage failures
+      }
     } catch (e) {
       // ignore storage failures
     }
 
-    window.location.replace('/decks/guest');
+    var nextURL = '/decks/new/workbench';
+    if (payload && payload.format) {
+      nextURL += '?format=' + encodeURIComponent(payload.format);
+    }
+    window.location.replace(nextURL);
   });
   </script>
 

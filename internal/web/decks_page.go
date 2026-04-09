@@ -13,16 +13,37 @@ type commanderCandidate struct {
 }
 
 type deckPageData struct {
-	Deck                *decks.Deck
-	DeckCards           []decks.DeckCard
-	MaybeDeckCards      []decks.DeckCard
-	VisibleCardCount    int
-	MaybeCardCount      int
-	Analytics           deckAnalyticsData
-	Commander           *cards.Card
-	CommanderCandidates []commanderCandidate
-	GuestMode           bool
-	GuestSandbox        bool
+	Deck                  *decks.Deck
+	DeckCards             []decks.DeckCard
+	MaybeDeckCards        []decks.DeckCard
+	VisibleCardCount      int
+	MaybeCardCount        int
+	Analytics             deckAnalyticsData
+	Commander             *cards.Card
+	CommanderCandidates   []commanderCandidate
+	CommanderCandidateSet map[string]bool
+	WorkspaceState        workspaceDeckState
+	WorkbenchMode         bool
+	WorkbenchSandbox      bool
+}
+
+func buildCommanderCandidateSet(candidates []commanderCandidate) map[string]bool {
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	out := make(map[string]bool, len(candidates))
+	for _, candidate := range candidates {
+		name := strings.TrimSpace(candidate.CardName)
+		if name == "" {
+			continue
+		}
+		out[name] = true
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func (a *App) lookupCommanderCard(ctx context.Context, commanderName string) *cards.Card {

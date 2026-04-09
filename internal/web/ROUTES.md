@@ -7,10 +7,13 @@ can be added without hunting through handler files.
 
 ### Home and auth
 - `/` -> `HandleHome`
+- `/healthz` -> `HandleHealthz`
+- `/privacy` -> `HandlePrivacy`
+- `/terms` -> `HandleTerms`
 - `/signup` (GET/POST) -> `HandleSignupShow` / `HandleSignupPost`
 - `/login` (GET/POST) -> `HandleLoginShow` / `HandleLoginPost`
 - `/logout` -> `HandleLogout`
-- File: `internal/web/auth.go`
+- Files: `internal/web/auth.go`, `internal/web/legal.go`
 
 ### Settings
 - `/settings` (GET/POST) -> `HandleSettingsShow` / `HandleSettingsPost`
@@ -18,29 +21,43 @@ can be added without hunting through handler files.
 
 ### Decks
 - `/decks` -> list
-- `/decks/new` (GET/POST) -> deck-builder entry and commander save flow
+- `/decks/new` (GET/POST) -> deck-builder entry and saved deck creation
+- `/decks/new/commander/` -> commander deck launcher
+- `/decks/new/commander/create` -> open the commander deck editor
+- `/decks/new/workbench` -> local unsaved deck workbench
+- `/decks/new/sandbox` -> sandbox shortcut to an empty local workbench
+- `/decks/new/playtest` -> playtest the local workbench deck
+- `/decks/import` (GET/POST) -> import page and pasted deck text submit
+- `/decks/import/save` -> local workbench save-to-account endpoint
 - `/decks/{id}` -> deck detail and add/remove cards
-- `/decks/edit` (GET/POST) -> deck metadata editing
+- `/decks/settings` (GET/POST) -> deck metadata editing
 - `/decks/delete` -> delete deck
-- `/decks/commander` -> update commander from cards in deck
-- `/decks/import-text` -> import from pasted text
-- `/decks/import-draft` -> guest draft save-to-account endpoint
-- `/decks/analytics` -> deck analytics JSON (saved deck or guest draft payload)
-- `/decks/create-from-commander` -> commander search handoff
-- `/decks/guest` -> guest deck builder
-- `/decks/sandbox` -> sandbox guest builder (redirects to empty guest deck workbench)
+- `/decks/commander` -> update a saved deck's commander from cards already in the deck
+- `/decks/analytics` -> deck analytics JSON (saved deck or local workbench payload)
 - `/decks/playtest/{id}` -> playtest deck
+- Compatibility aliases kept for older links:
+  `/decks/new/commander`, `/decks/new/leader`, `/decks/leader`, `/decks/select-leader`,
+  `/decks/create-from-leader`, `/decks/workbench`, `/decks/guest`,
+  `/decks/sandbox`, `/decks/import-text`, `/decks/import-draft`,
+  `/decks/edit`, `/decks/playtest/workbench`,
+  `/decks/playtest/guest`
 - Files:
   - `internal/web/decks_helpers.go`
+  - `internal/web/route_helpers.go`
   - `internal/web/decks_create_list.go`
   - `internal/web/decks_show_edit.go`
   - `internal/web/decks_import.go`
   - `internal/web/decks_playtest.go`
 
 ### Cards and commanders
-- `/cards/search` -> card search
+- `/cards` -> quick card results from the home search box
+- `/cards/search` -> advanced card search
+- `/cards/view/{oracle_id}` -> dedicated card detail page
+- `/cards/autocomplete` -> deck-builder autocomplete results
 - `/cards/add-to-deck` -> add card to saved deck
 - `/commanders/search` -> commander search
+- Compatibility aliases kept for older links:
+  `/cards/search/autocomplete`, `/cards/search/deck`
 - File: `internal/web/cards.go`
 
 ### Rules
@@ -48,7 +65,9 @@ can be added without hunting through handler files.
 - File: `internal/web/rules.go`
 
 ### Public decks
-- `/decks/public` -> public decks landing
+- `/decks/public` -> public deck browse page
+- `/decks/public/{slug}` -> public deck detail page
+- `/decks/public/fork` -> copy a public deck into the current account
 - File: `internal/web/decks_public.go`
 
 ## Supporting Features

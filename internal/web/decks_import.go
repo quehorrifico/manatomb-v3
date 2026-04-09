@@ -16,6 +16,8 @@ type importDraftRequest struct {
 	CommanderName string `json:"commander_name"`
 	Name          string `json:"name"`
 	Description   string `json:"description"`
+	Tags          string `json:"tags"`
+	Format        string `json:"format"`
 	Cards         []struct {
 		Name string `json:"name"`
 		Qty  int    `json:"qty"`
@@ -30,23 +32,24 @@ type importDraftResponse struct {
 	DeckID int64 `json:"deck_id"`
 }
 
-type guestImportSeedData struct {
+type workbenchImportSeedData struct {
 	CommanderName string
 	PayloadJSON   template.JS
 }
 
-type guestImportSeedCard struct {
+type workbenchImportSeedCard struct {
 	Name string `json:"name"`
 	Qty  int    `json:"qty"`
 }
 
-type guestImportPayload struct {
-	CommanderName       string                `json:"commander_name"`
-	Name                string                `json:"name"`
-	Description         string                `json:"description"`
-	Cards               []guestImportSeedCard `json:"cards"`
-	MaybeCards          []guestImportSeedCard `json:"maybe_cards,omitempty"`
-	CommanderCandidates []string              `json:"commander_candidates,omitempty"`
+type workbenchImportPayload struct {
+	CommanderName       string                    `json:"commander_name"`
+	Name                string                    `json:"name"`
+	Description         string                    `json:"description"`
+	Format              string                    `json:"format"`
+	Cards               []workbenchImportSeedCard `json:"cards"`
+	MaybeCards          []workbenchImportSeedCard `json:"maybe_cards,omitempty"`
+	CommanderCandidates []string                  `json:"commander_candidates,omitempty"`
 }
 
 type resolvedImportCard struct {
@@ -75,6 +78,8 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 	commander := strings.TrimSpace(req.CommanderName)
 	name := strings.TrimSpace(req.Name)
 	desc := strings.TrimSpace(req.Description)
+	format := defaultDeckFormat(req.Format, commander, "import")
+	powerBracket := defaultDeckPowerBracket("", format)
 
 	if name == "" {
 		if commander != "" {
@@ -85,7 +90,17 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create the saved deck
-	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, name, desc, commander)
+	if !decks.FormatRequiresCommander(format) {
+		commander = ""
+	}
+	d, err := decks.CreateDeckWithOptions(r.Context(), a.DB, user.ID, decks.DeckInput{
+		Name:          name,
+		Description:   desc,
+		Tags:          strings.TrimSpace(req.Tags),
+		Format:        format,
+		CommanderName: commander,
+		PowerBracket:  powerBracket,
+	})
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
@@ -120,7 +135,7 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 		_ = decks.AddCard(r.Context(), a.DB, d.ID, resolution.Card.OracleID, qty) // best-effort
 	}
 
-	// Add maybeboard cards (optional for guest draft imports).
+	// Add maybeboard cards (optional for local workbench imports).
 	// Skip unknown cards instead of failing the whole import.
 	maybeByName := map[string]string{}
 	existingMaybe, err := decks.ListDeckMaybeCards(r.Context(), a.DB, d.ID)
@@ -251,9 +266,10 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 	if canonicalCommander != "" {
 		canonicalCommander = resolvedExact[strings.ToLower(canonicalCommander)].Name
 	}
+	format := defaultDeckFormat("", canonicalCommander, "import")
+	powerBracket := defaultDeckPowerBracket("", format)
 
 	resolvedByOracleID := make(map[string]*resolvedImportCard, len(items))
-	resolvedCardMeta := make(map[string]cards.DBCard, len(items))
 	total := 0
 	for _, it := range items {
 		cardName := strings.TrimSpace(it.Name)
@@ -270,25 +286,8 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 				Name:     card.Name,
 				Qty:      it.Qty,
 			}
-			resolvedCardMeta[card.OracleID] = card
 		}
 		total += it.Qty
-	}
-
-	// If the commander came from a dedicated "Commander:" line and is not
-	// already present in the imported deck rows, include one copy so users can
-	// explicitly choose it from commander candidates after import.
-	if canonicalCommander != "" {
-		if commanderCard, ok := resolvedExact[strings.ToLower(canonicalCommander)]; ok {
-			if _, exists := resolvedByOracleID[commanderCard.OracleID]; !exists {
-				resolvedByOracleID[commanderCard.OracleID] = &resolvedImportCard{
-					OracleID: commanderCard.OracleID,
-					Name:     commanderCard.Name,
-					Qty:      1,
-				}
-				resolvedCardMeta[commanderCard.OracleID] = commanderCard
-			}
-		}
 	}
 
 	if total == 0 {
@@ -308,48 +307,29 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		return resolvedCards[i].Name < resolvedCards[j].Name
 	})
 
-	commanderCandidates := make([]string, 0)
-	candidateSeen := make(map[string]struct{})
-	for _, rec := range resolvedCards {
-		cardRec := resolvedCardMeta[rec.OracleID]
-		if !cardRec.IsCommanderCandidate {
-			continue
-		}
-
-		candidateName := strings.TrimSpace(cardRec.Name)
-		if candidateName == "" {
-			continue
-		}
-
-		key := strings.ToLower(candidateName)
-		if _, ok := candidateSeen[key]; ok {
-			continue
-		}
-		candidateSeen[key] = struct{}{}
-		commanderCandidates = append(commanderCandidates, candidateName)
-	}
-	sort.Strings(commanderCandidates)
-
 	deckName := strings.TrimSpace(canonicalCommander)
 	if deckName == "" {
 		deckName = "Imported Deck"
 	}
 
 	if user == nil {
-		guestCards := make([]guestImportSeedCard, 0, len(resolvedCards))
+		workbenchCards := make([]workbenchImportSeedCard, 0, len(resolvedCards))
 		for _, rec := range resolvedCards {
-			guestCards = append(guestCards, guestImportSeedCard{
+			workbenchCards = append(workbenchCards, workbenchImportSeedCard{
 				Name: rec.Name,
 				Qty:  rec.Qty,
 			})
 		}
 
-		payload := guestImportPayload{
-			CommanderName:       "",
-			Name:                deckName,
-			Description:         "",
-			Cards:               guestCards,
-			CommanderCandidates: commanderCandidates,
+		payload := workbenchImportPayload{
+			CommanderName: canonicalCommander,
+			Name:          deckName,
+			Description:   "",
+			Format:        format,
+			Cards:         workbenchCards,
+		}
+		if canonicalCommander != "" {
+			payload.CommanderCandidates = []string{canonicalCommander}
 		}
 
 		b, err := json.Marshal(payload)
@@ -358,24 +338,29 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if len(commanderCandidates) > 0 {
-			setFlash(w, "Deck imported. Choose your commander from eligible imported cards.")
-		} else {
-			setFlash(w, "Deck imported into your guest deck.")
-		}
+		setFlash(w, "Deck imported into your local deck.")
 
 		data := TemplateData{
 			CurrentUser: user,
-			Data: guestImportSeedData{
+			Data: workbenchImportSeedData{
 				CommanderName: "",
 				PayloadJSON:   template.JS(b),
 			},
 		}
-		a.Renderer.Render(w, "decks_guest_import_seed", data)
+		a.Renderer.Render(w, "decks_workbench_import_seed", data)
 		return
 	}
 
-	d, err := decks.CreateDeck(r.Context(), a.DB, user.ID, deckName, "", "")
+	if format != "Commander" {
+		canonicalCommander = ""
+	}
+	d, err := decks.CreateDeckWithOptions(r.Context(), a.DB, user.ID, decks.DeckInput{
+		Name:          deckName,
+		Description:   "",
+		Format:        format,
+		CommanderName: canonicalCommander,
+		PowerBracket:  powerBracket,
+	})
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
@@ -398,10 +383,6 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(commanderCandidates) > 0 {
-		setFlash(w, "Deck imported. Choose your commander from eligible cards in the deck.")
-	} else {
-		setFlash(w, "Deck imported!")
-	}
+	setFlash(w, "Deck imported!")
 	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
 }

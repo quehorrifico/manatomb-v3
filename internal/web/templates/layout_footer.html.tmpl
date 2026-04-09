@@ -2,15 +2,210 @@
       </div>
     </main>
 
-    <footer class="border-t border-slate-800 bg-slate-900/80 mt-8">
-      <div class="max-w-5xl mx-auto px-4 py-4 text-xs text-slate-500 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <span>&copy; 2025 Mana Tomb</span>
-        <span class="text-slate-500/90">
-          Built by Zeus for Commander players.
-        </span>
-      </div>
-    </footer>
+    {{ if not .HideFooter }}
+      <footer class="border-t border-slate-800 bg-slate-900/80 mt-8">
+        <div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <div class="grid gap-6 md:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
+            <section class="space-y-2">
+              <p class="text-sm font-semibold text-slate-100">Mana Tomb</p>
+              <p class="text-xs leading-5 text-slate-400">
+                Free, non-commercial MTG deck building and playtesting.
+              </p>
+            </section>
+
+            <section class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Legal</p>
+              <div class="flex flex-col gap-1.5 text-xs text-slate-400">
+                <a href="/privacy" class="hover:text-sky-300 transition-colors">Privacy</a>
+                <a href="/terms" class="hover:text-sky-300 transition-colors">Terms</a>
+              </div>
+            </section>
+
+            <section class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Support</p>
+              <div class="flex flex-col gap-1.5 text-xs text-slate-400">
+                <a href="{{ projectRepoURL }}" class="hover:text-sky-300 transition-colors" target="_blank" rel="noopener noreferrer">GitHub</a>
+                <a href="{{ projectIssuesURL }}" class="hover:text-sky-300 transition-colors" target="_blank" rel="noopener noreferrer">Contact / Issues</a>
+              </div>
+            </section>
+
+            <section class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Data</p>
+              <div class="space-y-1.5 text-xs text-slate-400">
+                <p>Card data &copy; <a href="https://scryfall.com" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Scryfall</a></p>
+                <p>Card images &copy; <a href="https://company.wizards.com/en" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Wizards of the Coast</a></p>
+              </div>
+            </section>
+          </div>
+
+          <div class="border-t border-slate-800 pt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-slate-500">
+            <span>&copy; {{ currentYear }} Mana Tomb</span>
+            <span>Card data and images remain subject to Scryfall and Wizards of the Coast rights.</span>
+          </div>
+        </div>
+      </footer>
+    {{ end }}
   </div>
+  <script>
+    (function () {
+      var roots = document.querySelectorAll('[data-card-autocomplete-root]');
+      if (!roots.length) return;
+
+      function setupAutocomplete(root) {
+        var input = root.querySelector('[data-card-autocomplete-input]');
+        var menu = root.querySelector('[data-card-autocomplete-menu]');
+        var form = input ? (input.form || root.closest('form')) : null;
+        if (!input || !menu || !form) return;
+
+        var activeIndex = -1;
+        var items = [];
+        var requestToken = 0;
+        var commanderOnly = input.getAttribute('data-card-autocomplete-commander-only') === 'true';
+        var limit = parseInt(input.getAttribute('data-card-autocomplete-limit') || '8', 10);
+        if (!Number.isFinite(limit) || limit < 1) {
+          limit = 8;
+        }
+
+        function closeSuggestions() {
+          menu.innerHTML = '';
+          menu.classList.add('hidden');
+          input.setAttribute('aria-expanded', 'false');
+          activeIndex = -1;
+          items = [];
+        }
+
+        function submitSelection(result) {
+          var value = String(result && result.name || '').trim();
+          if (!value) return;
+          input.value = value;
+          closeSuggestions();
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
+        }
+
+        function setActive(nextIndex) {
+          activeIndex = nextIndex;
+          for (var i = 0; i < items.length; i++) {
+            var active = i === activeIndex;
+            items[i].classList.toggle('bg-slate-800', active);
+            items[i].classList.toggle('text-sky-200', active);
+          }
+        }
+
+        function renderSuggestions(results) {
+          menu.innerHTML = '';
+          items = [];
+          activeIndex = -1;
+
+          if (!Array.isArray(results) || results.length === 0) {
+            closeSuggestions();
+            return;
+          }
+
+          for (var i = 0; i < results.length; i++) {
+            var result = results[i] || {};
+            var name = String(result.name || '').trim();
+            if (!name) continue;
+
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-200 first:border-t-0 hover:bg-slate-900 hover:text-sky-200';
+            button.textContent = name;
+            button.setAttribute('role', 'option');
+            button.dataset.name = name;
+            button._result = result;
+            button.addEventListener('mousedown', function (event) {
+              event.preventDefault();
+              submitSelection(this._result || {});
+            });
+            menu.appendChild(button);
+            items.push(button);
+          }
+
+          if (items.length === 0) {
+            closeSuggestions();
+            return;
+          }
+
+          menu.classList.remove('hidden');
+          input.setAttribute('aria-expanded', 'true');
+        }
+
+        async function fetchSuggestions() {
+          var query = String(input.value || '').trim();
+          if (query.length < 2) {
+            closeSuggestions();
+            return;
+          }
+
+          var token = ++requestToken;
+          var endpoint = '/cards/autocomplete?q=' + encodeURIComponent(query) + '&limit=' + encodeURIComponent(String(limit));
+          if (commanderOnly) {
+            endpoint += '&commander_only=true';
+          }
+
+          try {
+            var res = await fetch(endpoint, {
+              method: 'GET',
+              credentials: 'same-origin'
+            });
+            if (!res.ok) {
+              closeSuggestions();
+              return;
+            }
+            var data = await res.json();
+            if (token !== requestToken) return;
+            renderSuggestions(data && Array.isArray(data.results) ? data.results : []);
+          } catch (error) {
+            if (token !== requestToken) return;
+            closeSuggestions();
+          }
+        }
+
+        input.addEventListener('input', fetchSuggestions);
+        input.addEventListener('focus', function () {
+          if (String(input.value || '').trim().length >= 2) {
+            fetchSuggestions();
+          }
+        });
+        input.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            closeSuggestions();
+            return;
+          }
+          if (menu.classList.contains('hidden') || items.length === 0) {
+            return;
+          }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActive(activeIndex < items.length - 1 ? activeIndex + 1 : 0);
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActive(activeIndex > 0 ? activeIndex - 1 : items.length - 1);
+            return;
+          }
+          if (event.key === 'Enter' && activeIndex >= 0 && activeIndex < items.length) {
+            event.preventDefault();
+            submitSelection(items[activeIndex]._result || {});
+          }
+        });
+
+        document.addEventListener('click', function (event) {
+          if (root.contains(event.target)) return;
+          closeSuggestions();
+        });
+      }
+
+      for (var i = 0; i < roots.length; i++) {
+        setupAutocomplete(roots[i]);
+      }
+    })();
+  </script>
 </body>
 </html>
 {{ end }}

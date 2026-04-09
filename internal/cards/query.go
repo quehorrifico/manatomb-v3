@@ -13,8 +13,16 @@ import (
 
 type CardSearchParams struct {
 	Query         string
+	OracleText    string
 	TypeFilter    string
-	ColorIdentity []string
+	TypeFilters   []CardTypeFilter
+	Colors        []string
+	ColorMode     string
+	ManaValueMin  *float64
+	ManaValueMax  *float64
+	Rarity        string
+	SetQuery      string
+	ArtistQuery   string
 	CommanderOnly bool
 	Limit         int
 }
@@ -25,7 +33,12 @@ type NameResolution struct {
 	Similarity float64
 }
 
-func normalizeColorIdentityFilters(colors []string) []string {
+type CardTypeFilter struct {
+	Value   string
+	Negated bool
+}
+
+func normalizeColorFilters(colors []string) []string {
 	if len(colors) == 0 {
 		return nil
 	}
@@ -34,7 +47,7 @@ func normalizeColorIdentityFilters(colors []string) []string {
 	for _, c := range colors {
 		upper := strings.ToUpper(strings.TrimSpace(c))
 		switch upper {
-		case "W", "U", "B", "R", "G":
+		case "W", "U", "B", "R", "G", "C":
 		default:
 			continue
 		}
@@ -45,6 +58,82 @@ func normalizeColorIdentityFilters(colors []string) []string {
 		out = append(out, upper)
 	}
 	return out
+}
+
+func normalizeColorMatchMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "exact":
+		return "exact"
+	case "at_most":
+		return "at_most"
+	default:
+		return "includes"
+	}
+}
+
+func normalizeCardTypeFilters(filters []CardTypeFilter) []CardTypeFilter {
+	if len(filters) == 0 {
+		return nil
+	}
+
+	seen := map[string]int{}
+	out := make([]CardTypeFilter, 0, len(filters))
+	for _, filter := range filters {
+		value := strings.TrimSpace(filter.Value)
+		if value == "" {
+			continue
+		}
+
+		key := strings.ToLower(value)
+		if idx, ok := seen[key]; ok {
+			out[idx].Value = value
+			out[idx].Negated = filter.Negated
+			continue
+		}
+
+		seen[key] = len(out)
+		out = append(out, CardTypeFilter{
+			Value:   value,
+			Negated: filter.Negated,
+		})
+	}
+	return out
+}
+
+func splitColorFilters(colors []string) ([]string, bool) {
+	normalized := normalizeColorFilters(colors)
+	if len(normalized) == 0 {
+		return nil, false
+	}
+
+	out := make([]string, 0, len(normalized))
+	colorless := false
+	for _, color := range normalized {
+		if color == "C" {
+			colorless = true
+			continue
+		}
+		out = append(out, color)
+	}
+	if colorless && len(out) > 0 {
+		colorless = false
+	}
+	return out, colorless
+}
+
+func normalizeRarityFilter(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "common":
+		return "common"
+	case "uncommon":
+		return "uncommon"
+	case "rare":
+		return "rare"
+	case "mythic":
+		return "mythic"
+	default:
+		return ""
+	}
 }
 
 func decodeCardFacesJSON(raw string) []CardFace {
@@ -68,7 +157,7 @@ func scanCanonicalCard(
 	isCommanderCandidate bool,
 	priceUSD, artist string,
 	edhrecRank int,
-	scryfallURI, setCode, setName, releasedAt, facesJSON string,
+	scryfallURI, setCode, setName, rarity, releasedAt, facesJSON string,
 ) Card {
 	return Card{
 		ID:                   strings.TrimSpace(oracleID),
@@ -90,6 +179,7 @@ func scanCanonicalCard(
 		ScryfallURI:          strings.TrimSpace(scryfallURI),
 		SetCode:              strings.TrimSpace(setCode),
 		SetName:              strings.TrimSpace(setName),
+		Rarity:               strings.TrimSpace(rarity),
 		ReleasedAt:           strings.TrimSpace(releasedAt),
 		Faces:                decodeCardFacesJSON(facesJSON),
 	}
@@ -116,15 +206,29 @@ func canonicalCardSelectSQL() string {
 			COALESCE(oc.default_scryfall_uri, '') AS scryfall_uri,
 			COALESCE(oc.default_set_code, '') AS set_code,
 			COALESCE(oc.default_set_name, '') AS set_name,
+			COALESCE(cp.rarity, '') AS rarity,
 			COALESCE(to_char(oc.default_released_at, 'YYYY-MM-DD'), '') AS released_at,
 			COALESCE(oc.card_faces::text, '')
 		FROM oracle_cards oc
+		LEFT JOIN card_prints cp ON cp.scryfall_id = oc.default_print_id
 	`
 }
 
 func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []any) {
+	nameQuery := strings.TrimSpace(params.Query)
+	textQuery := strings.TrimSpace(params.OracleText)
 	typeFilter := strings.TrimSpace(params.TypeFilter)
-	colorFilters := normalizeColorIdentityFilters(params.ColorIdentity)
+	typeFilters := make([]CardTypeFilter, 0, len(params.TypeFilters)+1)
+	if typeFilter != "" {
+		typeFilters = append(typeFilters, CardTypeFilter{Value: typeFilter})
+	}
+	typeFilters = append(typeFilters, params.TypeFilters...)
+	typeFilters = normalizeCardTypeFilters(typeFilters)
+	colorFilters, colorlessOnly := splitColorFilters(params.Colors)
+	colorMode := normalizeColorMatchMode(params.ColorMode)
+	rarity := normalizeRarityFilter(params.Rarity)
+	setQuery := strings.TrimSpace(params.SetQuery)
+	artistQuery := strings.TrimSpace(params.ArtistQuery)
 
 	// Keep generic card search results focused on playable cards.
 	clauses := []string{
@@ -137,14 +241,63 @@ func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []an
 	if params.CommanderOnly {
 		clauses = append(clauses, "oc.is_commander_candidate = TRUE")
 	}
-	if typeFilter != "" {
-		clauses = append(clauses, "oc.type_line ILIKE '%' || $"+fmt.Sprint(argN)+" || '%'")
-		args = append(args, typeFilter)
+	if nameQuery != "" {
+		clauses = append(clauses, "(oc.name ILIKE '%' || $"+fmt.Sprint(argN)+" || '%')")
+		args = append(args, nameQuery)
 		argN++
 	}
-	for _, color := range colorFilters {
-		clauses = append(clauses, "oc.color_identity @> ARRAY[$"+fmt.Sprint(argN)+"]::text[]")
-		args = append(args, color)
+	if textQuery != "" {
+		clauses = append(clauses, "oc.oracle_text ILIKE '%' || $"+fmt.Sprint(argN)+" || '%'")
+		args = append(args, textQuery)
+		argN++
+	}
+	for _, filter := range typeFilters {
+		if filter.Negated {
+			clauses = append(clauses, "oc.type_line NOT ILIKE '%' || $"+fmt.Sprint(argN)+" || '%'")
+		} else {
+			clauses = append(clauses, "oc.type_line ILIKE '%' || $"+fmt.Sprint(argN)+" || '%'")
+		}
+		args = append(args, filter.Value)
+		argN++
+	}
+	if colorlessOnly {
+		clauses = append(clauses, "COALESCE(array_length(oc.color_identity, 1), 0) = 0")
+	} else if len(colorFilters) > 0 {
+		switch colorMode {
+		case "exact":
+			clauses = append(clauses, "oc.color_identity @> $"+fmt.Sprint(argN)+"::text[]")
+			clauses = append(clauses, "oc.color_identity <@ $"+fmt.Sprint(argN)+"::text[]")
+		case "at_most":
+			clauses = append(clauses, "oc.color_identity <@ $"+fmt.Sprint(argN)+"::text[]")
+		default:
+			clauses = append(clauses, "oc.color_identity @> $"+fmt.Sprint(argN)+"::text[]")
+		}
+		args = append(args, pq.Array(colorFilters))
+		argN++
+	}
+	if params.ManaValueMin != nil {
+		clauses = append(clauses, "oc.cmc >= $"+fmt.Sprint(argN))
+		args = append(args, *params.ManaValueMin)
+		argN++
+	}
+	if params.ManaValueMax != nil {
+		clauses = append(clauses, "oc.cmc <= $"+fmt.Sprint(argN))
+		args = append(args, *params.ManaValueMax)
+		argN++
+	}
+	if rarity != "" {
+		clauses = append(clauses, "lower(COALESCE(cp.rarity, '')) = $"+fmt.Sprint(argN))
+		args = append(args, rarity)
+		argN++
+	}
+	if setQuery != "" {
+		clauses = append(clauses, "(oc.default_set_code ILIKE '%' || $"+fmt.Sprint(argN)+" || '%' OR oc.default_set_name ILIKE '%' || $"+fmt.Sprint(argN)+" || '%')")
+		args = append(args, setQuery)
+		argN++
+	}
+	if artistQuery != "" {
+		clauses = append(clauses, "oc.default_artist ILIKE '%' || $"+fmt.Sprint(argN)+" || '%'")
+		args = append(args, artistQuery)
 		argN++
 	}
 
@@ -160,7 +313,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 		var (
 			oracleID, name, manaCost, typeLine, oracleText, imageURI string
 			layout, priceUSD, artist, scryfallURI, setCode, setName  string
-			releasedAt, facesJSON                                    string
+			rarity, releasedAt, facesJSON                            string
 			colors, colorIdentity                                    []string
 			cmc                                                      float64
 			commanderLegal, isCommanderCandidate                     bool
@@ -185,6 +338,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			&scryfallURI,
 			&setCode,
 			&setName,
+			&rarity,
 			&releasedAt,
 			&facesJSON,
 		); err != nil {
@@ -209,6 +363,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			scryfallURI,
 			setCode,
 			setName,
+			rarity,
 			releasedAt,
 			facesJSON,
 		))
@@ -231,6 +386,32 @@ func GetCardByName(ctx context.Context, db *sql.DB, name string) (*Card, error) 
 		LIMIT 1
 	`
 	rows, err := db.QueryContext(ctx, sqlText, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out, err := scanCanonicalCards(rows, 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return nil, ErrCardNotFound
+	}
+	return &out[0], nil
+}
+
+func GetCardByOracleID(ctx context.Context, db *sql.DB, oracleID string) (*Card, error) {
+	oracleID = strings.TrimSpace(oracleID)
+	if oracleID == "" {
+		return nil, ErrCardNotFound
+	}
+
+	sqlText := canonicalCardSelectSQL() + `
+		WHERE oc.oracle_id = $1::uuid
+		LIMIT 1
+	`
+	rows, err := db.QueryContext(ctx, sqlText, oracleID)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +456,9 @@ func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Ca
 	}
 
 	// 1) exact normalized match
-	filterSQL, filterArgs := buildCardSearchFilters(params, 2)
+	exactParams := params
+	exactParams.Query = ""
+	filterSQL, filterArgs := buildCardSearchFilters(exactParams, 2)
 	exactSQL := canonicalCardSelectSQL() + `
 		WHERE oc.name_search = normalize_card_name($1)` + filterSQL + `
 		ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
@@ -301,7 +484,9 @@ func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Ca
 		return nil, nil
 	}
 
-	filterSQL, filterArgs = buildCardSearchFilters(params, 2)
+	fuzzyParams := params
+	fuzzyParams.Query = ""
+	filterSQL, filterArgs = buildCardSearchFilters(fuzzyParams, 2)
 	fuzzySQL := canonicalCardSelectSQL() + `
 		WHERE oc.name_search % $1` + filterSQL + `
 		ORDER BY

@@ -1,7 +1,7 @@
 {{ define "deck_show_guest_draft_script" }}
   <script>
   document.addEventListener('DOMContentLoaded', function () {
-    var isGuest = {{ if .Data.GuestMode }}true{{ else if .CurrentUser }}false{{ else }}true{{ end }};
+    var isGuest = {{ if .Data.WorkbenchMode }}true{{ else if .CurrentUser }}false{{ else }}true{{ end }};
     var isSignedIn = {{ if .CurrentUser }}true{{ else }}false{{ end }};
     var commanderName = {{ printf "%q" .Data.Deck.CommanderName }};
     var previewWrap = document.getElementById('deck-card-preview');
@@ -101,6 +101,12 @@
       return (s || '').replace(/\s+/g, ' ').trim();
     }
 
+    function manaSymbolAssetName(symbol) {
+      var normalized = String(symbol || '').trim().toUpperCase();
+      if (!normalized) return '';
+      return normalized.replace(/\//g, '');
+    }
+
     function renderManaCostPips(target) {
       if (!target) return;
       var raw = String(target.getAttribute('data-mana-cost') || '').trim();
@@ -119,15 +125,18 @@
       for (var i = 0; i < tokens.length; i++) {
         var symbol = String(tokens[i] || '').replace(/^\{|\}$/g, '').trim();
         if (!symbol) continue;
+        var assetName = manaSymbolAssetName(symbol);
+        if (!assetName) continue;
         var img = document.createElement('img');
         img.alt = '{' + symbol + '}';
-        img.src = 'https://svgs.scryfall.io/card-symbols/' + encodeURIComponent(symbol.toUpperCase()) + '.svg';
+        img.src = 'https://svgs.scryfall.io/card-symbols/' + encodeURIComponent(assetName) + '.svg';
         img.className = 'h-3.5 w-3.5 inline-block';
         target.appendChild(img);
       }
     }
 
     renderManaCostPips(document.getElementById('deck-commander-mana-cost'));
+    window.mtRenderManaCostPips = renderManaCostPips;
 
     var analyticsCardImageCache = {};
     var exampleHandRenderToken = 0;
@@ -196,7 +205,7 @@
     }
 
     function bindTopCommanderPreview() {
-      if (!topCommanderArtWrap) return;
+      if (!previewWrap || !topCommanderArtWrap) return;
       if (topCommanderArtWrap.getAttribute('data-preview-bound') === '1') return;
       topCommanderArtWrap.setAttribute('data-preview-bound', '1');
 
@@ -285,19 +294,20 @@
       var count = Number(opts && opts.count ? opts.count : 0);
       var caption = normalizeName(opts && opts.caption ? opts.caption : name);
       var currentImageURI = normalizeName(opts && opts.imageURI ? opts.imageURI : '');
+      var tileClassName = normalizeName(opts && opts.className ? opts.className : '');
 
       var li = document.createElement('li');
-      li.className = 'w-[78px] sm:w-[88px] shrink-0';
+      li.className = tileClassName ? ('mt-art-tile ' + tileClassName) : 'mt-art-tile';
 
       var cardFrame = document.createElement('div');
-      cardFrame.className = 'relative w-full aspect-[5/7] rounded-md overflow-hidden border border-slate-800 bg-slate-900';
+      cardFrame.className = 'mt-art-tile__frame';
 
       var img = document.createElement('img');
       img.alt = name || 'Card art';
       img.className = 'hidden w-full h-full object-cover';
 
       var fallback = document.createElement('div');
-      fallback.className = 'w-full h-full flex items-center justify-center px-1 text-center text-[10px] text-slate-300';
+      fallback.className = 'mt-art-tile__fallback';
       fallback.textContent = caption || 'Card';
 
       cardFrame.appendChild(img);
@@ -305,13 +315,13 @@
 
       if (count > 1) {
         var badge = document.createElement('span');
-        badge.className = 'absolute right-1 top-1 rounded bg-slate-950/95 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300';
+        badge.className = 'mt-art-tile__badge';
         badge.textContent = String(count);
         cardFrame.appendChild(badge);
       }
 
       var label = document.createElement('p');
-      label.className = 'mt-1 text-[10px] text-slate-300 truncate';
+      label.className = 'mt-art-tile__label';
       label.textContent = caption || name || 'Card';
       label.title = caption || name || 'Card';
 
@@ -386,6 +396,7 @@
           name: name,
           caption: name,
           imageURI: normalizeName(card.imageURI || ''),
+          className: 'mt-art-tile--grid',
         });
         exampleHandList.appendChild(tile.node);
 
@@ -429,21 +440,19 @@
     }
 
     function buildSignedMainboardPool() {
-      var source = document.getElementById('signed-deck-cards-source');
-      if (!source) return [];
+      var draft = window.mtDeckCurrentSavedDraft || savedDeckSeed;
+      if (!draft || typeof draft !== 'object') return [];
 
-      var cardMap = {};
       var imageByName = {};
-      var nodes = source.querySelectorAll('li[data-card-name]');
-      for (var i = 0; i < nodes.length; i++) {
-        var name = normalizeName(nodes[i].getAttribute('data-card-name'));
-        var qty = Number(nodes[i].getAttribute('data-card-qty') || 0);
-        var imageURI = normalizeName(nodes[i].getAttribute('data-card-image-uri') || '');
-        if (!name || !Number.isFinite(qty) || qty <= 0) continue;
-        cardMap[name] = (cardMap[name] || 0) + qty;
-        if (!imageByName[name] && imageURI) imageByName[name] = imageURI;
+      var names = Object.keys(draft.cards || {});
+      for (var i = 0; i < names.length; i++) {
+        var name = normalizeName(names[i]);
+        if (!name) continue;
+        var meta = draftMetaForCard(draft, name);
+        var imageURI = normalizeName(meta && meta.imageURI ? meta.imageURI : '');
+        if (imageURI) imageByName[name] = imageURI;
       }
-      return buildMainboardPoolFromMap(cardMap, '', imageByName);
+      return buildMainboardPoolFromMap(draft.cards || {}, currentCommanderForDraft(draft), imageByName);
     }
 
     function buildGuestMainboardPool() {
@@ -528,69 +537,30 @@
       }, true);
     }
 
-    window.mtDeckCardPreview = {
-      show: showDeckCardPreview,
-      move: moveDeckCardPreview,
-      hide: hideDeckCardPreview,
-      toggle: toggleDeckCardPreview,
-      tapMode: requiresTapPreview,
-    };
+    if (previewWrap) {
+      window.mtDeckCardPreview = {
+        show: showDeckCardPreview,
+        move: moveDeckCardPreview,
+        hide: hideDeckCardPreview,
+        toggle: toggleDeckCardPreview,
+        tapMode: requiresTapPreview,
+      };
+    }
     window.mtDeckSyncManaCurveBars = syncManaCurveBars;
+    window.mtDeckRenderExtrasFromDOM = function () {
+      renderDeckExtras(readSeedExtrasFromDOM());
+    };
     syncManaCurveBars();
     bindTopCommanderPreview();
 
-    // ===== Logged-in inline edit behaviors (unchanged) =====
-    if (!isGuest) {
-      // Deck name inline edit
-      var nameView = document.getElementById('deck-name-view');
-      var nameForm = document.getElementById('deck-name-form');
-      var nameCancel = document.getElementById('deck-name-cancel');
-
-      if (nameView && nameForm) {
-        nameView.addEventListener('click', function () {
-          nameView.classList.add('hidden');
-          nameForm.classList.remove('hidden');
-          var input = nameForm.querySelector('input[name="name"]');
-          if (input) {
-            input.focus();
-            input.select();
-          }
-        });
+    var workspaceSeedEl = document.getElementById('deck-workspace-seed');
+    var savedDeckSeed = null;
+    if (workspaceSeedEl) {
+      try {
+        savedDeckSeed = JSON.parse(workspaceSeedEl.textContent || 'null');
+      } catch (e) {
+        savedDeckSeed = null;
       }
-
-      if (nameCancel && nameForm && nameView) {
-        nameCancel.addEventListener('click', function () {
-          nameForm.classList.add('hidden');
-          nameView.classList.remove('hidden');
-        });
-      }
-
-      // Description inline edit
-      var descView = document.getElementById('deck-desc-view');
-      var descForm = document.getElementById('deck-desc-form');
-      var descCancel = document.getElementById('deck-desc-cancel');
-
-      if (descView && descForm) {
-        descView.addEventListener('click', function () {
-          descView.classList.add('hidden');
-          descForm.classList.remove('hidden');
-          var textarea = descForm.querySelector('textarea[name="description"]');
-          if (textarea) {
-            textarea.focus();
-          }
-        });
-      }
-
-      if (descCancel && descForm && descView) {
-        descCancel.addEventListener('click', function () {
-          descForm.classList.add('hidden');
-          descView.classList.remove('hidden');
-        });
-      }
-
-      drawExampleHand();
-      renderDeckExtras(readSeedExtrasFromDOM());
-      return; // no guest JS needed
     }
 
     // ===== Guest draft deck behavior =====
@@ -603,35 +573,49 @@
     var isSandboxDraft = !!(urlParams && urlParams.get('sandbox') === '1');
     var shouldResetDraft = !!(urlParams && urlParams.get('reset') === '1');
     var key = isSandboxDraft ? 'manatomb.draftDeck.sandbox' : 'manatomb.draftDeck';
+    var returnKey = key + '.playtestReturn';
+    var deckFormat = {{ printf "%q" .Data.Deck.Format }};
+    var allowsCommanderCardAction = {{ if eq .Data.Deck.Format "Commander" }}true{{ else }}false{{ end }};
+    var savedDeckID = savedDeckSeed && Number(savedDeckSeed.id || 0) > 0 ? Number(savedDeckSeed.id || 0) : 0;
 
     var nameEl = document.getElementById('guest-deck-name');
-    var descEl = document.getElementById('guest-deck-desc');
+    var guestDeckName = 'New Guest Deck';
+    var descEl = document.getElementById('deck-overview-notes');
     var descEmptyEl = document.getElementById('guest-deck-desc-empty');
+    var guestFormatField = document.getElementById('deck-overview-format');
+    var guestOverviewStatus = document.getElementById('deck-overview-status');
 
-    var listEl = document.getElementById('guest-deck-cards');
-    var emptyEl = document.getElementById('guest-deck-cards-empty');
+    var listEl = document.getElementById('deck-cards-list');
+    var emptyEl = document.getElementById('deck-cards-empty');
     var maybeListEl = document.getElementById('guest-maybeboard-cards');
     var maybeEmptyEl = document.getElementById('guest-maybeboard-empty');
 
-    var addForm = document.getElementById('guest-add-card-form');
+    var addForm = document.getElementById('deck-add-card-form');
     var addInput = document.getElementById('guest-card-name');
     var pendingGuestAddZone = 'main';
 
     var copyBtn = document.getElementById('guest-copy-decklist');
     var copyStatus = document.getElementById('guest-copy-status');
-    var addStatus = document.getElementById('guest-add-status');
+    var addStatus = document.getElementById('deck-add-status');
     var playtestBtn = document.getElementById('guest-playtest');
-    var commanderCurrentEl = document.getElementById('guest-commander-current');
+    var deckMenuOpenBtn = document.getElementById('deck-menu-open');
+    var deckMenuOverlay = document.getElementById('deck-menu-overlay');
+    var deckMenuCloseBtn = document.getElementById('deck-menu-close');
+    var deckMenuNameInput = document.getElementById('deck-menu-name-input');
+    var deckMenuNameSaveBtn = document.getElementById('deck-menu-name-save');
+    var deckMenuCopyBtn = document.getElementById('deck-menu-copy');
+    var deckMenuVisibilityBtn = document.getElementById('deck-menu-visibility');
+    var deckMenuStatus = document.getElementById('deck-menu-status');
     var commanderTopEl = topCommanderNameEl;
     var commanderTopArtWrap = topCommanderArtWrap;
     var commanderTopArt = topCommanderArtImg;
-    var commanderSelect = document.getElementById('guest-commander-select');
-    var commanderApplyBtn = document.getElementById('guest-commander-apply');
-    var commanderClearBtn = document.getElementById('guest-commander-clear');
-    var commanderStatus = document.getElementById('guest-commander-status');
-    var deckCountLabel = document.getElementById('guest-deck-count-label');
+    var deckCountLabel = document.getElementById('deck-count-label');
+    var deckGroupModeField = document.getElementById('deck-group-mode');
+    var deckSortModeField = document.getElementById('deck-sort-mode');
+    var deckViewModeField = document.getElementById('deck-view-mode');
+    var savedDeckNameEl = document.getElementById('saved-deck-name');
     var maybeCountLabel = document.getElementById('guest-maybeboard-count-label');
-    var guestAnalyticsStatus = document.getElementById('guest-analytics-status');
+    var guestAnalyticsStatus = document.getElementById('deck-analytics-status');
     var saveInProgress = false;
     var shouldAutoSave = false;
     var analyticsTimer = null;
@@ -639,10 +623,27 @@
     var lastAnalyticsSignature = '';
     var guestPreviewCache = {};
     var guestPreviewToken = 0;
+    var guestCommanderDetailCache = {};
     var guestMetaHydrating = false;
     var guestMetaRetryQueued = false;
     var guestMetaAttempts = {};
+    var deckGroupModeKey = 'manatomb.deckEditor.groupMode';
+    var deckSortModeKey = 'manatomb.deckEditor.sortMode';
+    var deckViewModeKey = 'manatomb.deckEditor.viewMode';
+    var deckGroupMode = loadDeckGroupMode();
+    var deckSortMode = loadDeckSortMode();
+    var deckViewMode = loadDeckViewMode();
     shouldAutoSave = !!(urlParams && urlParams.get('save_guest') === '1');
+
+    if (deckGroupModeField) {
+      deckGroupModeField.value = deckGroupMode;
+    }
+    if (deckSortModeField) {
+      deckSortModeField.value = deckSortMode;
+    }
+    if (deckViewModeField) {
+      deckViewModeField.value = deckViewMode;
+    }
 
     if (shouldResetDraft) {
       try {
@@ -663,18 +664,41 @@
 
     function loadDraft() {
       try {
-        var raw = localStorage.getItem(key);
+        var raw = '';
+        var consumedPlaytestReturn = false;
+        try {
+          raw = sessionStorage.getItem(returnKey) || '';
+          if (raw) {
+            consumedPlaytestReturn = true;
+            sessionStorage.removeItem(returnKey);
+            localStorage.setItem(key, raw);
+          }
+        } catch (e) {
+          raw = '';
+          consumedPlaytestReturn = false;
+        }
+        if (!raw) {
+          raw = localStorage.getItem(key);
+        }
         if (!raw) return null;
         var d = JSON.parse(raw);
         if (!d || typeof d !== 'object') return null;
         if (!d.cards || typeof d.cards !== 'object') d.cards = {};
         if (!d.maybeCards || typeof d.maybeCards !== 'object') d.maybeCards = {};
         if (!d.cardMeta || typeof d.cardMeta !== 'object') d.cardMeta = {};
+        if (typeof d.tags !== 'string') d.tags = '';
+        d.name = guestDeckName;
 
         var urlCommander = normalizeName(commanderName);
         var draftCommander = normalizeName(d.commanderName || '');
+        if (!d.format) {
+          d.format = draftCommander ? 'Commander' : (deckFormat === 'Commander' ? 'Commander' : 'Sandbox');
+        }
+        if (String(d.format || '') !== 'Commander') {
+          d.format = 'Sandbox';
+        }
         if (urlCommander && draftCommander && urlCommander.toLowerCase() !== draftCommander.toLowerCase()) {
-          if (shouldAutoSave || isSignedIn) {
+          if (consumedPlaytestReturn || shouldAutoSave || isSignedIn) {
             // During auth-save flows, prefer the draft we already have over URL commander.
             commanderName = draftCommander;
           } else {
@@ -694,6 +718,613 @@
       }
     }
 
+    function normalizeDeckGroupMode(value) {
+      switch (String(value || '').toLowerCase()) {
+        case 'alphabet':
+          return 'alphabet';
+        case 'type':
+          return 'type';
+        case 'mv':
+          return 'mv';
+        case 'price':
+          return 'price';
+        default:
+          return 'none';
+      }
+    }
+
+    function normalizeDeckSortMode(value) {
+      switch (String(value || '').toLowerCase()) {
+        case 'mv':
+          return 'mv';
+        case 'type':
+          return 'type';
+        case 'price':
+          return 'price';
+        default:
+          return 'alphabet';
+      }
+    }
+
+    function normalizeDeckViewMode(value) {
+      switch (String(value || '').toLowerCase()) {
+        case 'text':
+          return 'text';
+        case 'grid':
+          return 'grid';
+        case 'table':
+          return 'table';
+        default:
+          return 'stacks';
+      }
+    }
+
+    function loadDeckGroupMode() {
+      try {
+        return normalizeDeckGroupMode(localStorage.getItem(deckGroupModeKey));
+      } catch (e) {
+        return 'none';
+      }
+    }
+
+    function persistDeckGroupMode(value) {
+      deckGroupMode = normalizeDeckGroupMode(value);
+      if (deckGroupModeField) {
+        deckGroupModeField.value = deckGroupMode;
+      }
+      try {
+        localStorage.setItem(deckGroupModeKey, deckGroupMode);
+      } catch (e) {
+        // ignore storage failures
+      }
+      return deckGroupMode;
+    }
+
+    function loadDeckSortMode() {
+      try {
+        return normalizeDeckSortMode(localStorage.getItem(deckSortModeKey));
+      } catch (e) {
+        return 'alphabet';
+      }
+    }
+
+    function persistDeckSortMode(value) {
+      deckSortMode = normalizeDeckSortMode(value);
+      if (deckSortModeField) {
+        deckSortModeField.value = deckSortMode;
+      }
+      try {
+        localStorage.setItem(deckSortModeKey, deckSortMode);
+      } catch (e) {
+        // ignore storage failures
+      }
+      return deckSortMode;
+    }
+
+    function loadDeckViewMode() {
+      try {
+        return normalizeDeckViewMode(localStorage.getItem(deckViewModeKey));
+      } catch (e) {
+        return 'stacks';
+      }
+    }
+
+    function persistDeckViewMode(value) {
+      deckViewMode = normalizeDeckViewMode(value);
+      if (deckViewModeField) {
+        deckViewModeField.value = deckViewMode;
+      }
+      try {
+        localStorage.setItem(deckViewModeKey, deckViewMode);
+      } catch (e) {
+        // ignore storage failures
+      }
+      return deckViewMode;
+    }
+
+    function primaryTypeGroup(typeLine) {
+      var text = normalizeName(typeLine).toLowerCase();
+      if (!text) return 'Other';
+      if (text.indexOf('land') >= 0) return 'Lands';
+      if (text.indexOf('creature') >= 0) return 'Creatures';
+      if (text.indexOf('artifact') >= 0) return 'Artifacts';
+      if (text.indexOf('enchantment') >= 0) return 'Enchantments';
+      if (text.indexOf('planeswalker') >= 0) return 'Planeswalkers';
+      if (text.indexOf('battle') >= 0) return 'Battles';
+      if (text.indexOf('instant') >= 0) return 'Instants';
+      if (text.indexOf('sorcery') >= 0) return 'Sorceries';
+      return 'Other';
+    }
+
+    function manaValueGroup(cardMeta) {
+      var typeLine = normalizeName(cardMeta && cardMeta.typeLine ? cardMeta.typeLine : '');
+      if (primaryTypeGroup(typeLine) === 'Lands') return 'Lands';
+      var raw = Number(cardMeta && cardMeta.cmc != null ? cardMeta.cmc : 0);
+      if (!Number.isFinite(raw)) return 'Unknown';
+      if (raw >= 7) return '7+';
+      if (raw <= 0) return '0';
+      return String(Math.floor(raw));
+    }
+
+    function alphabetGroup(cardName) {
+      var normalized = normalizeName(cardName);
+      if (!normalized) return '#';
+      var first = normalized.charAt(0).toUpperCase();
+      return /^[A-Z]$/.test(first) ? first : '#';
+    }
+
+    function priceValue(cardMeta) {
+      var raw = normalizeName(cardMeta && cardMeta.priceUSD ? cardMeta.priceUSD : '');
+      if (!raw) return null;
+      var parsed = Number(String(raw).replace(/[^0-9.]/g, ''));
+      if (!Number.isFinite(parsed)) return null;
+      return parsed;
+    }
+
+    function priceGroup(cardMeta) {
+      var value = priceValue(cardMeta);
+      if (value === null) return 'Unknown';
+      if (value === 0) return 'Free';
+      if (value < 1) return 'Under $1';
+      if (value < 5) return '$1-$4.99';
+      if (value < 10) return '$5-$9.99';
+      return '$10+';
+    }
+
+    function displayPrice(cardMeta) {
+      var value = priceValue(cardMeta);
+      if (value === null) return '—';
+      if (value === 0) return '$0.00';
+      return '$' + value.toFixed(2);
+    }
+
+    function displayManaValue(cardMeta) {
+      if (primaryTypeGroup(cardMeta && cardMeta.typeLine ? cardMeta.typeLine : '') === 'Lands') {
+        return 'Land';
+      }
+      var raw = Number(cardMeta && cardMeta.cmc != null ? cardMeta.cmc : 0);
+      if (!Number.isFinite(raw)) return '—';
+      if (Math.round(raw) === raw) return String(raw);
+      return String(raw.toFixed(1)).replace(/\.0$/, '');
+    }
+
+    function displayManaValueSummary(cardMeta) {
+      var value = displayManaValue(cardMeta);
+      if (value === 'Land' || value === '—') return value;
+      return value + ' MV';
+    }
+
+    function typeSortRank(typeLine) {
+      var groups = ['Lands', 'Creatures', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Battles', 'Instants', 'Sorceries', 'Other'];
+      var group = primaryTypeGroup(typeLine);
+      var index = groups.indexOf(group);
+      return index >= 0 ? index : groups.length;
+    }
+
+    function compareDeckRows(a, b) {
+      var left = a || {};
+      var right = b || {};
+      var mode = normalizeDeckSortMode(deckSortMode);
+      var leftName = normalizeName(left.cardName || '');
+      var rightName = normalizeName(right.cardName || '');
+      var leftMeta = left.cardMeta || {};
+      var rightMeta = right.cardMeta || {};
+
+      if (mode === 'mv') {
+        var leftMV = Number(leftMeta.cmc != null ? leftMeta.cmc : 0);
+        var rightMV = Number(rightMeta.cmc != null ? rightMeta.cmc : 0);
+        if (!Number.isFinite(leftMV)) leftMV = 0;
+        if (!Number.isFinite(rightMV)) rightMV = 0;
+        if (leftMV !== rightMV) return leftMV - rightMV;
+      } else if (mode === 'type') {
+        var leftTypeRank = typeSortRank(leftMeta.typeLine || '');
+        var rightTypeRank = typeSortRank(rightMeta.typeLine || '');
+        if (leftTypeRank !== rightTypeRank) return leftTypeRank - rightTypeRank;
+      } else if (mode === 'price') {
+        var leftPrice = priceValue(leftMeta);
+        var rightPrice = priceValue(rightMeta);
+        if (leftPrice === null && rightPrice !== null) return 1;
+        if (leftPrice !== null && rightPrice === null) return -1;
+        if (leftPrice !== null && rightPrice !== null && leftPrice !== rightPrice) return leftPrice - rightPrice;
+      }
+
+      return leftName.localeCompare(rightName);
+    }
+
+    function groupedDeckSections(rows) {
+      var mode = normalizeDeckGroupMode(deckGroupMode);
+      if (mode === 'none') {
+        var singleRows = rows.slice();
+        singleRows.sort(compareDeckRows);
+        return [{ name: '', rows: singleRows }];
+      }
+
+      var order;
+      if (mode === 'type') {
+        order = ['Lands', 'Creatures', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Battles', 'Instants', 'Sorceries', 'Other'];
+      } else if (mode === 'mv') {
+        order = ['Lands', '0', '1', '2', '3', '4', '5', '6', '7+', 'Unknown'];
+      } else if (mode === 'alphabet') {
+        order = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        order.push('#');
+      } else {
+        order = ['Free', 'Under $1', '$1-$4.99', '$5-$9.99', '$10+', 'Unknown'];
+      }
+      var buckets = {};
+
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var groupName;
+        if (mode === 'type') {
+          groupName = primaryTypeGroup(row.cardMeta && row.cardMeta.typeLine ? row.cardMeta.typeLine : '');
+        } else if (mode === 'mv') {
+          groupName = manaValueGroup(row.cardMeta || {});
+        } else if (mode === 'alphabet') {
+          groupName = alphabetGroup(row.cardName || '');
+        } else {
+          groupName = priceGroup(row.cardMeta || {});
+        }
+        if (!buckets[groupName]) buckets[groupName] = [];
+        buckets[groupName].push(row);
+      }
+
+      var sections = [];
+      for (var j = 0; j < order.length; j++) {
+        var name = order[j];
+        if (!buckets[name] || buckets[name].length === 0) continue;
+        buckets[name].sort(compareDeckRows);
+        sections.push({ name: name, rows: buckets[name] });
+        delete buckets[name];
+      }
+
+      var leftovers = Object.keys(buckets).sort(function (a, b) { return a.localeCompare(b); });
+      for (var k = 0; k < leftovers.length; k++) {
+        buckets[leftovers[k]].sort(compareDeckRows);
+        sections.push({ name: leftovers[k], rows: buckets[leftovers[k]] });
+      }
+      return sections;
+    }
+
+    function sectionCardTotal(section) {
+      if (!section || !Array.isArray(section.rows)) return 0;
+      var total = 0;
+      for (var i = 0; i < section.rows.length; i++) {
+        total += Number(section.rows[i].qty || 0);
+      }
+      return total;
+    }
+
+    function appendDeckGroupHeader(name, qty) {
+      if (!listEl || !name) return;
+      var li = document.createElement('li');
+      li.className = 'py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400';
+      li.textContent = name + ' (' + String(qty) + ')';
+      listEl.appendChild(li);
+    }
+
+    function setDeckListViewMode(viewMode) {
+      var normalized = normalizeDeckViewMode(viewMode);
+      if (!listEl) return normalized;
+      var grouped = normalizeDeckGroupMode(deckGroupMode) !== 'none';
+      listEl.className = 'mt-deck-view-root mt-deck-view-root--' + normalized + (grouped ? ' mt-deck-view-root--grouped' : '');
+      return normalized;
+    }
+
+    function createDeckSectionContainer(name, qty, viewMode) {
+      if (!listEl) return null;
+
+      var section = document.createElement('section');
+      section.className = 'mt-deck-view-section';
+
+      if (normalizeDeckGroupMode(deckGroupMode) !== 'none' && name) {
+        var head = document.createElement('div');
+        head.className = 'mt-deck-view-section__head';
+
+        var title = document.createElement('p');
+        title.className = 'mt-deck-view-section__title';
+        title.textContent = name;
+        head.appendChild(title);
+
+        var count = document.createElement('p');
+        count.className = 'mt-deck-view-section__count';
+        count.textContent = String(qty) + ' cards';
+        head.appendChild(count);
+
+        section.appendChild(head);
+      }
+
+      var body = document.createElement('div');
+      body.className = 'mt-deck-view-section__body mt-deck-view-section__body--' + normalizeDeckViewMode(viewMode);
+      section.appendChild(body);
+      listEl.appendChild(section);
+
+      return body;
+    }
+
+    function createDeckTextRow(row, createActionMenu) {
+      var cardMeta = row.cardMeta || {};
+      var node = document.createElement('article');
+      node.className = 'mt-list-row';
+
+      var left = document.createElement('div');
+      left.className = 'min-w-0';
+
+      var titleRow = document.createElement('div');
+      titleRow.className = 'flex items-center gap-2 min-w-0';
+
+      var title = document.createElement('p');
+      title.className = 'mt-list-row__title';
+      title.textContent = String(row.qty) + 'x ' + row.cardName;
+      titleRow.appendChild(title);
+
+      var manaCost = normalizeName(cardMeta.manaCost || '');
+      if (manaCost) {
+        var manaWrap = document.createElement('span');
+        manaWrap.className = 'inline-flex shrink-0 flex-wrap items-center gap-1 align-middle';
+        manaWrap.setAttribute('data-mana-cost', manaCost);
+        titleRow.appendChild(manaWrap);
+        renderManaCostPips(manaWrap);
+      }
+      left.appendChild(titleRow);
+
+      var right = document.createElement('div');
+      right.className = 'mt-list-row__actions';
+      right.appendChild(createActionMenu(row.cardName, cardMeta));
+
+      node.appendChild(left);
+      node.appendChild(right);
+      return node;
+    }
+
+    function createDeckArtCard(row, createActionMenu, mode, stackIndex) {
+      var cardMeta = row.cardMeta || {};
+      var imageURI = normalizeName(cardMeta.imageURI || '');
+      var viewMode = normalizeDeckViewMode(mode);
+      var article = document.createElement('article');
+      article.className = 'mt-art-card mt-deck-art-card ' + (viewMode === 'grid' ? 'mt-art-card--grid' : 'mt-art-card--stack');
+      article.title = row.cardName;
+
+      if (viewMode === 'stacks') {
+        var index = Number(stackIndex || 0);
+        if (!Number.isFinite(index) || index < 0) index = 0;
+        article.setAttribute('data-stack-index', String(index));
+        article.style.zIndex = String(index + 1);
+      }
+
+      var media = document.createElement('div');
+      media.className = 'mt-deck-art-card__media';
+
+      if (imageURI) {
+        var img = document.createElement('img');
+        img.className = 'mt-deck-art-card__img';
+        img.src = imageURI;
+        img.alt = row.cardName + ' art';
+        media.appendChild(img);
+      } else {
+        var fallback = document.createElement('div');
+        fallback.className = 'mt-art-card__fallback';
+        fallback.textContent = row.cardName;
+        media.appendChild(fallback);
+      }
+
+      var badge = document.createElement('span');
+      badge.className = 'mt-art-card__badge';
+      badge.textContent = String(row.qty) + 'x';
+
+      var toolbar = document.createElement('div');
+      toolbar.className = 'mt-art-card__toolbar ' + (viewMode === 'stacks' ? 'mt-art-card__toolbar--side' : 'mt-art-card__toolbar--top');
+      var actionMenu = createActionMenu(row.cardName, cardMeta);
+      if (actionMenu && actionMenu.classList && (viewMode === 'stacks' || viewMode === 'grid')) {
+        actionMenu.classList.add('mt-action-menu--card');
+      }
+      toolbar.appendChild(actionMenu);
+
+      article.appendChild(media);
+      article.appendChild(badge);
+      article.appendChild(toolbar);
+
+      var body = document.createElement('div');
+      body.className = 'mt-deck-art-card__body';
+
+      var title = document.createElement('p');
+      title.className = 'mt-art-card__title';
+      title.textContent = row.cardName;
+      title.title = row.cardName;
+      body.appendChild(title);
+
+      var meta = document.createElement('p');
+      meta.className = 'mt-deck-art-card__meta';
+      meta.textContent = displayManaValueSummary(cardMeta) + ' • ' + displayPrice(cardMeta);
+      body.appendChild(meta);
+
+      article.appendChild(body);
+      return article;
+    }
+
+    function createDeckTable(rows, createActionMenu) {
+      var wrap = document.createElement('div');
+      wrap.className = 'mt-deck-view-section__body mt-deck-view-section__body--table';
+
+      var table = document.createElement('table');
+      table.className = 'mt-deck-table';
+
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      ['Qty', 'Card', 'Mana Cost', 'MV', 'Type', 'Price', 'Actions'].forEach(function (label) {
+        var th = document.createElement('th');
+        th.textContent = label;
+        headRow.appendChild(th);
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      var tbody = document.createElement('tbody');
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var cardMeta = row.cardMeta || {};
+        var tr = document.createElement('tr');
+
+        var qty = document.createElement('td');
+        qty.textContent = String(row.qty);
+        tr.appendChild(qty);
+
+        var card = document.createElement('td');
+        var name = document.createElement('p');
+        name.className = 'mt-deck-table__name';
+        name.textContent = row.cardName;
+        card.appendChild(name);
+        tr.appendChild(card);
+
+        var manaCostCell = document.createElement('td');
+        var manaCost = normalizeName(cardMeta.manaCost || '');
+        if (manaCost) {
+          var manaWrap = document.createElement('span');
+          manaWrap.className = 'inline-flex flex-wrap items-center gap-1 align-middle';
+          manaWrap.setAttribute('data-mana-cost', manaCost);
+          manaCostCell.appendChild(manaWrap);
+          renderManaCostPips(manaWrap);
+        } else {
+          manaCostCell.textContent = '—';
+        }
+        tr.appendChild(manaCostCell);
+
+        var mv = document.createElement('td');
+        mv.textContent = displayManaValue(cardMeta);
+        tr.appendChild(mv);
+
+        var type = document.createElement('td');
+        type.textContent = normalizeName(cardMeta.typeLine || '') || '—';
+        tr.appendChild(type);
+
+        var price = document.createElement('td');
+        price.textContent = displayPrice(cardMeta);
+        tr.appendChild(price);
+
+        var actions = document.createElement('td');
+        actions.appendChild(createActionMenu(row.cardName, cardMeta));
+        tr.appendChild(actions);
+
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      return wrap;
+    }
+
+    function layoutDeckStackSection(container, expandedIndex) {
+      if (!container) return;
+      var cards = Array.prototype.slice.call(container.querySelectorAll('.mt-deck-art-card'));
+      if (cards.length === 0) {
+        container.style.height = '';
+        return;
+      }
+
+      var collapsedStep = 34;
+      var firstCard = cards[0];
+      var cardHeight = firstCard.offsetHeight || 260;
+      var expandedReveal = Math.max(cardHeight - 28, 190);
+      var extraSpace = expandedIndex >= 0 ? (expandedReveal - collapsedStep) : 0;
+
+      for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var top = i * collapsedStep;
+        if (expandedIndex >= 0 && i > expandedIndex) {
+          top += extraSpace;
+        }
+        card.style.top = String(top) + 'px';
+        card.style.zIndex = String(i === expandedIndex ? cards.length + 5 : i + 1);
+      }
+
+      var totalHeight = ((cards.length - 1) * collapsedStep) + cardHeight + extraSpace + 10;
+      container.style.height = String(totalHeight) + 'px';
+    }
+
+    function bindDeckStackSection(container) {
+      if (!container || container.getAttribute('data-stack-bound') === '1') return;
+      container.setAttribute('data-stack-bound', '1');
+
+      var cards = Array.prototype.slice.call(container.querySelectorAll('.mt-deck-art-card'));
+      if (cards.length === 0) return;
+
+      for (var i = 0; i < cards.length; i++) {
+        (function (index) {
+          var card = cards[index];
+          card.addEventListener('mouseenter', function () {
+            layoutDeckStackSection(container, index);
+          });
+          card.addEventListener('focusin', function () {
+            layoutDeckStackSection(container, index);
+          });
+        })(i);
+      }
+
+      container.addEventListener('mouseleave', function () {
+        layoutDeckStackSection(container, -1);
+      });
+
+      layoutDeckStackSection(container, -1);
+    }
+
+    function renderDeckSections(rows, createActionMenu) {
+      if (!listEl) return;
+
+      var sections = groupedDeckSections(rows || []);
+      var viewMode = setDeckListViewMode(deckViewMode);
+      listEl.innerHTML = '';
+
+      for (var i = 0; i < sections.length; i++) {
+        var section = sections[i];
+        if (!section || !Array.isArray(section.rows) || section.rows.length === 0) continue;
+
+        if (viewMode === 'table') {
+          var tableSection = document.createElement('section');
+          tableSection.className = 'mt-deck-view-section';
+
+          if (normalizeDeckGroupMode(deckGroupMode) !== 'none' && section.name) {
+            var tableHead = document.createElement('div');
+            tableHead.className = 'mt-deck-view-section__head';
+
+            var tableTitle = document.createElement('p');
+            tableTitle.className = 'mt-deck-view-section__title';
+            tableTitle.textContent = section.name;
+            tableHead.appendChild(tableTitle);
+
+            var tableCount = document.createElement('p');
+            tableCount.className = 'mt-deck-view-section__count';
+            tableCount.textContent = String(sectionCardTotal(section)) + ' cards';
+            tableHead.appendChild(tableCount);
+
+            tableSection.appendChild(tableHead);
+          }
+
+          tableSection.appendChild(createDeckTable(section.rows, createActionMenu));
+          listEl.appendChild(tableSection);
+          continue;
+        }
+
+        var body = createDeckSectionContainer(section.name, sectionCardTotal(section), viewMode);
+        if (!body) continue;
+
+        for (var j = 0; j < section.rows.length; j++) {
+          var row = section.rows[j];
+          if (viewMode === 'text') {
+            body.appendChild(createDeckTextRow(row, createActionMenu));
+          } else {
+            body.appendChild(createDeckArtCard(row, createActionMenu, viewMode, j));
+          }
+        }
+
+        if (viewMode === 'stacks') {
+          bindDeckStackSection(body);
+        }
+      }
+    }
+
+    function normalizeGuestFormat(value) {
+      return String(value || '') === 'Commander' ? 'Commander' : 'Sandbox';
+    }
+
     function ensureDraftCardMetaMap(d) {
       if (!d || typeof d !== 'object') return {};
       if (!d.cardMeta || typeof d.cardMeta !== 'object') d.cardMeta = {};
@@ -704,14 +1335,18 @@
       if (!meta || typeof meta !== 'object') return null;
       var cmc = Number(meta.cmc || 0);
       if (!Number.isFinite(cmc)) cmc = 0;
+      var faces = Array.isArray(meta.faces) ? meta.faces : [];
       return {
+        cardID: normalizeName(meta.cardID || meta.card_id || ''),
         name: normalizeName(meta.name || ''),
+        manaCost: normalizeName(meta.manaCost || meta.mana_cost || ''),
         typeLine: normalizeName(meta.typeLine || meta.type_line || ''),
         oracleText: normalizeName(meta.oracleText || meta.oracle_text || ''),
         cmc: cmc,
         priceUSD: normalizeName(meta.priceUSD || meta.price_usd || ''),
         imageURI: normalizeName(meta.imageURI || meta.image_uri || ''),
         isCommanderCandidate: !!meta.isCommanderCandidate,
+        faces: faces,
       };
     }
 
@@ -720,13 +1355,16 @@
       var cmc = Number(data.cmc || 0);
       if (!Number.isFinite(cmc)) cmc = 0;
       var meta = {
+        cardID: normalizeName(data.oracle_id || ''),
         name: normalizeName(data.name || ''),
+        manaCost: normalizeName(data.mana_cost || ''),
         typeLine: normalizeName(data.type_line || ''),
         oracleText: normalizeName(data.oracle_text || ''),
         cmc: cmc,
         priceUSD: normalizeName((data.prices && data.prices.usd) ? data.prices.usd : ''),
         imageURI: normalizeName(extractResolvedImageURI(data)),
         isCommanderCandidate: !!data.is_commander_candidate,
+        faces: Array.isArray(data.faces) ? data.faces : [],
       };
       return meta.name ? meta : null;
     }
@@ -766,6 +1404,7 @@
         if (!d.cards || typeof d.cards !== 'object') d.cards = {};
         if (!d.maybeCards || typeof d.maybeCards !== 'object') d.maybeCards = {};
         if (!d.cardMeta || typeof d.cardMeta !== 'object') d.cardMeta = {};
+        if (typeof d.tags !== 'string') d.tags = '';
         var current = normalizeName(commanderName);
         var stored = normalizeName(d && d.commanderName ? d.commanderName : '');
         if (current) {
@@ -776,6 +1415,8 @@
         } else {
           d.commanderName = '';
         }
+        d.format = normalizeGuestFormat(d.format);
+        d.name = guestDeckName;
         d.updatedAt = new Date().toISOString();
         localStorage.setItem(key, JSON.stringify(d));
       } catch (e) {
@@ -855,41 +1496,136 @@
       }
     }
 
-    function buildCommanderCandidates(d) {
-      d = d || {};
-      var out = [];
-      var seen = {};
-      function addUnique(name) {
-        var normalized = normalizeName(name);
-        if (!normalized) return;
-        var key = normalized.toLowerCase();
-        if (seen[key]) return;
-        seen[key] = true;
-        out.push(normalized);
+    function closeGuestActionMenu(node) {
+      if (!node || typeof node.closest !== 'function') return;
+      var menu = node.closest('details[data-card-action-menu]');
+      if (menu) menu.open = false;
+    }
+
+    function setGuestDeckStatus(message) {
+      if (!addStatus) return;
+      var text = normalizeName(message);
+      addStatus.textContent = text;
+      if (!addStatus.textContent) return;
+      window.setTimeout(function () {
+        if (addStatus && addStatus.textContent === text) {
+          addStatus.textContent = '';
+        }
+      }, 1800);
+    }
+
+    function setDeckMenuStatus(message) {
+      if (!deckMenuStatus) return;
+      var text = normalizeName(message);
+      deckMenuStatus.textContent = text;
+      if (!text) return;
+      window.setTimeout(function () {
+        if (deckMenuStatus && deckMenuStatus.textContent === text) {
+          deckMenuStatus.textContent = '';
+        }
+      }, 2200);
+    }
+
+    async function syncGuestCommanderOverview(d) {
+      if (!window.mtDeckSetCommanderOverview) return;
+
+      var current = currentCommanderForDraft(d);
+      if (!current) {
+        window.mtDeckSetCommanderOverview(null);
+        return;
       }
 
-      var source = Array.isArray(d.commanderCandidates) ? d.commanderCandidates : [];
-      source.forEach(function (item) {
-        addUnique(item);
-      });
-
-      var cardsMap = (d && d.cards) || {};
-      var cardEntries = Object.entries(cardsMap);
-      for (var i = 0; i < cardEntries.length; i++) {
-        var cardName = normalizeName(cardEntries[i][0]);
-        var qty = Number(cardEntries[i][1] || 0);
-        if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
-        var cardMeta = draftMetaForCard(d, cardName);
-        if (!cardMeta || !cardMeta.isCommanderCandidate) continue;
-        addUnique(cardName);
+      var meta = draftMetaForCard(d, current);
+      if (meta) {
+        window.mtDeckSetCommanderOverview({
+          name: current,
+          mana_cost: meta.manaCost || '',
+          type_line: meta.typeLine || '',
+          oracle_text: meta.oracleText || '',
+          image_uri: meta.imageURI || '',
+          faces: Array.isArray(meta.faces) ? meta.faces : []
+        });
       }
 
-      if (commanderName) {
-        addUnique(commanderName);
+      var cacheKey = current.toLowerCase();
+      if (guestCommanderDetailCache[cacheKey]) {
+        window.mtDeckSetCommanderOverview(guestCommanderDetailCache[cacheKey]);
+        return;
       }
 
-      out.sort(function (a, b) { return a.localeCompare(b); });
-      return out;
+      var resolved = await resolveCardByName(current, true);
+      if (!resolved || !resolved.name) return;
+      var latest = loadDraft() || d || {};
+      if (normalizeName(currentCommanderForDraft(latest)).toLowerCase() !== cacheKey) return;
+      guestCommanderDetailCache[cacheKey] = resolved;
+      window.mtDeckSetCommanderOverview(resolved);
+    }
+
+    async function setGuestCommander(cardName) {
+      var picked = normalizeName(cardName);
+      if (!picked) return;
+
+      var dd = loadDraft() || { commanderName: commanderName, commanderCandidates: [], cards: {}, maybeCards: {}, cardMeta: {} };
+      dd.cards = dd.cards || {};
+      dd.maybeCards = dd.maybeCards || {};
+      ensureDraftCardMetaMap(dd);
+
+      var previousCommander = normalizeName(currentCommanderForDraft(dd));
+      var meta = draftMetaForCard(dd, picked);
+      var resolved = null;
+
+      if (!meta || !meta.isCommanderCandidate) {
+        resolved = await resolveCardByName(picked, true);
+        if (resolved && resolved.name) {
+          var resolvedMeta = buildDraftCardMeta(resolved);
+          if (resolvedMeta) {
+            meta = resolvedMeta;
+            dd.cardMeta[picked] = resolvedMeta;
+          }
+        }
+      }
+
+      if (!meta || !meta.isCommanderCandidate) {
+        setGuestDeckStatus('That card cannot be your commander.');
+        return;
+      }
+
+      commanderName = picked;
+      dd.commanderName = commanderName;
+
+      if (previousCommander && previousCommander.toLowerCase() !== commanderName.toLowerCase()) {
+        var previousKey = draftCardNameKey(dd.cards, previousCommander);
+        var previousQty = previousKey ? Number(dd.cards[previousKey] || 0) : 0;
+        if (!Number.isFinite(previousQty) || previousQty <= 0) {
+          var previousResolved = await resolveCardByName(previousCommander, true);
+          var previousCanonical = previousCommander;
+          if (previousResolved && previousResolved.name) {
+            var resolvedName = normalizeName(previousResolved.name);
+            if (resolvedName) previousCanonical = resolvedName;
+          }
+          var canonicalKey = draftCardNameKey(dd.cards, previousCanonical);
+          if (!canonicalKey) canonicalKey = previousCanonical;
+          dd.cards[canonicalKey] = Number(dd.cards[canonicalKey] || 0) + 1;
+
+          var previousMeta = buildDraftCardMeta(previousResolved);
+          if (previousMeta) {
+            dd.cardMeta[canonicalKey] = previousMeta;
+          }
+        }
+      }
+
+      if (!Array.isArray(dd.commanderCandidates)) dd.commanderCandidates = [];
+      if (dd.commanderCandidates.map(function (x) { return String(x || '').toLowerCase(); }).indexOf(commanderName.toLowerCase()) < 0) {
+        dd.commanderCandidates.push(commanderName);
+      }
+
+      if (resolved && resolved.name) {
+        guestCommanderDetailCache[commanderName.toLowerCase()] = resolved;
+      }
+
+      saveDraft(dd);
+      render(dd);
+      setGuestDeckStatus('Commander set to ' + commanderName + '.');
     }
 
     function setTopCommanderArt(imageURI, name) {
@@ -930,38 +1666,48 @@
     }
 
     function renderCommanderControls(d) {
-      var current = commanderName ? commanderName : 'Choose an eligible commander';
-      if (commanderCurrentEl) commanderCurrentEl.textContent = current;
+      var current = commanderName ? commanderName : 'No commander selected';
       if (commanderTopEl) commanderTopEl.textContent = current;
       syncTopCommanderArt(d);
-      if (!commanderSelect) return;
-
-      var candidates = buildCommanderCandidates(d);
-      commanderSelect.innerHTML = '';
-
-      var placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = 'Choose an eligible commander';
-      commanderSelect.appendChild(placeholder);
-
-      candidates.forEach(function (name) {
-        var opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        commanderSelect.appendChild(opt);
-      });
-
-      if (commanderName) {
-        commanderSelect.value = commanderName;
-      } else {
-        commanderSelect.value = '';
-      }
     }
 
     function currentCommanderForDraft(d) {
       var fromDraft = normalizeName(d && d.commanderName ? d.commanderName : '');
       if (fromDraft) return fromDraft;
       return normalizeName(commanderName);
+    }
+
+    function setGuestFormat(nextFormat) {
+      var format = normalizeGuestFormat(nextFormat);
+      var dd = loadDraft() || { commanderName: commanderName, cards: {}, maybeCards: {}, cardMeta: {} };
+      dd.cards = dd.cards || {};
+      dd.maybeCards = dd.maybeCards || {};
+      ensureDraftCardMetaMap(dd);
+
+      var previousCommander = normalizeName(currentCommanderForDraft(dd));
+      if (format === 'Commander') {
+        if (normalizeGuestFormat(dd.format) !== 'Commander') {
+          commanderName = '';
+          dd.commanderName = '';
+        }
+        dd.format = 'Commander';
+      } else {
+        if (previousCommander) {
+          var existingKey = draftCardNameKey(dd.cards, previousCommander);
+          if (!existingKey) existingKey = previousCommander;
+          if (Number(dd.cards[existingKey] || 0) <= 0) {
+            dd.cards[existingKey] = 1;
+          }
+        }
+        commanderName = '';
+        dd.commanderName = '';
+        dd.format = 'Sandbox';
+      }
+
+      if (guestFormatField) guestFormatField.value = dd.format;
+      saveDraft(dd);
+      render(dd);
+      if (guestOverviewStatus) guestOverviewStatus.textContent = 'Saved locally.';
     }
 
     function setAnalyticsField(id, value) {
@@ -979,7 +1725,7 @@
       if (!Array.isArray(extras) || extras.length === 0) {
         var empty = document.createElement('li');
         empty.className = 'text-slate-500';
-        empty.textContent = 'No deck extras detected yet.';
+        empty.textContent = 'None.';
         list.appendChild(empty);
         return;
       }
@@ -1012,8 +1758,104 @@
       if (rendered === 0) {
         var fallback = document.createElement('li');
         fallback.className = 'text-slate-500';
-        fallback.textContent = 'No deck extras detected yet.';
+        fallback.textContent = 'None.';
         list.appendChild(fallback);
+      }
+    }
+
+    function guideToneClass(tone) {
+      switch (String(tone || 'info')) {
+        case 'good':
+          return 'mt-guide-check mt-guide-check--good';
+        case 'warn':
+          return 'mt-guide-check mt-guide-check--warn';
+        case 'alert':
+          return 'mt-guide-check mt-guide-check--alert';
+        default:
+          return 'mt-guide-check mt-guide-check--info';
+      }
+    }
+
+    function renderGuideChecks(checks) {
+      var root = document.getElementById('deck-guide-checks');
+      if (!root) return;
+
+      root.innerHTML = '';
+      if (!Array.isArray(checks) || checks.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'mt-note';
+        empty.textContent = 'Add cards to get guide feedback.';
+        root.appendChild(empty);
+        return;
+      }
+
+      for (var i = 0; i < checks.length; i++) {
+        var check = checks[i] || {};
+        var card = document.createElement('article');
+        card.className = guideToneClass(check.tone);
+
+        var top = document.createElement('div');
+        top.className = 'mt-guide-check__top';
+
+        var left = document.createElement('div');
+        left.className = 'space-y-1';
+
+        var label = document.createElement('p');
+        label.className = 'mt-guide-check__label';
+        label.textContent = normalizeName(check.label || '') || 'Guide';
+        left.appendChild(label);
+
+        var value = document.createElement('p');
+        value.className = 'mt-guide-check__value';
+        value.textContent = normalizeName(check.value || '') || '0';
+        left.appendChild(value);
+
+        top.appendChild(left);
+
+        var targetText = normalizeName(check.target || '');
+        if (targetText) {
+          var target = document.createElement('p');
+          target.className = 'mt-guide-check__target';
+          target.textContent = targetText;
+          top.appendChild(target);
+        }
+
+        card.appendChild(top);
+
+        var hintText = normalizeName(check.hint || '');
+        if (hintText) {
+          var hint = document.createElement('p');
+          hint.className = 'mt-guide-check__hint';
+          hint.textContent = hintText;
+          card.appendChild(hint);
+        }
+
+        root.appendChild(card);
+      }
+    }
+
+    function renderGuideWarnings(warnings) {
+      var panel = document.getElementById('deck-guide-warnings-panel');
+      var list = document.getElementById('deck-guide-warnings-list');
+      if (!panel || !list) return;
+
+      list.innerHTML = '';
+      if (!Array.isArray(warnings) || warnings.length === 0) {
+        panel.classList.add('hidden');
+        return;
+      }
+
+      panel.classList.remove('hidden');
+      for (var i = 0; i < warnings.length; i++) {
+        var warningText = normalizeName(warnings[i]);
+        if (!warningText) continue;
+        var item = document.createElement('li');
+        item.textContent = warningText;
+        list.appendChild(item);
+      }
+
+      if (list.children.length === 0) {
+        panel.classList.add('hidden');
       }
     }
 
@@ -1025,6 +1867,9 @@
       setAnalyticsField('deck-analytics-avg-cmc', a.average_cmc_display || '0.00');
       setAnalyticsField('deck-analytics-lands', Number(a.land_count || 0));
       setAnalyticsField('deck-analytics-nonlands', Number(a.nonland_count || 0));
+      setAnalyticsField('deck-analytics-ramp', Number(a.ramp_count || 0));
+      setAnalyticsField('deck-analytics-card-draw', Number(a.card_draw_count || 0));
+      setAnalyticsField('deck-analytics-interaction', Number(a.interaction_count || 0));
 
       setAnalyticsField('deck-analytics-type-creature', Number(a.creature_count || 0));
       setAnalyticsField('deck-analytics-type-artifact', Number(a.artifact_count || 0));
@@ -1043,6 +1888,8 @@
       setAnalyticsField('deck-analytics-curve-6', Number(a.curve_6_count || 0));
       setAnalyticsField('deck-analytics-curve-7p', Number(a.curve_7_plus_count || 0));
       renderDeckExtras(a.deck_extras || []);
+      renderGuideChecks(a.guide_checks || []);
+      renderGuideWarnings(a.validation_warnings || []);
       if (window.mtDeckSyncManaCurveBars) window.mtDeckSyncManaCurveBars();
     }
 
@@ -1059,6 +1906,7 @@
       });
 
       return {
+        format: (d && d.format) ? d.format : (deckFormat === 'Commander' ? 'Commander' : 'Sandbox'),
         commander_name: currentCommanderForDraft(d),
         cards: cards,
       };
@@ -1079,7 +1927,7 @@
       analyticsTimer = setTimeout(function () {
         analyticsTimer = null;
         var reqToken = ++analyticsRequestToken;
-        if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = 'Syncing...';
+        if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = 'Updating...';
 
         fetch('/decks/analytics', {
           method: 'POST',
@@ -1257,103 +2105,81 @@
     function render(d) {
       d = d || { commanderName: commanderName, commanderCandidates: [], cards: {}, maybeCards: {}, cardMeta: {} };
       ensureDraftCardMetaMap(d);
+      d.format = normalizeGuestFormat(d.format);
+      allowsCommanderCardAction = d.format === 'Commander';
+      if (guestFormatField) guestFormatField.value = d.format;
+      if (window.mtDeckSetOverviewFormat) window.mtDeckSetOverviewFormat(allowsCommanderCardAction);
 
       // Name/description hydration (if present)
-      if (nameEl && d.name) nameEl.textContent = d.name;
+      if (nameEl) nameEl.textContent = guestDeckName;
       if (descEl) {
         var hasDesc = !!(d.description && d.description.trim());
-        descEl.textContent = hasDesc ? d.description : '';
+        if (String(descEl.tagName || '').toUpperCase() === 'TEXTAREA') {
+          descEl.value = hasDesc ? d.description : '';
+        } else {
+          descEl.textContent = hasDesc ? d.description : '';
+        }
         if (descEmptyEl) descEmptyEl.classList.toggle('hidden', hasDesc);
       }
 
       if (!listEl) return;
 
-      listEl.innerHTML = '';
       if (maybeListEl) maybeListEl.innerHTML = '';
 
       function bindGuestRowPreview(node, cardName, imageURI) {
-        if (!node) return;
-        if (window.mtDeckCardPreview && window.mtDeckCardPreview.tapMode) {
-          node.addEventListener('click', function (event) {
-            if (event.target && event.target.closest && event.target.closest('button')) return;
-            if (imageURI && window.mtDeckCardPreview && window.mtDeckCardPreview.toggle) {
-              window.mtDeckCardPreview.toggle(imageURI, cardName, event, node);
-            } else {
-              showGuestCardPreview(cardName, event, node);
-            }
-          });
-          return;
-        }
-
-        node.addEventListener('mouseenter', function (event) {
-          if (imageURI && window.mtDeckCardPreview) {
-            if (window.mtDeckCardPreview.move) window.mtDeckCardPreview.move(event);
-            window.mtDeckCardPreview.show(imageURI, cardName);
-          } else {
-            showGuestCardPreview(cardName, event, node);
-          }
-        });
-        node.addEventListener('mousemove', function (event) {
-          if (window.mtDeckCardPreview && window.mtDeckCardPreview.move) {
-            window.mtDeckCardPreview.move(event);
-          }
-        });
-        node.addEventListener('mouseleave', function () {
-          guestPreviewToken += 1;
-          if (window.mtDeckCardPreview) window.mtDeckCardPreview.hide();
-        });
+        return;
       }
 
-      function baseGuestButton(label, onClick) {
+      function createGuestMenuItem(label, onClick, disabled) {
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'inline-flex items-center justify-center px-2 py-1 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:border-sky-400 hover:text-sky-300 transition-colors';
+        btn.className = 'mt-action-menu__item';
         btn.textContent = label;
-        btn.addEventListener('click', onClick);
+        btn.disabled = !!disabled;
+        if (!disabled) {
+          btn.addEventListener('click', function (event) {
+            closeGuestActionMenu(event.currentTarget);
+            onClick();
+          });
+        }
         return btn;
       }
 
-      function appendMainboardRow(cardName, qty, cardMeta) {
-        var cmcValue = Number(cardMeta && cardMeta.cmc ? cardMeta.cmc : 0);
-        if (!Number.isFinite(cmcValue)) cmcValue = 0;
-        var typeLine = normalizeName(cardMeta && cardMeta.typeLine ? cardMeta.typeLine : '');
-        var oracleText = normalizeName(cardMeta && cardMeta.oracleText ? cardMeta.oracleText : '');
-        var priceUSD = normalizeName(cardMeta && cardMeta.priceUSD ? cardMeta.priceUSD : '');
-        var imageURI = normalizeName(cardMeta && cardMeta.imageURI ? cardMeta.imageURI : '');
+      function createGuestCardActionMenu(cardName, cardMeta) {
+        var details = document.createElement('details');
+        details.className = 'mt-action-menu';
+        details.setAttribute('data-card-action-menu', '');
 
-        var li = document.createElement('li');
-        li.className = 'flex items-center justify-between gap-3 py-2';
-        li.setAttribute('data-card-id', '0');
-        li.setAttribute('data-card-name', cardName);
-        li.setAttribute('data-card-qty', String(qty));
-        li.setAttribute('data-card-type-line', typeLine);
-        li.setAttribute('data-card-oracle-text', oracleText);
-        li.setAttribute('data-card-cmc', String(cmcValue));
-        li.setAttribute('data-card-price', priceUSD);
-        li.setAttribute('data-card-image-uri', imageURI);
-        bindGuestRowPreview(li, cardName, imageURI);
+        var summary = document.createElement('summary');
+        summary.setAttribute('aria-label', 'Card actions');
+        summary.textContent = '...';
+        details.appendChild(summary);
 
-        var left = document.createElement('div');
-        var p = document.createElement('p');
-        p.className = 'font-medium text-slate-100';
-        p.textContent = qty + 'x ' + cardName;
-        left.appendChild(p);
-
-        var right = document.createElement('div');
-        right.className = 'shrink-0 flex items-center gap-2';
-        right.appendChild(baseGuestButton('Maybe', function () {
-          moveGuestCardToMaybe(cardName);
-        }));
-        right.appendChild(baseGuestButton('−', function () {
-          adjustGuestCardQuantity(cardName, -1);
-        }));
-        right.appendChild(baseGuestButton('+', function () {
+        var panel = document.createElement('div');
+        panel.className = 'mt-action-menu__panel';
+        panel.appendChild(createGuestMenuItem('Add Copy', function () {
           adjustGuestCardQuantity(cardName, 1);
         }));
+        panel.appendChild(createGuestMenuItem('Remove Copy', function () {
+          adjustGuestCardQuantity(cardName, -1);
+        }));
 
-        li.appendChild(left);
-        li.appendChild(right);
-        listEl.appendChild(li);
+        if (allowsCommanderCardAction) {
+          var currentCommander = normalizeName(commanderName);
+          var canBeCommander = !!(cardMeta && cardMeta.isCommanderCandidate);
+          if (currentCommander && currentCommander.toLowerCase() === normalizeName(cardName).toLowerCase()) {
+            panel.appendChild(createGuestMenuItem('Current Commander', function () {}, true));
+          } else if (canBeCommander) {
+            panel.appendChild(createGuestMenuItem('Set as Commander', function () {
+              setGuestCommander(cardName);
+            }));
+          } else {
+            panel.appendChild(createGuestMenuItem('Not a Commander', function () {}, true));
+          }
+        }
+
+        details.appendChild(panel);
+        return details;
       }
 
       function appendMaybeboardRow(cardName, qty, cardMeta) {
@@ -1361,24 +2187,24 @@
         var imageURI = normalizeName(cardMeta && cardMeta.imageURI ? cardMeta.imageURI : '');
 
         var li = document.createElement('li');
-        li.className = 'flex items-center justify-between gap-3 py-2';
+        li.className = 'mt-list-row';
         bindGuestRowPreview(li, cardName, imageURI);
 
         var left = document.createElement('div');
         var p = document.createElement('p');
-        p.className = 'font-medium text-slate-100';
+        p.className = 'mt-list-row__title';
         p.textContent = qty + 'x ' + cardName;
         left.appendChild(p);
 
         var right = document.createElement('div');
-        right.className = 'shrink-0 flex items-center gap-1.5';
-        right.appendChild(baseGuestButton('+ Deck', function () {
+        right.className = 'mt-list-row__actions';
+        right.appendChild(createGuestMenuItem('+ Deck', function () {
           moveGuestMaybeToMain(cardName);
         }));
-        right.appendChild(baseGuestButton('−', function () {
+        right.appendChild(createGuestMenuItem('Remove Copy', function () {
           adjustGuestMaybeCardQuantity(cardName, -1);
         }));
-        right.appendChild(baseGuestButton('+', function () {
+        right.appendChild(createGuestMenuItem('Add Copy', function () {
           adjustGuestMaybeCardQuantity(cardName, 1);
         }));
 
@@ -1391,6 +2217,7 @@
       entries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
       var visibleRows = 0;
       var totalCards = 0;
+      var deckRows = [];
       entries.forEach(function (pair) {
         var cardName = normalizeName(pair[0]);
         var qty = Number(pair[1] || 0);
@@ -1401,8 +2228,14 @@
         if (qty <= 0) return;
         visibleRows += 1;
         totalCards += qty;
-        appendMainboardRow(cardName, qty, draftMetaForCard(d, cardName));
+        deckRows.push({
+          cardName: cardName,
+          qty: qty,
+          cardMeta: draftMetaForCard(d, cardName)
+        });
       });
+
+      renderDeckSections(deckRows, createGuestCardActionMenu);
 
       var maybeEntries = Object.entries(d.maybeCards || {});
       maybeEntries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
@@ -1422,16 +2255,488 @@
       if (deckCountLabel) deckCountLabel.textContent = '(' + totalCards + ')';
       if (maybeCountLabel) maybeCountLabel.textContent = '(' + maybeCardsTotal + ')';
       renderCommanderControls(d);
+      syncGuestCommanderOverview(d);
       window.mtDeckCurrentGuestDraft = d;
+      window.mtDeckGuestSyncCommanderOverview = syncGuestCommanderOverview;
       window.mtDeckGuestAdjustCard = adjustGuestCardQuantity;
       window.mtDeckGuestAdjustMaybeCard = adjustGuestMaybeCardQuantity;
       window.mtDeckGuestMoveCardToMaybe = moveGuestCardToMaybe;
       window.mtDeckGuestMoveMaybeToMain = moveGuestMaybeToMain;
-      window.mtDeckGuestShowCardPreview = showGuestCardPreview;
-      drawExampleHand();
+      window.mtDeckGuestUpdateOverview = function (fields) {
+        var dd = loadDraft() || { commanderName: commanderName, cards: {}, maybeCards: {}, cardMeta: {} };
+        if (fields && Object.prototype.hasOwnProperty.call(fields, 'description')) {
+          dd.description = String(fields.description || '').trim();
+        }
+        if (fields && Object.prototype.hasOwnProperty.call(fields, 'tags')) {
+          dd.tags = String(fields.tags || '').trim();
+        }
+        if (fields && Object.prototype.hasOwnProperty.call(fields, 'format')) {
+          dd.format = normalizeGuestFormat(fields.format);
+        }
+        saveDraft(dd);
+      };
+      window.mtDeckWorkspaceUpdateOverview = window.mtDeckGuestUpdateOverview;
       requestGuestAnalytics(d);
       hydrateGuestCardMeta();
       emitGuestDraftRendered();
+    }
+
+    function initSavedDeckWorkspace() {
+      function normalizeSavedState(d) {
+        if (!d || typeof d !== 'object') d = {};
+        if (!d.cards || typeof d.cards !== 'object') d.cards = {};
+        if (!d.maybeCards || typeof d.maybeCards !== 'object') d.maybeCards = {};
+        if (!d.cardMeta || typeof d.cardMeta !== 'object') d.cardMeta = {};
+        if (!Array.isArray(d.commanderCandidates)) d.commanderCandidates = [];
+        if (typeof d.tags !== 'string') d.tags = '';
+        d.format = normalizeGuestFormat(d.format || deckFormat);
+        d.id = Number(d.id || savedDeckID || 0);
+        return d;
+      }
+
+      var savedDraft = normalizeSavedState(savedDeckSeed);
+      if (!savedDraft || !savedDraft.id) {
+        drawExampleHand();
+        window.mtDeckRenderExtrasFromDOM();
+        return;
+      }
+
+      var savedOverviewTimer = null;
+      var savedOverviewPayload = null;
+      var savedCommanderDetailCache = {};
+
+      function setDeckMenuOpen(open) {
+        if (!deckMenuOverlay) return;
+        deckMenuOverlay.classList.toggle('hidden', !open);
+        deckMenuOverlay.classList.toggle('flex', !!open);
+        if (!open && deckMenuStatus) {
+          deckMenuStatus.textContent = '';
+        }
+      }
+
+      function setSavedStatus(message) {
+        if (!addStatus) return;
+        addStatus.textContent = normalizeName(message);
+        if (!addStatus.textContent) return;
+        window.setTimeout(function () {
+          if (addStatus && addStatus.textContent === message) {
+            addStatus.textContent = '';
+          }
+        }, 1800);
+      }
+
+      async function postSavedMutation(url, params) {
+        try {
+          var res = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            },
+            body: params.toString()
+          });
+          if (!res.ok) {
+            var errorText = '';
+            try {
+              errorText = await res.text();
+            } catch (e) {
+              errorText = '';
+            }
+            throw new Error(normalizeName(errorText) || 'Request failed.');
+          }
+          var next = await res.json();
+          savedDraft = normalizeSavedState(next);
+          return savedDraft;
+        } catch (e) {
+          throw e;
+        }
+      }
+
+      function currentSavedCommander(d) {
+        if (d && typeof d === 'object') {
+          return normalizeName(d.commanderName || '');
+        }
+        return normalizeName(commanderName);
+      }
+
+      function buildDecklistText(d) {
+        var lines = [];
+        var commanderForCopy = currentSavedCommander(d);
+        if (d && d.format === 'Commander') {
+          lines.push('Commander: ' + (commanderForCopy || '(not set)'));
+          lines.push('');
+        }
+
+        var entries = Object.entries((d && d.cards) || {});
+        entries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
+        entries.forEach(function (pair) {
+          var cardName = normalizeName(pair[0]);
+          var qty = Number(pair[1] || 0);
+          if (!cardName || !Number.isFinite(qty) || qty <= 0) return;
+          lines.push(qty + ' ' + cardName);
+        });
+
+        return lines.join('\n');
+      }
+
+      async function saveSavedDeckName() {
+        if (!deckMenuNameInput) return;
+        var nextName = normalizeName(deckMenuNameInput.value);
+        if (!nextName) {
+          setDeckMenuStatus('Deck name cannot be empty.');
+          deckMenuNameInput.focus();
+          return;
+        }
+
+        var params = new URLSearchParams();
+        params.set('id', String(savedDraft.id));
+        params.set('name', nextName);
+
+        try {
+          var next = await postSavedMutation('/decks/settings', params);
+          renderSaved(next);
+          setDeckMenuStatus('Deck name updated.');
+        } catch (e) {
+          setDeckMenuStatus(e && e.message ? e.message : 'Could not update deck name.');
+        }
+      }
+
+      async function copySavedDecklist() {
+        var text = buildDecklistText(savedDraft);
+        if (!text) {
+          setDeckMenuStatus('Nothing to copy yet.');
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(text);
+          setDeckMenuStatus('Decklist copied.');
+        } catch (e) {
+          try {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            setDeckMenuStatus('Decklist copied.');
+          } catch (e2) {
+            setDeckMenuStatus('Could not copy decklist.');
+          }
+        }
+      }
+
+      async function syncSavedCommanderOverview(d) {
+        if (!window.mtDeckSetCommanderOverview) return;
+
+        var current = currentSavedCommander(d);
+        if (!current) {
+          window.mtDeckSetCommanderOverview(null);
+          return;
+        }
+
+        var meta = draftMetaForCard(d, current);
+        if (meta) {
+          window.mtDeckSetCommanderOverview({
+            name: current,
+            mana_cost: meta.manaCost || '',
+            type_line: meta.typeLine || '',
+            oracle_text: meta.oracleText || '',
+            image_uri: meta.imageURI || '',
+            faces: Array.isArray(meta.faces) ? meta.faces : []
+          });
+        }
+
+        var cacheKey = current.toLowerCase();
+        if (savedCommanderDetailCache[cacheKey]) {
+          window.mtDeckSetCommanderOverview(savedCommanderDetailCache[cacheKey]);
+          return;
+        }
+
+        var resolved = await resolveCardByName(current, true);
+        if (!resolved || !resolved.name) return;
+        if (currentSavedCommander(savedDraft).toLowerCase() !== cacheKey) return;
+        savedCommanderDetailCache[cacheKey] = resolved;
+        window.mtDeckSetCommanderOverview(resolved);
+      }
+
+      function createSavedMenuItem(label, onClick, disabled) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'mt-action-menu__item';
+        btn.textContent = label;
+        btn.disabled = !!disabled;
+        if (!disabled) {
+          btn.addEventListener('click', function (event) {
+            closeGuestActionMenu(event.currentTarget);
+            onClick();
+          });
+        }
+        return btn;
+      }
+
+      async function setSavedCommander(cardName) {
+        var picked = normalizeName(cardName);
+        if (!picked) return;
+        try {
+          var params = new URLSearchParams();
+          params.set('id', String(savedDraft.id));
+          params.set('commander_name', picked);
+          var next = await postSavedMutation('/decks/commander', params);
+          commanderName = currentSavedCommander(next);
+          renderSaved(next);
+          setSavedStatus('Commander set to ' + commanderName + '.');
+        } catch (e) {
+          setSavedStatus(e && e.message ? e.message : 'Could not update commander.');
+        }
+      }
+
+      async function adjustSavedCardQuantity(cardMeta, delta) {
+        if (!cardMeta || !cardMeta.cardID) return;
+        try {
+          var params = new URLSearchParams();
+          params.set('card_id', cardMeta.cardID);
+          if (Number(delta || 0) > 0) {
+            params.set('action', 'inc_main');
+          }
+          var next = await postSavedMutation('/decks/' + savedDraft.id, params);
+          commanderName = currentSavedCommander(next);
+          renderSaved(next);
+        } catch (e) {
+          setSavedStatus(e && e.message ? e.message : 'Could not update card.');
+        }
+      }
+
+      async function submitSavedAddCard(raw) {
+        var value = normalizeName(raw);
+        if (!value) return;
+        try {
+          var params = new URLSearchParams();
+          params.set('card_name', value);
+          var next = await postSavedMutation('/decks/' + savedDraft.id, params);
+          commanderName = currentSavedCommander(next);
+          renderSaved(next);
+          if (addInput) {
+            addInput.value = '';
+            addInput.focus();
+          }
+          setSavedStatus('Added ' + value + '.');
+        } catch (e) {
+          setSavedStatus(e && e.message ? e.message : 'Could not add card.');
+        }
+      }
+
+      function submitSavedOverviewNow() {
+        if (!savedOverviewPayload) return;
+        var fields = savedOverviewPayload;
+        savedOverviewPayload = null;
+
+        var params = new URLSearchParams();
+        params.set('action', 'save_overview');
+        params.set('format', normalizeGuestFormat(fields.format || savedDraft.format || 'Sandbox'));
+        params.set('tags', String(fields.tags || ''));
+        params.set('description', String(fields.description || ''));
+
+        postSavedMutation('/decks/' + savedDraft.id, params).then(function (next) {
+          commanderName = currentSavedCommander(next);
+          renderSaved(next);
+        }).catch(function () {
+          // keep the current UI state; the next successful save will resync it
+        });
+      }
+
+      window.mtDeckWorkspaceUpdateOverview = function (fields) {
+        if (!fields || typeof fields !== 'object') return;
+        savedDraft.tags = String(fields.tags || '');
+        savedDraft.description = String(fields.description || '');
+        savedDraft.format = normalizeGuestFormat(fields.format || savedDraft.format || 'Sandbox');
+        savedOverviewPayload = {
+          tags: savedDraft.tags,
+          description: savedDraft.description,
+          format: savedDraft.format
+        };
+        if (savedOverviewTimer) window.clearTimeout(savedOverviewTimer);
+        savedOverviewTimer = window.setTimeout(submitSavedOverviewNow, 180);
+      };
+
+      function renderSaved(d) {
+        d = normalizeSavedState(d);
+        savedDraft = d;
+        commanderName = currentSavedCommander(d);
+        allowsCommanderCardAction = d.format === 'Commander';
+        if (window.mtDeckSetOverviewFormat) window.mtDeckSetOverviewFormat(allowsCommanderCardAction);
+        if (guestFormatField) guestFormatField.value = d.format;
+
+        var entries = Object.entries(d.cards || {});
+        entries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
+        var visibleRows = 0;
+        var totalCards = 0;
+        var deckRows = [];
+
+        function createSavedCardActionMenu(cardName, cardMeta) {
+          var details = document.createElement('details');
+          details.className = 'mt-action-menu';
+          details.setAttribute('data-card-action-menu', '');
+
+          var summary = document.createElement('summary');
+          summary.setAttribute('aria-label', 'Card actions');
+          summary.textContent = '...';
+          details.appendChild(summary);
+
+          var panel = document.createElement('div');
+          panel.className = 'mt-action-menu__panel';
+          panel.appendChild(createSavedMenuItem('Add Copy', function () {
+            adjustSavedCardQuantity(cardMeta, 1);
+          }));
+          panel.appendChild(createSavedMenuItem('Remove Copy', function () {
+            adjustSavedCardQuantity(cardMeta, -1);
+          }));
+
+          if (allowsCommanderCardAction) {
+            var currentCommander = normalizeName(commanderName);
+            var canBeCommander = !!(cardMeta && cardMeta.isCommanderCandidate);
+            if (currentCommander && currentCommander.toLowerCase() === normalizeName(cardName).toLowerCase()) {
+              panel.appendChild(createSavedMenuItem('Current Commander', function () {}, true));
+            } else if (canBeCommander) {
+              panel.appendChild(createSavedMenuItem('Set as Commander', function () {
+                setSavedCommander(cardName);
+              }));
+            } else {
+              panel.appendChild(createSavedMenuItem('Not a Commander', function () {}, true));
+            }
+          }
+
+          details.appendChild(panel);
+          return details;
+        }
+
+        for (var i = 0; i < entries.length; i++) {
+          var cardName = normalizeName(entries[i][0]);
+          var qty = Number(entries[i][1] || 0);
+          if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
+          if (commanderName && cardName.toLowerCase() === commanderName.toLowerCase()) {
+            qty -= 1;
+          }
+          if (qty <= 0) continue;
+
+          visibleRows += 1;
+          totalCards += qty;
+
+          var cardMeta = draftMetaForCard(d, cardName) || {};
+          deckRows.push({
+            cardName: cardName,
+            qty: qty,
+            cardMeta: cardMeta
+          });
+        }
+
+        renderDeckSections(deckRows, createSavedCardActionMenu);
+
+        if (emptyEl) emptyEl.classList.toggle('hidden', visibleRows !== 0);
+        if (deckCountLabel) deckCountLabel.textContent = '(' + totalCards + ')';
+        if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = 'Live';
+        if (d.analytics) renderAnalytics(d.analytics);
+        if (savedDeckNameEl) savedDeckNameEl.textContent = d.name || 'Deck';
+        if (deckMenuNameInput) deckMenuNameInput.value = d.name || '';
+        if (deckMenuVisibilityBtn) {
+          deckMenuVisibilityBtn.textContent = d.isPublic ? 'Set Private' : 'Set Public';
+        }
+
+        window.mtDeckCurrentSavedDraft = d;
+        drawExampleHand();
+        syncSavedCommanderOverview(d);
+      }
+
+      if (addForm && addInput) {
+        addForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          if (addStatus) addStatus.textContent = '';
+          var raw = normalizeName(addInput.value);
+          if (!raw) return;
+          submitSavedAddCard(raw);
+        });
+      }
+
+      if (deckMenuOpenBtn) {
+        deckMenuOpenBtn.addEventListener('click', function () {
+          setDeckMenuOpen(true);
+        });
+      }
+      if (deckMenuCloseBtn) {
+        deckMenuCloseBtn.addEventListener('click', function () {
+          setDeckMenuOpen(false);
+        });
+      }
+      if (deckMenuOverlay) {
+        deckMenuOverlay.addEventListener('click', function (event) {
+          if (event.target === deckMenuOverlay) {
+            setDeckMenuOpen(false);
+          }
+        });
+      }
+      if (deckMenuCopyBtn) {
+        deckMenuCopyBtn.addEventListener('click', function () {
+          copySavedDecklist();
+        });
+      }
+      if (deckMenuNameSaveBtn) {
+        deckMenuNameSaveBtn.addEventListener('click', function () {
+          saveSavedDeckName();
+        });
+      }
+      if (deckMenuNameInput) {
+        deckMenuNameInput.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            saveSavedDeckName();
+          }
+        });
+      }
+      if (deckMenuVisibilityBtn) {
+        deckMenuVisibilityBtn.addEventListener('click', function () {
+          var params = new URLSearchParams();
+          params.set('id', String(savedDraft.id));
+          params.set('sharing_submitted', '1');
+          if (!savedDraft.isPublic) {
+            params.set('is_public', '1');
+          }
+          postSavedMutation('/decks/settings', params).then(function (next) {
+            renderSaved(next);
+            setDeckMenuStatus(next.isPublic ? 'Deck is now public.' : 'Deck is now private.');
+          }).catch(function (e) {
+            setDeckMenuStatus(e && e.message ? e.message : 'Could not update visibility.');
+          });
+        });
+      }
+
+      if (deckGroupModeField) {
+        deckGroupModeField.addEventListener('change', function () {
+          persistDeckGroupMode(deckGroupModeField.value);
+          renderSaved(savedDraft);
+        });
+      }
+      if (deckSortModeField) {
+        deckSortModeField.addEventListener('change', function () {
+          persistDeckSortMode(deckSortModeField.value);
+          renderSaved(savedDraft);
+        });
+      }
+      if (deckViewModeField) {
+        deckViewModeField.addEventListener('change', function () {
+          persistDeckViewMode(deckViewModeField.value);
+          renderSaved(savedDraft);
+        });
+      }
+
+      renderSaved(savedDraft);
+    }
+
+    if (!isGuest) {
+      initSavedDeckWorkspace();
+      return;
     }
 
     // Init
@@ -1439,9 +2744,11 @@
     if (!draft) {
       draft = {
         commanderName: commanderName,
+        format: deckFormat === 'Commander' ? 'Commander' : 'Sandbox',
         commanderCandidates: [],
-        name: (nameEl ? nameEl.textContent : ''),
+        name: guestDeckName,
         description: '',
+        tags: '',
         cards: {},
         maybeCards: {},
         cardMeta: {}
@@ -1459,66 +2766,28 @@
 
     render(draft);
 
-    if (commanderApplyBtn && commanderSelect) {
-      commanderApplyBtn.addEventListener('click', async function () {
-        var picked = normalizeName(commanderSelect.value);
-        if (!picked) {
-          if (commanderStatus) commanderStatus.textContent = 'Choose an eligible commander first.';
-          return;
-        }
-
-        var previousCommander = normalizeName(commanderName);
-        var dd = loadDraft() || { commanderName: commanderName, commanderCandidates: [], cards: {}, maybeCards: {}, cardMeta: {} };
-        dd.cards = dd.cards || {};
-        dd.maybeCards = dd.maybeCards || {};
-        ensureDraftCardMetaMap(dd);
-
-        commanderName = picked;
-        dd.commanderName = commanderName;
-
-        // If the previous commander came from preselection and was not present in
-        // the deck list, swap it back into the 99 when choosing a new commander.
-        if (previousCommander && previousCommander.toLowerCase() !== commanderName.toLowerCase()) {
-          var previousKey = draftCardNameKey(dd.cards, previousCommander);
-          var previousQty = previousKey ? Number(dd.cards[previousKey] || 0) : 0;
-          if (!Number.isFinite(previousQty) || previousQty <= 0) {
-            var previousResolved = await resolveCardByName(previousCommander, true);
-            var previousCanonical = previousCommander;
-            if (previousResolved && previousResolved.name) {
-              var resolvedName = normalizeName(previousResolved.name);
-              if (resolvedName) previousCanonical = resolvedName;
-            }
-            var canonicalKey = draftCardNameKey(dd.cards, previousCanonical);
-            if (!canonicalKey) canonicalKey = previousCanonical;
-            dd.cards[canonicalKey] = Number(dd.cards[canonicalKey] || 0) + 1;
-
-            var previousMeta = buildDraftCardMeta(previousResolved);
-            if (previousMeta) {
-              dd.cardMeta[canonicalKey] = previousMeta;
-            }
-          }
-        }
-
-        if (!Array.isArray(dd.commanderCandidates)) dd.commanderCandidates = [];
-        if (dd.commanderCandidates.map(function (x) { return String(x || '').toLowerCase(); }).indexOf(commanderName.toLowerCase()) < 0) {
-          dd.commanderCandidates.push(commanderName);
-        }
-
-        saveDraft(dd);
-        render(dd);
-
-        if (commanderStatus) commanderStatus.textContent = 'Commander set to ' + commanderName + '.';
+    if (deckGroupModeField) {
+      deckGroupModeField.addEventListener('change', function () {
+        persistDeckGroupMode(deckGroupModeField.value);
+        render(loadDraft() || draft);
+      });
+    }
+    if (deckSortModeField) {
+      deckSortModeField.addEventListener('change', function () {
+        persistDeckSortMode(deckSortModeField.value);
+        render(loadDraft() || draft);
+      });
+    }
+    if (deckViewModeField) {
+      deckViewModeField.addEventListener('change', function () {
+        persistDeckViewMode(deckViewModeField.value);
+        render(loadDraft() || draft);
       });
     }
 
-    if (commanderClearBtn) {
-      commanderClearBtn.addEventListener('click', function () {
-        var dd = loadDraft() || { commanderName: '', commanderCandidates: [], cards: {}, maybeCards: {}, cardMeta: {} };
-        commanderName = '';
-        dd.commanderName = '';
-        saveDraft(dd);
-        render(dd);
-        if (commanderStatus) commanderStatus.textContent = 'Commander cleared.';
+    if (guestFormatField) {
+      guestFormatField.addEventListener('change', function () {
+        setGuestFormat(guestFormatField.value);
       });
     }
 
@@ -1673,18 +2942,28 @@
       }).filter(function (x) {
         return x && x.name && x.qty && x.qty > 0;
       });
+      var maybeCards = Object.entries(dd.maybeCards || {}).map(function (pair) {
+        return { name: pair[0], qty: pair[1] };
+      }).filter(function (x) {
+        return x && x.name && x.qty && x.qty > 0;
+      });
 
       var payload = {
         commander_name: commanderForPlaytest,
-        name: (dd.name && dd.name.trim()) || (nameEl ? String(nameEl.textContent || '').trim() : '') || 'Guest Deck',
+        format: dd.format || (deckFormat === 'Commander' ? 'Commander' : 'Sandbox'),
+        name: guestDeckName,
         description: dd.description || '',
+        tags: dd.tags || '',
         cards: cards,
+        maybe_cards: maybeCards,
+        commander_candidates: Array.isArray(dd.commanderCandidates) ? dd.commanderCandidates : [],
+        card_meta: (dd.cardMeta && typeof dd.cardMeta === 'object') ? dd.cardMeta : {},
         sandbox: isSandboxDraft,
       };
 
       var form = document.createElement('form');
       form.method = 'POST';
-      form.action = '/decks/playtest/guest';
+      form.action = '/decks/new/playtest';
 
       var input = document.createElement('input');
       input.type = 'hidden';
@@ -1715,29 +2994,25 @@
       }).filter(function (x) {
         return x && x.name && x.qty && x.qty > 0;
       });
-      var maybeCards = Object.entries(dd.maybeCards || {}).map(function (pair) {
-        return { name: pair[0], qty: pair[1] };
-      }).filter(function (x) {
-        return x && x.name && x.qty && x.qty > 0;
-      });
-      if (cards.length === 0 && maybeCards.length === 0) {
+      if (cards.length === 0) {
         if (copyStatus) copyStatus.textContent = 'Add cards before saving this deck.';
         return false;
       }
 
       var payload = {
+        format: dd.format || (deckFormat === 'Commander' ? 'Commander' : 'Sandbox'),
         commander_name: commanderForSave,
         name: dd.name || commanderForSave || 'Imported Deck',
         description: dd.description || '',
+        tags: dd.tags || '',
         cards: cards,
-        maybe_cards: maybeCards,
       };
 
       saveInProgress = true;
       try {
         if (copyStatus) copyStatus.textContent = 'Saving…';
 
-        var res = await fetch('/decks/import-draft', {
+        var res = await fetch('/decks/import/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -1774,10 +3049,9 @@
     }
 
     bindSave('guest-save-to-account');
-    bindSave('guest-save-to-account-2');
 
     if (isSignedIn && shouldAutoSave) {
-      if (copyStatus) copyStatus.textContent = 'Signed in. Saving imported guest deck…';
+      if (copyStatus) copyStatus.textContent = 'Signed in. Saving imported local deck…';
       try {
         var cleaned = new URL(window.location.href);
         cleaned.searchParams.delete('save_guest');

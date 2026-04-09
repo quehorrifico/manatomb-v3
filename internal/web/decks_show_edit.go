@@ -33,6 +33,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		return
 	}
+	respondJSON := wantsJSONResponse(r)
 
 	id, err := parseDeckIDFromPath(r)
 	if err != nil {
@@ -53,48 +54,71 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		action := strings.TrimSpace(r.Form.Get("action"))
 		zone := strings.TrimSpace(r.Form.Get("zone"))
 
+		if action == "save_overview" {
+			current, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
+			if err != nil {
+				a.RenderNotFound(w, r)
+				return
+			}
+
+			format := current.Format
+			if _, ok := r.Form["format"]; ok {
+				format = defaultDeckFormat(r.Form.Get("format"), current.CommanderName, "")
+			} else {
+				format = defaultDeckFormat(current.Format, current.CommanderName, "")
+			}
+			commander, err := a.commanderForFormatChange(r.Context(), id, current.Format, format, current.CommanderName)
+			if err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			powerBracket := defaultDeckPowerBracket(current.PowerBracket, format)
+
+			if err := decks.UpdateDeckWithOptions(r.Context(), a.DB, id, decks.DeckInput{
+				Name:          current.Name,
+				Description:   strings.TrimSpace(r.Form.Get("description")),
+				Tags:          strings.TrimSpace(r.Form.Get("tags")),
+				Format:        format,
+				CommanderName: commander,
+				IsPublic:      current.IsPublic,
+				PublicSlug:    current.PublicSlug,
+				PowerBracket:  powerBracket,
+			}); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			setFlash(w, "Overview updated.")
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
 		// Case 1: adding a new card by name (from the "Add card" form)
 		if cardName != "" {
 			resolved, err := cards.ResolveCardByNameFuzzy(r.Context(), a.DB, cardName)
 			if err != nil {
 				// If we can't find a suitable local card match, show a friendly error on the deck page.
 				if errors.Is(err, cards.ErrCardNotFound) {
-					d, derr := decks.GetDeck(r.Context(), a.DB, id, user.ID)
-					if derr != nil {
-						a.RenderNotFound(w, r)
+					if respondJSON {
+						http.Error(w, fmt.Sprintf("No card found matching %q. Please check the spelling.", cardName), http.StatusNotFound)
 						return
 					}
-
-					deckCards, derr := decks.ListDeckCards(r.Context(), a.DB, id)
+					pageData, derr := a.loadSavedDeckWorkspace(r.Context(), user.ID, id)
 					if derr != nil {
 						a.RenderServerError(w, r, derr)
 						return
 					}
-
-					maybeDeckCards, derr := decks.ListDeckMaybeCards(r.Context(), a.DB, id)
-					if derr != nil {
-						a.RenderServerError(w, r, derr)
-						return
-					}
-
-					commanderCard := a.lookupCommanderCard(r.Context(), d.CommanderName)
 
 					data := TemplateData{
 						CurrentUser: user,
-						Data: deckPageData{
-							Deck:                d,
-							DeckCards:           deckCards,
-							MaybeDeckCards:      maybeDeckCards,
-							VisibleCardCount:    visibleDeckCardCount(deckCards, d.CommanderName),
-							MaybeCardCount:      deckCardQuantityTotal(maybeDeckCards),
-							Analytics:           computeDeckAnalyticsFromDeckCards(d.CommanderName, deckCards),
-							Commander:           commanderCard,
-							CommanderCandidates: nil,
-							GuestMode:           false,
-						},
-						Flash:      flash,
-						Error:      fmt.Sprintf("No card found matching \"%s\". Please check the spelling.", cardName),
-						WideLayout: true,
+						Data:        pageData,
+						Flash:       flash,
+						Error:       fmt.Sprintf("No card found matching \"%s\". Please check the spelling.", cardName),
+						WideLayout:  true,
 					}
 
 					a.Renderer.Render(w, "deck_show", data)
@@ -136,6 +160,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 			return
 		}
@@ -144,6 +172,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		if action == "inc_main" && cardID != "" {
 			if err := decks.AddCard(r.Context(), a.DB, id, cardID, 1); err != nil {
 				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
 				return
 			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
@@ -156,6 +188,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 				a.RenderServerError(w, r, err)
 				return
 			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 			return
 		}
@@ -166,6 +202,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 				a.RenderServerError(w, r, err)
 				return
 			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 			return
 		}
@@ -174,6 +214,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		if action == "to_main" && maybeCardID != "" {
 			if err := decks.MoveMaybeToDeck(r.Context(), a.DB, id, maybeCardID); err != nil {
 				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
 				return
 			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
@@ -187,7 +231,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 				a.RenderServerError(w, r, err)
 				return
 			}
-
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 			return
 		}
@@ -198,7 +245,10 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 				a.RenderServerError(w, r, err)
 				return
 			}
-
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 			return
 		}
@@ -208,74 +258,26 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// GET: load deck, cards, and commander details
-	d, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
+	pageData, err := a.loadSavedDeckWorkspace(r.Context(), user.ID, id)
 	if err != nil {
 		a.RenderNotFound(w, r)
 		return
 	}
-
-	deckCards, err := decks.ListDeckCards(r.Context(), a.DB, id)
-	if err != nil {
-		a.RenderServerError(w, r, err)
+	if respondJSON {
+		writeJSON(w, http.StatusOK, pageData.WorkspaceState)
 		return
 	}
-
-	maybeDeckCards, err := decks.ListDeckMaybeCards(r.Context(), a.DB, id)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
-
-	commanderCandidates := make([]commanderCandidate, 0)
-	deckCardNames := make([]string, 0, len(deckCards))
-	for _, dc := range deckCards {
-		name := strings.TrimSpace(dc.CardName)
-		if name == "" {
-			continue
-		}
-		deckCardNames = append(deckCardNames, name)
-	}
-	deckCardsByName, err := cards.LookupCardsByNames(r.Context(), a.DB, deckCardNames)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
-
-	for _, dc := range deckCards {
-		name := strings.TrimSpace(dc.CardName)
-		if name == "" {
-			continue
-		}
-		resolved, ok := deckCardsByName[strings.ToLower(name)]
-		if ok && resolved.IsCommanderCandidate {
-			commanderCandidates = append(commanderCandidates, commanderCandidate{CardName: name})
-		}
-	}
-
-	commanderCard := a.lookupCommanderCard(r.Context(), d.CommanderName)
-
 	data := TemplateData{
 		CurrentUser: user,
-		Data: deckPageData{
-			Deck:                d,
-			DeckCards:           deckCards,
-			MaybeDeckCards:      maybeDeckCards,
-			VisibleCardCount:    visibleDeckCardCount(deckCards, d.CommanderName),
-			MaybeCardCount:      deckCardQuantityTotal(maybeDeckCards),
-			Analytics:           computeDeckAnalyticsFromDeckCards(d.CommanderName, deckCards),
-			Commander:           commanderCard,
-			CommanderCandidates: commanderCandidates,
-			GuestMode:           false,
-		},
-		Flash:      flash,
-		WideLayout: true,
+		Data:        pageData,
+		Flash:       flash,
+		WideLayout:  true,
 	}
 
 	a.Renderer.Render(w, "deck_show", data)
 }
 
 func (a *App) HandleDeckEditShow(w http.ResponseWriter, r *http.Request) {
-	flash := readFlash(w, r)
 	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
 		return
@@ -293,19 +295,12 @@ func (a *App) HandleDeckEditShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
-	if err != nil {
+	if _, err := decks.GetDeck(r.Context(), a.DB, id, user.ID); err != nil {
 		a.RenderNotFound(w, r)
 		return
 	}
 
-	data := TemplateData{
-		CurrentUser: user,
-		Data:        d,
-		Flash:       flash,
-	}
-
-	a.Renderer.Render(w, "decks_edit", data)
+	http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 }
 
 func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
@@ -325,17 +320,72 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := decks.GetDeck(r.Context(), a.DB, id, user.ID); err != nil {
+	current, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
+	if err != nil {
 		a.RenderNotFound(w, r)
 		return
 	}
 
-	name := r.Form.Get("name")
-	desc := r.Form.Get("description")
-	commander := r.Form.Get("commander_name")
+	name := strings.TrimSpace(r.Form.Get("name"))
+	if name == "" {
+		name = current.Name
+	}
 
-	if err := decks.UpdateDeck(r.Context(), a.DB, id, name, desc, commander); err != nil {
+	desc := current.Description
+	if _, ok := r.Form["description"]; ok {
+		desc = strings.TrimSpace(r.Form.Get("description"))
+	}
+
+	tags := current.Tags
+	if _, ok := r.Form["tags"]; ok {
+		tags = strings.TrimSpace(r.Form.Get("tags"))
+	}
+
+	format := current.Format
+	if _, ok := r.Form["format"]; ok {
+		format = defaultDeckFormat(r.Form.Get("format"), current.CommanderName, "")
+	} else {
+		format = defaultDeckFormat(current.Format, current.CommanderName, "")
+	}
+	commander, err := a.commanderForFormatChange(r.Context(), id, current.Format, format, current.CommanderName)
+	if err != nil {
 		a.RenderServerError(w, r, err)
+		return
+	}
+
+	isPublic := current.IsPublic
+	if _, ok := r.Form["sharing_submitted"]; ok {
+		isPublic = strings.TrimSpace(r.Form.Get("is_public")) != ""
+	}
+
+	publicSlug := current.PublicSlug
+	if _, ok := r.Form["public_slug"]; ok {
+		publicSlug = strings.TrimSpace(r.Form.Get("public_slug"))
+	}
+
+	powerBracket := current.PowerBracket
+	if _, ok := r.Form["power_bracket"]; ok {
+		powerBracket = defaultDeckPowerBracket(r.Form.Get("power_bracket"), format)
+	} else {
+		powerBracket = defaultDeckPowerBracket(current.PowerBracket, format)
+	}
+
+	if err := decks.UpdateDeckWithOptions(r.Context(), a.DB, id, decks.DeckInput{
+		Name:          name,
+		Description:   desc,
+		Tags:          tags,
+		Format:        format,
+		CommanderName: commander,
+		IsPublic:      isPublic,
+		PublicSlug:    publicSlug,
+		PowerBracket:  powerBracket,
+	}); err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	if wantsJSONResponse(r) {
+		a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
 		return
 	}
 
@@ -379,8 +429,8 @@ func (a *App) HandleDeckDeletePost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/decks", http.StatusSeeOther)
 }
 
-// HandleDeckUpdateCommander updates a deck's commander to a card that already exists in the deck.
-func (a *App) HandleDeckUpdateCommander(w http.ResponseWriter, r *http.Request) {
+// HandleDeckCommanderUpdate updates a deck's commander to a card already in the deck.
+func (a *App) HandleDeckCommanderUpdate(w http.ResponseWriter, r *http.Request) {
 	user := a.currentUserOrRedirect(w, r)
 	if user == nil {
 		return
@@ -415,6 +465,15 @@ func (a *App) HandleDeckUpdateCommander(w http.ResponseWriter, r *http.Request) 
 		a.RenderNotFound(w, r)
 		return
 	}
+	if d.Format != "Commander" {
+		if wantsJSONResponse(r) {
+			http.Error(w, "Only Commander decks can set a commander.", http.StatusBadRequest)
+			return
+		}
+		setFlash(w, "Only Commander decks can set a commander.")
+		http.Redirect(w, r, "/decks/"+strconv.FormatInt(deckID, 10), http.StatusSeeOther)
+		return
+	}
 
 	// Commander must be chosen from cards already in the deck.
 	cardsInDeck, err := decks.ListDeckCards(r.Context(), a.DB, deckID)
@@ -433,6 +492,10 @@ func (a *App) HandleDeckUpdateCommander(w http.ResponseWriter, r *http.Request) 
 
 	picked, ok := byName[commander]
 	if commander == "" || !ok {
+		if wantsJSONResponse(r) {
+			http.Error(w, "Could not update commander: card not found in this deck.", http.StatusBadRequest)
+			return
+		}
 		setFlash(w, "Could not update commander: card not found in this deck.")
 		http.Redirect(w, r, "/decks/"+strconv.FormatInt(deckID, 10), http.StatusSeeOther)
 		return
@@ -445,6 +508,10 @@ func (a *App) HandleDeckUpdateCommander(w http.ResponseWriter, r *http.Request) 
 	}
 	matched, ok := resolvedCommander[strings.ToLower(strings.TrimSpace(picked.CardName))]
 	if !ok || !matched.IsCommanderCandidate {
+		if wantsJSONResponse(r) {
+			http.Error(w, "Could not update commander: that card is not a valid commander.", http.StatusBadRequest)
+			return
+		}
 		setFlash(w, "Could not update commander: that card is not a valid commander.")
 		http.Redirect(w, r, "/decks/"+strconv.FormatInt(deckID, 10), http.StatusSeeOther)
 		return
@@ -467,11 +534,24 @@ func (a *App) HandleDeckUpdateCommander(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Update commander while preserving name/description.
-	if err := decks.UpdateDeck(r.Context(), a.DB, deckID, d.Name, d.Description, commander); err != nil {
+	if err := decks.UpdateDeckWithOptions(r.Context(), a.DB, deckID, decks.DeckInput{
+		Name:          d.Name,
+		Description:   d.Description,
+		Tags:          d.Tags,
+		Format:        d.Format,
+		CommanderName: commander,
+		IsPublic:      d.IsPublic,
+		PublicSlug:    d.PublicSlug,
+		PowerBracket:  d.PowerBracket,
+	}); err != nil {
 		a.RenderServerError(w, r, err)
 		return
 	}
 
+	if wantsJSONResponse(r) {
+		a.renderSavedDeckWorkspaceJSON(w, r, user.ID, deckID)
+		return
+	}
 	setFlash(w, "Commander updated!")
 	http.Redirect(w, r, "/decks/"+strconv.FormatInt(deckID, 10), http.StatusSeeOther)
 }

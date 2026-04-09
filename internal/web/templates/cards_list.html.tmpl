@@ -1,0 +1,56 @@
+{{ define "cards_list" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <main class="max-w-6xl mx-auto py-10 px-4 space-y-6">
+
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-lg font-semibold text-slate-100">
+          Results{{ if and $ctx.HasSearched $ctx.Results }} <span class="ml-1 text-xs text-slate-500">({{ len $ctx.Results }})</span>{{ end }}
+        </h2>
+      </div>
+
+      {{ if $ctx.HasSearched }}
+        {{ if $ctx.Results }}
+          <ul class="grid gap-4 grid-cols-2 lg:grid-cols-3">
+            {{ range $ctx.Results }}
+              <li>
+                <a href="{{ .DetailPath }}" class="mt-action-card space-y-3 block w-full text-left">
+                  {{ if .ImageURI }}
+                    <img src="{{ .ImageURI }}"
+                         alt="{{ .Name }}"
+                         class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
+                  {{ else }}
+                    <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback">
+                      No image available
+                    </div>
+                  {{ end }}
+                  <div class="space-y-1">
+                    <p class="text-sm font-semibold text-slate-100">{{ .Name }}</p>
+                    <p class="text-xs text-slate-400">{{ .TypeLine }}</p>
+                    {{ if or .SetName .Rarity }}
+                      <p class="text-xs text-slate-500">
+                        {{ if .SetName }}{{ .SetName }}{{ end }}{{ if and .SetName .Rarity }} · {{ end }}{{ if .Rarity }}<span class="uppercase">{{ .Rarity }}</span>{{ end }}
+                      </p>
+                    {{ end }}
+                  </div>
+                </a>
+              </li>
+            {{ end }}
+          </ul>
+        {{ else }}
+          <div class="mt-empty-state">
+            <p class="text-sm text-slate-300">No cards matched your search.</p>
+          </div>
+        {{ end }}
+      {{ else }}
+        <div class="mt-empty-state">
+          <p class="text-sm text-slate-300">Search for a card.</p>
+        </div>
+      {{ end }}
+    </section>
+  </main>
+
+  {{ template "layout_footer" . }}
+{{ end }}

@@ -1,149 +1,57 @@
 {{ define "decks_new" }}
   {{ template "layout_header" . }}
   {{ $d := .Data }}
-  {{ $commanderReturn := "/decks/new" }}
-  {{ $showBack := false }}
-  {{ if and .CurrentUser $d.CommanderName }}
-    {{ $showBack = true }}
-  {{ end }}
-  {{ if ne $d.Mode "" }}
-    {{ $showBack = true }}
-  {{ end }}
-  {{ $backHref := "/decks/new" }}
 
-  <main class="max-w-3xl mx-auto py-10 px-4 space-y-6">
+  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div>
-        <h2 class="text-2xl font-semibold tracking-tight">
-          <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-            Deck Builder
-          </span>
-        </h2>
-        <p class="text-sm text-slate-400 mt-1">
-          {{ if and .CurrentUser $d.CommanderName }}
-            Commander selected. Name your deck and start building.
-          {{ else if eq $d.Mode "sandbox" }}
-            Sandbox mode is in progress.
-          {{ else if eq $d.Mode "import" }}
-            Paste a decklist and build from your card text.
-          {{ else }}
-            Choose how you want to build your deck.
-          {{ end }}
-        </p>
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        {{ if $showBack }}
-          <a href="{{ $backHref }}"
-             class="inline-flex items-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-slate-500 hover:text-slate-50 transition-colors">
-            Back
-          </a>
-        {{ end }}
+      <div class="space-y-2">
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Deck Builder</h1>
       </div>
     </div>
 
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-4 shadow-md shadow-sky-500/10">
-      {{ if and .CurrentUser $d.CommanderName }}
-        <form method="POST" action="/decks/new" class="space-y-4">
-          <div class="text-sm text-slate-200">
-            <div class="rounded-lg border border-sky-700/60 bg-slate-950/90 px-3 py-3 flex items-start justify-between gap-3">
-              <div class="flex items-start gap-3">
-                <div class="h-10 w-10 shrink-0 rounded-md border border-sky-700/60 bg-gradient-to-br from-sky-500/30 via-cyan-400/20 to-transparent flex items-center justify-center">
-                  <span class="text-[11px] font-semibold uppercase tracking-wide text-sky-200">Cmdr</span>
-                </div>
-                <div>
-                  <p class="text-xs font-medium text-slate-400 mb-1">Commander chosen</p>
-                  <p class="text-base font-semibold text-slate-50">{{ $d.CommanderName }}</p>
-                </div>
-              </div>
-              <a href="/commanders/search?return_to={{ urlquery $commanderReturn }}"
-                 class="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-slate-700 bg-slate-900 text-xs text-slate-200 hover:border-sky-400 hover:text-sky-300 transition-colors">
-                Change
-              </a>
-            </div>
-            <input type="hidden" name="commander_name" value="{{ $d.CommanderName }}">
+    <section class="mt-panel p-5 sm:p-6">
+      {{ if eq $d.Mode "sandbox" }}
+        <div class="space-y-5">
+          <div class="space-y-2">
+            <p class="mt-kicker">Sandbox</p>
+            <h2 class="text-xl font-semibold tracking-tight text-slate-100">Sandbox Deck</h2>
           </div>
 
-          <label class="block text-sm text-slate-200">
-            <span class="block text-xs font-medium text-slate-400 mb-1">Deck name</span>
-            <input type="text"
-                   name="name"
-                   value="{{ $d.Name }}"
-                   required
-                   class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">
-          </label>
-
-          <label class="block text-sm text-slate-200">
-            <span class="block text-xs font-medium text-slate-400 mb-1">Description (optional)</span>
-            <textarea name="description"
-                      rows="4"
-                      class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.Description }}</textarea>
-          </label>
-
           <div class="flex justify-end">
-            <button type="submit"
-                    class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
-              Create deck
-            </button>
-          </div>
-        </form>
-
-      {{ else if eq $d.Mode "sandbox" }}
-        <div class="space-y-4">
-          <h3 class="text-sm font-semibold text-slate-200">Sandbox builder</h3>
-          <p class="text-xs text-slate-400">
-            Open an empty deck workbench using the same builder used for imports.
-          </p>
-          <div class="flex justify-end">
-            <a href="/decks/sandbox"
-               class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
-              Open sandbox builder
-            </a>
+            <a href="/decks/new/sandbox" class="mt-btn mt-btn--primary">Start Deck</a>
           </div>
         </div>
 
       {{ else if eq $d.Mode "import" }}
-        <div class="space-y-3">
-          <h3 class="text-sm font-semibold text-slate-200">Import deck text</h3>
-          <p class="text-xs text-slate-400">
-            Paste a decklist with lines like:
-            <span class="text-slate-300">1 Sol Ring</span>,
-            <span class="text-slate-300">4 Counterspell</span>,
-            <span class="text-slate-300">Commander: Atraxa, Grand Unifier</span>.
-            Card names must match your database exactly before import can continue.
-          </p>
+        <div class="space-y-5">
+          <div class="space-y-2">
+            <p class="mt-kicker">Import</p>
+            <h2 class="text-xl font-semibold tracking-tight text-slate-100">Import Deck</h2>
+            <p class="mt-hint">Paste a decklist. Commander imports are detected automatically.</p>
+          </div>
 
-          <form method="POST" action="/decks/import-text" class="space-y-3">
-            <label class="block text-sm text-slate-200">
-              <span class="block text-xs font-medium text-slate-400 mb-1">Decklist text</span>
+          <form method="POST" action="/decks/import" class="space-y-4">
+            <label>
+              <span class="mt-field-label">Decklist Text</span>
               <textarea name="decklist"
                         rows="12"
-                        class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-sky-400">{{ $d.ImportText }}</textarea>
+                        placeholder="Commander: Atraxa, Grand Unifier&#10;1 Sol Ring&#10;1 Arcane Signet&#10;1 Swords to Plowshares&#10;1 Cultivate&#10;1 Command Tower&#10;1 Forest&#10;1 Island"
+                        class="mt-control">{{ $d.ImportText }}</textarea>
             </label>
+            <p class="mt-hint">Example: start your commander on its own line with <code>Commander:</code>, then list the rest of the deck one card per line.</p>
 
             <div class="flex justify-end">
-              <button type="submit"
-                      class="inline-flex items-center px-4 py-2 rounded-md bg-sky-500 text-slate-950 text-sm font-semibold hover:bg-sky-400 transition-colors">
-                {{ if .CurrentUser }}Import deck{{ else }}Import to guest deck{{ end }}
-              </button>
+              <button type="submit" class="mt-btn mt-btn--primary">Import Deck</button>
             </div>
           </form>
         </div>
         {{ if gt (len $d.ImportUnmatched) 0 }}
-          <div id="import-unmatched-modal" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-            <div class="absolute inset-0 bg-slate-950/80"></div>
-            <div class="relative w-full max-w-xl rounded-xl border border-rose-500/60 bg-slate-900 p-4 shadow-xl shadow-rose-900/30">
+          <div id="import-unmatched-modal" class="mt-modal">
+            <div class="mt-modal-panel max-w-xl border-rose-500/60 bg-slate-900">
               <div class="flex items-center justify-between gap-3 mb-3">
-                <h4 class="text-sm font-semibold text-rose-200">Import blocked: unmatched card names</h4>
-                <button type="button"
-                        data-dismiss-import-unmatched
-                        class="inline-flex items-center px-2 py-1 rounded border border-slate-700 text-xs text-slate-300 hover:border-slate-500 hover:text-slate-100 transition-colors">
-                  Dismiss
-                </button>
+                <h4 class="text-sm font-semibold text-rose-200">Unmatched cards</h4>
+                <button type="button" data-dismiss-import-unmatched class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">Dismiss</button>
               </div>
-              <p class="text-xs text-slate-300 mb-3">
-                Fix these names in your pasted list, then try importing again.
-              </p>
               <div class="max-h-56 overflow-y-auto rounded-md border border-rose-500/30 bg-slate-950/70 p-2">
                 <ul class="space-y-1">
                   {{ range $name := $d.ImportUnmatched }}
@@ -166,24 +74,23 @@
         {{ end }}
 
       {{ else }}
-        <div class="grid gap-3 sm:grid-cols-3">
-          <a href="/commanders/search?return_to={{ urlquery $commanderReturn }}"
-             class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 hover:border-slate-600 transition-colors">
-            <p class="text-sm font-semibold text-slate-100">Commander</p>
-            <p class="mt-1 text-xs text-slate-400">Search a commander and build around it.</p>
-          </a>
+        <div class="space-y-4">
+          <div class="grid gap-4 md:grid-cols-3">
+            <a href="/decks/new/commander/" class="mt-action-card">
+              <p class="text-lg font-semibold text-slate-100">Commander Deck</p>
+              <p class="mt-hint mt-2">Build around a commander.</p>
+            </a>
 
-          <a href="/decks/sandbox"
-             class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 hover:border-slate-600 transition-colors">
-            <p class="text-sm font-semibold text-slate-100">Sandbox</p>
-            <p class="mt-1 text-xs text-slate-400">Open an empty deck workbench and start testing ideas.</p>
-          </a>
+            <a href="/decks/new/sandbox" class="mt-action-card">
+              <p class="text-lg font-semibold text-slate-100">Sandbox</p>
+              <p class="mt-hint mt-2">Start from scratch.</p>
+            </a>
 
-          <a href="/decks/new?mode=import"
-             class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 hover:border-slate-600 transition-colors">
-            <p class="text-sm font-semibold text-slate-100">Import</p>
-            <p class="mt-1 text-xs text-slate-400">Paste a decklist and create a deck from it.</p>
-          </a>
+            <a href="/decks/import" class="mt-action-card">
+              <p class="text-lg font-semibold text-slate-100">Import</p>
+              <p class="mt-hint mt-2">Paste a decklist.</p>
+            </a>
+          </div>
         </div>
       {{ end }}
     </section>

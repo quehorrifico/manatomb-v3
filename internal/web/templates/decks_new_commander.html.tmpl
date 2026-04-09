@@ -1,0 +1,154 @@
+{{ define "decks_new_commander" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <main class="max-w-6xl mx-auto py-10 px-4 space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="space-y-2">
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Commander Deck</h1>
+        <p class="mt-hint">
+          Search for a commander or pick a recommendation.
+        </p>
+      </div>
+    </div>
+
+    <section class="mt-panel p-5 sm:p-6 space-y-4">
+      <form method="GET" action="/decks/new/commander/" class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <label class="relative" data-card-autocomplete-root>
+          <input
+            type="text"
+            name="q"
+            value="{{ $ctx.Query }}"
+            placeholder="Thassa, Deep Dwelling..."
+            class="mt-control"
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-expanded="false"
+            aria-haspopup="listbox"
+            data-card-autocomplete-input
+            data-card-autocomplete-commander-only="true"
+          >
+          <div
+            data-card-autocomplete-menu
+            class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+            role="listbox"></div>
+        </label>
+
+        <div class="flex items-end gap-2">
+          <button type="submit" class="mt-btn mt-btn--primary w-full md:w-auto">Search</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-lg font-semibold text-slate-100">
+          {{ if $ctx.Query }}Search Results{{ else }}Recommended Commanders{{ end }}
+          {{ if or $ctx.Results $ctx.Recommended }}
+            <span class="ml-1 text-xs text-slate-500">({{ if $ctx.Query }}{{ len $ctx.Results }}{{ else }}{{ len $ctx.Recommended }}{{ end }})</span>
+          {{ end }}
+        </h2>
+      </div>
+
+      {{ if $ctx.Query }}
+        {{ if $ctx.Results }}
+          <ul class="grid gap-4 grid-cols-2 lg:grid-cols-3">
+            {{ range $ctx.Results }}
+              <li class="mt-action-card space-y-3">
+                <a href="{{ .DetailPath }}" class="block w-full text-left">
+                  {{ if .ImageURI }}
+                    <img src="{{ .ImageURI }}"
+                         alt="{{ .Name }}"
+                         class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
+                  {{ else }}
+                    <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback">
+                      No image available
+                    </div>
+                  {{ end }}
+                </a>
+
+                <div class="flex gap-2">
+                  <form method="POST" action="/decks/new/commander/create" class="flex-1">
+                    <input type="hidden" name="commander_name" value="{{ .Name }}">
+                    <button type="submit" class="mt-btn mt-btn--primary mt-btn--xs w-full">Build Deck</button>
+                  </form>
+                </div>
+              </li>
+            {{ end }}
+          </ul>
+        {{ else }}
+          <div class="mt-empty-state">
+            <p class="text-sm text-slate-300">No commander cards matched your search.</p>
+          </div>
+        {{ end }}
+      {{ else if $ctx.Recommended }}
+        <ul class="grid gap-4 grid-cols-2 lg:grid-cols-3" data-recommended-list>
+          {{ range $ctx.Recommended }}
+            <li class="mt-action-card space-y-3" data-recommended-item hidden>
+              <a href="{{ .DetailPath }}" class="block w-full text-left">
+                {{ if .ImageURI }}
+                  <img src="{{ .ImageURI }}"
+                       alt="{{ .Name }}"
+                       class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
+                {{ else }}
+                  <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback">
+                    No image available
+                  </div>
+                {{ end }}
+              </a>
+
+              <div class="flex gap-2">
+                <form method="POST" action="/decks/new/commander/create" class="flex-1">
+                  <input type="hidden" name="commander_name" value="{{ .Name }}">
+                  <button type="submit" class="mt-btn mt-btn--primary mt-btn--xs w-full">Build Deck</button>
+                </form>
+              </div>
+            </li>
+          {{ end }}
+        </ul>
+
+        <div class="flex justify-center pt-2">
+          <button
+            type="button"
+            class="mt-btn mt-btn--secondary"
+            data-load-more-commanders
+            hidden
+          >
+            Load More
+          </button>
+        </div>
+      {{ else }}
+        <div class="mt-empty-state">
+          <p class="text-sm text-slate-300">No recommendations are available right now.</p>
+        </div>
+      {{ end }}
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const chunkSize = 6;
+      const items = Array.from(document.querySelectorAll("[data-recommended-item]"));
+      const loadMoreButton = document.querySelector("[data-load-more-commanders]");
+      if (!items.length || !loadMoreButton) return;
+
+      let visibleCount = 0;
+
+      function renderVisibleItems() {
+        visibleCount = Math.min(visibleCount + chunkSize, items.length);
+        items.forEach(function (item, index) {
+          item.hidden = index >= visibleCount;
+        });
+        loadMoreButton.hidden = visibleCount >= items.length;
+      }
+
+      loadMoreButton.addEventListener("click", function () {
+        renderVisibleItems();
+      });
+
+      renderVisibleItems();
+    })();
+  </script>
+
+  {{ template "layout_footer" . }}
+{{ end }}

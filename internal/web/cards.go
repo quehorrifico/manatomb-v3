@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
+
+	"github.com/google/uuid"
 )
 
 // searchResult is a shared view model for both general card search and
@@ -17,6 +20,7 @@ import (
 // a JSON-encoded faces slice for MDFC / multi-faced cards.
 type searchResult struct {
 	OracleID   string
+	DetailPath string
 	Name       string
 	ManaCost   string
 	TypeLine   string
@@ -26,11 +30,119 @@ type searchResult struct {
 	Artist     string
 	SetCode    string
 	SetName    string
+	Rarity     string
 	ReleasedAt string
 
 	// FacesJSON is a JSON-encoded []cards.CardFace (from cards.Card.Faces).
 	// It is used by the frontend to support MDFC "flip" behavior in the detail modals.
 	FacesJSON string
+}
+
+type cardSearchTypeFilter struct {
+	Value string `json:"value"`
+	Mode  string `json:"mode"`
+}
+
+type cardSearchPageData struct {
+	NameQuery       string
+	TextQuery       string
+	TypeOptions     []string
+	TypeFilters     []cardSearchTypeFilter
+	TypeFiltersJSON string
+	ColorsSelected  map[string]bool
+	ColorMode       string
+	ManaValueMin    string
+	ManaValueMax    string
+	Rarity          string
+	SetQuery        string
+	ArtistQuery     string
+	CommanderOnly   bool
+}
+
+type cardListPageData struct {
+	Query       string
+	Results     []searchResult
+	HasSearched bool
+}
+
+type cardSearchRequest struct {
+	NameQuery       string
+	TextQuery       string
+	TypeFilters     []cardSearchTypeFilter
+	ColorParams     []string
+	ColorMode       string
+	ManaValueMin    *float64
+	ManaValueMax    *float64
+	ManaValueMinRaw string
+	ManaValueMaxRaw string
+	Rarity          string
+	SetQuery        string
+	ArtistQuery     string
+	CommanderOnly   bool
+	HasSearched     bool
+}
+
+type cardDetailFaceData struct {
+	Name          string
+	ManaCost      string
+	TypeLine      string
+	OracleText    string
+	ImageURI      string
+	Artist        string
+	Colors        string
+	ColorIdentity string
+}
+
+type cardDetailPrintingData struct {
+	ImageURI        string
+	SetName         string
+	SetCode         string
+	CollectorNumber string
+	Rarity          string
+	ReleasedAt      string
+	Artist          string
+	PriceUSD        string
+	Lang            string
+	ScryfallURI     string
+}
+
+type cardDetailData struct {
+	OracleID        string
+	Name            string
+	ManaCost        string
+	TypeLine        string
+	OracleText      string
+	ImageURI        string
+	PriceUSD        string
+	Artist          string
+	SetCode         string
+	SetName         string
+	Rarity          string
+	ReleasedAt      string
+	Layout          string
+	Colors          string
+	ColorIdentity   string
+	ManaValue       string
+	EDHRecRank      string
+	CommanderStatus string
+	ScryfallURI     string
+	Faces           []cardDetailFaceData
+}
+
+type cardDetailPageData struct {
+	Card      cardDetailData
+	Printings []cardDetailPrintingData
+}
+
+var advancedCardTypeOptions = []string{
+	"Creature",
+	"Artifact",
+	"Enchantment",
+	"Land",
+	"Planeswalker",
+	"Battle",
+	"Instant",
+	"Sorcery",
 }
 
 type cardResolveResponse struct {
@@ -41,6 +153,7 @@ type cardResolveResponse struct {
 	OracleText           string            `json:"oracle_text,omitempty"`
 	CMC                  float64           `json:"cmc"`
 	IsCommanderCandidate bool              `json:"is_commander_candidate"`
+	Faces                []cards.CardFace  `json:"faces,omitempty"`
 	ImageURIs            map[string]string `json:"image_uris,omitempty"`
 	Prices               struct {
 		USD string `json:"usd,omitempty"`
@@ -94,6 +207,7 @@ func buildSearchResults(cardsIn []cards.Card) []searchResult {
 
 		viewResults = append(viewResults, searchResult{
 			OracleID:   c.OracleID,
+			DetailPath: cardDetailPath(c.OracleID),
 			Name:       c.Name,
 			ManaCost:   c.ManaCost,
 			TypeLine:   c.TypeLine,
@@ -103,6 +217,7 @@ func buildSearchResults(cardsIn []cards.Card) []searchResult {
 			Artist:     c.Artist,
 			SetCode:    c.SetCode,
 			SetName:    c.SetName,
+			Rarity:     c.Rarity,
 			ReleasedAt: c.ReleasedAt,
 			FacesJSON:  facesJSON,
 		})
@@ -111,84 +226,530 @@ func buildSearchResults(cardsIn []cards.Card) []searchResult {
 	return viewResults
 }
 
-func normalizeLocalReturnPath(raw, fallback string) string {
-	path := strings.TrimSpace(raw)
-	if path == "" {
-		return fallback
+func cardDetailPath(oracleID string) string {
+	oracleID = strings.TrimSpace(oracleID)
+	if oracleID == "" {
+		return "/cards"
 	}
-	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
-		return fallback
-	}
-	return path
+	return "/cards/view/" + url.PathEscape(oracleID)
 }
 
-func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
-	user := CurrentUser(r)
-	flash := readFlash(w, r)
+func singleCardResultPath(results []cards.Card) string {
+	if len(results) != 1 {
+		return ""
+	}
+	return cardDetailPath(results[0].OracleID)
+}
 
-	q := r.URL.Query()
-	query := strings.TrimSpace(q.Get("q"))
-	colorParams := q["color"]                      // e.g. ["W", "U"]
-	typeFilter := strings.TrimSpace(q.Get("type")) // e.g. "creature"
+func parseCardOracleIDFromPath(r *http.Request) string {
+	const prefix = "/cards/view/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return ""
+	}
 
-	hasFilters := len(colorParams) > 0 || typeFilter != ""
-	hasSearched := query != "" || hasFilters
+	oracleID, err := url.PathUnescape(strings.TrimSpace(strings.TrimPrefix(r.URL.Path, prefix)))
+	if err != nil || oracleID == "" || strings.Contains(oracleID, "/") {
+		return ""
+	}
+	return oracleID
+}
 
-	var results []cards.Card
-	var errMsg string
+func formatCardColorNames(values []string) string {
+	normalized := normalizeSearchColors(values)
+	if len(normalized) == 0 {
+		return "Colorless"
+	}
 
-	if hasSearched {
-		found, err := cards.SearchCards(r.Context(), a.DB, cards.CardSearchParams{
-			Query:         query,
-			TypeFilter:    typeFilter,
-			ColorIdentity: colorParams,
-			CommanderOnly: false,
-			Limit:         120,
+	colorNames := map[string]string{
+		"W": "White",
+		"U": "Blue",
+		"B": "Black",
+		"R": "Red",
+		"G": "Green",
+		"C": "Colorless",
+	}
+
+	out := make([]string, 0, len(normalized))
+	for _, value := range normalized {
+		if label, ok := colorNames[value]; ok {
+			out = append(out, label)
+		}
+	}
+	if len(out) == 0 {
+		return "Colorless"
+	}
+	return strings.Join(out, ", ")
+}
+
+func formatCardManaValue(value float64) string {
+	if value == float64(int64(value)) {
+		return strconv.FormatInt(int64(value), 10)
+	}
+	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func formatCardPrice(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "Not listed"
+	}
+	if strings.HasPrefix(value, "$") {
+		return value
+	}
+	return "$" + value
+}
+
+func cardMetaValue(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func formatCardEDHRecRank(rank int) string {
+	if rank <= 0 {
+		return "Unranked"
+	}
+	return strconv.Itoa(rank)
+}
+
+func formatCommanderStatus(card cards.Card) string {
+	switch {
+	case card.IsCommanderCandidate && card.CommanderLegal:
+		return "Commander-legal commander"
+	case card.CommanderLegal:
+		return "Commander-legal"
+	case card.IsCommanderCandidate:
+		return "Commander candidate"
+	default:
+		return "Not commander-legal"
+	}
+}
+
+func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetailPageData {
+	if len(printings) == 0 {
+		printings = []cards.Card{card}
+	}
+
+	cardImageURI := strings.TrimSpace(card.ImageURI)
+	cardArtist := strings.TrimSpace(card.Artist)
+
+	faces := make([]cardDetailFaceData, 0, len(card.Faces))
+	for _, face := range card.Faces {
+		faceImageURI := strings.TrimSpace(face.ImageURI)
+		if cardImageURI == "" && faceImageURI != "" {
+			cardImageURI = faceImageURI
+		}
+		if cardArtist == "" && strings.TrimSpace(face.Artist) != "" {
+			cardArtist = strings.TrimSpace(face.Artist)
+		}
+
+		faces = append(faces, cardDetailFaceData{
+			Name:          cardMetaValue(face.Name, card.Name),
+			ManaCost:      strings.TrimSpace(face.ManaCost),
+			TypeLine:      strings.TrimSpace(face.TypeLine),
+			OracleText:    cardMetaValue(face.OracleText, "No oracle text."),
+			ImageURI:      faceImageURI,
+			Artist:        cardMetaValue(face.Artist, "Unknown"),
+			Colors:        formatCardColorNames(face.Colors),
+			ColorIdentity: formatCardColorNames(face.ColorID),
 		})
-		if err != nil {
-			errMsg = "We couldn't search for cards right now. Please try again."
-		} else if len(found) == 0 {
-			if query == "" && hasFilters {
-				errMsg = "No cards matched your filters."
-			} else {
-				errMsg = fmt.Sprintf("No cards found for “%s”. Please check the spelling or filters.", query)
+	}
+
+	printingItems := make([]cardDetailPrintingData, 0, len(printings))
+	for _, printing := range printings {
+		imageURI := strings.TrimSpace(printing.ImageURI)
+		if imageURI == "" && len(printing.Faces) > 0 {
+			imageURI = strings.TrimSpace(printing.Faces[0].ImageURI)
+		}
+
+		printingItems = append(printingItems, cardDetailPrintingData{
+			ImageURI:        imageURI,
+			SetName:         cardMetaValue(printing.SetName, "Unknown set"),
+			SetCode:         strings.ToUpper(strings.TrimSpace(printing.SetCode)),
+			CollectorNumber: cardMetaValue(printing.CollectorNumber, "N/A"),
+			Rarity:          cardMetaValue(printing.Rarity, "N/A"),
+			ReleasedAt:      cardMetaValue(printing.ReleasedAt, "Unknown"),
+			Artist:          cardMetaValue(printing.Artist, "Unknown"),
+			PriceUSD:        formatCardPrice(printing.PriceUSD),
+			Lang:            cardMetaValue(strings.ToUpper(strings.TrimSpace(printing.Lang)), "EN"),
+			ScryfallURI:     strings.TrimSpace(printing.ScryfallURI),
+		})
+	}
+
+	return cardDetailPageData{
+		Card: cardDetailData{
+			OracleID:        card.OracleID,
+			Name:            cardMetaValue(card.Name, "Unknown card"),
+			ManaCost:        strings.TrimSpace(card.ManaCost),
+			TypeLine:        cardMetaValue(card.TypeLine, "Type unknown"),
+			OracleText:      cardMetaValue(card.OracleText, "No oracle text."),
+			ImageURI:        cardImageURI,
+			PriceUSD:        formatCardPrice(card.PriceUSD),
+			Artist:          cardMetaValue(cardArtist, "Unknown"),
+			SetCode:         strings.ToUpper(strings.TrimSpace(card.SetCode)),
+			SetName:         cardMetaValue(card.SetName, "Unknown set"),
+			Rarity:          cardMetaValue(card.Rarity, "N/A"),
+			ReleasedAt:      cardMetaValue(card.ReleasedAt, "Unknown"),
+			Layout:          cardMetaValue(card.Layout, "Unknown"),
+			Colors:          formatCardColorNames(card.Colors),
+			ColorIdentity:   formatCardColorNames(card.ColorIdentity),
+			ManaValue:       formatCardManaValue(card.CMC),
+			EDHRecRank:      formatCardEDHRecRank(card.EDHRecRank),
+			CommanderStatus: formatCommanderStatus(card),
+			ScryfallURI:     strings.TrimSpace(card.ScryfallURI),
+			Faces:           faces,
+		},
+		Printings: printingItems,
+	}
+}
+
+func normalizeCardSearchTypeMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "not":
+		return "not"
+	default:
+		return "is"
+	}
+}
+
+func normalizeCardSearchTypeValue(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	for _, option := range advancedCardTypeOptions {
+		if strings.EqualFold(option, raw) {
+			return option
+		}
+	}
+	return ""
+}
+
+func normalizeCardSearchTypeFilters(values, modes []string) []cardSearchTypeFilter {
+	if len(values) == 0 {
+		return nil
+	}
+
+	seen := map[string]int{}
+	out := make([]cardSearchTypeFilter, 0, len(values))
+	for idx, value := range values {
+		normalizedValue := normalizeCardSearchTypeValue(value)
+		if normalizedValue == "" {
+			continue
+		}
+
+		mode := "is"
+		if idx < len(modes) {
+			mode = normalizeCardSearchTypeMode(modes[idx])
+		}
+
+		key := strings.ToLower(normalizedValue)
+		if existingIdx, ok := seen[key]; ok {
+			out[existingIdx].Mode = mode
+			continue
+		}
+
+		seen[key] = len(out)
+		out = append(out, cardSearchTypeFilter{
+			Value: normalizedValue,
+			Mode:  mode,
+		})
+	}
+	return out
+}
+
+func cardSearchTypeFiltersJSON(filters []cardSearchTypeFilter) string {
+	encoded, err := json.Marshal(filters)
+	if err != nil {
+		return "[]"
+	}
+	return string(encoded)
+}
+
+func toCardTypeFilters(filters []cardSearchTypeFilter) []cards.CardTypeFilter {
+	out := make([]cards.CardTypeFilter, 0, len(filters))
+	for _, filter := range filters {
+		value := strings.TrimSpace(filter.Value)
+		if value == "" {
+			continue
+		}
+		out = append(out, cards.CardTypeFilter{
+			Value:   value,
+			Negated: normalizeCardSearchTypeMode(filter.Mode) == "not",
+		})
+	}
+	return out
+}
+
+func normalizeSearchColors(values []string) []string {
+	allowed := []string{"W", "U", "B", "R", "G", "C"}
+	seen := map[string]bool{}
+	for _, raw := range values {
+		value := strings.ToUpper(strings.TrimSpace(raw))
+		for _, allowedValue := range allowed {
+			if value == allowedValue {
+				seen[value] = true
+				break
 			}
-		} else {
-			results = found
 		}
 	}
 
-	// Build view-model results with pre-encoded faces JSON for MDFC support.
-	viewResults := buildSearchResults(results)
+	if seen["C"] && (seen["W"] || seen["U"] || seen["B"] || seen["R"] || seen["G"]) {
+		delete(seen, "C")
+	}
 
-	var userDecks []decks.Deck
-	if user != nil {
-		var err error
-		userDecks, err = decks.ListDecksByUser(r.Context(), a.DB, user.ID)
+	out := make([]string, 0, len(allowed))
+	for _, value := range allowed {
+		if seen[value] {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func selectedColorMap(values []string) map[string]bool {
+	selected := map[string]bool{
+		"W": false,
+		"U": false,
+		"B": false,
+		"R": false,
+		"G": false,
+		"C": false,
+	}
+	for _, value := range values {
+		value = strings.ToUpper(strings.TrimSpace(value))
+		if _, ok := selected[value]; ok {
+			selected[value] = true
+		}
+	}
+	return selected
+}
+
+func normalizeAdvancedColorMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "exact":
+		return "exact"
+	case "at_most":
+		return "at_most"
+	default:
+		return "includes"
+	}
+}
+
+func parseOptionalFloatFilter(raw string) (*float64, string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, "", nil
+	}
+
+	value, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil {
+		return nil, trimmed, err
+	}
+	if value < 0 {
+		return nil, trimmed, fmt.Errorf("must be zero or greater")
+	}
+	return &value, trimmed, nil
+}
+
+func parseCardSearchRequest(q url.Values) (cardSearchRequest, string) {
+	req := cardSearchRequest{
+		NameQuery:     strings.TrimSpace(q.Get("q")),
+		TextQuery:     strings.TrimSpace(q.Get("text")),
+		Rarity:        strings.ToLower(strings.TrimSpace(q.Get("rarity"))),
+		SetQuery:      strings.TrimSpace(q.Get("set")),
+		ArtistQuery:   strings.TrimSpace(q.Get("artist")),
+		CommanderOnly: strings.TrimSpace(q.Get("commander")) == "1",
+	}
+
+	req.TypeFilters = normalizeCardSearchTypeFilters(q["type_value"], q["type_mode"])
+	if len(req.TypeFilters) == 0 {
+		if legacyType := strings.TrimSpace(q.Get("type")); legacyType != "" {
+			req.TypeFilters = normalizeCardSearchTypeFilters([]string{legacyType}, []string{"is"})
+		}
+	}
+
+	req.ColorParams = normalizeSearchColors(q["color"])
+	if len(req.ColorParams) == 0 {
+		if legacyColors := normalizeSearchColors(q["color_identity"]); len(legacyColors) > 0 {
+			req.ColorParams = legacyColors
+		} else if legacyColors := normalizeSearchColors(q["card_color"]); len(legacyColors) > 0 {
+			req.ColorParams = legacyColors
+		}
+	}
+
+	colorModeRaw := strings.TrimSpace(q.Get("color_mode"))
+	if colorModeRaw == "" {
+		if legacyRaw := strings.TrimSpace(q.Get("color_identity_mode")); legacyRaw != "" {
+			colorModeRaw = legacyRaw
+		} else if legacyRaw := strings.TrimSpace(q.Get("card_color_mode")); legacyRaw != "" {
+			colorModeRaw = legacyRaw
+		}
+	}
+	req.ColorMode = normalizeAdvancedColorMode(colorModeRaw)
+	req.ManaValueMinRaw = q.Get("mana_value_min")
+	req.ManaValueMaxRaw = q.Get("mana_value_max")
+
+	hasFilters := req.TextQuery != "" ||
+		len(req.TypeFilters) > 0 ||
+		len(req.ColorParams) > 0 ||
+		strings.TrimSpace(req.ManaValueMinRaw) != "" ||
+		strings.TrimSpace(req.ManaValueMaxRaw) != "" ||
+		req.Rarity != "" ||
+		req.SetQuery != "" ||
+		req.ArtistQuery != "" ||
+		req.CommanderOnly
+	req.HasSearched = req.NameQuery != "" || hasFilters
+
+	var errMsg string
+	manaValueMin, manaValueMinText, minErr := parseOptionalFloatFilter(req.ManaValueMinRaw)
+	manaValueMax, manaValueMaxText, maxErr := parseOptionalFloatFilter(req.ManaValueMaxRaw)
+	req.ManaValueMin = manaValueMin
+	req.ManaValueMax = manaValueMax
+	req.ManaValueMinRaw = manaValueMinText
+	req.ManaValueMaxRaw = manaValueMaxText
+
+	if minErr != nil || maxErr != nil {
+		errMsg = "Mana value filters must be valid numbers."
+	} else if req.ManaValueMin != nil && req.ManaValueMax != nil && *req.ManaValueMin > *req.ManaValueMax {
+		errMsg = "Mana value minimum cannot be greater than the maximum."
+	}
+
+	return req, errMsg
+}
+
+func (req cardSearchRequest) searchParams(limit int) cards.CardSearchParams {
+	return cards.CardSearchParams{
+		Query:         req.NameQuery,
+		OracleText:    req.TextQuery,
+		TypeFilters:   toCardTypeFilters(req.TypeFilters),
+		Colors:        req.ColorParams,
+		ColorMode:     req.ColorMode,
+		ManaValueMin:  req.ManaValueMin,
+		ManaValueMax:  req.ManaValueMax,
+		Rarity:        req.Rarity,
+		SetQuery:      req.SetQuery,
+		ArtistQuery:   req.ArtistQuery,
+		CommanderOnly: req.CommanderOnly,
+		Limit:         limit,
+	}
+}
+
+func (a *App) HandleCardList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	user := CurrentUser(r)
+	flash := readFlash(w, r)
+	req, errMsg := parseCardSearchRequest(r.URL.Query())
+
+	var results []cards.Card
+	if req.HasSearched && errMsg == "" {
+		found, err := cards.SearchCards(r.Context(), a.DB, req.searchParams(120))
 		if err != nil {
-			a.RenderServerError(w, r, err)
-			return
+			errMsg = "We couldn't search for cards right now. Please try again."
+		} else {
+			if singlePath := singleCardResultPath(found); singlePath != "" {
+				http.Redirect(w, r, singlePath, http.StatusSeeOther)
+				return
+			}
+			results = found
 		}
 	}
 
 	data := TemplateData{
 		CurrentUser: user,
-		Data: struct {
-			Query       string
-			Results     []searchResult
-			Decks       []decks.Deck
-			HasSearched bool
-		}{
-			Query:       query,
-			Results:     viewResults,
-			Decks:       userDecks,
-			HasSearched: hasSearched,
+		Data: cardListPageData{
+			Query:       req.NameQuery,
+			Results:     buildSearchResults(results),
+			HasSearched: req.HasSearched,
 		},
 		Flash: flash,
-		Error: errMsg, // 🔴 shows in red banner via layout_header
+		Error: errMsg,
+	}
+
+	a.Renderer.Render(w, "cards_list", data)
+}
+
+func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
+	user := CurrentUser(r)
+	flash := readFlash(w, r)
+	req, errMsg := parseCardSearchRequest(r.URL.Query())
+
+	data := TemplateData{
+		CurrentUser: user,
+		Data: cardSearchPageData{
+			NameQuery:       req.NameQuery,
+			TextQuery:       req.TextQuery,
+			TypeOptions:     advancedCardTypeOptions,
+			TypeFilters:     req.TypeFilters,
+			TypeFiltersJSON: cardSearchTypeFiltersJSON(req.TypeFilters),
+			ColorsSelected:  selectedColorMap(req.ColorParams),
+			ColorMode:       req.ColorMode,
+			ManaValueMin:    req.ManaValueMinRaw,
+			ManaValueMax:    req.ManaValueMaxRaw,
+			Rarity:          req.Rarity,
+			SetQuery:        req.SetQuery,
+			ArtistQuery:     req.ArtistQuery,
+			CommanderOnly:   req.CommanderOnly,
+		},
+		Flash: flash,
+		Error: errMsg,
 	}
 
 	a.Renderer.Render(w, "cards_search", data)
+}
+
+func (a *App) HandleCardShow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	user := CurrentUser(r)
+	flash := readFlash(w, r)
+
+	oracleID := parseCardOracleIDFromPath(r)
+	if oracleID == "" {
+		a.RenderNotFound(w, r)
+		return
+	}
+	if _, err := uuid.Parse(oracleID); err != nil {
+		a.RenderNotFound(w, r)
+		return
+	}
+
+	card, err := cards.GetCardByOracleID(r.Context(), a.DB, oracleID)
+	if err != nil {
+		if errors.Is(err, cards.ErrCardNotFound) {
+			a.RenderNotFound(w, r)
+			return
+		}
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	printings, err := cards.ListCardVersionsByOracleID(r.Context(), a.DB, oracleID, 120)
+	if err != nil {
+		if !errors.Is(err, cards.ErrCardNotFound) {
+			a.RenderServerError(w, r, err)
+			return
+		}
+		printings = []cards.Card{*card}
+	}
+
+	data := TemplateData{
+		CurrentUser: user,
+		Data:        buildCardDetailPageData(*card, printings),
+		Flash:       flash,
+		WideLayout:  true,
+	}
+
+	a.Renderer.Render(w, "card_show", data)
 }
 
 func (a *App) HandleCardAddToDeck(w http.ResponseWriter, r *http.Request) {
@@ -288,6 +849,9 @@ func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {
 		CMC:                  card.CMC,
 		IsCommanderCandidate: card.IsCommanderCandidate,
 	}
+	if len(card.Faces) > 0 {
+		resp.Faces = card.Faces
+	}
 	if card.ImageURI != "" {
 		resp.ImageURIs = map[string]string{
 			"normal": card.ImageURI,
@@ -299,9 +863,9 @@ func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-// HandleDeckCardSearch powers deckbuilder search UX:
+// HandleCardAutocomplete powers deckbuilder search UX:
 // return one exact match when present; otherwise return fuzzy candidates.
-func (a *App) HandleDeckCardSearch(w http.ResponseWriter, r *http.Request) {
+func (a *App) HandleCardAutocomplete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -435,10 +999,8 @@ func (a *App) HandleCommanderSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fallbackReturn := "/decks/new"
-	returnTo := normalizeLocalReturnPath(r.URL.Query().Get("return_to"), fallbackReturn)
-	if strings.HasPrefix(returnTo, "/decks/new") && strings.Contains(returnTo, "mode=commander") {
-		returnTo = "/decks/new"
-	}
+	returnTo := canonicalizeLocalReturnPath(r.URL.Query().Get("return_to"), fallbackReturn)
+	returnLabel := commanderSearchReturnLabel(returnTo)
 
 	data := TemplateData{
 		CurrentUser: user,
@@ -447,11 +1009,13 @@ func (a *App) HandleCommanderSearch(w http.ResponseWriter, r *http.Request) {
 			Results     []searchResult
 			Recommended []searchResult
 			ReturnTo    string
+			ReturnLabel string
 		}{
 			Query:       query,
 			Results:     viewResults,
 			Recommended: recommendedResults,
 			ReturnTo:    returnTo,
+			ReturnLabel: returnLabel,
 		},
 		Flash: flash,
 		Error: errMsg,

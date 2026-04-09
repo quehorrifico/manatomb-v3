@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sort"
@@ -17,11 +18,19 @@ import (
 
 const (
 	scryfallBulkListURL     = "https://api.scryfall.com/bulk-data"
+	scryfallAPIAccept       = "application/json;q=0.9,*/*;q=0.8"
+	scryfallAPIUserAgent    = "Mana Tomb/1.0 (+https://github.com/zeusborrego/manatomb-v3)"
+	scryfallHeaderTimeout   = 90 * time.Second
+	scryfallRetryAttempts   = 4
+	scryfallRetryDelay      = 3 * time.Second
+	scryfallMaxRetryDelay   = 30 * time.Second
 	defaultBulkSyncInterval = 24 * time.Hour
 	cardSyncAdvisoryLockKey = int64(91342817)
 )
 
 var ErrCardSyncInProgress = errors.New("card sync already running")
+
+var scryfallHTTPClient = newScryfallHTTPClient()
 
 type CardBulkSyncOptions struct {
 	MaxRows int
@@ -186,20 +195,165 @@ func shouldIncludePrint(sc scryfallCard, c Card) bool {
 	return true
 }
 
-func fetchBulkDescriptor(ctx context.Context, wantedType string) (scryfallBulkDescriptor, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, scryfallBulkListURL, nil)
+func newScryfallRequest(ctx context.Context, method, rawURL string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, rawURL, nil)
 	if err != nil {
-		return scryfallBulkDescriptor{}, err
+		return nil, err
+	}
+	req.Header.Set("User-Agent", scryfallAPIUserAgent)
+	req.Header.Set("Accept", scryfallAPIAccept)
+	return req, nil
+}
+
+func newScryfallHTTPClient() *http.Client {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok || base == nil {
+		return &http.Client{Timeout: scryfallHeaderTimeout}
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	transport := base.Clone()
+	transport.ResponseHeaderTimeout = scryfallHeaderTimeout
+	return &http.Client{Transport: transport}
+}
+
+func shouldRetryScryfallStatus(status int) bool {
+	switch status {
+	case http.StatusRequestTimeout, http.StatusTooManyRequests,
+		http.StatusInternalServerError, http.StatusBadGateway,
+		http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+func parseRetryAfter(value string, now time.Time) (time.Duration, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, false
+	}
+
+	if secs, err := time.ParseDuration(value + "s"); err == nil && secs > 0 {
+		return secs, true
+	}
+
+	when, err := http.ParseTime(value)
+	if err != nil {
+		return 0, false
+	}
+	delay := time.Until(when)
+	if !now.IsZero() {
+		delay = when.Sub(now)
+	}
+	if delay <= 0 {
+		return 0, false
+	}
+	return delay, true
+}
+
+func retryDelayForAttempt(resp *http.Response, attempt int) time.Duration {
+	if resp != nil {
+		if retryAfter, ok := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now()); ok {
+			if retryAfter > scryfallMaxRetryDelay {
+				return scryfallMaxRetryDelay
+			}
+			return retryAfter
+		}
+	}
+
+	delay := time.Duration(attempt) * scryfallRetryDelay
+	if delay > scryfallMaxRetryDelay {
+		return scryfallMaxRetryDelay
+	}
+	return delay
+}
+
+func doScryfallRequest(ctx context.Context, method, rawURL, label string) (*http.Response, error) {
+	var lastErr error
+	for attempt := 1; attempt <= scryfallRetryAttempts; attempt++ {
+		req, err := newScryfallRequest(ctx, method, rawURL)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := scryfallHTTPClient.Do(req)
+		if err == nil && !shouldRetryScryfallStatus(resp.StatusCode) {
+			return resp, nil
+		}
+
+		if err == nil {
+			if attempt == scryfallRetryAttempts {
+				return resp, nil
+			}
+			lastErr = scryfallStatusError(label, resp)
+			resp.Body.Close()
+		} else {
+			lastErr = err
+		}
+		if ctx.Err() != nil || attempt == scryfallRetryAttempts {
+			break
+		}
+
+		delay := retryDelayForAttempt(resp, attempt)
+		log.Printf(
+			"cards sync phase: retrying %s (%d/%d) after error: %v",
+			label,
+			attempt+1,
+			scryfallRetryAttempts,
+			lastErr,
+		)
+
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, lastErr
+		case <-timer.C:
+		}
+	}
+	return nil, lastErr
+}
+
+func scryfallStatusError(label string, resp *http.Response) error {
+	if resp == nil {
+		return fmt.Errorf("%s failed: empty response", label)
+	}
+
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+	msg := strings.TrimSpace(string(body))
+	contentType := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type")))
+
+	if resp.StatusCode == http.StatusServiceUnavailable {
+		lowerMsg := strings.ToLower(msg)
+		if strings.Contains(lowerMsg, "offline for maintenance") || strings.Contains(lowerMsg, "errors.scryfall.com/503h.html") {
+			if retryAfter, ok := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now()); ok {
+				return fmt.Errorf(
+					"%s failed: Scryfall is temporarily offline for maintenance (503); retry in about %s",
+					label,
+					retryAfter.Round(time.Second),
+				)
+			}
+			return fmt.Errorf("%s failed: Scryfall is temporarily offline for maintenance (503); try again later", label)
+		}
+	}
+
+	if msg == "" {
+		return fmt.Errorf("%s failed: status %d", label, resp.StatusCode)
+	}
+	if strings.Contains(contentType, "text/html") {
+		return fmt.Errorf("%s failed: status %d (HTML error response omitted)", label, resp.StatusCode)
+	}
+	return fmt.Errorf("%s failed: status %d: %s", label, resp.StatusCode, msg)
+}
+
+func fetchBulkDescriptor(ctx context.Context, wantedType string) (scryfallBulkDescriptor, error) {
+	resp, err := doScryfallRequest(ctx, http.MethodGet, scryfallBulkListURL, "bulk descriptor list request")
 	if err != nil {
 		return scryfallBulkDescriptor{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return scryfallBulkDescriptor{}, fmt.Errorf("bulk descriptor list request failed: status %d", resp.StatusCode)
+		return scryfallBulkDescriptor{}, scryfallStatusError("bulk descriptor list request", resp)
 	}
 
 	var list scryfallBulkListResponse
@@ -220,12 +374,7 @@ func fetchBulkDescriptor(ctx context.Context, wantedType string) (scryfallBulkDe
 }
 
 func newBulkJSONDecoder(ctx context.Context, downloadURI string) (*json.Decoder, func(), error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURI, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := doScryfallRequest(ctx, http.MethodGet, downloadURI, "bulk download request")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -234,7 +383,7 @@ func newBulkJSONDecoder(ctx context.Context, downloadURI string) (*json.Decoder,
 	}
 	if resp.StatusCode != http.StatusOK {
 		cleanup()
-		return nil, nil, fmt.Errorf("bulk download failed: status %d", resp.StatusCode)
+		return nil, nil, scryfallStatusError("bulk download request", resp)
 	}
 
 	dec := json.NewDecoder(resp.Body)
@@ -982,7 +1131,31 @@ func CardSyncDue(ctx context.Context, db *sql.DB, maxAge time.Duration) (bool, e
 	return time.Since(lastSuccess.Time) >= maxAge, nil
 }
 
-func StartCardBulkSyncLoop(db *sql.DB, interval time.Duration, logger *log.Logger, options CardBulkSyncOptions) {
+func runCardBulkSyncOnce(db *sql.DB, logger *log.Logger, options CardBulkSyncOptions, reason string) {
+	if logger == nil {
+		logger = log.Default()
+	}
+	syncCtx, cancelSync := context.WithTimeout(context.Background(), 2*time.Hour)
+	result, err := SyncCardsFromScryfallBulk(syncCtx, db, options)
+	cancelSync()
+	if err != nil {
+		if errors.Is(err, ErrCardSyncInProgress) {
+			logger.Printf("cards bulk sync skipped (%s): already running", reason)
+			return
+		}
+		logger.Printf("cards bulk sync failed (%s): %v", reason, err)
+		return
+	}
+	logger.Printf(
+		"cards bulk sync complete (%s): %d canonical cards, %d printings (source updated %s)",
+		reason,
+		result.ImportedCards,
+		result.ImportedPrintings,
+		result.SourceUpdatedAt.UTC().Format(time.RFC3339),
+	)
+}
+
+func StartCardBulkSyncLoop(db *sql.DB, interval time.Duration, runOnStart bool, logger *log.Logger, options CardBulkSyncOptions) {
 	if interval <= 0 {
 		interval = defaultBulkSyncInterval
 	}
@@ -990,44 +1163,18 @@ func StartCardBulkSyncLoop(db *sql.DB, interval time.Duration, logger *log.Logge
 		logger = log.Default()
 	}
 	options = normalizeCardBulkSyncOptions(options)
-	checkEvery := time.Hour
-	if interval < checkEvery {
-		checkEvery = interval
-	}
 
 	go func() {
-		ticker := time.NewTicker(checkEvery)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			checkCtx, cancelCheck := context.WithTimeout(context.Background(), 30*time.Second)
-			due, dueErr := CardSyncDue(checkCtx, db, interval)
-			cancelCheck()
-			if dueErr != nil {
-				logger.Printf("cards bulk sync due-check failed: %v", dueErr)
-				continue
-			}
-			if !due {
-				continue
-			}
+		if runOnStart {
+			logger.Printf("cards bulk sync: starting immediate sync because startup sync was requested")
+			runCardBulkSyncOnce(db, logger, options, "startup")
+		}
 
-			syncCtx, cancelSync := context.WithTimeout(context.Background(), 2*time.Hour)
-			result, err := SyncCardsFromScryfallBulk(syncCtx, db, options)
-			cancelSync()
-			if err != nil {
-				if errors.Is(err, ErrCardSyncInProgress) {
-					logger.Printf("cards bulk sync skipped: already running")
-					continue
-				}
-				logger.Printf("cards bulk sync failed: %v", err)
-				continue
-			}
-			logger.Printf(
-				"cards bulk sync complete: %d canonical cards, %d printings (source updated %s)",
-				result.ImportedCards,
-				result.ImportedPrintings,
-				result.SourceUpdatedAt.UTC().Format(time.RFC3339),
-			)
+		for range ticker.C {
+			runCardBulkSyncOnce(db, logger, options, "scheduled")
 		}
 	}()
 }

@@ -1,0 +1,229 @@
+{{ define "card_show" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <main class="max-w-6xl mx-auto py-10 px-4 space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="space-y-2">
+        <p class="mt-kicker">Card</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">{{ $ctx.Card.Name }}</h1>
+        <p class="mt-hint">{{ $ctx.Card.TypeLine }}</p>
+      </div>
+    </div>
+
+    <section class="mt-panel p-5 sm:p-6">
+      <div class="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] items-start">
+        <div class="space-y-4">
+          {{ if $ctx.Card.ImageURI }}
+            <img
+              src="{{ $ctx.Card.ImageURI }}"
+              alt="{{ $ctx.Card.Name }}"
+              class="w-full max-w-md mx-auto h-auto mt-card-media shadow-md shadow-slate-900/80"
+            />
+          {{ else }}
+            <div class="w-full max-w-md mx-auto aspect-[3/4] mt-card-media mt-card-media__fallback">
+              No image available
+            </div>
+          {{ end }}
+        </div>
+
+        <div class="space-y-5">
+          <div class="space-y-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="text-xl font-semibold text-slate-50">{{ $ctx.Card.Name }}</h2>
+              {{ if $ctx.Card.ManaCost }}
+                <span class="mt-chip font-mono">{{ $ctx.Card.ManaCost }}</span>
+              {{ end }}
+            </div>
+            <p class="text-sm text-slate-400">{{ $ctx.Card.TypeLine }}</p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Mana Value</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.ManaValue }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Colors</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.Colors }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Color Identity</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.ColorIdentity }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Layout</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.Layout }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Commander</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.CommanderStatus }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">EDHREC Rank</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.EDHRecRank }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Set</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.SetName }}</p>
+              {{ if $ctx.Card.SetCode }}
+                <p class="text-xs uppercase text-slate-500">{{ $ctx.Card.SetCode }}</p>
+              {{ end }}
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Rarity</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100 uppercase">{{ $ctx.Card.Rarity }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Released</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.ReleasedAt }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Artist</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.Artist }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Price</p>
+              <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.PriceUSD }}</p>
+            </div>
+            <div class="mt-stat-card">
+              <p class="mt-section-label">Oracle ID</p>
+              <p class="mt-1 text-xs font-semibold text-slate-100 break-all">{{ $ctx.Card.OracleID }}</p>
+            </div>
+          </div>
+
+          <div class="mt-subpanel space-y-2">
+            <p class="mt-field-label !mb-0">Oracle Text</p>
+            <p class="text-sm text-slate-100 whitespace-pre-line">{{ $ctx.Card.OracleText }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {{ if $ctx.Card.Faces }}
+      <section class="space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-lg font-semibold text-slate-100">Faces</h2>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          {{ range $ctx.Card.Faces }}
+            <article class="mt-action-card space-y-3">
+              {{ if .ImageURI }}
+                <img src="{{ .ImageURI }}"
+                     alt="{{ .Name }}"
+                     class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
+              {{ else }}
+                <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback">
+                  No image available
+                </div>
+              {{ end }}
+
+              <div class="space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-sm font-semibold text-slate-100">{{ .Name }}</p>
+                  {{ if .ManaCost }}
+                    <span class="mt-chip font-mono">{{ .ManaCost }}</span>
+                  {{ end }}
+                </div>
+                <p class="text-xs text-slate-400">{{ .TypeLine }}</p>
+              </div>
+
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div class="mt-stat-card">
+                  <p class="mt-section-label">Colors</p>
+                  <p class="mt-1 text-sm font-semibold text-slate-100">{{ .Colors }}</p>
+                </div>
+                <div class="mt-stat-card">
+                  <p class="mt-section-label">Color Identity</p>
+                  <p class="mt-1 text-sm font-semibold text-slate-100">{{ .ColorIdentity }}</p>
+                </div>
+                <div class="mt-stat-card sm:col-span-2">
+                  <p class="mt-section-label">Artist</p>
+                  <p class="mt-1 text-sm font-semibold text-slate-100">{{ .Artist }}</p>
+                </div>
+              </div>
+
+              <div class="mt-subpanel space-y-2">
+                <p class="mt-field-label !mb-0">Oracle Text</p>
+                <p class="text-sm text-slate-100 whitespace-pre-line">{{ .OracleText }}</p>
+              </div>
+            </article>
+          {{ end }}
+        </div>
+      </section>
+    {{ end }}
+
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-lg font-semibold text-slate-100">
+          Printings <span class="ml-1 text-xs text-slate-500">({{ len $ctx.Printings }})</span>
+        </h2>
+      </div>
+
+      <div class="space-y-3">
+        {{ range $ctx.Printings }}
+          <article class="mt-subpanel">
+            <div class="flex gap-4 items-start">
+              <div class="w-20 shrink-0">
+                {{ if .ImageURI }}
+                  <img src="{{ .ImageURI }}"
+                       alt="{{ .SetName }}"
+                       class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
+                {{ else }}
+                  <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback text-[10px]">
+                    No image
+                  </div>
+                {{ end }}
+              </div>
+
+              <div class="flex-1 space-y-3 min-w-0">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div class="space-y-1">
+                    <p class="text-sm font-semibold text-slate-100">
+                      {{ .SetName }}
+                      {{ if .SetCode }}
+                        <span class="text-xs uppercase text-slate-500">({{ .SetCode }})</span>
+                      {{ end }}
+                    </p>
+                    <p class="text-xs text-slate-500">
+                      #{{ .CollectorNumber }} · <span class="uppercase">{{ .Rarity }}</span> · {{ .ReleasedAt }}
+                    </p>
+                  </div>
+
+                  {{ if .ScryfallURI }}
+                    <a
+                      href="{{ .ScryfallURI }}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="mt-btn mt-btn--secondary mt-btn--xs"
+                    >
+                      Scryfall
+                    </a>
+                  {{ end }}
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <div class="mt-stat-card">
+                    <p class="mt-section-label">Price</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-100">{{ .PriceUSD }}</p>
+                  </div>
+                  <div class="mt-stat-card">
+                    <p class="mt-section-label">Artist</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-100">{{ .Artist }}</p>
+                  </div>
+                  <div class="mt-stat-card">
+                    <p class="mt-section-label">Language</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-100">{{ .Lang }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        {{ end }}
+      </div>
+    </section>
+  </main>
+
+  {{ template "layout_footer" . }}
+{{ end }}

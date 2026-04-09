@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"manatomb/app/internal/account"
+	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
 )
 
@@ -16,19 +18,50 @@ import (
 // It includes the core deck fields plus an optional CommanderImageURI for UI use.
 type deckListItem struct {
 	ID                int64
+	OwnerID           int64
+	OwnerDisplayName  string
 	Name              string
 	Description       string
+	Tags              string
+	Format            string
 	CommanderName     string
 	CommanderImageURI string
+	IsPublic          bool
+	PublicSlug        string
+	PowerBracket      string
 }
 
 type deckNewPageData struct {
 	Mode            string
+	Format          string
 	CommanderName   string
 	Name            string
 	Description     string
+	PowerBracket    string
 	ImportText      string
 	ImportUnmatched []string
+}
+
+type deckEditPageData struct {
+	Deck *decks.Deck
+}
+
+type publicDeckPageData struct {
+	Deck           *decks.Deck
+	DeckCards      []decks.DeckCard
+	MaybeDeckCards []decks.DeckCard
+	Analytics      deckAnalyticsData
+	Commander      *cards.Card
+	Owner          *account.PublicProfile
+}
+
+type publicDeckListPageData struct {
+	CommanderName string
+	Format        string
+	PowerBracket  string
+	ColorFilters  []string
+	ColorSelected map[string]bool
+	Items         []deckListItem
 }
 
 func normalizeDeckBuilderMode(raw string) string {
@@ -40,6 +73,35 @@ func normalizeDeckBuilderMode(raw string) string {
 	default:
 		return ""
 	}
+}
+
+func defaultDeckFormat(rawFormat, commanderName, mode string) string {
+	if strings.TrimSpace(rawFormat) != "" {
+		switch decks.NormalizeFormat(rawFormat) {
+		case "Commander":
+			return "Commander"
+		case "Sandbox":
+			return "Sandbox"
+		}
+		if strings.TrimSpace(commanderName) != "" {
+			return "Commander"
+		}
+		return "Sandbox"
+	}
+	if strings.TrimSpace(commanderName) != "" {
+		return "Commander"
+	}
+	if normalizeDeckBuilderMode(mode) == "sandbox" {
+		return "Sandbox"
+	}
+	return "Sandbox"
+}
+
+func defaultDeckPowerBracket(rawPowerBracket, format string) string {
+	if defaultDeckFormat(format, "", "") != "Commander" {
+		return ""
+	}
+	return decks.NormalizePowerBracket(rawPowerBracket)
 }
 
 func (a *App) renderDeckNew(w http.ResponseWriter, user *account.User, flash, errMsg string, page deckNewPageData) {
@@ -93,6 +155,37 @@ func parseDeckIDFromForm(r *http.Request) (int64, error) {
 	return id, nil
 }
 
+func parsePublicDeckSlugFromPath(r *http.Request) string {
+	const prefix = "/decks/public/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return ""
+	}
+	slug := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, prefix))
+	if slug == "" || strings.Contains(slug, "/") {
+		return ""
+	}
+	return slug
+}
+
+func parseUserProfileIDFromPath(r *http.Request) (int64, error) {
+	const prefix = "/users/"
+	if !strings.HasPrefix(r.URL.Path, prefix) {
+		return 0, fmt.Errorf("invalid user path")
+	}
+	segment := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, prefix))
+	if segment == "" {
+		return 0, fmt.Errorf("missing user id")
+	}
+	if idx := strings.IndexByte(segment, '/'); idx >= 0 {
+		segment = segment[:idx]
+	}
+	id, err := strconv.ParseInt(segment, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, fmt.Errorf("invalid user id")
+	}
+	return id, nil
+}
+
 func parseJSONBody(r *http.Request, dst any) error {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
@@ -126,4 +219,32 @@ func deckCardQuantityTotal(cards []decks.DeckCard) int {
 		total += dc.Quantity
 	}
 	return total
+}
+
+func (a *App) commanderForFormatChange(ctx context.Context, deckID int64, currentFormat, nextFormat, currentCommander string) (string, error) {
+	currentCommander = strings.TrimSpace(currentCommander)
+	currentFormat = defaultDeckFormat(currentFormat, currentCommander, "")
+	nextFormat = defaultDeckFormat(nextFormat, currentCommander, "")
+
+	if nextFormat == "Commander" {
+		if currentFormat == "Commander" {
+			return currentCommander, nil
+		}
+		return "", nil
+	}
+
+	if currentCommander == "" {
+		return "", nil
+	}
+
+	if currentFormat == "Commander" {
+		card, err := cards.EnsureCardByName(ctx, a.DB, currentCommander)
+		if err == nil && card.OracleID != "" {
+			if addErr := decks.AddCard(ctx, a.DB, deckID, card.OracleID, 1); addErr != nil {
+				return "", addErr
+			}
+		}
+	}
+
+	return "", nil
 }

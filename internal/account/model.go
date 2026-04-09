@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +19,12 @@ type User struct {
 	Email        string
 	DisplayName  string
 	PasswordHash string
+}
+
+type PublicProfile struct {
+	ID          int64
+	DisplayName string
+	CreatedAt   time.Time
 }
 
 type Session struct {
@@ -204,4 +212,61 @@ func DeleteAccount(ctx context.Context, db *sql.DB, userID int64) error {
 	}
 
 	return nil
+}
+
+func GetPublicProfileByID(ctx context.Context, db *sql.DB, userID int64) (*PublicProfile, error) {
+	var profile PublicProfile
+	err := db.QueryRowContext(ctx, `
+		SELECT id, display_name, created_at
+		FROM users
+		WHERE id = $1
+	`, userID).Scan(&profile.ID, &profile.DisplayName, &profile.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &profile, nil
+}
+
+func ListPublicProfilesByIDs(ctx context.Context, db *sql.DB, userIDs []int64) (map[int64]PublicProfile, error) {
+	out := make(map[int64]PublicProfile)
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+
+	seen := make(map[int64]struct{}, len(userIDs))
+	args := make([]any, 0, len(userIDs))
+	placeholders := make([]string, 0, len(userIDs))
+	for _, userID := range userIDs {
+		if userID <= 0 {
+			continue
+		}
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+		args = append(args, userID)
+		placeholders = append(placeholders, "$"+strconv.Itoa(len(args)))
+	}
+	if len(args) == 0 {
+		return out, nil
+	}
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, display_name, created_at
+		FROM users
+		WHERE id IN (`+strings.Join(placeholders, ", ")+`)
+	`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var profile PublicProfile
+		if err := rows.Scan(&profile.ID, &profile.DisplayName, &profile.CreatedAt); err != nil {
+			return nil, err
+		}
+		out[profile.ID] = profile
+	}
+	return out, rows.Err()
 }

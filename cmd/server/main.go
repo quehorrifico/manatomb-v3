@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -71,6 +72,10 @@ func registerMethodRoutes(mux *http.ServeMux, routes []methodRoute) {
 func registerHomeAndAuthRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/", app.HandleHome)
 	mux.HandleFunc("/logout", app.HandleLogout)
+	mux.HandleFunc("/healthz", app.HandleHealthz)
+	mux.HandleFunc("/privacy", app.HandlePrivacy)
+	mux.HandleFunc("/terms", app.HandleTerms)
+	mux.HandleFunc("/users/", app.HandleProfileShow)
 
 	registerMethodRoutes(mux, []methodRoute{
 		{pattern: "/signup", get: app.HandleSignupShow, post: app.HandleSignupPost},
@@ -84,37 +89,70 @@ func registerSettingsRoutes(mux *http.ServeMux, app *web.App) {
 	})
 }
 
-func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
-	mux.HandleFunc("/decks", app.HandleDecksList)
-	mux.HandleFunc("/decks/delete", app.HandleDeckDeletePost)
-	mux.HandleFunc("/decks/create-from-commander", app.HandleDeckCreateFromCommander)
-	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
-	mux.HandleFunc("/decks/guest", app.HandleGuestDeckShow)
-	mux.HandleFunc("/decks/analytics", app.HandleDeckAnalytics)
+func registerDeckCompatibilityRoutes(mux *http.ServeMux, app *web.App) {
+	mux.HandleFunc("/decks/new/leader", app.HandleDeckCommanderSelect)
+	mux.HandleFunc("/decks/select-leader", app.HandleDeckCommanderSelect)
+	mux.HandleFunc("/decks/create-from-leader", app.HandleDeckCommanderSelect)
+	mux.HandleFunc("/decks/leader", app.HandleDeckCommanderUpdate)
+	mux.HandleFunc("/decks/workbench", app.HandleDeckWorkbenchAliasRedirect)
+	mux.HandleFunc("/decks/guest", app.HandleDeckWorkbenchAliasRedirect)
 	mux.HandleFunc("/decks/import-draft", app.HandleDeckImportDraft)
 	mux.HandleFunc("/decks/import-text", app.HandleDeckImportText)
-	mux.HandleFunc("/decks/sandbox", app.HandleDeckSandboxWIP)
-	mux.HandleFunc("/decks/commander", app.HandleDeckUpdateCommander)
+	mux.HandleFunc("/decks/sandbox", app.HandleDeckSandboxRedirect)
+	mux.HandleFunc("/decks/playtest/workbench", app.HandleDeckWorkbenchPlaytest)
+	mux.HandleFunc("/decks/playtest/guest", app.HandleDeckWorkbenchPlaytest)
+
+	registerMethodRoutes(mux, []methodRoute{
+		{pattern: "/decks/edit", get: app.HandleDeckEditShow, post: app.HandleDeckEditPost},
+	})
+}
+
+func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
+	mux.HandleFunc("/decks", app.HandleDeckList)
+	mux.HandleFunc("/decks/delete", app.HandleDeckDeletePost)
+	mux.HandleFunc("/decks/public", app.HandlePublicDecks)
+	mux.HandleFunc("/decks/public/fork", app.HandlePublicDeckForkPost)
+	mux.HandleFunc("/decks/public/", app.HandlePublicDeckShow)
+	mux.HandleFunc("/decks/analytics", app.HandleDeckAnalytics)
+	mux.HandleFunc("/decks/new/commander/", app.HandleDeckNewCommanderShow)
+	mux.HandleFunc("/decks/new/workbench", app.HandleDeckWorkbench)
+	mux.HandleFunc("/decks/new/workbench/return", app.HandleDeckWorkbenchReturnSeed)
+	mux.HandleFunc("/decks/new/sandbox", app.HandleDeckSandboxRedirect)
+	mux.HandleFunc("/decks/new/playtest", app.HandleDeckWorkbenchPlaytest)
+	mux.HandleFunc("/decks/import/save", app.HandleDeckImportDraft)
+	mux.HandleFunc("/decks/commander", app.HandleDeckCommanderUpdate)
 
 	registerMethodRoutes(mux, []methodRoute{
 		{pattern: "/decks/new", get: app.HandleDeckNewShow, post: app.HandleDeckNewPost},
-		{pattern: "/decks/edit", get: app.HandleDeckEditShow, post: app.HandleDeckEditPost},
+		{pattern: "/decks/new/commander", get: app.HandleDeckNewCommanderRedirect, post: app.HandleDeckCommanderSelect},
+		{pattern: "/decks/new/commander/create", post: app.HandleDeckNewCommanderCreate},
+		{pattern: "/decks/import", get: app.HandleDeckImportShow, post: app.HandleDeckImportText},
+		{pattern: "/decks/settings", get: app.HandleDeckEditShow, post: app.HandleDeckEditPost},
 	})
 
-	// Keep before "/decks/" catch-all.
-	mux.HandleFunc("/decks/playtest/guest", app.HandleDeckPlaytestGuest)
+	registerDeckCompatibilityRoutes(mux, app)
+
 	mux.HandleFunc("/decks/playtest/", app.HandleDeckPlaytest)
 	mux.HandleFunc("/decks/", app.HandleDeckShow) // /decks/{id}
 }
 
+func registerCardCompatibilityRoutes(mux *http.ServeMux, app *web.App) {
+	mux.HandleFunc("/cards/search/autocomplete", app.HandleCardAutocomplete)
+	mux.HandleFunc("/cards/search/deck", app.HandleCardAutocomplete)
+}
+
 func registerCardAndRulesRoutes(mux *http.ServeMux, app *web.App) {
-	mux.HandleFunc("/cards/search/deck", app.HandleDeckCardSearch)
+	mux.HandleFunc("/cards", app.HandleCardList)
+	mux.HandleFunc("/cards/autocomplete", app.HandleCardAutocomplete)
 	mux.HandleFunc("/cards/search", app.HandleCardSearch)
+	mux.HandleFunc("/cards/view/", app.HandleCardShow)
 	mux.HandleFunc("/cards/resolve", app.HandleCardResolve)
 	mux.HandleFunc("/cards/versions", app.HandleCardVersions)
 	mux.HandleFunc("/cards/add-to-deck", app.HandleCardAddToDeck)
 	mux.HandleFunc("/commanders/search", app.HandleCommanderSearch)
 	mux.HandleFunc("/rules", app.HandleRulesHome)
+
+	registerCardCompatibilityRoutes(mux, app)
 }
 
 // registerRoutes wires up all HTTP routes for the application.
@@ -133,7 +171,11 @@ func wrapMiddleware(app *web.App, handler http.Handler) http.Handler {
 	return handler
 }
 
-func startCardSyncWorkers(database *sql.DB, enabled bool, options cards.CardBulkSyncOptions) {
+type runOptions struct {
+	syncNow bool
+}
+
+func startCardSyncWorkers(database *sql.DB, enabled bool, runOnStart bool, options cards.CardBulkSyncOptions) {
 	if !enabled {
 		log.Printf("cards sync disabled (CARD_SYNC_ENABLED=false)")
 		return
@@ -141,39 +183,10 @@ func startCardSyncWorkers(database *sql.DB, enabled bool, options cards.CardBulk
 	if options.MaxRows > 0 {
 		log.Printf("cards sync running in limited mode (CARD_SYNC_MAX_ROWS=%d)", options.MaxRows)
 	}
-
-	cards.StartCardBulkSyncLoop(database, 24*time.Hour, log.Default(), options)
-
-	// Run a non-blocking startup sync check so readiness can pass quickly.
-	go func() {
-		checkCtx, cancelCheck := context.WithTimeout(context.Background(), 30*time.Second)
-		due, err := cards.CardSyncDue(checkCtx, database, 24*time.Hour)
-		cancelCheck()
-		if err != nil {
-			log.Printf("cards sync due check failed: %v", err)
-			return
-		}
-		if !due {
-			return
-		}
-
-		log.Printf("cards sync: starting background startup bulk refresh")
-		syncCtx, cancelSync := context.WithTimeout(context.Background(), 2*time.Hour)
-		result, syncErr := cards.SyncCardsFromScryfallBulk(syncCtx, database, options)
-		cancelSync()
-		if syncErr != nil {
-			log.Printf("cards sync: startup refresh failed: %v", syncErr)
-			return
-		}
-		log.Printf(
-			"cards sync: startup refresh complete (%d cards, source updated %s)",
-			result.ImportedCards,
-			result.SourceUpdatedAt.UTC().Format(time.RFC3339),
-		)
-	}()
+	cards.StartCardBulkSyncLoop(database, 24*time.Hour, runOnStart, log.Default(), options)
 }
 
-func run() error {
+func run(opts runOptions) error {
 	cfg := config.Load()
 	database := db.Open(cfg.DatabaseURL)
 	defer database.Close()
@@ -181,7 +194,7 @@ func run() error {
 	if err := ensureTables(context.Background(), database); err != nil {
 		return err
 	}
-	startCardSyncWorkers(database, cfg.CardSyncOn, cards.CardBulkSyncOptions{
+	startCardSyncWorkers(database, cfg.CardSyncOn, cfg.CardSyncOnStart || opts.syncNow, cards.CardBulkSyncOptions{
 		MaxRows: cfg.CardSyncMaxRows,
 	})
 
@@ -201,7 +214,11 @@ func run() error {
 }
 
 func main() {
-	if err := run(); err != nil {
+	var opts runOptions
+	flag.BoolVar(&opts.syncNow, "sync-now", false, "run a full Scryfall bulk sync immediately on startup")
+	flag.Parse()
+
+	if err := run(opts); err != nil {
 		log.Fatal(err)
 	}
 }

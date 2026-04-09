@@ -13,15 +13,32 @@ type Deck struct {
 	UserID        int64
 	Name          string
 	Description   string
+	Tags          string
 	Format        string
 	CommanderName string
+	IsPublic      bool
+	PublicSlug    string
+	PublishedAt   *time.Time
+	PowerBracket  string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+}
+
+type DeckInput struct {
+	Name          string
+	Description   string
+	Tags          string
+	Format        string
+	CommanderName string
+	IsPublic      bool
+	PublicSlug    string
+	PowerBracket  string
 }
 
 type DeckCard struct {
 	CardID        string
 	CardName      string
+	ManaCost      string
 	ImageURI      string
 	TypeLine      string
 	OracleText    string
@@ -190,6 +207,7 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 		SELECT
 			dc.oracle_id::text,
 			oc.name,
+			COALESCE(oc.mana_cost, ''),
 			COALESCE(cp.image_uri, ''),
 			COALESCE(oc.type_line, ''),
 			COALESCE(oc.oracle_text, ''),
@@ -218,6 +236,7 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 		if err := rows.Scan(
 			&dc.CardID,
 			&dc.CardName,
+			&dc.ManaCost,
 			&dc.ImageURI,
 			&dc.TypeLine,
 			&dc.OracleText,
@@ -243,19 +262,31 @@ func ListDeckMaybeCards(ctx context.Context, db *sql.DB, deckID int64) ([]DeckCa
 }
 
 func CreateDeck(ctx context.Context, db *sql.DB, userID int64, name, description, commanderName string) (*Deck, error) {
-	var d Deck
-	err := db.QueryRowContext(ctx, `
-		INSERT INTO decks (user_id, name, description, format, commander_name)
-		VALUES ($1, $2, $3, 'commander', $4)
-		RETURNING id, user_id, name, description, format, commander_name, created_at, updated_at
-	`, userID, name, description, commanderName).
-		Scan(&d.ID, &d.UserID, &d.Name, &d.Description, &d.Format, &d.CommanderName, &d.CreatedAt, &d.UpdatedAt)
-	return &d, err
+	return CreateDeckWithOptions(ctx, db, userID, DeckInput{
+		Name:          name,
+		Description:   description,
+		Tags:          "",
+		Format:        "Commander",
+		CommanderName: commanderName,
+	})
 }
 
 func ListDecksByUser(ctx context.Context, db *sql.DB, userID int64) ([]Deck, error) {
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, user_id, name, description, format, commander_name, created_at, updated_at
+		SELECT
+			id,
+			user_id,
+			name,
+			COALESCE(description, ''),
+			COALESCE(tags, ''),
+			COALESCE(format, 'Commander'),
+			COALESCE(commander_name, ''),
+			COALESCE(is_public, FALSE),
+			COALESCE(public_slug, ''),
+			published_at,
+			COALESCE(power_bracket, ''),
+			created_at,
+			updated_at
 		FROM decks
 		WHERE user_id = $1
 		ORDER BY updated_at DESC
@@ -267,39 +298,44 @@ func ListDecksByUser(ctx context.Context, db *sql.DB, userID int64) ([]Deck, err
 
 	var out []Deck
 	for rows.Next() {
-		var d Deck
-		if err := rows.Scan(&d.ID, &d.UserID, &d.Name, &d.Description, &d.Format, &d.CommanderName, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		d, err := scanDeck(rows.Scan)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, d)
+		out = append(out, *d)
 	}
 	return out, rows.Err()
 }
 
 func GetDeck(ctx context.Context, db *sql.DB, id, userID int64) (*Deck, error) {
-	var d Deck
-	err := db.QueryRowContext(ctx, `
-		SELECT id, user_id, name, description, format, commander_name, created_at, updated_at
+	return scanDeck(db.QueryRowContext(ctx, `
+		SELECT
+			id,
+			user_id,
+			name,
+			COALESCE(description, ''),
+			COALESCE(tags, ''),
+			COALESCE(format, 'Commander'),
+			COALESCE(commander_name, ''),
+			COALESCE(is_public, FALSE),
+			COALESCE(public_slug, ''),
+			published_at,
+			COALESCE(power_bracket, ''),
+			created_at,
+			updated_at
 		FROM decks
 		WHERE id = $1 AND user_id = $2
-	`, id, userID).
-		Scan(&d.ID, &d.UserID, &d.Name, &d.Description, &d.Format, &d.CommanderName, &d.CreatedAt, &d.UpdatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &d, nil
+	`, id, userID).Scan)
 }
 
 func UpdateDeck(ctx context.Context, db *sql.DB, deckID int64, name, description, commanderName string) error {
-	_, err := db.ExecContext(ctx, `
-		UPDATE decks
-		SET name = $1,
-		    description = $2,
-		    commander_name = $3,
-		    updated_at = NOW()
-		WHERE id = $4
-	`, name, description, commanderName, deckID)
-	return err
+	return UpdateDeckWithOptions(ctx, db, deckID, DeckInput{
+		Name:          name,
+		Description:   description,
+		Tags:          "",
+		Format:        "Commander",
+		CommanderName: commanderName,
+	})
 }
 
 func DeleteDeck(ctx context.Context, db *sql.DB, deckID int64) error {
@@ -308,6 +344,97 @@ func DeleteDeck(ctx context.Context, db *sql.DB, deckID int64) error {
 		WHERE id = $1
 	`, deckID)
 	return err
+}
+
+var supportedDeckTags = []string{
+	"Aggro",
+	"Midrange",
+	"Control",
+	"Combo",
+	"Ramp",
+	"Stax",
+	"Aristocrats",
+	"Spellslinger",
+	"Tokens",
+	"Reanimator",
+	"Voltron",
+	"Tribal",
+}
+
+func SupportedDeckTags() []string {
+	out := make([]string, len(supportedDeckTags))
+	copy(out, supportedDeckTags)
+	return out
+}
+
+func NormalizeDeckTag(raw string) string {
+	switch strings.ToLower(normalizeLooseLabel(raw)) {
+	case "aggro":
+		return "Aggro"
+	case "midrange":
+		return "Midrange"
+	case "control":
+		return "Control"
+	case "combo":
+		return "Combo"
+	case "ramp":
+		return "Ramp"
+	case "stax":
+		return "Stax"
+	case "aristocrats":
+		return "Aristocrats"
+	case "spellslinger":
+		return "Spellslinger"
+	case "tokens":
+		return "Tokens"
+	case "reanimator":
+		return "Reanimator"
+	case "voltron":
+		return "Voltron"
+	case "tribal":
+		return "Tribal"
+	default:
+		return ""
+	}
+}
+
+func SplitTags(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	fields := strings.FieldsFunc(raw, func(r rune) bool {
+		switch r {
+		case ',', '\n', '\r', '\t':
+			return true
+		default:
+			return false
+		}
+	})
+
+	seen := make(map[string]struct{}, len(fields))
+	out := make([]string, 0, len(fields))
+	for _, field := range fields {
+		tag := NormalizeDeckTag(field)
+		if tag == "" {
+			continue
+		}
+		key := strings.ToLower(tag)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, tag)
+		if len(out) >= 12 {
+			break
+		}
+	}
+	return out
+}
+
+func NormalizeTags(raw string) string {
+	return strings.Join(SplitTags(raw), ", ")
 }
 
 func tableExists(ctx context.Context, db *sql.DB, tableName string) (bool, error) {
@@ -421,14 +548,39 @@ func EnsureDeckTables(ctx context.Context, db *sql.DB) error {
 			id BIGSERIAL PRIMARY KEY,
 			user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			name TEXT NOT NULL,
-			description TEXT,
-			format TEXT,
+			description TEXT NOT NULL DEFAULT '',
+			tags TEXT NOT NULL DEFAULT '',
+			format TEXT NOT NULL DEFAULT 'Commander',
 			commander_name TEXT,
+			is_public BOOLEAN NOT NULL DEFAULT FALSE,
+			public_slug TEXT,
+			published_at TIMESTAMPTZ,
+			power_bracket TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		);
 	`); err != nil {
 		return err
+	}
+
+	for _, stmt := range []string{
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS tags TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS format TEXT`,
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS commander_name TEXT`,
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS public_slug TEXT`,
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ`,
+		`ALTER TABLE decks ADD COLUMN IF NOT EXISTS power_bracket TEXT NOT NULL DEFAULT ''`,
+		`UPDATE decks SET description = '' WHERE description IS NULL`,
+		`UPDATE decks SET tags = '' WHERE tags IS NULL`,
+		`UPDATE decks SET format = 'Commander' WHERE COALESCE(btrim(format), '') = ''`,
+		`ALTER TABLE decks ALTER COLUMN format SET DEFAULT 'Commander'`,
+		`ALTER TABLE decks ALTER COLUMN format SET NOT NULL`,
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return err
+		}
 	}
 
 	deckCardsExists, err := tableExists(ctx, db, "deck_cards")
@@ -483,6 +635,19 @@ func EnsureDeckTables(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	if _, err := db.ExecContext(ctx, `
+		CREATE INDEX IF NOT EXISTS idx_decks_public_published
+		ON decks (is_public, published_at DESC, updated_at DESC)
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_decks_public_slug_unique
+		ON decks (public_slug)
+		WHERE public_slug IS NOT NULL
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
 		CREATE INDEX IF NOT EXISTS idx_deck_cards_deck_board
 		ON deck_cards (deck_id, board)
 	`); err != nil {
@@ -490,4 +655,194 @@ func EnsureDeckTables(ctx context.Context, db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func scanDeck(scan func(dest ...any) error) (*Deck, error) {
+	var (
+		d           Deck
+		publishedAt sql.NullTime
+	)
+	if err := scan(
+		&d.ID,
+		&d.UserID,
+		&d.Name,
+		&d.Description,
+		&d.Tags,
+		&d.Format,
+		&d.CommanderName,
+		&d.IsPublic,
+		&d.PublicSlug,
+		&publishedAt,
+		&d.PowerBracket,
+		&d.CreatedAt,
+		&d.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+	if publishedAt.Valid {
+		t := publishedAt.Time
+		d.PublishedAt = &t
+	}
+	return &d, nil
+}
+
+func CreateDeckWithOptions(ctx context.Context, db *sql.DB, userID int64, input DeckInput) (*Deck, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	d, err := insertDeckTx(ctx, tx, userID, input)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func UpdateDeckWithOptions(ctx context.Context, db *sql.DB, deckID int64, input DeckInput) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	current, err := scanDeck(tx.QueryRowContext(ctx, `
+		SELECT
+			id,
+			user_id,
+			name,
+			COALESCE(description, ''),
+			COALESCE(tags, ''),
+			COALESCE(format, 'Commander'),
+			COALESCE(commander_name, ''),
+			COALESCE(is_public, FALSE),
+			COALESCE(public_slug, ''),
+			published_at,
+			COALESCE(power_bracket, ''),
+			created_at,
+			updated_at
+		FROM decks
+		WHERE id = $1
+	`, deckID).Scan)
+	if err != nil {
+		return err
+	}
+
+	name := strings.TrimSpace(input.Name)
+	description := strings.TrimSpace(input.Description)
+	tags := NormalizeTags(input.Tags)
+	format := NormalizeFormat(input.Format)
+	commanderName := strings.TrimSpace(input.CommanderName)
+	isPublic := input.IsPublic
+	powerBracket := NormalizePowerBracket(input.PowerBracket)
+	publicSlug := NormalizePublicSlug(input.PublicSlug)
+	if isPublic && publicSlug == "" {
+		publicSlug, err = reserveUniquePublicSlugTx(ctx, tx, deckID, name, "")
+		if err != nil {
+			return err
+		}
+	}
+
+	var publishedAt any
+	if isPublic {
+		if current.PublishedAt != nil {
+			publishedAt = *current.PublishedAt
+		} else {
+			publishedAt = time.Now().UTC()
+		}
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		UPDATE decks
+		SET name = $1,
+		    description = $2,
+		    tags = $3,
+		    format = $4,
+		    commander_name = $5,
+		    is_public = $6,
+		    public_slug = NULLIF($7, ''),
+		    published_at = $8,
+		    power_bracket = $9,
+		    updated_at = NOW()
+		WHERE id = $10
+	`, name, description, tags, format, commanderName, isPublic, publicSlug, publishedAt, powerBracket, deckID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func insertDeckTx(ctx context.Context, tx *sql.Tx, userID int64, input DeckInput) (*Deck, error) {
+	name := strings.TrimSpace(input.Name)
+	description := strings.TrimSpace(input.Description)
+	tags := NormalizeTags(input.Tags)
+	format := NormalizeFormat(input.Format)
+	commanderName := strings.TrimSpace(input.CommanderName)
+	if !FormatRequiresCommander(format) {
+		commanderName = strings.TrimSpace(input.CommanderName)
+	}
+	powerBracket := NormalizePowerBracket(input.PowerBracket)
+
+	d, err := scanDeck(tx.QueryRowContext(ctx, `
+		INSERT INTO decks (
+			user_id,
+			name,
+			description,
+			tags,
+			format,
+			commander_name,
+			is_public,
+			public_slug,
+			published_at,
+			power_bracket
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, FALSE, NULL, NULL, $7)
+		RETURNING
+			id,
+			user_id,
+			name,
+			COALESCE(description, ''),
+			COALESCE(tags, ''),
+			COALESCE(format, 'Commander'),
+			COALESCE(commander_name, ''),
+			COALESCE(is_public, FALSE),
+			COALESCE(public_slug, ''),
+			published_at,
+			COALESCE(power_bracket, ''),
+			created_at,
+			updated_at
+	`, userID, name, description, tags, format, commanderName, powerBracket).Scan)
+	if err != nil {
+		return nil, err
+	}
+
+	if !input.IsPublic {
+		return d, nil
+	}
+
+	slug, err := reserveUniquePublicSlugTx(ctx, tx, d.ID, name, input.PublicSlug)
+	if err != nil {
+		return nil, err
+	}
+	publishedAt := time.Now().UTC()
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE decks
+		SET is_public = TRUE,
+		    public_slug = $2,
+		    published_at = $3,
+		    updated_at = NOW()
+		WHERE id = $1
+	`, d.ID, slug, publishedAt); err != nil {
+		return nil, err
+	}
+
+	d.IsPublic = true
+	d.PublicSlug = slug
+	d.PublishedAt = &publishedAt
+	return d, nil
 }

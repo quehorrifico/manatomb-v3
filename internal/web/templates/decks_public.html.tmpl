@@ -1,33 +1,148 @@
 {{ define "decks_public" }}
   {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
 
-  <main class="max-w-3xl mx-auto py-10 px-4 space-y-8">
-    <section class="space-y-3 text-center">
-      <h1 class="text-3xl sm:text-4xl font-semibold tracking-tight">
-        <span class="bg-gradient-to-br from-sky-400 via-cyan-300 to-slate-100 bg-clip-text text-transparent">
-          Browse Decks
-        </span>
-      </h1>
-      <p class="text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
-        Coming soon: a place to explore Commander decks shared by the Mana Tomb community.
-      </p>
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-5">
+    <section class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      <div class="space-y-2">
+        <p class="mt-kicker">Public Decks</p>
+        <h1 class="mt-title">Public Decks</h1>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
+        <a href="/decks/new" class="mt-btn mt-btn--primary mt-btn--sm">Builder</a>
+      </div>
     </section>
 
-    <section class="rounded-xl border border-slate-800 bg-slate-950/80 p-5 shadow-md shadow-sky-500/10 space-y-4 text-sm text-slate-300">
-      <p>
-        The plan for this page:
-      </p>
-      <ul class="list-disc list-inside space-y-1 text-slate-400 text-sm">
-        <li>Browse public Commander decks shared by other players.</li>
-        <li>Filter by commander, colors, and power level.</li>
-        <li>Click into a deck to see the full list and card details.</li>
-      </ul>
-      <p class="text-xs text-slate-500">
-        For now, you can start by brewing your own decks on the
-        <a href="/decks/new" class="text-sky-300 hover:text-sky-200 font-medium">Deck Builder</a>
-        or managing your decks on
-        <a href="/decks" class="text-sky-300 hover:text-sky-200 font-medium">My Decks</a>.
-      </p>
+    <section class="mt-panel p-5 sm:p-6 space-y-4">
+      <div class="space-y-1">
+        <p class="mt-section-label">Filters</p>
+        <p class="mt-hint">Filter by commander, format, or color.</p>
+      </div>
+      <form method="GET" action="/decks/public" class="space-y-5">
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label>
+            <span class="mt-field-label">Commander</span>
+            <input type="text"
+                   name="commander"
+                   value="{{ $ctx.CommanderName }}"
+                   placeholder="Commander name"
+                   class="mt-control">
+          </label>
+
+          <label>
+            <span class="mt-field-label">Format</span>
+            <select name="format" class="mt-control">
+              <option value="">Any format</option>
+              {{ range supportedFormats }}
+                <option value="{{ . }}" {{ if eq . $ctx.Format }}selected{{ end }}>{{ . }}</option>
+              {{ end }}
+            </select>
+          </label>
+
+          <label>
+            <span class="mt-field-label">Power Bracket</span>
+            <select name="power_bracket" class="mt-control">
+              {{ range supportedPowerBrackets }}
+                <option value="{{ . }}" {{ if eq . $ctx.PowerBracket }}selected{{ end }}>
+                  {{ if . }}{{ . }}{{ else }}Any bracket{{ end }}
+                </option>
+              {{ end }}
+            </select>
+          </label>
+
+          <fieldset>
+            <legend class="mt-field-label">Color Identity</legend>
+            <div class="flex flex-wrap gap-2">
+              <label class="mt-check-pill">
+                <input type="checkbox" name="color" value="W" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "W" }}checked{{ end }}>
+                <span>W</span>
+              </label>
+              <label class="mt-check-pill">
+                <input type="checkbox" name="color" value="U" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "U" }}checked{{ end }}>
+                <span>U</span>
+              </label>
+              <label class="mt-check-pill">
+                <input type="checkbox" name="color" value="B" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "B" }}checked{{ end }}>
+                <span>B</span>
+              </label>
+              <label class="mt-check-pill">
+                <input type="checkbox" name="color" value="R" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "R" }}checked{{ end }}>
+                <span>R</span>
+              </label>
+              <label class="mt-check-pill">
+                <input type="checkbox" name="color" value="G" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "G" }}checked{{ end }}>
+                <span>G</span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2">
+          <a href="/decks/public" class="mt-btn mt-btn--secondary">Clear</a>
+          <button type="submit" class="mt-btn mt-btn--primary">Apply</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="mt-section-label">Published Decks</h2>
+        <p class="text-xs text-slate-500">{{ len $ctx.Items }} result{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
+      </div>
+
+      {{ if $ctx.Items }}
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {{ range $ctx.Items }}
+            <article class="mt-panel p-4 sm:p-5 space-y-4">
+              <div class="flex gap-3">
+                <div class="h-24 w-16 mt-card-media bg-slate-900 flex items-center justify-center shrink-0">
+                  {{ if .CommanderImageURI }}
+                    <img src="{{ .CommanderImageURI }}" alt="{{ .CommanderName }}" class="w-full h-full object-cover">
+                  {{ else }}
+                    <span class="text-[10px] uppercase tracking-wide text-slate-500">{{ if .CommanderName }}Commander{{ else }}Deck{{ end }}</span>
+                  {{ end }}
+                </div>
+
+                <div class="min-w-0 flex-1 space-y-2">
+                  <div class="space-y-1">
+                    <h3 class="text-base font-semibold text-slate-100 leading-tight">{{ .Name }}</h3>
+                    {{ if .OwnerDisplayName }}
+                      <p class="text-xs text-slate-400">
+                        by <a href="{{ userProfilePath .OwnerID }}" class="text-sky-300 hover:text-sky-200">{{ .OwnerDisplayName }}</a>
+                      </p>
+                    {{ end }}
+                    <div class="flex flex-wrap gap-1">
+                      <span class="mt-chip">
+                        {{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}
+                      </span>
+                      {{ if .PowerBracket }}
+                        <span class="mt-chip">
+                          {{ .PowerBracket }}
+                        </span>
+                      {{ end }}
+                    </div>
+                  </div>
+
+                  {{ if .Tags }}
+                    <div class="flex flex-wrap gap-1 pt-1">
+                      {{ range splitTags .Tags }}
+                        <span class="{{ publicTagChipClass . }}">{{ . }}</span>
+                      {{ end }}
+                    </div>
+                  {{ end }}
+                </div>
+              </div>
+              <div class="flex justify-end">
+                <a href="/decks/public/{{ .PublicSlug }}" class="mt-btn mt-btn--secondary mt-btn--sm">Open</a>
+              </div>
+            </article>
+          {{ end }}
+        </div>
+      {{ else }}
+        <div class="mt-panel p-5 text-center text-sm text-slate-400">No matches.</div>
+      {{ end }}
     </section>
   </main>
 
