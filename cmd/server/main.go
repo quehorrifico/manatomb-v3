@@ -178,6 +178,15 @@ func startCardSyncWorkers(database *sql.DB, enabled bool, runOnStart bool, optio
 		log.Printf("cards sync disabled (CARD_SYNC_ENABLED=false)")
 		return
 	}
+	if !runOnStart {
+		due, err := cards.CardSyncDue(context.Background(), database, 24*time.Hour)
+		if err != nil {
+			log.Printf("cards sync startup due-check failed: %v", err)
+		} else if due {
+			runOnStart = true
+			log.Printf("cards sync: immediate startup sync required because local card data is missing or outdated")
+		}
+	}
 	if options.MaxRows > 0 {
 		log.Printf("cards sync running in limited mode (CARD_SYNC_MAX_ROWS=%d)", options.MaxRows)
 	}

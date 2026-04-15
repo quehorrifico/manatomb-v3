@@ -32,8 +32,15 @@ CREATE TABLE IF NOT EXISTS oracle_cards (
   cmc DOUBLE PRECISION NOT NULL DEFAULT 0,
   type_line TEXT,
   oracle_text TEXT,
+  flavor_text TEXT,
   colors TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   color_identity TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  power_text TEXT,
+  toughness_text TEXT,
+  loyalty_text TEXT,
+  power_value DOUBLE PRECISION,
+  toughness_value DOUBLE PRECISION,
+  loyalty_value DOUBLE PRECISION,
   layout TEXT,
   card_faces JSONB NOT NULL DEFAULT '[]'::jsonb,
   all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -58,6 +65,7 @@ CREATE TABLE IF NOT EXISTS card_prints (
   collector_number TEXT NOT NULL,
   lang TEXT NOT NULL DEFAULT 'en',
   released_at DATE,
+  flavor_text TEXT,
   image_uris JSONB NOT NULL DEFAULT '{}'::jsonb,
   image_uri TEXT,
   card_faces_json JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -70,6 +78,7 @@ CREATE TABLE IF NOT EXISTS card_prints (
 
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_image_uri TEXT;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_price_usd TEXT;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS flavor_text TEXT;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_artist TEXT;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_set_code TEXT;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_set_name TEXT;
@@ -77,7 +86,15 @@ ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_released_at DATE;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_scryfall_uri TEXT;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS all_parts JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS power_text TEXT;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS toughness_text TEXT;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS loyalty_text TEXT;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS power_value DOUBLE PRECISION;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS toughness_value DOUBLE PRECISION;
+ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS loyalty_value DOUBLE PRECISION;
 ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS card_faces_json JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS flavor_text TEXT;
+DROP INDEX IF EXISTS idx_card_prints_set_collector_lang;
 
 DO $$
 BEGIN
@@ -99,9 +116,27 @@ CREATE INDEX IF NOT EXISTS idx_oracle_cards_name_search_trgm ON oracle_cards USI
 CREATE INDEX IF NOT EXISTS idx_oracle_cards_commander_legal ON oracle_cards (commander_legal);
 CREATE INDEX IF NOT EXISTS idx_oracle_cards_is_commander_candidate ON oracle_cards (is_commander_candidate);
 CREATE INDEX IF NOT EXISTS idx_oracle_cards_edhrec_rank ON oracle_cards (edhrec_rank);
+CREATE INDEX IF NOT EXISTS idx_oracle_cards_power_value ON oracle_cards (power_value);
+CREATE INDEX IF NOT EXISTS idx_oracle_cards_toughness_value ON oracle_cards (toughness_value);
+CREATE INDEX IF NOT EXISTS idx_oracle_cards_loyalty_value ON oracle_cards (loyalty_value);
 CREATE INDEX IF NOT EXISTS idx_card_prints_oracle_id ON card_prints (oracle_id);
 CREATE INDEX IF NOT EXISTS idx_card_prints_oracle_released ON card_prints (oracle_id, released_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_card_prints_set_collector_lang ON card_prints (set_code, collector_number, lang);
+CREATE INDEX IF NOT EXISTS idx_card_prints_set_collector_lang ON card_prints (set_code, collector_number, lang);
+
+CREATE TABLE IF NOT EXISTS card_sync_state (
+  id SMALLINT PRIMARY KEY CHECK (id = 1),
+  last_attempt_at TIMESTAMPTZ,
+  last_success_at TIMESTAMPTZ,
+  source_updated_at TIMESTAMPTZ,
+  last_error TEXT,
+  card_count INTEGER NOT NULL DEFAULT 0,
+  data_version INTEGER NOT NULL DEFAULT 0
+);
+
+ALTER TABLE card_sync_state ADD COLUMN IF NOT EXISTS data_version INTEGER NOT NULL DEFAULT 0;
+
+INSERT INTO card_sync_state (id) VALUES (1)
+ON CONFLICT (id) DO NOTHING;
 
 DROP TABLE IF EXISTS deck_maybe_cards;
 DROP TABLE IF EXISTS deck_cards;

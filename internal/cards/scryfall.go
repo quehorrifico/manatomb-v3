@@ -8,8 +8,12 @@ type CardFace struct {
 	ManaCost   string   `json:"mana_cost"`
 	TypeLine   string   `json:"type_line"`
 	OracleText string   `json:"oracle_text"`
+	FlavorText string   `json:"flavor_text,omitempty"`
 	ImageURI   string   `json:"image_uri"`
 	Artist     string   `json:"artist"`
+	Power      string   `json:"power,omitempty"`
+	Toughness  string   `json:"toughness,omitempty"`
+	Loyalty    string   `json:"loyalty,omitempty"`
 	Colors     []string `json:"colors"`
 	ColorID    []string `json:"color_identity"`
 }
@@ -33,12 +37,16 @@ type Card struct {
 	ManaCost   string
 	TypeLine   string
 	OracleText string
+	FlavorText string
 	ImageURI   string
 	ReleasedAt string
 
 	Colors               []string
 	ColorIdentity        []string
 	CMC                  float64
+	Power                string
+	Toughness            string
+	Loyalty              string
 	Layout               string
 	CommanderLegal       bool
 	IsCommanderCandidate bool
@@ -66,6 +74,7 @@ type scryfallCard struct {
 	ManaCost   string            `json:"mana_cost"`
 	TypeLine   string            `json:"type_line"`
 	OracleText string            `json:"oracle_text"`
+	FlavorText string            `json:"flavor_text"`
 	ImageURIs  map[string]string `json:"image_uris"`
 	ReleasedAt string            `json:"released_at"`
 	SetType    string            `json:"set_type"`
@@ -79,8 +88,12 @@ type scryfallCard struct {
 		ManaCost   string            `json:"mana_cost"`
 		TypeLine   string            `json:"type_line"`
 		OracleText string            `json:"oracle_text"`
+		FlavorText string            `json:"flavor_text"`
 		ImageURIs  map[string]string `json:"image_uris"`
 		Artist     string            `json:"artist"`
+		Power      string            `json:"power"`
+		Toughness  string            `json:"toughness"`
+		Loyalty    string            `json:"loyalty"`
 		Colors     []string          `json:"colors"`
 		ColorID    []string          `json:"color_identity"`
 	} `json:"card_faces"`
@@ -90,6 +103,9 @@ type scryfallCard struct {
 	Colors        []string          `json:"colors"`
 	ColorIdentity []string          `json:"color_identity"`
 	CMC           float64           `json:"cmc"`
+	Power         string            `json:"power"`
+	Toughness     string            `json:"toughness"`
+	Loyalty       string            `json:"loyalty"`
 	Layout        string            `json:"layout"`
 	Legalities    map[string]string `json:"legalities"`
 
@@ -139,9 +155,13 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 	manaCost := strings.TrimSpace(sc.ManaCost)
 	typeLine := strings.TrimSpace(sc.TypeLine)
 	oracleText := strings.TrimSpace(sc.OracleText)
+	flavorText := strings.TrimSpace(sc.FlavorText)
 	artist := strings.TrimSpace(sc.Artist)
 	colors := sc.Colors
 	colorID := sc.ColorIdentity
+	power := strings.TrimSpace(sc.Power)
+	toughness := strings.TrimSpace(sc.Toughness)
+	loyalty := strings.TrimSpace(sc.Loyalty)
 
 	img := preferredImageURI(sc.ImageURIs)
 	if len(sc.CardFaces) > 0 {
@@ -155,8 +175,20 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 		if v := strings.TrimSpace(face.OracleText); v != "" {
 			oracleText = v
 		}
+		if flavorText == "" {
+			flavorText = strings.TrimSpace(face.FlavorText)
+		}
 		if v := strings.TrimSpace(face.Artist); v != "" {
 			artist = v
+		}
+		if power == "" {
+			power = strings.TrimSpace(face.Power)
+		}
+		if toughness == "" {
+			toughness = strings.TrimSpace(face.Toughness)
+		}
+		if loyalty == "" {
+			loyalty = strings.TrimSpace(face.Loyalty)
 		}
 		if len(face.Colors) > 0 {
 			colors = face.Colors
@@ -181,8 +213,12 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 			ManaCost:   strings.TrimSpace(face.ManaCost),
 			TypeLine:   strings.TrimSpace(face.TypeLine),
 			OracleText: strings.TrimSpace(face.OracleText),
+			FlavorText: strings.TrimSpace(face.FlavorText),
 			ImageURI:   preferredImageURI(face.ImageURIs),
 			Artist:     strings.TrimSpace(face.Artist),
+			Power:      strings.TrimSpace(face.Power),
+			Toughness:  strings.TrimSpace(face.Toughness),
+			Loyalty:    strings.TrimSpace(face.Loyalty),
 			Colors:     face.Colors,
 			ColorID:    face.ColorID,
 		})
@@ -196,11 +232,15 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 		ManaCost:       manaCost,
 		TypeLine:       typeLine,
 		OracleText:     oracleText,
+		FlavorText:     flavorText,
 		ImageURI:       img,
 		ReleasedAt:     strings.TrimSpace(sc.ReleasedAt),
 		Colors:         colors,
 		ColorIdentity:  colorID,
 		CMC:            sc.CMC,
+		Power:          power,
+		Toughness:      toughness,
+		Loyalty:        loyalty,
 		Layout:         strings.TrimSpace(sc.Layout),
 		CommanderLegal: commanderLegal,
 		PriceUSD:       preferredPriceUSD(sc),

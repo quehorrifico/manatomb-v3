@@ -1,6 +1,29 @@
 {{ define "card_detail_modal_script" }}
+  {{ template "card_ui_helpers_script" . }}
   <script>
   document.addEventListener('DOMContentLoaded', function () {
+    var cardUI = window.ManatombCardUI || {};
+    var trimValue = cardUI.trimValue || function (value) {
+      return String(value || '').trim();
+    };
+    var renderManaSymbols = cardUI.renderManaSymbols || function () {
+      return '';
+    };
+    var renderCardTextMarkup = cardUI.renderCardTextMarkup || function (text) {
+      return trimValue(text);
+    };
+    var formatPriceDisplay = cardUI.formatPriceDisplay || function (value) {
+      return trimValue(value) || '—';
+    };
+    var formatPrintingLabel = cardUI.formatPrintingLabel || function (version, index) {
+      return 'Printing ' + String((Number(index) || 0) + 1);
+    };
+    var formatRarityLabel = cardUI.formatRarityLabel || function (raw) {
+      raw = trimValue(raw).toLowerCase();
+      if (!raw) return '';
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    };
+
     var modal = document.getElementById('card-detail-modal');
     if (!modal) return;
 
@@ -11,9 +34,12 @@
     var imageEl = modal.querySelector('[data-field="image"]');
     var priceEl = modal.querySelector('[data-field="price-usd"]');
     var artistEl = modal.querySelector('[data-field="artist"]');
+    var printingGroupEl = modal.querySelector('[data-field="printing-group"]');
     var printingSelectEl = modal.querySelector('[data-field="printing-select"]');
     var printingMetaEl = modal.querySelector('[data-field="printing-meta"]');
     var stickyNameInputEl = modal.querySelector('[data-field="sticky-name-input"]');
+    var openPageLinkEl = modal.querySelector('[data-field="open-page-link"]');
+    var openDeckPickerEl = modal.querySelector('[data-open-deck-picker]');
     var flipBtn = modal.querySelector('[data-flip-card]');
 
     var currentFaces = null;
@@ -25,18 +51,31 @@
       modal.classList.add('hidden');
     }
 
-    function renderManaSymbols(manaCost) {
-      if (!manaCost) return '';
-      var html = '';
-      var re = /\{([^}]+)\}/g;
-      var match;
-      while ((match = re.exec(manaCost)) !== null) {
-        var sym = match[1];
-        var encoded = encodeURIComponent(sym);
-        var src = 'https://svgs.scryfall.io/card-symbols/' + encoded + '.svg';
-        html += '<img src="' + src + '" alt="{' + sym + '}" class="inline-block h-5 align-text-bottom mr-0.5">';
+    function setCardContext(cardName, detailPath, oracleID) {
+      var normalizedCardName = trimValue(cardName);
+      modal.setAttribute('data-card-name', normalizedCardName);
+      modal.setAttribute('data-detail-path', trimValue(detailPath));
+      modal.setAttribute('data-oracle-id', trimValue(oracleID));
+      if (openDeckPickerEl) {
+        openDeckPickerEl.setAttribute('data-card-name', normalizedCardName);
       }
-      return html;
+    }
+
+    function setOpenPageLink(detailPath) {
+      if (!openPageLinkEl) return;
+      detailPath = String(detailPath || '').trim();
+      if (!detailPath) {
+        openPageLinkEl.classList.add('hidden');
+        openPageLinkEl.href = '#';
+        return;
+      }
+      openPageLinkEl.href = detailPath;
+      openPageLinkEl.classList.remove('hidden');
+    }
+
+    function setPrintingsVisible(visible) {
+      if (!printingGroupEl) return;
+      printingGroupEl.classList.toggle('hidden', !visible);
     }
 
     function parseFaces(raw) {
@@ -71,41 +110,20 @@
       };
     }
 
-    function formatPrintingLabel(version, index) {
-      var setName = version.set_name || '';
-      var setCode = version.set_code ? version.set_code.toUpperCase() : '';
-      var release = version.released_at || '';
-
-      if (!setName && !setCode) {
-        return 'Printing ' + String(index + 1);
-      }
-
-      var label = setName || setCode;
-      if (setName && setCode) {
-        label += ' (' + setCode + ')';
-      }
-      if (version.collector_number) {
-        label += ' #' + version.collector_number;
-      }
-      if (release) {
-        label += ' · ' + release;
-      }
-      return label;
-    }
-
     function setPrintingMeta(version) {
       if (!printingMetaEl) return;
       if (!version) {
+        printingMetaEl.classList.add('hidden');
         printingMetaEl.textContent = '';
         return;
       }
       var bits = [];
-      if (version.set_name) bits.push(version.set_name);
-      if (version.set_code) bits.push(version.set_code.toUpperCase());
-      if (version.collector_number) bits.push('#' + version.collector_number);
-      if (version.rarity) bits.push(version.rarity);
-      if (version.released_at) bits.push(version.released_at);
+      var rarityLabel = formatRarityLabel(version.rarity);
+      var lang = String(version.lang || '').trim().toUpperCase();
+      if (rarityLabel) bits.push(rarityLabel);
+      if (lang && lang !== 'EN') bits.push(lang);
       printingMetaEl.textContent = bits.join(' · ');
+      printingMetaEl.classList.toggle('hidden', bits.length === 0);
     }
 
     function populatePrintings(versions, selectedIndex) {
@@ -117,9 +135,21 @@
         opt.textContent = 'Latest printing';
         printingSelectEl.appendChild(opt);
         printingSelectEl.disabled = true;
+        setPrintingsVisible(false);
         return;
       }
 
+      if (versions.length <= 1) {
+        var singleOpt = document.createElement('option');
+        singleOpt.value = '0';
+        singleOpt.textContent = 'Latest printing';
+        printingSelectEl.appendChild(singleOpt);
+        printingSelectEl.disabled = true;
+        setPrintingsVisible(false);
+        return;
+      }
+
+      setPrintingsVisible(true);
       for (var i = 0; i < versions.length; i++) {
         var option = document.createElement('option');
         option.value = String(i);
@@ -130,6 +160,13 @@
       var idx = Number(selectedIndex || 0);
       if (!Number.isFinite(idx) || idx < 0 || idx >= versions.length) idx = 0;
       printingSelectEl.value = String(idx);
+    }
+
+    function setVersionsLoading(loading) {
+      if (!printingSelectEl) return;
+      if (!loading) return;
+
+      printingSelectEl.disabled = true;
     }
 
     function renderFace(face, fallback) {
@@ -145,7 +182,7 @@
       if (nameEl) nameEl.textContent = faceName;
       if (typeEl) typeEl.textContent = faceType;
       if (manaEl) manaEl.innerHTML = renderManaSymbols(faceMana);
-      if (oracleEl) oracleEl.textContent = faceOracle;
+      if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(faceOracle, 'No oracle text.');
 
       if (imageEl) {
         if (faceImage) {
@@ -183,7 +220,7 @@
         if (nameEl) nameEl.textContent = version.name || '';
         if (typeEl) typeEl.textContent = version.type_line || '';
         if (manaEl) manaEl.innerHTML = renderManaSymbols(version.mana_cost || '');
-        if (oracleEl) oracleEl.textContent = version.oracle_text || '';
+        if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(version.oracle_text || '', 'No oracle text.');
 
         if (imageEl) {
           if (version.image_uri) {
@@ -201,7 +238,7 @@
       }
 
       if (priceEl) {
-        priceEl.textContent = version.price_usd ? ('$' + version.price_usd) : '—';
+        priceEl.textContent = formatPriceDisplay(version.price_usd);
       }
     }
 
@@ -255,26 +292,31 @@
     document.querySelectorAll('[data-card-detail]').forEach(function (btn) {
       btn.addEventListener('click', async function () {
         var li = btn.closest('li');
-        if (!li) return;
+        var root = btn.closest('[data-card-detail-root]') || btn;
+        if (!root) return;
 
-        var oracleNode = li.querySelector('.js-oracle-text');
+        var oracleNode = (li || root).querySelector('.js-oracle-text');
         var oracleText = oracleNode ? oracleNode.textContent : '';
 
-        var oracleID = btn.getAttribute('data-oracle-id') || '';
-        var name = btn.getAttribute('data-name') || '';
-        var manaCost = btn.getAttribute('data-mana-cost') || '';
-        var typeLine = btn.getAttribute('data-type-line') || '';
-        var imageURI = btn.getAttribute('data-image-uri') || '';
-        var price = btn.getAttribute('data-price') || '';
-        var artist = btn.getAttribute('data-artist') || '';
-        var setCode = btn.getAttribute('data-set-code') || '';
-        var setName = btn.getAttribute('data-set-name') || '';
-        var releasedAt = btn.getAttribute('data-released-at') || '';
-        var facesJSON = btn.getAttribute('data-faces');
+        var detailMode = btn.getAttribute('data-card-detail-mode') || 'view';
+        var oracleID = root.getAttribute('data-oracle-id') || btn.getAttribute('data-oracle-id') || '';
+        var detailPath = root.getAttribute('data-detail-path') || btn.getAttribute('data-detail-path') || '';
+        var name = root.getAttribute('data-name') || btn.getAttribute('data-name') || '';
+        var manaCost = root.getAttribute('data-mana-cost') || btn.getAttribute('data-mana-cost') || '';
+        var typeLine = root.getAttribute('data-type-line') || btn.getAttribute('data-type-line') || '';
+        var imageURI = root.getAttribute('data-image-uri') || btn.getAttribute('data-image-uri') || '';
+        var price = root.getAttribute('data-price') || btn.getAttribute('data-price') || '';
+        var artist = root.getAttribute('data-artist') || btn.getAttribute('data-artist') || '';
+        var setCode = root.getAttribute('data-set-code') || btn.getAttribute('data-set-code') || '';
+        var setName = root.getAttribute('data-set-name') || btn.getAttribute('data-set-name') || '';
+        var releasedAt = root.getAttribute('data-released-at') || btn.getAttribute('data-released-at') || '';
+        var facesJSON = root.getAttribute('data-faces') || btn.getAttribute('data-faces');
 
         if (stickyNameInputEl) {
           stickyNameInputEl.value = name;
         }
+        setCardContext(name, detailPath, oracleID);
+        setOpenPageLink(detailPath);
 
         var fallbackVersion = normalizeVersion({
           name: name,
@@ -295,15 +337,24 @@
         applyVersion(fallbackVersion);
 
         modal.classList.remove('hidden');
+        setVersionsLoading(true);
 
         var loadedVersions = await fetchCardVersions(name, oracleID);
         if (!loadedVersions || loadedVersions.length === 0) {
+          populatePrintings(currentVersions, 0);
+          applyVersion(currentVersions[0]);
+          if (detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
+            printingSelectEl.focus();
+          }
           return;
         }
 
         currentVersions = loadedVersions;
         populatePrintings(currentVersions, 0);
         applyVersion(currentVersions[0]);
+        if (detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
+          printingSelectEl.focus();
+        }
       });
     });
 

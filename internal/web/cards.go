@@ -1,6 +1,7 @@
 package web
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"manatomb/app/internal/cards"
+	"manatomb/app/internal/decks"
 
 	"github.com/google/uuid"
 )
@@ -18,19 +20,22 @@ import (
 // commander search. It flattens the core fields we display in the grid plus
 // a JSON-encoded faces slice for MDFC / multi-faced cards.
 type searchResult struct {
-	OracleID   string
-	DetailPath string
-	Name       string
-	ManaCost   string
-	TypeLine   string
-	OracleText string
-	ImageURI   string
-	PriceUSD   string
-	Artist     string
-	SetCode    string
-	SetName    string
-	Rarity     string
-	ReleasedAt string
+	OracleID             string
+	DetailPath           string
+	Name                 string
+	ManaCost             string
+	TypeLine             string
+	OracleText           string
+	ImageURI             string
+	PriceUSD             string
+	Artist               string
+	SetCode              string
+	SetName              string
+	Rarity               string
+	ReleasedAt           string
+	ColorIdentity        string
+	ManaValue            string
+	IsCommanderCandidate bool
 
 	// FacesJSON is a JSON-encoded []cards.CardFace (from cards.Card.Faces).
 	// It is used by the frontend to support MDFC "flip" behavior in the detail modals.
@@ -42,44 +47,98 @@ type cardSearchTypeFilter struct {
 	Mode  string `json:"mode"`
 }
 
+type cardSearchFilterChip struct {
+	Label      string
+	RemovePath string
+}
+
+type cardSearchSelectOption struct {
+	Value string
+	Label string
+}
+
 type cardSearchPageData struct {
-	NameQuery       string
-	TextQuery       string
-	TypeOptions     []string
-	TypeFilters     []cardSearchTypeFilter
-	TypeFiltersJSON string
-	ColorsSelected  map[string]bool
-	ColorMode       string
-	ManaValueMin    string
-	ManaValueMax    string
-	Rarity          string
-	SetQuery        string
-	ArtistQuery     string
-	CommanderOnly   bool
-	Results         []searchResult
-	HasSearched     bool
+	NameQuery             string
+	NameExact             bool
+	ManaCostQuery         string
+	TextQuery             string
+	TextMode              string
+	TypeOptions           []string
+	TypeOptionsJSON       string
+	TypeFilters           []cardSearchTypeFilter
+	TypeFiltersJSON       string
+	TypePartial           bool
+	SetSuggestions        []string
+	LayoutOptions         []cardSearchSelectOption
+	SelectedLayout        string
+	StatOptions           []cardSearchSelectOption
+	StatOperatorOptions   []cardSearchSelectOption
+	SelectedStat          string
+	SelectedStatOperator  string
+	StatValue             string
+	PriceOperatorOptions  []cardSearchSelectOption
+	SelectedPriceOperator string
+	PriceValue            string
+	ColorsSelected        map[string]bool
+	ColorMode             string
+	ManaValueMin          string
+	ManaValueMax          string
+	Rarity                string
+	SetQuery              string
+	ArtistQuery           string
+	CommanderOnly         bool
+	CommanderLegal        bool
+	IncludeTokens         bool
+	SearchActionPath      string
+	ClearPath             string
 }
 
 type cardListPageData struct {
-	Query       string
-	Results     []searchResult
-	HasSearched bool
+	Results         []searchResult
+	HasSearched     bool
+	SavedDecks      []deckListItem
+	AppliedFilters  []cardSearchFilterChip
+	CurrentPath     string
+	ClearPath       string
+	EditFiltersPath string
 }
 
 type cardSearchRequest struct {
 	NameQuery       string
+	NameExact       bool
+	ManaCostQuery   string
 	TextQuery       string
+	TextMode        string
 	TypeFilters     []cardSearchTypeFilter
+	TypePartial     bool
+	Layout          string
+	Stat            string
+	StatOperator    string
+	StatValue       *int
+	StatValueRaw    string
+	StatMin         *float64
+	StatMax         *float64
+	StatMinRaw      string
+	StatMaxRaw      string
 	ColorParams     []string
 	ColorMode       string
 	ManaValueMin    *float64
 	ManaValueMax    *float64
 	ManaValueMinRaw string
 	ManaValueMaxRaw string
+	PriceOperator   string
+	PriceValue      *float64
+	PriceValueRaw   string
+	PriceMin        *float64
+	PriceMax        *float64
+	PriceMinRaw     string
+	PriceMaxRaw     string
 	Rarity          string
 	SetQuery        string
 	ArtistQuery     string
 	CommanderOnly   bool
+	CommanderLegal  bool
+	IncludeTokens   bool
 	HasSearched     bool
 }
 
@@ -88,6 +147,7 @@ type cardDetailFaceData struct {
 	ManaCost      string
 	TypeLine      string
 	OracleText    string
+	FlavorText    string
 	ImageURI      string
 	Artist        string
 	Colors        string
@@ -95,6 +155,11 @@ type cardDetailFaceData struct {
 }
 
 type cardDetailPrintingData struct {
+	Name            string
+	ManaCost        string
+	TypeLine        string
+	OracleText      string
+	FlavorText      string
 	ImageURI        string
 	SetName         string
 	SetCode         string
@@ -103,8 +168,10 @@ type cardDetailPrintingData struct {
 	ReleasedAt      string
 	Artist          string
 	PriceUSD        string
+	PriceSort       float64
 	Lang            string
 	ScryfallURI     string
+	Faces           []cardDetailFaceData
 }
 
 type cardDetailData struct {
@@ -113,6 +180,7 @@ type cardDetailData struct {
 	ManaCost        string
 	TypeLine        string
 	OracleText      string
+	FlavorText      string
 	ImageURI        string
 	PriceUSD        string
 	Artist          string
@@ -131,8 +199,10 @@ type cardDetailData struct {
 }
 
 type cardDetailPageData struct {
-	Card      cardDetailData
-	Printings []cardDetailPrintingData
+	Card        cardDetailData
+	Printings   []cardDetailPrintingData
+	SavedDecks  []deckListItem
+	CurrentPath string
 }
 
 var advancedCardTypeOptions = []string{
@@ -144,6 +214,38 @@ var advancedCardTypeOptions = []string{
 	"Battle",
 	"Instant",
 	"Sorcery",
+}
+
+var advancedCardLayoutOptions = []cardSearchSelectOption{
+	{Value: "", Label: "Any layout"},
+	{Value: "normal", Label: "Normal"},
+	{Value: "transform", Label: "Transform"},
+	{Value: "modal_dfc", Label: "Modal DFC"},
+	{Value: "split", Label: "Split"},
+	{Value: "flip", Label: "Flip"},
+	{Value: "adventure", Label: "Adventure"},
+	{Value: "meld", Label: "Meld"},
+	{Value: "leveler", Label: "Leveler"},
+	{Value: "class", Label: "Class"},
+	{Value: "saga", Label: "Saga"},
+	{Value: "token", Label: "Token"},
+	{Value: "double_faced_token", Label: "Double-Faced Token"},
+}
+
+var advancedCardStatOptions = []cardSearchSelectOption{
+	{Value: "mana_value", Label: "Mana Value"},
+	{Value: "power", Label: "Power"},
+	{Value: "toughness", Label: "Toughness"},
+	{Value: "loyalty", Label: "Loyalty"},
+}
+
+var advancedCardStatOperatorOptions = []cardSearchSelectOption{
+	{Value: "eq", Label: "Equal to"},
+	{Value: "lt", Label: "Less than"},
+	{Value: "gt", Label: "Greater than"},
+	{Value: "lte", Label: "Less than or equal to"},
+	{Value: "gte", Label: "Greater than or equal to"},
+	{Value: "neq", Label: "Not equal to"},
 }
 
 type cardResolveResponse struct {
@@ -207,20 +309,23 @@ func buildSearchResults(cardsIn []cards.Card) []searchResult {
 		}
 
 		viewResults = append(viewResults, searchResult{
-			OracleID:   c.OracleID,
-			DetailPath: cardDetailPath(c.OracleID),
-			Name:       c.Name,
-			ManaCost:   c.ManaCost,
-			TypeLine:   c.TypeLine,
-			OracleText: c.OracleText,
-			ImageURI:   c.ImageURI,
-			PriceUSD:   c.PriceUSD,
-			Artist:     c.Artist,
-			SetCode:    c.SetCode,
-			SetName:    c.SetName,
-			Rarity:     c.Rarity,
-			ReleasedAt: c.ReleasedAt,
-			FacesJSON:  facesJSON,
+			OracleID:             c.OracleID,
+			DetailPath:           cardDetailPath(c.OracleID),
+			Name:                 c.Name,
+			ManaCost:             c.ManaCost,
+			TypeLine:             c.TypeLine,
+			OracleText:           c.OracleText,
+			ImageURI:             c.ImageURI,
+			PriceUSD:             c.PriceUSD,
+			Artist:               c.Artist,
+			SetCode:              c.SetCode,
+			SetName:              c.SetName,
+			Rarity:               c.Rarity,
+			ReleasedAt:           c.ReleasedAt,
+			ColorIdentity:        formatCardColorNames(c.ColorIdentity),
+			ManaValue:            formatCardManaValue(c.CMC),
+			IsCommanderCandidate: c.IsCommanderCandidate,
+			FacesJSON:            facesJSON,
 		})
 	}
 
@@ -300,6 +405,18 @@ func formatCardPrice(value string) string {
 	return "$" + value
 }
 
+func cardPriceSortValue(value string) float64 {
+	value = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(value), "$"))
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0
+	}
+	return parsed
+}
+
 func cardMetaValue(value, fallback string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -328,6 +445,37 @@ func formatCommanderStatus(card cards.Card) string {
 	}
 }
 
+func firstNonEmptyCardFlavor(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func firstFaceFlavor(faces []cards.CardFace) string {
+	for _, face := range faces {
+		if value := strings.TrimSpace(face.FlavorText); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func firstPrintingFlavor(printings []cards.Card) string {
+	for _, printing := range printings {
+		if value := firstNonEmptyCardFlavor(
+			printing.FlavorText,
+			firstFaceFlavor(printing.Faces),
+		); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetailPageData {
 	if len(printings) == 0 {
 		printings = []cards.Card{card}
@@ -335,6 +483,10 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 
 	cardImageURI := strings.TrimSpace(card.ImageURI)
 	cardArtist := strings.TrimSpace(card.Artist)
+	cardFlavorText := strings.TrimSpace(card.FlavorText)
+	if cardFlavorText == "" {
+		cardFlavorText = firstPrintingFlavor(printings)
+	}
 
 	faces := make([]cardDetailFaceData, 0, len(card.Faces))
 	for _, face := range card.Faces {
@@ -351,6 +503,7 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 			ManaCost:      strings.TrimSpace(face.ManaCost),
 			TypeLine:      strings.TrimSpace(face.TypeLine),
 			OracleText:    cardMetaValue(face.OracleText, "No oracle text."),
+			FlavorText:    strings.TrimSpace(face.FlavorText),
 			ImageURI:      faceImageURI,
 			Artist:        cardMetaValue(face.Artist, "Unknown"),
 			Colors:        formatCardColorNames(face.Colors),
@@ -365,7 +518,34 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 			imageURI = strings.TrimSpace(printing.Faces[0].ImageURI)
 		}
 
+		printingFaces := make([]cardDetailFaceData, 0, len(printing.Faces))
+		for _, face := range printing.Faces {
+			printingFaces = append(printingFaces, cardDetailFaceData{
+				Name:          cardMetaValue(face.Name, printing.Name),
+				ManaCost:      strings.TrimSpace(face.ManaCost),
+				TypeLine:      cardMetaValue(face.TypeLine, printing.TypeLine),
+				OracleText:    cardMetaValue(face.OracleText, "No oracle text."),
+				FlavorText:    strings.TrimSpace(face.FlavorText),
+				ImageURI:      strings.TrimSpace(face.ImageURI),
+				Artist:        cardMetaValue(face.Artist, printing.Artist),
+				Colors:        formatCardColorNames(face.Colors),
+				ColorIdentity: formatCardColorNames(face.ColorID),
+			})
+		}
+		if len(printingFaces) == 0 && len(faces) > 0 {
+			printingFaces = append(printingFaces, faces...)
+		}
+		printingFlavorText := firstNonEmptyCardFlavor(
+			printing.FlavorText,
+			firstFaceFlavor(printing.Faces),
+		)
+
 		printingItems = append(printingItems, cardDetailPrintingData{
+			Name:            cardMetaValue(printing.Name, card.Name),
+			ManaCost:        strings.TrimSpace(printing.ManaCost),
+			TypeLine:        cardMetaValue(printing.TypeLine, card.TypeLine),
+			OracleText:      cardMetaValue(printing.OracleText, "No oracle text."),
+			FlavorText:      printingFlavorText,
 			ImageURI:        imageURI,
 			SetName:         cardMetaValue(printing.SetName, "Unknown set"),
 			SetCode:         strings.ToUpper(strings.TrimSpace(printing.SetCode)),
@@ -374,8 +554,10 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 			ReleasedAt:      cardMetaValue(printing.ReleasedAt, "Unknown"),
 			Artist:          cardMetaValue(printing.Artist, "Unknown"),
 			PriceUSD:        formatCardPrice(printing.PriceUSD),
+			PriceSort:       cardPriceSortValue(printing.PriceUSD),
 			Lang:            cardMetaValue(strings.ToUpper(strings.TrimSpace(printing.Lang)), "EN"),
 			ScryfallURI:     strings.TrimSpace(printing.ScryfallURI),
+			Faces:           printingFaces,
 		})
 	}
 
@@ -386,6 +568,7 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 			ManaCost:        strings.TrimSpace(card.ManaCost),
 			TypeLine:        cardMetaValue(card.TypeLine, "Type unknown"),
 			OracleText:      cardMetaValue(card.OracleText, "No oracle text."),
+			FlavorText:      cardFlavorText,
 			ImageURI:        cardImageURI,
 			PriceUSD:        formatCardPrice(card.PriceUSD),
 			Artist:          cardMetaValue(cardArtist, "Unknown"),
@@ -416,16 +599,11 @@ func normalizeCardSearchTypeMode(raw string) string {
 }
 
 func normalizeCardSearchTypeValue(raw string) string {
-	raw = strings.TrimSpace(raw)
+	raw = strings.Join(strings.Fields(strings.TrimSpace(raw)), " ")
 	if raw == "" {
 		return ""
 	}
-	for _, option := range advancedCardTypeOptions {
-		if strings.EqualFold(option, raw) {
-			return option
-		}
-	}
-	return ""
+	return raw
 }
 
 func normalizeCardSearchTypeFilters(values, modes []string) []cardSearchTypeFilter {
@@ -461,8 +639,40 @@ func normalizeCardSearchTypeFilters(values, modes []string) []cardSearchTypeFilt
 	return out
 }
 
+func copyCardSearchTypeFilters(filters []cardSearchTypeFilter) []cardSearchTypeFilter {
+	if len(filters) == 0 {
+		return nil
+	}
+	out := make([]cardSearchTypeFilter, len(filters))
+	copy(out, filters)
+	return out
+}
+
+func copyStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, len(values))
+	copy(out, values)
+	return out
+}
+
+func cloneCardSearchRequest(req cardSearchRequest) cardSearchRequest {
+	req.TypeFilters = copyCardSearchTypeFilters(req.TypeFilters)
+	req.ColorParams = copyStringSlice(req.ColorParams)
+	return req
+}
+
 func cardSearchTypeFiltersJSON(filters []cardSearchTypeFilter) string {
 	encoded, err := json.Marshal(filters)
+	if err != nil {
+		return "[]"
+	}
+	return string(encoded)
+}
+
+func cardSearchStringSliceJSON(values []string) string {
+	encoded, err := json.Marshal(values)
 	if err != nil {
 		return "[]"
 	}
@@ -539,6 +749,177 @@ func normalizeAdvancedColorMode(raw string) string {
 	}
 }
 
+func normalizeCardSearchTextMode(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "not":
+		return "not"
+	default:
+		return "contains"
+	}
+}
+
+func normalizeCardSearchLayout(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	for _, option := range advancedCardLayoutOptions {
+		if option.Value == value {
+			return value
+		}
+	}
+	return ""
+}
+
+func normalizeCardSearchStat(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "power":
+		return "power"
+	case "toughness":
+		return "toughness"
+	case "loyalty":
+		return "loyalty"
+	default:
+		return "mana_value"
+	}
+}
+
+func normalizeCardSearchStatOperator(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "lt", "<":
+		return "lt"
+	case "gt", ">":
+		return "gt"
+	case "lte", "<=":
+		return "lte"
+	case "gte", ">=":
+		return "gte"
+	case "neq", "!=", "<>":
+		return "neq"
+	default:
+		return "eq"
+	}
+}
+
+func formatCardSearchStatLabel(raw string) string {
+	switch normalizeCardSearchStat(raw) {
+	case "power":
+		return "Power"
+	case "toughness":
+		return "Toughness"
+	case "loyalty":
+		return "Loyalty"
+	default:
+		return "Mana Value"
+	}
+}
+
+func formatCardSearchStatOperatorLabel(raw string) string {
+	switch normalizeCardSearchStatOperator(raw) {
+	case "lt":
+		return "<"
+	case "gt":
+		return ">"
+	case "lte":
+		return "<="
+	case "gte":
+		return ">="
+	case "neq":
+		return "!="
+	default:
+		return "="
+	}
+}
+
+func formatCardSearchPriceOperatorLabel(raw string) string {
+	return formatCardSearchStatOperatorLabel(raw)
+}
+
+func fallbackCardTypeSuggestions() []string {
+	out := make([]string, len(advancedCardTypeOptions))
+	copy(out, advancedCardTypeOptions)
+	return out
+}
+
+func loadCardSearchTypeSuggestions(r *http.Request, db *sql.DB) ([]string, error) {
+	rows, err := db.QueryContext(r.Context(), `
+		WITH tokens AS (
+			SELECT DISTINCT lower(token) AS token
+			FROM oracle_cards oc,
+			LATERAL regexp_split_to_table(
+				regexp_replace(COALESCE(oc.type_line, ''), '[^[:alnum:]]+', ' ', 'g'),
+				'\s+'
+			) AS token
+		)
+		SELECT token
+		FROM tokens
+		WHERE token <> ''
+		  AND length(token) >= 3
+		ORDER BY token ASC
+		LIMIT 1200
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]string, 0, 256)
+	for rows.Next() {
+		var token string
+		if err := rows.Scan(&token); err != nil {
+			return nil, err
+		}
+		token = strings.TrimSpace(token)
+		if token == "" {
+			continue
+		}
+		out = append(out, strings.ToUpper(token[:1])+token[1:])
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return fallbackCardTypeSuggestions(), nil
+	}
+	return out, nil
+}
+
+func loadCardSearchSetSuggestions(r *http.Request, db *sql.DB) ([]string, error) {
+	rows, err := db.QueryContext(r.Context(), `
+		WITH suggestions AS (
+			SELECT DISTINCT upper(btrim(set_code)) AS suggestion
+			FROM card_prints
+			WHERE btrim(COALESCE(set_code, '')) <> ''
+			UNION
+			SELECT DISTINCT btrim(set_name) AS suggestion
+			FROM card_prints
+			WHERE btrim(COALESCE(set_name, '')) <> ''
+		)
+		SELECT suggestion
+		FROM suggestions
+		ORDER BY suggestion ASC
+		LIMIT 1200
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]string, 0, 256)
+	for rows.Next() {
+		var suggestion string
+		if err := rows.Scan(&suggestion); err != nil {
+			return nil, err
+		}
+		suggestion = strings.TrimSpace(suggestion)
+		if suggestion == "" {
+			continue
+		}
+		out = append(out, suggestion)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func parseOptionalFloatFilter(raw string) (*float64, string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -555,14 +936,63 @@ func parseOptionalFloatFilter(raw string) (*float64, string, error) {
 	return &value, trimmed, nil
 }
 
+func parseOptionalIntFilter(raw string) (*int, string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, "", nil
+	}
+
+	value, err := strconv.Atoi(trimmed)
+	if err != nil {
+		return nil, trimmed, err
+	}
+	if value < 0 {
+		return nil, trimmed, fmt.Errorf("must be zero or greater")
+	}
+	return &value, trimmed, nil
+}
+
 func parseCardSearchRequest(q url.Values) (cardSearchRequest, string) {
+	statOperatorRaw := strings.TrimSpace(q.Get("stat_op"))
+	statValueRaw := strings.TrimSpace(q.Get("stat_value"))
+	priceOperatorRaw := strings.TrimSpace(q.Get("price_op"))
+	priceValueRaw := strings.TrimSpace(q.Get("price_value"))
+	statMinRaw := strings.TrimSpace(q.Get("stat_min"))
+	statMaxRaw := strings.TrimSpace(q.Get("stat_max"))
+	statRaw := strings.TrimSpace(q.Get("stat"))
+	if statRaw == "" && (strings.TrimSpace(q.Get("mana_value_min")) != "" || strings.TrimSpace(q.Get("mana_value_max")) != "") {
+		statRaw = "mana_value"
+		if statMinRaw == "" {
+			statMinRaw = strings.TrimSpace(q.Get("mana_value_min"))
+		}
+		if statMaxRaw == "" {
+			statMaxRaw = strings.TrimSpace(q.Get("mana_value_max"))
+		}
+	}
+
 	req := cardSearchRequest{
-		NameQuery:     strings.TrimSpace(q.Get("q")),
-		TextQuery:     strings.TrimSpace(q.Get("text")),
-		Rarity:        strings.ToLower(strings.TrimSpace(q.Get("rarity"))),
-		SetQuery:      strings.TrimSpace(q.Get("set")),
-		ArtistQuery:   strings.TrimSpace(q.Get("artist")),
-		CommanderOnly: strings.TrimSpace(q.Get("commander")) == "1",
+		NameQuery:      strings.TrimSpace(q.Get("q")),
+		NameExact:      strings.TrimSpace(q.Get("name_exact")) == "1",
+		ManaCostQuery:  strings.TrimSpace(q.Get("mana_cost")),
+		TextQuery:      strings.TrimSpace(q.Get("text")),
+		TextMode:       normalizeCardSearchTextMode(q.Get("text_mode")),
+		TypePartial:    strings.TrimSpace(q.Get("type_partial")) == "1",
+		Layout:         normalizeCardSearchLayout(q.Get("layout")),
+		Stat:           normalizeCardSearchStat(statRaw),
+		StatOperator:   normalizeCardSearchStatOperator(statOperatorRaw),
+		StatValueRaw:   statValueRaw,
+		StatMinRaw:     statMinRaw,
+		StatMaxRaw:     statMaxRaw,
+		Rarity:         strings.ToLower(strings.TrimSpace(q.Get("rarity"))),
+		SetQuery:       strings.TrimSpace(q.Get("set")),
+		ArtistQuery:    strings.TrimSpace(q.Get("artist")),
+		CommanderOnly:  strings.TrimSpace(q.Get("commander")) == "1",
+		CommanderLegal: strings.TrimSpace(q.Get("commander_legal")) == "1",
+		IncludeTokens:  strings.TrimSpace(q.Get("include_tokens")) == "1",
+		PriceOperator:  normalizeCardSearchStatOperator(priceOperatorRaw),
+		PriceValueRaw:  priceValueRaw,
+		PriceMinRaw:    q.Get("price_min"),
+		PriceMaxRaw:    q.Get("price_max"),
 	}
 
 	req.TypeFilters = normalizeCardSearchTypeFilters(q["type_value"], q["type_mode"])
@@ -590,51 +1020,484 @@ func parseCardSearchRequest(q url.Values) (cardSearchRequest, string) {
 		}
 	}
 	req.ColorMode = normalizeAdvancedColorMode(colorModeRaw)
-	req.ManaValueMinRaw = q.Get("mana_value_min")
-	req.ManaValueMaxRaw = q.Get("mana_value_max")
 
-	hasFilters := req.TextQuery != "" ||
+	hasFilters := req.ManaCostQuery != "" ||
+		req.TextQuery != "" ||
 		len(req.TypeFilters) > 0 ||
+		req.Layout != "" ||
+		strings.TrimSpace(req.StatValueRaw) != "" ||
+		strings.TrimSpace(req.StatMinRaw) != "" ||
+		strings.TrimSpace(req.StatMaxRaw) != "" ||
 		len(req.ColorParams) > 0 ||
-		strings.TrimSpace(req.ManaValueMinRaw) != "" ||
-		strings.TrimSpace(req.ManaValueMaxRaw) != "" ||
+		strings.TrimSpace(req.PriceValueRaw) != "" ||
+		strings.TrimSpace(req.PriceMinRaw) != "" ||
+		strings.TrimSpace(req.PriceMaxRaw) != "" ||
 		req.Rarity != "" ||
 		req.SetQuery != "" ||
 		req.ArtistQuery != "" ||
-		req.CommanderOnly
+		req.CommanderOnly ||
+		req.CommanderLegal ||
+		req.IncludeTokens
 	req.HasSearched = req.NameQuery != "" || hasFilters
 
 	var errMsg string
-	manaValueMin, manaValueMinText, minErr := parseOptionalFloatFilter(req.ManaValueMinRaw)
-	manaValueMax, manaValueMaxText, maxErr := parseOptionalFloatFilter(req.ManaValueMaxRaw)
-	req.ManaValueMin = manaValueMin
-	req.ManaValueMax = manaValueMax
-	req.ManaValueMinRaw = manaValueMinText
-	req.ManaValueMaxRaw = manaValueMaxText
+	statValue, statValueText, statValueErr := parseOptionalIntFilter(req.StatValueRaw)
+	req.StatValue = statValue
+	req.StatValueRaw = statValueText
 
-	if minErr != nil || maxErr != nil {
-		errMsg = "Mana value filters must be valid numbers."
-	} else if req.ManaValueMin != nil && req.ManaValueMax != nil && *req.ManaValueMin > *req.ManaValueMax {
-		errMsg = "Mana value minimum cannot be greater than the maximum."
+	if statValueErr != nil {
+		errMsg = "Stat value must be a valid whole number."
+	}
+
+	statMin, statMinText, statMinErr := parseOptionalFloatFilter(req.StatMinRaw)
+	statMax, statMaxText, statMaxErr := parseOptionalFloatFilter(req.StatMaxRaw)
+	req.StatMin = statMin
+	req.StatMax = statMax
+	req.StatMinRaw = statMinText
+	req.StatMaxRaw = statMaxText
+
+	if errMsg == "" {
+		if statMinErr != nil || statMaxErr != nil {
+			errMsg = "Stat filters must be valid numbers."
+		} else if req.StatMin != nil && req.StatMax != nil && *req.StatMin > *req.StatMax {
+			errMsg = formatCardSearchStatLabel(req.Stat) + " minimum cannot be greater than the maximum."
+		}
+	}
+
+	priceValue, priceValueText, priceValueErr := parseOptionalFloatFilter(req.PriceValueRaw)
+	req.PriceValue = priceValue
+	req.PriceValueRaw = priceValueText
+
+	if errMsg == "" && priceValueErr != nil {
+		errMsg = "Price value must be a valid number."
+	}
+
+	priceMin, priceMinText, priceMinErr := parseOptionalFloatFilter(req.PriceMinRaw)
+	priceMax, priceMaxText, priceMaxErr := parseOptionalFloatFilter(req.PriceMaxRaw)
+	req.PriceMin = priceMin
+	req.PriceMax = priceMax
+	req.PriceMinRaw = priceMinText
+	req.PriceMaxRaw = priceMaxText
+
+	if errMsg == "" {
+		if priceMinErr != nil || priceMaxErr != nil {
+			errMsg = "Price filters must be valid numbers."
+		} else if req.PriceMin != nil && req.PriceMax != nil && *req.PriceMin > *req.PriceMax {
+			errMsg = "Price minimum cannot be greater than the maximum."
+		}
 	}
 
 	return req, errMsg
 }
 
+func cardSearchQueryValues(req cardSearchRequest) url.Values {
+	values := url.Values{}
+
+	if value := strings.TrimSpace(req.NameQuery); value != "" {
+		values.Set("q", value)
+		if req.NameExact {
+			values.Set("name_exact", "1")
+		}
+	}
+	if value := strings.TrimSpace(req.ManaCostQuery); value != "" {
+		values.Set("mana_cost", value)
+	}
+	if value := strings.TrimSpace(req.TextQuery); value != "" {
+		values.Set("text", value)
+		if normalizeCardSearchTextMode(req.TextMode) != "contains" {
+			values.Set("text_mode", normalizeCardSearchTextMode(req.TextMode))
+		}
+	}
+	for _, filter := range req.TypeFilters {
+		value := strings.TrimSpace(filter.Value)
+		if value == "" {
+			continue
+		}
+		values.Add("type_value", value)
+		values.Add("type_mode", normalizeCardSearchTypeMode(filter.Mode))
+	}
+	if req.TypePartial && len(req.TypeFilters) > 0 {
+		values.Set("type_partial", "1")
+	}
+	for _, color := range req.ColorParams {
+		color = strings.ToUpper(strings.TrimSpace(color))
+		if color == "" {
+			continue
+		}
+		values.Add("color", color)
+	}
+	if len(req.ColorParams) > 0 && normalizeAdvancedColorMode(req.ColorMode) != "includes" {
+		values.Set("color_mode", normalizeAdvancedColorMode(req.ColorMode))
+	}
+	if value := normalizeCardSearchLayout(req.Layout); value != "" {
+		values.Set("layout", value)
+	}
+	if value := strings.TrimSpace(req.StatValueRaw); value != "" {
+		values.Set("stat", normalizeCardSearchStat(req.Stat))
+		values.Set("stat_op", normalizeCardSearchStatOperator(req.StatOperator))
+		values.Set("stat_value", value)
+	}
+	if value := strings.TrimSpace(req.StatMinRaw); value != "" {
+		values.Set("stat", normalizeCardSearchStat(req.Stat))
+		values.Set("stat_min", value)
+	}
+	if value := strings.TrimSpace(req.StatMaxRaw); value != "" {
+		values.Set("stat", normalizeCardSearchStat(req.Stat))
+		values.Set("stat_max", value)
+	}
+	if value := strings.TrimSpace(req.PriceValueRaw); value != "" {
+		values.Set("price_op", normalizeCardSearchStatOperator(req.PriceOperator))
+		values.Set("price_value", value)
+	}
+	if value := strings.TrimSpace(req.PriceMinRaw); value != "" {
+		values.Set("price_min", value)
+	}
+	if value := strings.TrimSpace(req.PriceMaxRaw); value != "" {
+		values.Set("price_max", value)
+	}
+	if value := strings.ToLower(strings.TrimSpace(req.Rarity)); value != "" {
+		values.Set("rarity", value)
+	}
+	if value := strings.TrimSpace(req.SetQuery); value != "" {
+		values.Set("set", value)
+	}
+	if value := strings.TrimSpace(req.ArtistQuery); value != "" {
+		values.Set("artist", value)
+	}
+	if req.CommanderOnly {
+		values.Set("commander", "1")
+	}
+	if req.CommanderLegal {
+		values.Set("commander_legal", "1")
+	}
+	if req.IncludeTokens {
+		values.Set("include_tokens", "1")
+	}
+
+	return values
+}
+
+func cardSearchPath(req cardSearchRequest) string {
+	values := cardSearchQueryValues(req)
+	if encoded := values.Encode(); encoded != "" {
+		return "/cards?" + encoded
+	}
+	return "/cards"
+}
+
+func cardSearchEditPath(req cardSearchRequest) string {
+	values := cardSearchQueryValues(req)
+	if encoded := values.Encode(); encoded != "" {
+		values.Set("edit", "1")
+		return "/cards/search?" + values.Encode()
+	}
+	return "/cards/search"
+}
+
+func buildCardSearchFilterChips(req cardSearchRequest) []cardSearchFilterChip {
+	chips := make([]cardSearchFilterChip, 0)
+
+	if value := strings.TrimSpace(req.NameQuery); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.NameQuery = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Name: " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if req.NameExact && strings.TrimSpace(req.NameQuery) != "" {
+		next := cloneCardSearchRequest(req)
+		next.NameExact = false
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Exact name match",
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.ManaCostQuery); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.ManaCostQuery = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Mana Cost: " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.TextQuery); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.TextQuery = ""
+		next.TextMode = "contains"
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Text: " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if strings.TrimSpace(req.TextQuery) != "" && normalizeCardSearchTextMode(req.TextMode) == "not" {
+		next := cloneCardSearchRequest(req)
+		next.TextMode = "contains"
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Text: Does not contain",
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	for idx, filter := range req.TypeFilters {
+		next := cloneCardSearchRequest(req)
+		next.TypeFilters = append(copyCardSearchTypeFilters(req.TypeFilters[:idx]), req.TypeFilters[idx+1:]...)
+		label := "Type: " + strings.TrimSpace(filter.Value)
+		if normalizeCardSearchTypeMode(filter.Mode) == "not" {
+			label = "Type: NOT " + strings.TrimSpace(filter.Value)
+		}
+		chips = append(chips, cardSearchFilterChip{
+			Label:      label,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if req.TypePartial && len(req.TypeFilters) > 0 {
+		next := cloneCardSearchRequest(req)
+		next.TypePartial = false
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Allow partial type matches",
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if len(req.ColorParams) > 0 {
+		mode := normalizeAdvancedColorMode(req.ColorMode)
+		if mode == "exact" || mode == "at_most" {
+			next := cloneCardSearchRequest(req)
+			next.ColorMode = "includes"
+			label := "Color match: Exactly these"
+			if mode == "at_most" {
+				label = "Color match: At most these"
+			}
+			chips = append(chips, cardSearchFilterChip{
+				Label:      label,
+				RemovePath: cardSearchPath(next),
+			})
+		}
+
+		for idx, color := range req.ColorParams {
+			next := cloneCardSearchRequest(req)
+			next.ColorParams = append(copyStringSlice(req.ColorParams[:idx]), req.ColorParams[idx+1:]...)
+			if len(next.ColorParams) == 0 {
+				next.ColorMode = "includes"
+			}
+			chips = append(chips, cardSearchFilterChip{
+				Label:      "Color: " + formatCardColorNames([]string{color}),
+				RemovePath: cardSearchPath(next),
+			})
+		}
+	}
+
+	if value := normalizeCardSearchLayout(req.Layout); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.Layout = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Layout: " + formatCardSearchLayoutLabel(value),
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	statLabel := formatCardSearchStatLabel(req.Stat)
+	if value := strings.TrimSpace(req.StatValueRaw); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.StatValue = nil
+		next.StatValueRaw = ""
+		next.StatOperator = "eq"
+		chips = append(chips, cardSearchFilterChip{
+			Label:      statLabel + " " + formatCardSearchStatOperatorLabel(req.StatOperator) + " " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.StatMinRaw); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.StatMin = nil
+		next.StatMinRaw = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      statLabel + " >= " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.StatMaxRaw); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.StatMax = nil
+		next.StatMaxRaw = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      statLabel + " <= " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.PriceMinRaw); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.PriceMin = nil
+		next.PriceMinRaw = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Price >= $" + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.PriceValueRaw); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.PriceValue = nil
+		next.PriceValueRaw = ""
+		next.PriceOperator = "eq"
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Price " + formatCardSearchPriceOperatorLabel(req.PriceOperator) + " $" + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.PriceMaxRaw); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.PriceMax = nil
+		next.PriceMaxRaw = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Price <= $" + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.Rarity); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.Rarity = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Rarity: " + formatCardSearchRarityLabel(value),
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.SetQuery); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.SetQuery = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Set: " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if value := strings.TrimSpace(req.ArtistQuery); value != "" {
+		next := cloneCardSearchRequest(req)
+		next.ArtistQuery = ""
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Artist: " + value,
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if req.CommanderOnly {
+		next := cloneCardSearchRequest(req)
+		next.CommanderOnly = false
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Commander candidates",
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if req.CommanderLegal {
+		next := cloneCardSearchRequest(req)
+		next.CommanderLegal = false
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Commander legal",
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	if req.IncludeTokens {
+		next := cloneCardSearchRequest(req)
+		next.IncludeTokens = false
+		chips = append(chips, cardSearchFilterChip{
+			Label:      "Include tokens",
+			RemovePath: cardSearchPath(next),
+		})
+	}
+
+	return chips
+}
+
+func buildSavedDeckPickerItems(userDecks []decks.Deck) []deckListItem {
+	items := make([]deckListItem, 0, len(userDecks))
+	for _, d := range userDecks {
+		items = append(items, deckListItem{
+			ID:            d.ID,
+			Name:          d.Name,
+			Description:   d.Description,
+			Format:        d.Format,
+			CommanderName: d.CommanderName,
+			IsPublic:      d.IsPublic,
+			PublicSlug:    d.PublicSlug,
+			PowerBracket:  d.PowerBracket,
+		})
+	}
+	return items
+}
+
+func formatCardSearchRarityLabel(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "common":
+		return "Common"
+	case "uncommon":
+		return "Uncommon"
+	case "rare":
+		return "Rare"
+	case "mythic":
+		return "Mythic"
+	default:
+		return strings.TrimSpace(raw)
+	}
+}
+
+func formatCardSearchLayoutLabel(raw string) string {
+	value := normalizeCardSearchLayout(raw)
+	for _, option := range advancedCardLayoutOptions {
+		if option.Value == value {
+			return option.Label
+		}
+	}
+	return strings.TrimSpace(raw)
+}
+
 func (req cardSearchRequest) searchParams(limit int) cards.CardSearchParams {
+	var statValue *float64
+	if req.StatValue != nil {
+		value := float64(*req.StatValue)
+		statValue = &value
+	}
+
 	return cards.CardSearchParams{
-		Query:         req.NameQuery,
-		OracleText:    req.TextQuery,
-		TypeFilters:   toCardTypeFilters(req.TypeFilters),
-		Colors:        req.ColorParams,
-		ColorMode:     req.ColorMode,
-		ManaValueMin:  req.ManaValueMin,
-		ManaValueMax:  req.ManaValueMax,
-		Rarity:        req.Rarity,
-		SetQuery:      req.SetQuery,
-		ArtistQuery:   req.ArtistQuery,
-		CommanderOnly: req.CommanderOnly,
-		Limit:         limit,
+		Query:          req.NameQuery,
+		NameExact:      req.NameExact,
+		ManaCost:       req.ManaCostQuery,
+		OracleText:     req.TextQuery,
+		OracleTextNot:  normalizeCardSearchTextMode(req.TextMode) == "not",
+		TypeFilters:    toCardTypeFilters(req.TypeFilters),
+		TypePartial:    req.TypePartial,
+		Colors:         req.ColorParams,
+		ColorMode:      req.ColorMode,
+		Stat:           req.Stat,
+		StatOperator:   req.StatOperator,
+		StatValue:      statValue,
+		PriceOperator:  req.PriceOperator,
+		PriceValue:     req.PriceValue,
+		StatMin:        req.StatMin,
+		StatMax:        req.StatMax,
+		PriceUSDMin:    req.PriceMin,
+		PriceUSDMax:    req.PriceMax,
+		Rarity:         req.Rarity,
+		SetQuery:       req.SetQuery,
+		ArtistQuery:    req.ArtistQuery,
+		Layout:         req.Layout,
+		CommanderLegal: req.CommanderLegal,
+		CommanderOnly:  req.CommanderOnly,
+		IncludeTokens:  req.IncludeTokens,
+		Limit:          limit,
 	}
 }
 
@@ -644,30 +1507,49 @@ func (a *App) HandleCardList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := CurrentUser(r)
-	flash := readFlash(w, r)
 	req, errMsg := parseCardSearchRequest(r.URL.Query())
+	if errMsg != "" {
+		http.Redirect(w, r, cardSearchEditPath(req), http.StatusSeeOther)
+		return
+	}
+
+	user := CurrentUser(r)
+	currentPath := cardSearchPath(req)
+
+	savedDecks := []deckListItem(nil)
+	if user != nil {
+		userDecks, err := decks.ListDecksByUser(r.Context(), a.DB, user.ID)
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
+		savedDecks = buildSavedDeckPickerItems(userDecks)
+	}
 
 	var results []cards.Card
-	if req.HasSearched && errMsg == "" {
-		found, err := cards.SearchCards(r.Context(), a.DB, req.searchParams(120))
-		if err != nil {
-			errMsg = "We couldn't search for cards right now. Please try again."
-		} else {
-			if singlePath := singleCardResultPath(found); singlePath != "" {
-				http.Redirect(w, r, singlePath, http.StatusSeeOther)
-				return
-			}
-			results = found
+	found, err := cards.SearchCards(r.Context(), a.DB, req.searchParams(120))
+	if err != nil {
+		errMsg = "We couldn't search for cards right now. Please try again."
+	} else {
+		if singlePath := singleCardResultPath(found); singlePath != "" {
+			http.Redirect(w, r, singlePath, http.StatusSeeOther)
+			return
 		}
+		results = found
 	}
+
+	flash := readFlash(w, r)
 
 	data := TemplateData{
 		CurrentUser: user,
 		Data: cardListPageData{
-			Query:       req.NameQuery,
-			Results:     buildSearchResults(results),
-			HasSearched: req.HasSearched,
+			Results:         buildSearchResults(results),
+			HasSearched:     true,
+			SavedDecks:      savedDecks,
+			AppliedFilters:  buildCardSearchFilterChips(req),
+			CurrentPath:     currentPath,
+			ClearPath:       "/cards/search",
+			EditFiltersPath: cardSearchEditPath(req),
 		},
 		Flash: flash,
 		Error: errMsg,
@@ -682,42 +1564,55 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req, errMsg := parseCardSearchRequest(r.URL.Query())
+	viewRequested := strings.TrimSpace(r.URL.Query().Get("view")) == "1"
+	if (req.HasSearched || viewRequested) && errMsg == "" && strings.TrimSpace(r.URL.Query().Get("edit")) != "1" {
+		http.Redirect(w, r, cardSearchPath(req), http.StatusSeeOther)
+		return
+	}
+
 	user := CurrentUser(r)
 	flash := readFlash(w, r)
-	req, errMsg := parseCardSearchRequest(r.URL.Query())
-
-	var results []cards.Card
-	if req.HasSearched && errMsg == "" {
-		found, err := cards.SearchCards(r.Context(), a.DB, req.searchParams(120))
-		if err != nil {
-			errMsg = "We couldn't search for cards right now. Please try again."
-		} else {
-			if singlePath := singleCardResultPath(found); singlePath != "" {
-				http.Redirect(w, r, singlePath, http.StatusSeeOther)
-				return
-			}
-			results = found
-		}
+	typeOptions, typeOptionsErr := loadCardSearchTypeSuggestions(r, a.DB)
+	if typeOptionsErr != nil || len(typeOptions) == 0 {
+		typeOptions = fallbackCardTypeSuggestions()
 	}
+	setSuggestions, _ := loadCardSearchSetSuggestions(r, a.DB)
 
 	data := TemplateData{
 		CurrentUser: user,
 		Data: cardSearchPageData{
-			NameQuery:       req.NameQuery,
-			TextQuery:       req.TextQuery,
-			TypeOptions:     advancedCardTypeOptions,
-			TypeFilters:     req.TypeFilters,
-			TypeFiltersJSON: cardSearchTypeFiltersJSON(req.TypeFilters),
-			ColorsSelected:  selectedColorMap(req.ColorParams),
-			ColorMode:       req.ColorMode,
-			ManaValueMin:    req.ManaValueMinRaw,
-			ManaValueMax:    req.ManaValueMaxRaw,
-			Rarity:          req.Rarity,
-			SetQuery:        req.SetQuery,
-			ArtistQuery:     req.ArtistQuery,
-			CommanderOnly:   req.CommanderOnly,
-			Results:         buildSearchResults(results),
-			HasSearched:     req.HasSearched,
+			NameQuery:             req.NameQuery,
+			NameExact:             req.NameExact,
+			ManaCostQuery:         req.ManaCostQuery,
+			TextQuery:             req.TextQuery,
+			TextMode:              req.TextMode,
+			TypeOptions:           typeOptions,
+			TypeOptionsJSON:       cardSearchStringSliceJSON(typeOptions),
+			TypeFilters:           req.TypeFilters,
+			TypeFiltersJSON:       cardSearchTypeFiltersJSON(req.TypeFilters),
+			TypePartial:           req.TypePartial,
+			SetSuggestions:        setSuggestions,
+			LayoutOptions:         advancedCardLayoutOptions,
+			SelectedLayout:        req.Layout,
+			StatOptions:           advancedCardStatOptions,
+			StatOperatorOptions:   advancedCardStatOperatorOptions,
+			SelectedStat:          normalizeCardSearchStat(req.Stat),
+			SelectedStatOperator:  normalizeCardSearchStatOperator(req.StatOperator),
+			StatValue:             req.StatValueRaw,
+			PriceOperatorOptions:  advancedCardStatOperatorOptions,
+			SelectedPriceOperator: normalizeCardSearchStatOperator(req.PriceOperator),
+			PriceValue:            req.PriceValueRaw,
+			ColorsSelected:        selectedColorMap(req.ColorParams),
+			ColorMode:             req.ColorMode,
+			Rarity:                req.Rarity,
+			SetQuery:              req.SetQuery,
+			ArtistQuery:           req.ArtistQuery,
+			CommanderOnly:         req.CommanderOnly,
+			CommanderLegal:        req.CommanderLegal,
+			IncludeTokens:         req.IncludeTokens,
+			SearchActionPath:      "/cards/search",
+			ClearPath:             "/cards/search",
 		},
 		Flash: flash,
 		Error: errMsg,
@@ -764,9 +1659,23 @@ func (a *App) HandleCardShow(w http.ResponseWriter, r *http.Request) {
 		printings = []cards.Card{*card}
 	}
 
+	savedDecks := []deckListItem(nil)
+	if user != nil {
+		userDecks, err := decks.ListDecksByUser(r.Context(), a.DB, user.ID)
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
+		savedDecks = buildSavedDeckPickerItems(userDecks)
+	}
+
+	page := buildCardDetailPageData(*card, printings)
+	page.SavedDecks = savedDecks
+	page.CurrentPath = r.URL.RequestURI()
+
 	data := TemplateData{
 		CurrentUser: user,
-		Data:        buildCardDetailPageData(*card, printings),
+		Data:        page,
 		Flash:       flash,
 		WideLayout:  true,
 	}
