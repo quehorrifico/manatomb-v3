@@ -27,6 +27,7 @@ const (
 	scryfallMaxRetryDelay   = 30 * time.Second
 	defaultBulkSyncInterval = 24 * time.Hour
 	cardSyncAdvisoryLockKey = int64(91342817)
+	cardSyncDataVersion     = 1
 )
 
 var ErrCardSyncInProgress = errors.New("card sync already running")
@@ -1040,15 +1041,16 @@ func applyBulkRows(
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		UPDATE card_sync_state
-		SET
-			last_attempt_at = NOW(),
-			last_success_at = NOW(),
-			source_updated_at = $1,
-			last_error = '',
-			card_count = (SELECT COUNT(*) FROM oracle_cards)
-		WHERE id = 1
-	`, sourceUpdatedAt); err != nil {
+			UPDATE card_sync_state
+			SET
+				last_attempt_at = NOW(),
+				last_success_at = NOW(),
+				source_updated_at = $1,
+				last_error = '',
+				card_count = (SELECT COUNT(*) FROM oracle_cards),
+				data_version = $2
+			WHERE id = 1
+		`, sourceUpdatedAt, cardSyncDataVersion); err != nil {
 		return err
 	}
 
@@ -1190,17 +1192,23 @@ func CardSyncDue(ctx context.Context, db *sql.DB, maxAge time.Duration) (bool, e
 		return true, nil
 	}
 
-	var lastSuccess sql.NullTime
+	var (
+		lastSuccess sql.NullTime
+		dataVersion int
+	)
 	err := db.QueryRowContext(ctx, `
-		SELECT last_success_at
+		SELECT last_success_at, COALESCE(data_version, 0)
 		FROM card_sync_state
 		WHERE id = 1
-	`).Scan(&lastSuccess)
+	`).Scan(&lastSuccess, &dataVersion)
 	if err == sql.ErrNoRows {
 		return true, nil
 	}
 	if err != nil {
 		return false, err
+	}
+	if dataVersion < cardSyncDataVersion {
+		return true, nil
 	}
 	if !lastSuccess.Valid {
 		return true, nil

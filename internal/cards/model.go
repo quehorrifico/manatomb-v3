@@ -420,6 +420,9 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS flavor_text TEXT`); err != nil {
 		return err
 	}
+	if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS idx_card_prints_set_collector_lang`); err != nil {
+		return err
+	}
 
 	if _, err := db.ExecContext(ctx, `
 		DO $$
@@ -451,7 +454,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_oracle_cards_loyalty_value ON oracle_cards (loyalty_value);`,
 		`CREATE INDEX IF NOT EXISTS idx_card_prints_oracle_id ON card_prints (oracle_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_card_prints_oracle_released ON card_prints (oracle_id, released_at DESC);`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_card_prints_set_collector_lang ON card_prints (set_code, collector_number, lang);`,
+		`CREATE INDEX IF NOT EXISTS idx_card_prints_set_collector_lang ON card_prints (set_code, collector_number, lang);`,
 	}
 	for _, stmt := range indexStmts {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
@@ -466,9 +469,13 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 			last_success_at TIMESTAMPTZ,
 			source_updated_at TIMESTAMPTZ,
 			last_error TEXT,
-			card_count INTEGER NOT NULL DEFAULT 0
+			card_count INTEGER NOT NULL DEFAULT 0,
+			data_version INTEGER NOT NULL DEFAULT 0
 		);
 	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `ALTER TABLE card_sync_state ADD COLUMN IF NOT EXISTS data_version INTEGER NOT NULL DEFAULT 0`); err != nil {
 		return err
 	}
 	if _, err := db.ExecContext(ctx, `

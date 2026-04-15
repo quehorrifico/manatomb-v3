@@ -87,6 +87,7 @@ go run ./cmd/server --sync-now
 Sync behavior:
 
 - The app schedules a bulk sync every 24 hours from process start.
+- The app also runs an immediate startup sync automatically when local card data is missing or on an older app data version.
 - You can force an immediate startup sync with `--sync-now` or `CARD_SYNC_ON_START=true`.
 
 Navigate to:
