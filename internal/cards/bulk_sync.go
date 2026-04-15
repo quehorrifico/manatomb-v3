@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,8 +64,15 @@ type oracleBulkRow struct {
 	CMC                  float64
 	TypeLine             string
 	OracleText           string
+	FlavorText           string
 	Colors               []string
 	ColorIdentity        []string
+	PowerText            string
+	ToughnessText        string
+	LoyaltyText          string
+	PowerValue           sql.NullFloat64
+	ToughnessValue       sql.NullFloat64
+	LoyaltyValue         sql.NullFloat64
 	Layout               string
 	CardFacesJSON        string
 	AllPartsJSON         string
@@ -81,6 +89,7 @@ type printBulkRow struct {
 	CollectorNumber string
 	Lang            string
 	ReleasedAt      sql.NullTime
+	FlavorText      string
 	ImageURIsJSON   string
 	ImageURI        string
 	CardFacesJSON   string
@@ -119,6 +128,18 @@ func nonNilStrings(values []string) []string {
 		return []string{}
 	}
 	return values
+}
+
+func parseNumericCardStat(raw string) sql.NullFloat64 {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return sql.NullFloat64{}
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return sql.NullFloat64{}
+	}
+	return sql.NullFloat64{Float64: value, Valid: true}
 }
 
 func supportsPaper(games []string) bool {
@@ -439,8 +460,15 @@ func decodeOracleRows(ctx context.Context, downloadURI string, maxRows int) ([]o
 			CMC:                  card.CMC,
 			TypeLine:             card.TypeLine,
 			OracleText:           card.OracleText,
+			FlavorText:           card.FlavorText,
 			Colors:               nonNilStrings(card.Colors),
 			ColorIdentity:        nonNilStrings(card.ColorIdentity),
+			PowerText:            strings.TrimSpace(card.Power),
+			ToughnessText:        strings.TrimSpace(card.Toughness),
+			LoyaltyText:          strings.TrimSpace(card.Loyalty),
+			PowerValue:           parseNumericCardStat(card.Power),
+			ToughnessValue:       parseNumericCardStat(card.Toughness),
+			LoyaltyValue:         parseNumericCardStat(card.Loyalty),
 			Layout:               card.Layout,
 			CardFacesJSON:        facesJSON,
 			AllPartsJSON:         allPartsJSON,
@@ -509,6 +537,7 @@ func decodePrintRows(ctx context.Context, downloadURI string, maxRows int) ([]pr
 				Time:  releasedAt,
 				Valid: hasRelease,
 			},
+			FlavorText:    card.FlavorText,
 			ImageURIsJSON: imageURIsJSON,
 			ImageURI:      card.ImageURI,
 			CardFacesJSON: cardFacesJSON,
@@ -602,8 +631,15 @@ func applyBulkRows(
 			cmc DOUBLE PRECISION,
 			type_line TEXT,
 			oracle_text TEXT,
+			flavor_text TEXT,
 			colors TEXT[] NOT NULL,
 			color_identity TEXT[] NOT NULL,
+			power_text TEXT,
+			toughness_text TEXT,
+			loyalty_text TEXT,
+			power_value DOUBLE PRECISION,
+			toughness_value DOUBLE PRECISION,
+			loyalty_value DOUBLE PRECISION,
 			layout TEXT,
 			card_faces JSONB,
 			all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -623,6 +659,7 @@ func applyBulkRows(
 			collector_number TEXT NOT NULL,
 			lang TEXT NOT NULL,
 			released_at DATE,
+			flavor_text TEXT,
 			image_uris JSONB,
 			image_uri TEXT,
 			card_faces_json JSONB,
@@ -644,8 +681,15 @@ func applyBulkRows(
 		"cmc",
 		"type_line",
 		"oracle_text",
+		"flavor_text",
 		"colors",
 		"color_identity",
+		"power_text",
+		"toughness_text",
+		"loyalty_text",
+		"power_value",
+		"toughness_value",
+		"loyalty_value",
 		"layout",
 		"card_faces",
 		"all_parts",
@@ -664,8 +708,15 @@ func applyBulkRows(
 			row.CMC,
 			row.TypeLine,
 			row.OracleText,
+			row.FlavorText,
 			pq.Array(nonNilStrings(row.Colors)),
 			pq.Array(nonNilStrings(row.ColorIdentity)),
+			row.PowerText,
+			row.ToughnessText,
+			row.LoyaltyText,
+			row.PowerValue,
+			row.ToughnessValue,
+			row.LoyaltyValue,
 			row.Layout,
 			row.CardFacesJSON,
 			row.AllPartsJSON,
@@ -694,6 +745,7 @@ func applyBulkRows(
 		"collector_number",
 		"lang",
 		"released_at",
+		"flavor_text",
 		"image_uris",
 		"image_uri",
 		"card_faces_json",
@@ -715,6 +767,7 @@ func applyBulkRows(
 			row.CollectorNumber,
 			row.Lang,
 			row.ReleasedAt,
+			row.FlavorText,
 			row.ImageURIsJSON,
 			row.ImageURI,
 			row.CardFacesJSON,
@@ -757,8 +810,15 @@ func applyBulkRows(
 			cmc,
 			type_line,
 			oracle_text,
+			flavor_text,
 			colors,
 			color_identity,
+			power_text,
+			toughness_text,
+			loyalty_text,
+			power_value,
+			toughness_value,
+			loyalty_value,
 			layout,
 			card_faces,
 			all_parts,
@@ -773,8 +833,15 @@ func applyBulkRows(
 			s.cmc,
 			s.type_line,
 			s.oracle_text,
+			s.flavor_text,
 			s.colors,
 			s.color_identity,
+			s.power_text,
+			s.toughness_text,
+			s.loyalty_text,
+			s.power_value,
+			s.toughness_value,
+			s.loyalty_value,
 			s.layout,
 			s.card_faces,
 			s.all_parts,
@@ -789,8 +856,15 @@ func applyBulkRows(
 			cmc = EXCLUDED.cmc,
 			type_line = EXCLUDED.type_line,
 			oracle_text = EXCLUDED.oracle_text,
+			flavor_text = EXCLUDED.flavor_text,
 			colors = EXCLUDED.colors,
 			color_identity = EXCLUDED.color_identity,
+			power_text = EXCLUDED.power_text,
+			toughness_text = EXCLUDED.toughness_text,
+			loyalty_text = EXCLUDED.loyalty_text,
+			power_value = EXCLUDED.power_value,
+			toughness_value = EXCLUDED.toughness_value,
+			loyalty_value = EXCLUDED.loyalty_value,
 			layout = EXCLUDED.layout,
 			card_faces = EXCLUDED.card_faces,
 			all_parts = EXCLUDED.all_parts,
@@ -813,6 +887,7 @@ func applyBulkRows(
 			collector_number,
 			lang,
 			released_at,
+			flavor_text,
 			image_uris,
 			image_uri,
 			card_faces_json,
@@ -830,6 +905,7 @@ func applyBulkRows(
 			s.collector_number,
 			s.lang,
 			s.released_at,
+			s.flavor_text,
 			s.image_uris,
 			s.image_uri,
 			s.card_faces_json,
@@ -847,6 +923,7 @@ func applyBulkRows(
 			collector_number = EXCLUDED.collector_number,
 			lang = EXCLUDED.lang,
 			released_at = EXCLUDED.released_at,
+			flavor_text = EXCLUDED.flavor_text,
 			image_uris = EXCLUDED.image_uris,
 			image_uri = EXCLUDED.image_uri,
 			card_faces_json = EXCLUDED.card_faces_json,

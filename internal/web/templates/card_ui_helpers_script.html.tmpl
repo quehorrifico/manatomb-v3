@@ -1,0 +1,131 @@
+{{ define "card_ui_helpers_script" }}
+  <script>
+    window.ManatombCardUI = window.ManatombCardUI || (function () {
+      function trimValue(value) {
+        return String(value || "").trim();
+      }
+
+      function pickString(item) {
+        if (!item) return "";
+        for (var i = 1; i < arguments.length; i++) {
+          var candidate = trimValue(item[arguments[i]]);
+          if (candidate) {
+            return candidate;
+          }
+        }
+        return "";
+      }
+
+      function escapeHTML(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function manaSymbolAssetName(symbol) {
+        var normalized = trimValue(symbol).toUpperCase();
+        if (!normalized) return "";
+        return normalized.replace(/\//g, "");
+      }
+
+      function renderCardSymbol(symbol, sizeClass) {
+        var raw = trimValue(symbol);
+        var assetName = manaSymbolAssetName(raw);
+        if (!assetName) return "";
+        return '<img src="https://svgs.scryfall.io/card-symbols/' +
+          encodeURIComponent(assetName) +
+          '.svg" alt="{' + escapeHTML(raw) + '}" title="{' + escapeHTML(raw) + '}" class="inline-block ' +
+          (sizeClass || "h-4 w-4") +
+          ' align-text-bottom">';
+      }
+
+      function renderManaSymbols(manaCost) {
+        var cost = trimValue(manaCost);
+        if (!cost) return "";
+        var html = "";
+        var re = /\{([^}]+)\}/g;
+        var match;
+        while ((match = re.exec(cost)) !== null) {
+          html += renderCardSymbol(match[1], "h-5 w-5 mr-0.5");
+        }
+        return html;
+      }
+
+      function renderCardTextMarkup(text, emptyText) {
+        var raw = String(text || "");
+        if (!trimValue(raw)) {
+          return emptyText || "";
+        }
+        var parts = raw.split(/(\{[^}]+\})/g);
+        var html = "";
+        for (var i = 0; i < parts.length; i++) {
+          var part = parts[i];
+          if (!part) continue;
+          if (/^\{[^}]+\}$/.test(part)) {
+            html += renderCardSymbol(part.slice(1, -1), "h-4 w-4 mx-[1px]");
+          } else {
+            html += escapeHTML(part).replace(/\n/g, "<br>");
+          }
+        }
+        return html;
+      }
+
+      function formatPriceDisplay(raw, emptyText) {
+        var value = trimValue(raw);
+        if (!value) return emptyText || "—";
+        return value.charAt(0) === "$" ? value : ("$" + value);
+      }
+
+      function formatPrintingLabel(item, index) {
+        var setName = pickString(item, "SetName", "set_name");
+        var setCode = pickString(item, "SetCode", "set_code").toUpperCase();
+        var collectorNumber = pickString(item, "CollectorNumber", "collector_number");
+        var releasedAt = pickString(item, "ReleasedAt", "released_at");
+
+        if (!setName && !setCode) {
+          return "Printing " + String((Number(index) || 0) + 1);
+        }
+
+        var label = setName || setCode;
+        if (setName && setCode) {
+          label += " (" + setCode + ")";
+        }
+        if (collectorNumber && collectorNumber !== "N/A") {
+          label += " #" + collectorNumber;
+        }
+        if (releasedAt && releasedAt !== "Unknown") {
+          label += " · " + releasedAt;
+        }
+        return label;
+      }
+
+      function releaseSortValue(item) {
+        var raw = pickString(item, "ReleasedAt", "released_at");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "";
+        return raw;
+      }
+
+      function formatRarityLabel(raw) {
+        raw = trimValue(raw).toLowerCase();
+        if (!raw) return "";
+        return raw.charAt(0).toUpperCase() + raw.slice(1);
+      }
+
+      return {
+        trimValue: trimValue,
+        pickString: pickString,
+        escapeHTML: escapeHTML,
+        renderCardSymbol: renderCardSymbol,
+        renderManaSymbols: renderManaSymbols,
+        renderCardTextMarkup: renderCardTextMarkup,
+        formatPriceDisplay: formatPriceDisplay,
+        formatPrintingLabel: formatPrintingLabel,
+        releaseSortValue: releaseSortValue,
+        formatRarityLabel: formatRarityLabel
+      };
+    })();
+  </script>
+{{ end }}

@@ -3,94 +3,86 @@
   {{ $ctx := .Data }}
 
   <main class="max-w-6xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div class="space-y-2">
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Advanced Card Search</h1>
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        {{ if .CurrentUser }}
-          <a href="/decks" class="mt-btn mt-btn--secondary mt-btn--sm">Decks</a>
-        {{ end }}
-        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Advanced Search</h1>
+        <p class="text-sm text-slate-400">Set the filters you want, then open the results page to review matching cards.</p>
       </div>
     </div>
 
     <section class="mt-panel p-5 sm:p-6 space-y-6">
+      <form method="GET" action="{{ $ctx.SearchActionPath }}" class="space-y-6" data-card-search-form>
+        <input type="hidden" name="view" value="1">
+        <section class="space-y-4">
+          <div class="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div class="space-y-3">
+              <label class="block text-sm text-slate-200">
+                <span class="mt-field-label">Name</span>
+                <div class="relative" data-card-autocomplete-root>
+                  <input type="text"
+                         name="q"
+                         value="{{ $ctx.NameQuery }}"
+                         placeholder="Thassa's Oracle"
+                         class="mt-control"
+                         autocomplete="off"
+                         aria-autocomplete="list"
+                         aria-expanded="false"
+                         aria-haspopup="listbox"
+                         data-card-autocomplete-input>
+                  <div
+                    data-card-autocomplete-menu
+                    class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                    role="listbox"></div>
+                </div>
+              </label>
 
-      <form method="GET" action="/cards/search" class="space-y-6">
-        <section class="space-y-3">
-          <div class="grid gap-4 lg:grid-cols-3">
-            <label class="block text-sm text-slate-200">
-              <span class="mt-field-label">Name</span>
-              <div class="relative" data-card-autocomplete-root>
+              <label class="block text-sm text-slate-200">
+                <span class="mt-field-label">Mana Cost</span>
                 <input type="text"
-                       name="q"
-                       value="{{ $ctx.NameQuery }}"
-                       placeholder="Thassa's Oracle"
-                       class="mt-control"
-                       autocomplete="off"
-                       aria-autocomplete="list"
-                       aria-expanded="false"
-                       aria-haspopup="listbox"
-                       data-card-autocomplete-input>
-                <div
-                  data-card-autocomplete-menu
-                  class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
-                  role="listbox"></div>
-              </div>
-            </label>
+                       name="mana_cost"
+                       value="{{ $ctx.ManaCostQuery }}"
+                       placeholder="{W}{W}"
+                       class="mt-control">
+              </label>
 
-            <label class="block text-sm text-slate-200">
-              <span class="mt-field-label">Text</span>
-              <input type="text"
-                     name="text"
-                     value="{{ $ctx.TextQuery }}"
-                     placeholder="When this creature enters, look at the top X cards of your library..."
-                     class="mt-control">
-            </label>
+              <label class="mt-check-pill">
+                <input type="checkbox" name="name_exact" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.NameExact }}checked{{ end }}>
+                <span>Exact card name only</span>
+              </label>
+            </div>
+
+            <div class="space-y-3">
+              <span class="mt-field-label !mb-0">Rules Text</span>
+              <label class="block text-sm text-slate-200">
+                <input type="text"
+                       name="text"
+                       value="{{ $ctx.TextQuery }}"
+                       placeholder="draw a card"
+                       class="mt-control">
+              </label>
+              <p class="mt-hint">Searches the oracle text already stored in the app database.</p>
+            </div>
 
             <div class="space-y-2" data-type-filter-root>
               <div class="flex items-center justify-between gap-2">
                 <span class="mt-field-label !mb-0">Type Line</span>
-                <span class="text-[11px] text-slate-500">Add one or more types.</span>
+                <span class="text-[11px] text-slate-500">Add multiple types, then set each one to IS or NOT.</span>
               </div>
 
               <div class="space-y-3">
                 <div class="relative">
-                  <div class="flex gap-2">
-                    <input type="text"
-                           data-type-filter-input
-                           placeholder="Search card types"
-                           autocomplete="off"
-                           class="mt-control">
-                    <button type="button"
-                            data-type-filter-toggle
-                            class="mt-btn mt-btn--secondary mt-btn--sm"
-                            aria-label="Show card types">
-                      Types
-                    </button>
-                    <button type="button"
-                            data-type-filter-add
-                            class="mt-btn mt-btn--secondary mt-btn--sm">
-                      Add
-                    </button>
-                  </div>
-
-                  <div data-type-filter-menu hidden class="absolute left-0 right-0 z-20 mt-2 rounded-xl border border-slate-700 bg-slate-950/98 shadow-2xl shadow-slate-950/60">
-                    <div class="max-h-56 overflow-y-auto p-2 space-y-1">
-                      {{ range $ctx.TypeOptions }}
-                        <button type="button"
-                                data-type-filter-option="{{ . }}"
-                                class="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition-colors hover:bg-slate-800 hover:text-slate-50">
-                          {{ . }}
-                        </button>
-                      {{ end }}
-                      <div data-type-filter-empty hidden class="rounded-lg px-3 py-2 text-sm text-slate-500">
-                        No matching types.
-                      </div>
-                    </div>
-                  </div>
+                  <input type="text"
+                         data-type-filter-input
+                         placeholder="Search card types"
+                         autocomplete="off"
+                         aria-autocomplete="list"
+                         aria-expanded="false"
+                         aria-haspopup="listbox"
+                         class="mt-control">
+                  <div
+                    data-type-filter-menu
+                    class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                    role="listbox"></div>
                 </div>
 
                 <div data-type-filter-selected class="flex flex-wrap gap-2"></div>
@@ -100,7 +92,11 @@
                     <input type="hidden" name="type_mode" value="{{ .Mode }}">
                   {{ end }}
                 </div>
-                <p data-type-filter-status class="mt-hint">Each type can be set to `IS` or `NOT`.</p>
+                <label class="mt-check-pill">
+                  <input type="checkbox" name="type_partial" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.TypePartial }}checked{{ end }}>
+                  <span>Allow partial type matches</span>
+                </label>
+                <p data-type-filter-status class="mt-hint">Press Enter or choose a suggestion to add a type. You can add multiple types and toggle each one between `IS` and `NOT`.</p>
               </div>
             </div>
           </div>
@@ -108,13 +104,16 @@
 
         <section class="space-y-3">
           <div class="mt-subpanel space-y-4">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p class="mt-field-label !mb-0">Colors</p>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div class="space-y-1">
+                <p class="mt-field-label !mb-0">Color Identity</p>
+                <p class="text-[11px] text-slate-500">Match exactly these colors, include them somewhere in the identity, or cap results to cards at most these colors.</p>
+              </div>
               <label class="text-[11px] text-slate-400">
-                <span class="sr-only">Color match mode</span>
+                <span class="sr-only">Color identity match mode</span>
                 <select name="color_mode" class="mt-control mt-control--sm text-xs text-slate-200">
                   <option value="exact" {{ if eq $ctx.ColorMode "exact" }}selected{{ end }}>Exactly these colors</option>
-                  <option value="includes" {{ if eq $ctx.ColorMode "includes" }}selected{{ end }}>Including these colors</option>
+                  <option value="includes" {{ if eq $ctx.ColorMode "includes" }}selected{{ end }}>Includes these colors</option>
                   <option value="at_most" {{ if eq $ctx.ColorMode "at_most" }}selected{{ end }}>At most these colors</option>
                 </select>
               </label>
@@ -149,9 +148,8 @@
           </div>
         </section>
 
-        <section class="space-y-3">
-          <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-
+        <section class="space-y-4">
+          <div class="grid gap-4 xl:grid-cols-3">
             <label class="block text-sm text-slate-200">
               <span class="mt-field-label">Rarity</span>
               <select name="rarity" class="mt-control">
@@ -165,15 +163,25 @@
 
             <label class="block text-sm text-slate-200">
               <span class="mt-field-label">Set</span>
-              <input type="text"
-                     name="set"
-                     value="{{ $ctx.SetQuery }}"
-                     placeholder="Set name or code"
-                     class="mt-control">
+              <div class="relative" data-set-autocomplete-root>
+                <input type="text"
+                       name="set"
+                       value="{{ $ctx.SetQuery }}"
+                       placeholder="Set name or code"
+                       autocomplete="off"
+                       aria-autocomplete="list"
+                       aria-expanded="false"
+                       aria-haspopup="listbox"
+                       data-set-autocomplete-input
+                       class="mt-control">
+                <div
+                  data-set-autocomplete-menu
+                  class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                  role="listbox"></div>
+              </div>
+              <p class="mt-hint">Suggestions prioritize exact set codes and set-name prefixes.</p>
             </label>
-          </div>
 
-          <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
             <label class="block text-sm text-slate-200">
               <span class="mt-field-label">Artist</span>
               <input type="text"
@@ -182,128 +190,381 @@
                      placeholder="Artist name"
                      class="mt-control">
             </label>
+          </div>
 
-            <div class="flex items-end">
-              <label class="mt-check-pill">
-                <input type="checkbox" name="commander" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderOnly }}checked{{ end }}>
-                <span>Commander cards only</span>
-              </label>
+          <details class="mt-subpanel space-y-4" data-metrics-panel {{ if or $ctx.StatValue $ctx.PriceValue }}open{{ end }}>
+            <summary class="cursor-pointer list-none">
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div class="space-y-1">
+                  <p class="mt-field-label !mb-0">Stats &amp; Price</p>
+                  <p class="text-[11px] text-slate-500">Use one comparison per stat or price filter, then clear either one without resetting the whole form.</p>
+                </div>
+                <p data-metrics-summary class="text-xs text-slate-400">Add stat or price comparisons</p>
+              </div>
+            </summary>
+
+            <div class="space-y-5 pt-4">
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-sm font-medium text-slate-100">Stat Filter</p>
+                  <button type="button"
+                          data-clear-stat-filter
+                          class="rounded-full border border-slate-700 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-50">
+                    Clear Stat
+                  </button>
+                </div>
+
+                <div class="grid gap-4 xl:grid-cols-3">
+                  <label class="block text-sm text-slate-200">
+                    <span class="mt-field-label">Stats</span>
+                    <select name="stat" data-stat-select class="mt-control">
+                      {{ range $ctx.StatOptions }}
+                        <option value="{{ .Value }}" {{ if eq $ctx.SelectedStat .Value }}selected{{ end }}>{{ .Label }}</option>
+                      {{ end }}
+                    </select>
+                  </label>
+
+                  <label class="block text-sm text-slate-200">
+                    <span class="mt-field-label">Stat Comparison</span>
+                    <select name="stat_op" data-stat-operator class="mt-control">
+                      {{ range $ctx.StatOperatorOptions }}
+                        <option value="{{ .Value }}" {{ if eq $ctx.SelectedStatOperator .Value }}selected{{ end }}>{{ .Label }}</option>
+                      {{ end }}
+                    </select>
+                  </label>
+
+                  <label class="block text-sm text-slate-200">
+                    <span class="mt-field-label">Stat Value</span>
+                    <input type="text"
+                           name="stat_value"
+                           value="{{ $ctx.StatValue }}"
+                           data-stat-value
+                           inputmode="numeric"
+                           pattern="[0-9]+"
+                           placeholder="7"
+                           class="mt-control">
+                  </label>
+                </div>
+                <p data-stat-example class="mt-hint">Example: Power greater than 3</p>
+              </div>
+
+              <div class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-sm font-medium text-slate-100">Price Filter</p>
+                  <button type="button"
+                          data-clear-price-filter
+                          class="rounded-full border border-slate-700 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-50">
+                    Clear Price
+                  </button>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                  <label class="block text-sm text-slate-200">
+                    <span class="mt-field-label">Price Comparison</span>
+                    <select name="price_op" data-price-operator class="mt-control">
+                      {{ range $ctx.PriceOperatorOptions }}
+                        <option value="{{ .Value }}" {{ if eq $ctx.SelectedPriceOperator .Value }}selected{{ end }}>{{ .Label }}</option>
+                      {{ end }}
+                    </select>
+                  </label>
+
+                  <label class="block text-sm text-slate-200">
+                    <span class="mt-field-label">Price Value</span>
+                    <input type="text"
+                           name="price_value"
+                           value="{{ $ctx.PriceValue }}"
+                           data-price-value
+                           inputmode="decimal"
+                           pattern="[0-9]+([.][0-9]{1,2})?"
+                           placeholder="25.00"
+                           class="mt-control">
+                  </label>
+                </div>
+                <p data-price-example class="mt-hint">Example: Price less than or equal to 25.00</p>
+              </div>
             </div>
+          </details>
+
+          <div class="grid gap-2 lg:grid-cols-3">
+            <label class="mt-check-pill">
+              <input type="checkbox" name="commander" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderOnly }}checked{{ end }}>
+              <span>Commander candidates only</span>
+            </label>
+            <label class="mt-check-pill">
+              <input type="checkbox" name="commander_legal" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderLegal }}checked{{ end }}>
+              <span>Commander legal only</span>
+            </label>
+            <label class="mt-check-pill">
+              <input type="checkbox" name="include_tokens" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.IncludeTokens }}checked{{ end }}>
+              <span>Include tokens</span>
+            </label>
           </div>
         </section>
 
-        <div class="flex flex-wrap justify-end gap-2">
-          <a href="/cards/search" class="mt-btn mt-btn--secondary">Clear</a>
-          <button type="submit" class="mt-btn mt-btn--primary">Search Cards</button>
+        <section class="mt-subpanel p-4 space-y-3" data-search-summary-root>
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Current Filter Summary</p>
+            <p data-search-summary-count class="text-xs text-slate-400">No filters selected</p>
+          </div>
+          <p data-search-summary-line class="text-sm text-slate-300">Add a few filters and this bar will preview the exact search you are building.</p>
+          <div data-search-summary-chips class="flex flex-wrap gap-2"></div>
+        </section>
+
+        <div class="flex flex-wrap justify-between gap-3 border-t border-slate-800 pt-5">
+          <p class="text-xs text-slate-500">This page only sets search filters. Submitting sends you to the results page.</p>
+          <div class="flex flex-wrap gap-2">
+            <a href="{{ $ctx.ClearPath }}" class="mt-btn mt-btn--secondary">Clear</a>
+            <button type="submit" class="mt-btn mt-btn--primary">View Results</button>
+          </div>
         </div>
       </form>
     </section>
-
-    <section class="space-y-3">
-      <div class="flex items-center justify-between gap-2">
-        <h2 class="text-lg font-semibold text-slate-100">
-          Results{{ if and $ctx.HasSearched $ctx.Results }} <span class="ml-1 text-xs text-slate-500">({{ len $ctx.Results }})</span>{{ end }}
-        </h2>
-      </div>
-
-      {{ if $ctx.HasSearched }}
-        {{ if $ctx.Results }}
-          <ul class="grid gap-4 grid-cols-2 lg:grid-cols-3">
-            {{ range $ctx.Results }}
-              <li>
-                <a href="{{ .DetailPath }}" class="mt-action-card space-y-3 block w-full text-left">
-                  {{ if .ImageURI }}
-                    <img src="{{ .ImageURI }}"
-                         alt="{{ .Name }}"
-                         class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
-                  {{ else }}
-                    <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback">
-                      No image available
-                    </div>
-                  {{ end }}
-                  <div class="space-y-1">
-                    <p class="text-sm font-semibold text-slate-100">{{ .Name }}</p>
-                    <p class="text-xs text-slate-400">{{ .TypeLine }}</p>
-                    {{ if or .SetName .Rarity }}
-                      <p class="text-xs text-slate-500">
-                        {{ if .SetName }}{{ .SetName }}{{ end }}{{ if and .SetName .Rarity }} · {{ end }}{{ if .Rarity }}<span class="uppercase">{{ .Rarity }}</span>{{ end }}
-                      </p>
-                    {{ end }}
-                  </div>
-                </a>
-              </li>
-            {{ end }}
-          </ul>
-        {{ else }}
-          <div class="mt-empty-state">
-            <p class="text-sm text-slate-300">No cards matched your search.</p>
-          </div>
-        {{ end }}
-      {{ else }}
-        <div class="mt-empty-state">
-          <p class="text-sm text-slate-300">Set a few filters and search for cards.</p>
-        </div>
-      {{ end }}
-    </section>
   </main>
 
-  <script id="cards-type-filters-data" type="application/json">{{ $ctx.TypeFiltersJSON }}</script>
   <script>
     (function () {
-      const root = document.querySelector("[data-type-filter-root]");
-      if (!root) return;
+      const form = document.querySelector("[data-card-search-form]");
+      if (!form) return;
 
-      const filtersData = document.getElementById("cards-type-filters-data");
-      const input = root.querySelector("[data-type-filter-input]");
-      const toggleButton = root.querySelector("[data-type-filter-toggle]");
-      const addButton = root.querySelector("[data-type-filter-add]");
-      const menu = root.querySelector("[data-type-filter-menu]");
-      const options = Array.from(root.querySelectorAll("[data-type-filter-option]"));
-      const emptyState = root.querySelector("[data-type-filter-empty]");
-      const selected = root.querySelector("[data-type-filter-selected]");
-      const hidden = root.querySelector("[data-type-filter-hidden]");
-      const status = root.querySelector("[data-type-filter-status]");
-      const colorInputs = Array.from(document.querySelectorAll('input[name="color"]'));
-      const colorlessInput = document.querySelector('input[name="color"][value="C"]');
+      const typeRoot = form.querySelector("[data-type-filter-root]");
+      const typeInput = typeRoot ? typeRoot.querySelector("[data-type-filter-input]") : null;
+      const typeMenu = typeRoot ? typeRoot.querySelector("[data-type-filter-menu]") : null;
+      const typeSelected = typeRoot ? typeRoot.querySelector("[data-type-filter-selected]") : null;
+      const typeHidden = typeRoot ? typeRoot.querySelector("[data-type-filter-hidden]") : null;
+      const typeStatus = typeRoot ? typeRoot.querySelector("[data-type-filter-status]") : null;
 
-      let filters = [];
-      try {
-        filters = JSON.parse(filtersData ? filtersData.textContent : "[]");
-      } catch (error) {
-        filters = [];
+      const setRoot = form.querySelector("[data-set-autocomplete-root]");
+      const setInput = setRoot ? setRoot.querySelector("[data-set-autocomplete-input]") : null;
+      const setMenu = setRoot ? setRoot.querySelector("[data-set-autocomplete-menu]") : null;
+
+      const summaryCount = form.querySelector("[data-search-summary-count]");
+      const summaryLine = form.querySelector("[data-search-summary-line]");
+      const summaryChips = form.querySelector("[data-search-summary-chips]");
+      const metricsPanel = form.querySelector("[data-metrics-panel]");
+      const metricsSummary = form.querySelector("[data-metrics-summary]");
+
+      const statSelect = form.querySelector("[data-stat-select]");
+      const statOperator = form.querySelector("[data-stat-operator]");
+      const statValueInput = form.querySelector("[data-stat-value]");
+      const clearStatButton = form.querySelector("[data-clear-stat-filter]");
+      const statExample = form.querySelector("[data-stat-example]");
+
+      const priceOperator = form.querySelector("[data-price-operator]");
+      const priceValueInput = form.querySelector("[data-price-value]");
+      const clearPriceButton = form.querySelector("[data-clear-price-filter]");
+      const priceExample = form.querySelector("[data-price-example]");
+
+      const colorInputs = Array.from(form.querySelectorAll('input[name="color"]'));
+      const colorlessInput = form.querySelector('input[name="color"][value="C"]');
+      const rawTypeOptions = {{ toJSON $ctx.TypeOptions }};
+      const rawTypeFilters = {{ toJSON $ctx.TypeFilters }};
+      const rawSetOptions = {{ toJSON $ctx.SetSuggestions }};
+
+      const typeOptions = Array.from(new Set((Array.isArray(rawTypeOptions) ? rawTypeOptions : []).map(function (option) {
+        return String(option || "").trim();
+      }).filter(Boolean)));
+      const setOptions = Array.from(new Set((Array.isArray(rawSetOptions) ? rawSetOptions : []).map(function (option) {
+        return String(option || "").trim();
+      }).filter(Boolean)));
+
+      let typeFilters = Array.isArray(rawTypeFilters) ? rawTypeFilters : [];
+      let visibleTypeOptions = [];
+      let activeTypeIndex = -1;
+      let visibleSetOptions = [];
+      let activeSetIndex = -1;
+
+      function trimValue(value) {
+        return String(value || "").trim();
       }
 
-      function setStatus(message) {
-        if (!status) return;
-        status.textContent = message || "Pick a type, then set each one to IS or NOT.";
+      function lowerValue(value) {
+        return trimValue(value).toLowerCase();
+      }
+
+      function setExpanded(inputEl, expanded) {
+        if (!inputEl) return;
+        inputEl.setAttribute("aria-expanded", expanded ? "true" : "false");
+      }
+
+      function operatorPhrase(value) {
+        switch (trimValue(value).toLowerCase()) {
+        case "lt":
+          return "less than";
+        case "gt":
+          return "greater than";
+        case "lte":
+          return "less than or equal to";
+        case "gte":
+          return "greater than or equal to";
+        case "neq":
+          return "not equal to";
+        default:
+          return "equal to";
+        }
+      }
+
+      function operatorSymbol(value) {
+        switch (trimValue(value).toLowerCase()) {
+        case "lt":
+          return "<";
+        case "gt":
+          return ">";
+        case "lte":
+          return "<=";
+        case "gte":
+          return ">=";
+        case "neq":
+          return "!=";
+        default:
+          return "=";
+        }
+      }
+
+      function colorModeLabel(value) {
+        switch (trimValue(value).toLowerCase()) {
+        case "exact":
+          return "exact";
+        case "at_most":
+          return "at most";
+        default:
+          return "includes";
+        }
+      }
+
+      function selectedOptionLabel(selectEl, fallback) {
+        if (!selectEl || selectEl.selectedIndex < 0) return fallback || "";
+        return trimValue(selectEl.options[selectEl.selectedIndex].textContent) || fallback || "";
+      }
+
+      function rankedMatches(options, query, excludeSet) {
+        const raw = lowerValue(query);
+        const excluded = excludeSet || new Set();
+        const exact = [];
+        const prefix = [];
+        const contains = [];
+        const all = [];
+
+        options.forEach(function (option) {
+          const value = trimValue(option);
+          const lower = value.toLowerCase();
+          if (!value || excluded.has(lower)) {
+            return;
+          }
+          if (!raw) {
+            all.push(value);
+            return;
+          }
+          if (lower === raw) {
+            exact.push(value);
+            return;
+          }
+          if (lower.startsWith(raw)) {
+            prefix.push(value);
+            return;
+          }
+          if (lower.includes(raw)) {
+            contains.push(value);
+          }
+        });
+
+        return raw ? exact.concat(prefix, contains) : all;
+      }
+
+      function setTypeStatus(message) {
+        if (!typeStatus) return;
+        typeStatus.textContent = message || "Press Enter or choose a suggestion to add a type. You can add multiple types and toggle each one between IS and NOT.";
+      }
+
+      function hideTypeMenu() {
+        visibleTypeOptions = [];
+        activeTypeIndex = -1;
+        if (typeMenu) {
+          typeMenu.classList.add("hidden");
+          typeMenu.innerHTML = "";
+        }
+        setExpanded(typeInput, false);
+      }
+
+      function hideSetMenu() {
+        visibleSetOptions = [];
+        activeSetIndex = -1;
+        if (setMenu) {
+          setMenu.classList.add("hidden");
+          setMenu.innerHTML = "";
+        }
+        setExpanded(setInput, false);
+      }
+
+      function selectedTypeSet() {
+        const out = new Set();
+        typeFilters.forEach(function (filter) {
+          out.add(lowerValue(filter.value));
+        });
+        return out;
       }
 
       function canonicalType(value) {
-        const raw = (value || "").trim().toLowerCase();
+        const raw = lowerValue(value);
         if (!raw) return "";
-        for (const option of options) {
-          const optionValue = option.dataset.typeFilterOption || "";
-          if (optionValue.toLowerCase() === raw) {
-            return optionValue;
+        for (const option of typeOptions) {
+          if (option.toLowerCase() === raw) {
+            return option;
           }
         }
         return "";
       }
 
-      function showMenu() {
-        filterOptions();
-        menu.hidden = false;
+      function renderTypeMenu() {
+        if (!typeMenu || !typeInput) return;
+
+        typeMenu.innerHTML = "";
+        if (!visibleTypeOptions.length) {
+          const empty = document.createElement("div");
+          empty.className = "px-3 py-2 text-xs text-slate-500";
+          empty.textContent = trimValue(typeInput.value) ? "No matching card types." : "All suggested types are already selected.";
+          typeMenu.appendChild(empty);
+          typeMenu.classList.remove("hidden");
+          setExpanded(typeInput, true);
+          return;
+        }
+
+        visibleTypeOptions.forEach(function (option, index) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("role", "option");
+          button.setAttribute("aria-selected", index === activeTypeIndex ? "true" : "false");
+          button.className = index === activeTypeIndex
+            ? "block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-50 first:border-t-0 bg-slate-800"
+            : "block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-200 first:border-t-0 transition-colors hover:bg-slate-900 hover:text-slate-50";
+          button.textContent = option;
+          button.addEventListener("click", function (event) {
+            event.preventDefault();
+            addTypeFilter(option);
+          });
+          typeMenu.appendChild(button);
+        });
+
+        typeMenu.classList.remove("hidden");
+        setExpanded(typeInput, true);
       }
 
-      function hideMenu() {
-        menu.hidden = true;
+      function refreshTypeMenu() {
+        visibleTypeOptions = rankedMatches(typeOptions, typeInput ? typeInput.value : "", selectedTypeSet());
+        if (!visibleTypeOptions.length) {
+          activeTypeIndex = -1;
+        } else if (activeTypeIndex < 0 || activeTypeIndex >= visibleTypeOptions.length) {
+          activeTypeIndex = 0;
+        }
+        renderTypeMenu();
       }
 
-      function renderFilters() {
-        selected.innerHTML = "";
-        hidden.innerHTML = "";
+      function renderTypeFilters() {
+        if (!typeSelected || !typeHidden) return;
 
-        filters.forEach(function (filter, index) {
+        typeSelected.innerHTML = "";
+        typeHidden.innerHTML = "";
+
+        typeFilters.forEach(function (filter, index) {
           const chip = document.createElement("div");
           chip.className = "inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 pl-3 pr-1 py-1 text-sm text-slate-100";
 
@@ -318,8 +579,9 @@
             ? "rounded-full border border-rose-500/50 bg-rose-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-200 transition-colors hover:bg-rose-500/25"
             : "rounded-full border border-sky-500/50 bg-sky-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-200 transition-colors hover:bg-sky-500/25";
           toggle.addEventListener("click", function () {
-            filters[index].mode = filters[index].mode === "not" ? "is" : "not";
-            renderFilters();
+            typeFilters[index].mode = typeFilters[index].mode === "not" ? "is" : "not";
+            renderTypeFilters();
+            updateSearchSummary();
           });
           chip.appendChild(toggle);
 
@@ -328,123 +590,399 @@
           remove.textContent = "X";
           remove.className = "rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50";
           remove.addEventListener("click", function () {
-            filters.splice(index, 1);
-            renderFilters();
-            filterOptions();
+            typeFilters.splice(index, 1);
+            renderTypeFilters();
+            refreshTypeMenu();
+            updateSearchSummary();
           });
           chip.appendChild(remove);
 
-          selected.appendChild(chip);
+          typeSelected.appendChild(chip);
 
           const valueInput = document.createElement("input");
           valueInput.type = "hidden";
           valueInput.name = "type_value";
           valueInput.value = filter.value;
-          hidden.appendChild(valueInput);
+          typeHidden.appendChild(valueInput);
 
           const modeInput = document.createElement("input");
           modeInput.type = "hidden";
           modeInput.name = "type_mode";
           modeInput.value = filter.mode;
-          hidden.appendChild(modeInput);
+          typeHidden.appendChild(modeInput);
         });
       }
 
-      function filterOptions() {
-        const query = (input.value || "").trim().toLowerCase();
-        let visibleCount = 0;
-
-        options.forEach(function (option) {
-          const value = option.dataset.typeFilterOption || "";
-          const alreadySelected = filters.some(function (filter) {
-            return filter.value.toLowerCase() === value.toLowerCase();
-          });
-          const matches = query === "" || value.toLowerCase().includes(query);
-          const visible = !alreadySelected && matches;
-          option.hidden = !visible;
-          if (visible) visibleCount += 1;
-        });
-
-        if (emptyState) {
-          emptyState.hidden = visibleCount !== 0;
-        }
-      }
-
-      function addFilter(rawValue) {
+      function addTypeFilter(rawValue) {
         const value = canonicalType(rawValue);
         if (!value) {
-          setStatus("Choose a type from the list.");
-          return;
+          setTypeStatus("Choose a suggested type.");
+          return false;
         }
-        const exists = filters.some(function (filter) {
-          return filter.value.toLowerCase() === value.toLowerCase();
+        const exists = typeFilters.some(function (filter) {
+          return lowerValue(filter.value) === lowerValue(value);
         });
         if (exists) {
-          setStatus("That type is already added.");
-          return;
+          setTypeStatus("That type is already added.");
+          return false;
         }
-        filters.push({ value: value, mode: "is" });
-        input.value = "";
-        setStatus("");
-        renderFilters();
-        hideMenu();
+        typeFilters.push({ value: value, mode: "is" });
+        if (typeInput) {
+          typeInput.value = "";
+          typeInput.focus();
+        }
+        setTypeStatus("");
+        renderTypeFilters();
+        refreshTypeMenu();
+        updateSearchSummary();
+        return true;
       }
 
-      input.addEventListener("focus", function () {
-        setStatus("");
-        showMenu();
-      });
-      input.addEventListener("click", function () {
-        showMenu();
-      });
-      input.addEventListener("input", function () {
-        showMenu();
-      });
-      input.addEventListener("keydown", function (event) {
-        if (event.key === "Escape") {
-          hideMenu();
+      function commitPendingType() {
+        if (!typeInput) return false;
+        const raw = trimValue(typeInput.value);
+        if (!raw) return false;
+
+        const candidate = (visibleTypeOptions.length && activeTypeIndex >= 0 && activeTypeIndex < visibleTypeOptions.length)
+          ? visibleTypeOptions[activeTypeIndex]
+          : canonicalType(raw) || rankedMatches(typeOptions, raw, selectedTypeSet())[0] || "";
+
+        if (!candidate) {
+          setTypeStatus("Choose a suggested type.");
+          return false;
+        }
+        return addTypeFilter(candidate);
+      }
+
+      function renderSetMenu() {
+        if (!setMenu || !setInput) return;
+
+        setMenu.innerHTML = "";
+        if (!visibleSetOptions.length) {
+          const empty = document.createElement("div");
+          empty.className = "px-3 py-2 text-xs text-slate-500";
+          empty.textContent = trimValue(setInput.value) ? "No matching sets." : "No set suggestions available.";
+          setMenu.appendChild(empty);
+          setMenu.classList.remove("hidden");
+          setExpanded(setInput, true);
           return;
         }
-        if (event.key !== "Enter") return;
-        event.preventDefault();
 
-        const firstVisible = options.find(function (option) {
-          return !option.hidden;
+        visibleSetOptions.forEach(function (option, index) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("role", "option");
+          button.setAttribute("aria-selected", index === activeSetIndex ? "true" : "false");
+          button.className = index === activeSetIndex
+            ? "block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-50 first:border-t-0 bg-slate-800"
+            : "block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-200 first:border-t-0 transition-colors hover:bg-slate-900 hover:text-slate-50";
+          button.textContent = option;
+          button.addEventListener("click", function (event) {
+            event.preventDefault();
+            chooseSet(option);
+          });
+          setMenu.appendChild(button);
         });
-        if (firstVisible) {
-          addFilter(firstVisible.dataset.typeFilterOption || "");
-          return;
+
+        setMenu.classList.remove("hidden");
+        setExpanded(setInput, true);
+      }
+
+      function refreshSetMenu() {
+        visibleSetOptions = rankedMatches(setOptions, setInput ? setInput.value : "");
+        if (!visibleSetOptions.length) {
+          activeSetIndex = -1;
+        } else if (activeSetIndex < 0 || activeSetIndex >= visibleSetOptions.length) {
+          activeSetIndex = 0;
         }
-        addFilter(input.value);
-      });
+        renderSetMenu();
+      }
 
-      toggleButton.addEventListener("click", function () {
-        if (menu.hidden) {
-          input.focus();
-          showMenu();
-          return;
+      function chooseSet(value) {
+        if (!setInput) return;
+        setInput.value = value;
+        hideSetMenu();
+        updateSearchSummary();
+      }
+
+      function updateMetricExamples() {
+        const statLabel = selectedOptionLabel(statSelect, "Mana Value");
+        const statSample = trimValue(statValueInput ? statValueInput.value : "") || "3";
+        const priceSample = trimValue(priceValueInput ? priceValueInput.value : "") || "25.00";
+
+        if (statExample) {
+          statExample.textContent = "Example: " + statLabel + " " + operatorPhrase(statOperator ? statOperator.value : "eq") + " " + statSample;
         }
-        hideMenu();
-      });
+        if (priceExample) {
+          priceExample.textContent = "Example: Price " + operatorPhrase(priceOperator ? priceOperator.value : "eq") + " " + priceSample;
+        }
 
-      addButton.addEventListener("click", function () {
-        addFilter(input.value);
-      });
+        if (metricsSummary) {
+          const active = [];
+          if (trimValue(statValueInput ? statValueInput.value : "")) {
+            active.push(statLabel + " " + operatorSymbol(statOperator ? statOperator.value : "eq") + " " + trimValue(statValueInput.value));
+          }
+          if (trimValue(priceValueInput ? priceValueInput.value : "")) {
+            active.push("Price " + operatorSymbol(priceOperator ? priceOperator.value : "eq") + " $" + trimValue(priceValueInput.value));
+          }
+          metricsSummary.textContent = active.length ? active.join(" • ") : "Add stat or price comparisons";
+        }
+      }
 
-      options.forEach(function (option) {
-        option.addEventListener("mousedown", function (event) {
+      function renderSummaryChips(items) {
+        if (!summaryChips) return;
+        summaryChips.innerHTML = "";
+        items.forEach(function (item) {
+          const chip = document.createElement("span");
+          chip.className = "inline-flex items-center rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs text-slate-200";
+          chip.textContent = item;
+          summaryChips.appendChild(chip);
+        });
+      }
+
+      function updateSearchSummary() {
+        const items = [];
+        const nameInput = form.querySelector('input[name="q"]');
+        const nameExactInput = form.querySelector('input[name="name_exact"]');
+        const manaCostInput = form.querySelector('input[name="mana_cost"]');
+        const textInput = form.querySelector('input[name="text"]');
+        const typePartialInput = form.querySelector('input[name="type_partial"]');
+        const colorModeInput = form.querySelector('select[name="color_mode"]');
+        const rarityInput = form.querySelector('select[name="rarity"]');
+        const artistInput = form.querySelector('input[name="artist"]');
+        const commanderInput = form.querySelector('input[name="commander"]');
+        const commanderLegalInput = form.querySelector('input[name="commander_legal"]');
+        const tokensInput = form.querySelector('input[name="include_tokens"]');
+
+        const colorLabels = {
+          W: "White",
+          U: "Blue",
+          B: "Black",
+          R: "Red",
+          G: "Green",
+          C: "Colorless"
+        };
+
+        if (trimValue(nameInput ? nameInput.value : "")) {
+          items.push("Name: " + trimValue(nameInput.value));
+        }
+        if (nameExactInput && nameExactInput.checked && trimValue(nameInput ? nameInput.value : "")) {
+          items.push("Exact name");
+        }
+        if (trimValue(manaCostInput ? manaCostInput.value : "")) {
+          items.push("Mana Cost: " + trimValue(manaCostInput.value));
+        }
+        if (trimValue(textInput ? textInput.value : "")) {
+          items.push("Rules Text: " + trimValue(textInput.value));
+        }
+
+        typeFilters.forEach(function (filter) {
+          items.push("Type " + (filter.mode === "not" ? "NOT " : "IS ") + trimValue(filter.value));
+        });
+        if (typePartialInput && typePartialInput.checked && typeFilters.length) {
+          items.push("Partial type matches");
+        }
+
+        const selectedColors = colorInputs.filter(function (inputEl) {
+          return inputEl.checked;
+        }).map(function (inputEl) {
+          return colorLabels[inputEl.value] || inputEl.value;
+        });
+        if (selectedColors.length) {
+          items.push("Color identity (" + colorModeLabel(colorModeInput ? colorModeInput.value : "") + "): " + selectedColors.join(", "));
+        }
+
+        if (rarityInput && trimValue(rarityInput.value)) {
+          items.push("Rarity: " + selectedOptionLabel(rarityInput, trimValue(rarityInput.value)));
+        }
+        if (trimValue(setInput ? setInput.value : "")) {
+          items.push("Set: " + trimValue(setInput.value));
+        }
+        if (trimValue(artistInput ? artistInput.value : "")) {
+          items.push("Artist: " + trimValue(artistInput.value));
+        }
+        if (trimValue(statValueInput ? statValueInput.value : "")) {
+          items.push(selectedOptionLabel(statSelect, "Mana Value") + " " + operatorSymbol(statOperator ? statOperator.value : "eq") + " " + trimValue(statValueInput.value));
+        }
+        if (trimValue(priceValueInput ? priceValueInput.value : "")) {
+          items.push("Price " + operatorSymbol(priceOperator ? priceOperator.value : "eq") + " $" + trimValue(priceValueInput.value));
+        }
+        if (commanderInput && commanderInput.checked) {
+          items.push("Commander candidates");
+        }
+        if (commanderLegalInput && commanderLegalInput.checked) {
+          items.push("Commander legal");
+        }
+        if (tokensInput && tokensInput.checked) {
+          items.push("Include tokens");
+        }
+
+        if (summaryCount) {
+          summaryCount.textContent = items.length
+            ? items.length + " active filter" + (items.length === 1 ? "" : "s")
+            : "No filters selected";
+        }
+        if (summaryLine) {
+          summaryLine.textContent = items.length
+            ? "View Results will search with the filters below."
+            : "Add a few filters and this bar will preview the exact search you are building.";
+        }
+        renderSummaryChips(items);
+        updateMetricExamples();
+      }
+
+      if (typeInput) {
+        typeInput.addEventListener("focus", function () {
+          hideSetMenu();
+          setTypeStatus("");
+          refreshTypeMenu();
+        });
+        typeInput.addEventListener("click", function () {
+          hideSetMenu();
+          setTypeStatus("");
+          refreshTypeMenu();
+        });
+        typeInput.addEventListener("input", function () {
+          setTypeStatus("");
+          activeTypeIndex = 0;
+          refreshTypeMenu();
+        });
+        typeInput.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            typeInput.value = "";
+            setTypeStatus("");
+            hideTypeMenu();
+            return;
+          }
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            if (!visibleTypeOptions.length) {
+              refreshTypeMenu();
+            }
+            if (visibleTypeOptions.length) {
+              activeTypeIndex = activeTypeIndex < visibleTypeOptions.length - 1 ? activeTypeIndex + 1 : 0;
+              renderTypeMenu();
+            }
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            if (!visibleTypeOptions.length) {
+              refreshTypeMenu();
+            }
+            if (visibleTypeOptions.length) {
+              activeTypeIndex = activeTypeIndex > 0 ? activeTypeIndex - 1 : visibleTypeOptions.length - 1;
+              renderTypeMenu();
+            }
+            return;
+          }
+          if (event.key !== "Enter") return;
           event.preventDefault();
-          addFilter(option.dataset.typeFilterOption || "");
+          commitPendingType();
         });
-      });
+      }
 
-      root.addEventListener("focusin", function () {
-        showMenu();
-      });
+      if (setInput) {
+        setInput.addEventListener("focus", function () {
+          hideTypeMenu();
+          refreshSetMenu();
+        });
+        setInput.addEventListener("click", function () {
+          hideTypeMenu();
+          refreshSetMenu();
+        });
+        setInput.addEventListener("input", function () {
+          activeSetIndex = 0;
+          refreshSetMenu();
+          updateSearchSummary();
+        });
+        setInput.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            hideSetMenu();
+            return;
+          }
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            if (!visibleSetOptions.length) {
+              refreshSetMenu();
+            }
+            if (visibleSetOptions.length) {
+              activeSetIndex = activeSetIndex < visibleSetOptions.length - 1 ? activeSetIndex + 1 : 0;
+              renderSetMenu();
+            }
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            if (!visibleSetOptions.length) {
+              refreshSetMenu();
+            }
+            if (visibleSetOptions.length) {
+              activeSetIndex = activeSetIndex > 0 ? activeSetIndex - 1 : visibleSetOptions.length - 1;
+              renderSetMenu();
+            }
+            return;
+          }
+          if (event.key === "Enter" && visibleSetOptions.length) {
+            event.preventDefault();
+            chooseSet(visibleSetOptions[activeSetIndex >= 0 ? activeSetIndex : 0]);
+          }
+        });
+      }
 
-      document.addEventListener("mousedown", function (event) {
-        if (!root.contains(event.target)) {
-          hideMenu();
+      if (clearStatButton) {
+        clearStatButton.addEventListener("click", function () {
+          if (statOperator) statOperator.value = "eq";
+          if (statValueInput) statValueInput.value = "";
+          updateSearchSummary();
+        });
+      }
+
+      if (clearPriceButton) {
+        clearPriceButton.addEventListener("click", function () {
+          if (priceOperator) priceOperator.value = "eq";
+          if (priceValueInput) priceValueInput.value = "";
+          updateSearchSummary();
+        });
+      }
+
+      if (metricsPanel) {
+        metricsPanel.addEventListener("toggle", updateMetricExamples);
+      }
+
+      if (form) {
+        form.addEventListener("submit", function (event) {
+          if (!typeInput || !trimValue(typeInput.value)) {
+            return;
+          }
+          event.preventDefault();
+          if (commitPendingType()) {
+            window.requestAnimationFrame(function () {
+              if (typeof form.requestSubmit === "function") {
+                form.requestSubmit();
+              } else {
+                form.submit();
+              }
+            });
+          }
+        });
+
+        form.addEventListener("input", function () {
+          updateSearchSummary();
+        });
+        form.addEventListener("change", function () {
+          updateSearchSummary();
+        });
+      }
+
+      document.addEventListener("click", function (event) {
+        if (!typeRoot || !typeRoot.contains(event.target)) {
+          hideTypeMenu();
+        }
+        if (!setRoot || !setRoot.contains(event.target)) {
+          hideSetMenu();
         }
       });
 
@@ -463,9 +1001,10 @@
         });
       });
 
-      renderFilters();
-      filterOptions();
-      hideMenu();
+      renderTypeFilters();
+      hideTypeMenu();
+      hideSetMenu();
+      updateSearchSummary();
     })();
   </script>
 
