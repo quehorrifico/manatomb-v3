@@ -42,10 +42,16 @@
     var openDeckPickerEl = modal.querySelector('[data-open-deck-picker]');
     var flipBtn = modal.querySelector('[data-flip-card]');
 
-    var currentFaces = null;
+    var currentFaces = [];
     var currentFaceIndex = 0;
     var currentVersions = [];
-    var versionsRequestToken = 0;
+    var modalRequestToken = 0;
+
+    function buildDetailPath(oracleID) {
+      oracleID = trimValue(oracleID);
+      if (!oracleID) return '';
+      return '/cards/view/' + encodeURIComponent(oracleID);
+    }
 
     function closeModal() {
       modal.classList.add('hidden');
@@ -53,23 +59,31 @@
 
     function setCardContext(cardName, detailPath, oracleID) {
       var normalizedCardName = trimValue(cardName);
+      var normalizedOracleID = trimValue(oracleID);
+      var normalizedDetailPath = trimValue(detailPath);
+      if (!normalizedDetailPath && normalizedOracleID) {
+        normalizedDetailPath = buildDetailPath(normalizedOracleID);
+      }
       modal.setAttribute('data-card-name', normalizedCardName);
-      modal.setAttribute('data-detail-path', trimValue(detailPath));
-      modal.setAttribute('data-oracle-id', trimValue(oracleID));
+      modal.setAttribute('data-detail-path', normalizedDetailPath);
+      modal.setAttribute('data-oracle-id', normalizedOracleID);
       if (openDeckPickerEl) {
         openDeckPickerEl.setAttribute('data-card-name', normalizedCardName);
       }
     }
 
-    function setOpenPageLink(detailPath) {
+    function setOpenPageLink(detailPath, oracleID) {
       if (!openPageLinkEl) return;
-      detailPath = String(detailPath || '').trim();
-      if (!detailPath) {
+      var nextPath = trimValue(detailPath);
+      if (!nextPath) {
+        nextPath = buildDetailPath(oracleID);
+      }
+      if (!nextPath) {
         openPageLinkEl.classList.add('hidden');
         openPageLinkEl.href = '#';
         return;
       }
-      openPageLinkEl.href = detailPath;
+      openPageLinkEl.href = nextPath;
       openPageLinkEl.classList.remove('hidden');
     }
 
@@ -79,6 +93,7 @@
     }
 
     function parseFaces(raw) {
+      if (Array.isArray(raw)) return raw;
       if (!raw || raw === 'null') return [];
       try {
         var parsed = JSON.parse(raw);
@@ -92,22 +107,93 @@
     function normalizeVersion(input) {
       var item = input || {};
       return {
-        scryfall_id: item.scryfall_id || '',
-        lang: item.lang || '',
-        name: item.name || '',
-        mana_cost: item.mana_cost || '',
-        type_line: item.type_line || '',
-        oracle_text: item.oracle_text || '',
-        image_uri: item.image_uri || '',
-        price_usd: item.price_usd || '',
-        artist: item.artist || '',
-        set_code: item.set_code || '',
-        set_name: item.set_name || '',
-        collector_number: item.collector_number || '',
-        rarity: item.rarity || '',
-        released_at: item.released_at || '',
-        faces: Array.isArray(item.faces) ? item.faces : [],
+        scryfall_id: trimValue(item.scryfall_id || item.scryfallID),
+        oracle_id: trimValue(item.oracle_id || item.oracleID),
+        lang: trimValue(item.lang),
+        name: trimValue(item.name),
+        mana_cost: trimValue(item.mana_cost || item.manaCost),
+        type_line: trimValue(item.type_line || item.typeLine),
+        oracle_text: trimValue(item.oracle_text || item.oracleText),
+        image_uri: trimValue(item.image_uri || item.imageURI),
+        price_usd: trimValue(item.price_usd || item.priceUSD),
+        artist: trimValue(item.artist),
+        set_code: trimValue(item.set_code || item.setCode),
+        set_name: trimValue(item.set_name || item.setName),
+        collector_number: trimValue(item.collector_number || item.collectorNumber),
+        rarity: trimValue(item.rarity),
+        released_at: trimValue(item.released_at || item.releasedAt),
+        detail_path: trimValue(item.detail_path || item.detailPath),
+        faces: parseFaces(item.faces),
       };
+    }
+
+    function normalizePayload(input) {
+      var item = input || {};
+      var payload = {
+        detailMode: trimValue(item.detailMode || item.mode) || 'view',
+        resolveExact: !!item.resolveExact,
+        oracleID: trimValue(item.oracleID || item.oracle_id),
+        detailPath: trimValue(item.detailPath || item.detail_path),
+        name: trimValue(item.name),
+        manaCost: trimValue(item.manaCost || item.mana_cost),
+        typeLine: trimValue(item.typeLine || item.type_line),
+        oracleText: trimValue(item.oracleText || item.oracle_text),
+        imageURI: trimValue(item.imageURI || item.image_uri),
+        priceUSD: trimValue(item.priceUSD || item.price_usd || ((item.prices && item.prices.usd) ? item.prices.usd : '')),
+        artist: trimValue(item.artist),
+        setCode: trimValue(item.setCode || item.set_code),
+        setName: trimValue(item.setName || item.set_name),
+        releasedAt: trimValue(item.releasedAt || item.released_at),
+        faces: parseFaces(item.faces),
+      };
+      if (!payload.detailPath && payload.oracleID) {
+        payload.detailPath = buildDetailPath(payload.oracleID);
+      }
+      return payload;
+    }
+
+    function payloadToVersion(payload) {
+      return normalizeVersion({
+        oracle_id: payload.oracleID,
+        detail_path: payload.detailPath,
+        name: payload.name,
+        mana_cost: payload.manaCost,
+        type_line: payload.typeLine,
+        oracle_text: payload.oracleText,
+        image_uri: payload.imageURI,
+        price_usd: payload.priceUSD,
+        artist: payload.artist,
+        set_code: payload.setCode,
+        set_name: payload.setName,
+        released_at: payload.releasedAt,
+        faces: payload.faces,
+      });
+    }
+
+    function mergePayload(baseInput, extraInput) {
+      var base = normalizePayload(baseInput);
+      var extra = normalizePayload(extraInput);
+      var merged = {
+        detailMode: base.detailMode || extra.detailMode || 'view',
+        resolveExact: base.resolveExact || extra.resolveExact,
+        oracleID: base.oracleID || extra.oracleID,
+        detailPath: base.detailPath || extra.detailPath,
+        name: base.name || extra.name,
+        manaCost: base.manaCost || extra.manaCost,
+        typeLine: base.typeLine || extra.typeLine,
+        oracleText: base.oracleText || extra.oracleText,
+        imageURI: base.imageURI || extra.imageURI,
+        priceUSD: base.priceUSD || extra.priceUSD,
+        artist: base.artist || extra.artist,
+        setCode: base.setCode || extra.setCode,
+        setName: base.setName || extra.setName,
+        releasedAt: base.releasedAt || extra.releasedAt,
+        faces: base.faces && base.faces.length ? base.faces : extra.faces,
+      };
+      if (!merged.detailPath && merged.oracleID) {
+        merged.detailPath = buildDetailPath(merged.oracleID);
+      }
+      return merged;
     }
 
     function setPrintingMeta(version) {
@@ -119,7 +205,7 @@
       }
       var bits = [];
       var rarityLabel = formatRarityLabel(version.rarity);
-      var lang = String(version.lang || '').trim().toUpperCase();
+      var lang = trimValue(version.lang).toUpperCase();
       if (rarityLabel) bits.push(rarityLabel);
       if (lang && lang !== 'EN') bits.push(lang);
       printingMetaEl.textContent = bits.join(' · ');
@@ -130,10 +216,10 @@
       if (!printingSelectEl) return;
       printingSelectEl.innerHTML = '';
       if (!Array.isArray(versions) || versions.length === 0) {
-        var opt = document.createElement('option');
-        opt.value = '0';
-        opt.textContent = 'Latest printing';
-        printingSelectEl.appendChild(opt);
+        var emptyOpt = document.createElement('option');
+        emptyOpt.value = '0';
+        emptyOpt.textContent = 'Latest printing';
+        printingSelectEl.appendChild(emptyOpt);
         printingSelectEl.disabled = true;
         setPrintingsVisible(false);
         return;
@@ -156,7 +242,8 @@
         option.textContent = formatPrintingLabel(versions[i], i);
         printingSelectEl.appendChild(option);
       }
-      printingSelectEl.disabled = versions.length <= 1;
+
+      printingSelectEl.disabled = false;
       var idx = Number(selectedIndex || 0);
       if (!Number.isFinite(idx) || idx < 0 || idx >= versions.length) idx = 0;
       printingSelectEl.value = String(idx);
@@ -164,20 +251,18 @@
 
     function setVersionsLoading(loading) {
       if (!printingSelectEl) return;
-      if (!loading) return;
-
-      printingSelectEl.disabled = true;
+      printingSelectEl.disabled = !!loading;
     }
 
     function renderFace(face, fallback) {
       if (!face) return;
 
-      var faceName = face.name || (fallback ? fallback.name : '') || '';
-      var faceMana = face.mana_cost || '';
-      var faceType = face.type_line || '';
-      var faceOracle = face.oracle_text || '';
-      var faceImage = face.image_uri || '';
-      var faceArtist = face.artist || (fallback ? fallback.artist : '') || '';
+      var faceName = trimValue(face.name || (fallback ? fallback.name : ''));
+      var faceMana = trimValue(face.mana_cost || '');
+      var faceType = trimValue(face.type_line || '');
+      var faceOracle = trimValue(face.oracle_text || '');
+      var faceImage = trimValue(face.image_uri || '');
+      var faceArtist = trimValue(face.artist || (fallback ? fallback.artist : ''));
 
       if (nameEl) nameEl.textContent = faceName;
       if (typeEl) typeEl.textContent = faceType;
@@ -207,24 +292,20 @@
       currentFaceIndex = 0;
 
       if (flipBtn) {
-        if (currentFaces.length > 1) {
-          flipBtn.classList.remove('hidden');
-        } else {
-          flipBtn.classList.add('hidden');
-        }
+        flipBtn.classList.toggle('hidden', currentFaces.length <= 1);
       }
 
       if (currentFaces.length > 0) {
         renderFace(currentFaces[0], version);
       } else {
-        if (nameEl) nameEl.textContent = version.name || '';
-        if (typeEl) typeEl.textContent = version.type_line || '';
-        if (manaEl) manaEl.innerHTML = renderManaSymbols(version.mana_cost || '');
-        if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(version.oracle_text || '', 'No oracle text.');
+        if (nameEl) nameEl.textContent = trimValue(version.name);
+        if (typeEl) typeEl.textContent = trimValue(version.type_line);
+        if (manaEl) manaEl.innerHTML = renderManaSymbols(trimValue(version.mana_cost));
+        if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(trimValue(version.oracle_text), 'No oracle text.');
 
         if (imageEl) {
-          if (version.image_uri) {
-            imageEl.src = version.image_uri;
+          if (trimValue(version.image_uri)) {
+            imageEl.src = trimValue(version.image_uri);
             imageEl.classList.remove('hidden');
           } else {
             imageEl.src = '';
@@ -233,7 +314,7 @@
         }
 
         if (artistEl) {
-          artistEl.textContent = version.artist || '—';
+          artistEl.textContent = trimValue(version.artist) || '—';
         }
       }
 
@@ -242,30 +323,137 @@
       }
     }
 
-    async function fetchCardVersions(cardName, oracleID) {
-      var token = ++versionsRequestToken;
+    async function fetchResolvedCard(name, requestToken) {
+      var normalizedName = trimValue(name);
+      if (!normalizedName) return null;
+
+      try {
+        var res = await fetch('/cards/resolve?q=' + encodeURIComponent(normalizedName) + '&exact=1', {
+          method: 'GET',
+          credentials: 'same-origin'
+        });
+        if (!res.ok) return null;
+        var data = await res.json();
+        if (requestToken !== modalRequestToken) return null;
+        return normalizePayload(data);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function fetchCardVersions(cardName, oracleID, requestToken) {
+      var normalizedName = trimValue(cardName);
+      var normalizedOracleID = trimValue(oracleID);
+      if (!normalizedName && !normalizedOracleID) return null;
+
       async function requestVersions(url) {
         var res = await fetch(url, { method: 'GET', credentials: 'same-origin' });
         if (!res.ok) return null;
         var data = await res.json();
-        if (token !== versionsRequestToken) return null;
+        if (requestToken !== modalRequestToken) return null;
         if (!data || !Array.isArray(data.versions)) return null;
         return data.versions.map(normalizeVersion);
       }
 
-      try {
-        var url = '/cards/versions?name=' + encodeURIComponent(cardName);
-        if (oracleID) {
-          url += '&oracle_id=' + encodeURIComponent(oracleID);
-        }
-        var versions = await requestVersions(url);
-        if (versions) return versions;
+      var attempts = [];
+      if (normalizedName && normalizedOracleID) {
+        attempts.push('/cards/versions?name=' + encodeURIComponent(normalizedName) + '&oracle_id=' + encodeURIComponent(normalizedOracleID));
+        attempts.push('/cards/versions?name=' + encodeURIComponent(normalizedName));
+      } else if (normalizedOracleID) {
+        attempts.push('/cards/versions?oracle_id=' + encodeURIComponent(normalizedOracleID));
+      } else {
+        attempts.push('/cards/versions?name=' + encodeURIComponent(normalizedName));
+      }
 
-        if (!oracleID) return null;
-        var fallbackURL = '/cards/versions?name=' + encodeURIComponent(cardName);
-        return await requestVersions(fallbackURL);
+      try {
+        for (var i = 0; i < attempts.length; i++) {
+          var versions = await requestVersions(attempts[i]);
+          if (versions) return versions;
+        }
       } catch (e) {
         return null;
+      }
+      return null;
+    }
+
+    function extractTriggerPayload(btn) {
+      var root = btn.closest('[data-card-detail-root]') || btn;
+      if (!root) return null;
+
+      var li = btn.closest('li');
+      var oracleNode = (li || root).querySelector('.js-oracle-text');
+      var oracleText = oracleNode ? oracleNode.textContent : '';
+
+      return normalizePayload({
+        detailMode: btn.getAttribute('data-card-detail-mode') || 'view',
+        oracleID: root.getAttribute('data-oracle-id') || btn.getAttribute('data-oracle-id') || '',
+        detailPath: root.getAttribute('data-detail-path') || btn.getAttribute('data-detail-path') || '',
+        name: root.getAttribute('data-name') || btn.getAttribute('data-name') || '',
+        manaCost: root.getAttribute('data-mana-cost') || btn.getAttribute('data-mana-cost') || '',
+        typeLine: root.getAttribute('data-type-line') || btn.getAttribute('data-type-line') || '',
+        imageURI: root.getAttribute('data-image-uri') || btn.getAttribute('data-image-uri') || '',
+        priceUSD: root.getAttribute('data-price') || btn.getAttribute('data-price') || '',
+        artist: root.getAttribute('data-artist') || btn.getAttribute('data-artist') || '',
+        setCode: root.getAttribute('data-set-code') || btn.getAttribute('data-set-code') || '',
+        setName: root.getAttribute('data-set-name') || btn.getAttribute('data-set-name') || '',
+        releasedAt: root.getAttribute('data-released-at') || btn.getAttribute('data-released-at') || '',
+        oracleText: oracleText,
+        faces: root.getAttribute('data-faces') || btn.getAttribute('data-faces') || '',
+      });
+    }
+
+    async function openCardDetail(input) {
+      var payload = normalizePayload(input);
+      if (!payload.name && !payload.oracleID) return;
+
+      var requestToken = ++modalRequestToken;
+      if (stickyNameInputEl) {
+        stickyNameInputEl.value = payload.name;
+      }
+
+      setCardContext(payload.name, payload.detailPath, payload.oracleID);
+      setOpenPageLink(payload.detailPath, payload.oracleID);
+
+      currentVersions = [payloadToVersion(payload)];
+      populatePrintings(currentVersions, 0);
+      applyVersion(currentVersions[0]);
+      modal.classList.remove('hidden');
+
+      var shouldResolveIdentity = !!payload.resolveExact || (!payload.oracleID && !!payload.name) || (!payload.detailPath && !!payload.name);
+      if (shouldResolveIdentity) {
+        var resolvedPayload = await fetchResolvedCard(payload.name, requestToken);
+        if (requestToken !== modalRequestToken) return;
+        if (resolvedPayload) {
+          payload = mergePayload(payload, resolvedPayload);
+          if (stickyNameInputEl) {
+            stickyNameInputEl.value = payload.name;
+          }
+          setCardContext(payload.name, payload.detailPath, payload.oracleID);
+          setOpenPageLink(payload.detailPath, payload.oracleID);
+          currentVersions = [payloadToVersion(payload)];
+          populatePrintings(currentVersions, 0);
+          applyVersion(currentVersions[0]);
+        }
+      }
+
+      setVersionsLoading(true);
+      var loadedVersions = await fetchCardVersions(payload.name, payload.oracleID, requestToken);
+      if (requestToken !== modalRequestToken) return;
+
+      if (!loadedVersions || loadedVersions.length === 0) {
+        populatePrintings(currentVersions, 0);
+        applyVersion(currentVersions[0]);
+        if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
+          printingSelectEl.focus();
+        }
+        return;
+      }
+
+      currentVersions = loadedVersions;
+      populatePrintings(currentVersions, 0);
+      applyVersion(currentVersions[0]);
+      if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
+        printingSelectEl.focus();
       }
     }
 
@@ -275,8 +463,8 @@
       });
     });
 
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal) {
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal) {
         closeModal();
       }
     });
@@ -290,71 +478,12 @@
     }
 
     document.querySelectorAll('[data-card-detail]').forEach(function (btn) {
-      btn.addEventListener('click', async function () {
-        var li = btn.closest('li');
-        var root = btn.closest('[data-card-detail-root]') || btn;
-        if (!root) return;
-
-        var oracleNode = (li || root).querySelector('.js-oracle-text');
-        var oracleText = oracleNode ? oracleNode.textContent : '';
-
-        var detailMode = btn.getAttribute('data-card-detail-mode') || 'view';
-        var oracleID = root.getAttribute('data-oracle-id') || btn.getAttribute('data-oracle-id') || '';
-        var detailPath = root.getAttribute('data-detail-path') || btn.getAttribute('data-detail-path') || '';
-        var name = root.getAttribute('data-name') || btn.getAttribute('data-name') || '';
-        var manaCost = root.getAttribute('data-mana-cost') || btn.getAttribute('data-mana-cost') || '';
-        var typeLine = root.getAttribute('data-type-line') || btn.getAttribute('data-type-line') || '';
-        var imageURI = root.getAttribute('data-image-uri') || btn.getAttribute('data-image-uri') || '';
-        var price = root.getAttribute('data-price') || btn.getAttribute('data-price') || '';
-        var artist = root.getAttribute('data-artist') || btn.getAttribute('data-artist') || '';
-        var setCode = root.getAttribute('data-set-code') || btn.getAttribute('data-set-code') || '';
-        var setName = root.getAttribute('data-set-name') || btn.getAttribute('data-set-name') || '';
-        var releasedAt = root.getAttribute('data-released-at') || btn.getAttribute('data-released-at') || '';
-        var facesJSON = root.getAttribute('data-faces') || btn.getAttribute('data-faces');
-
-        if (stickyNameInputEl) {
-          stickyNameInputEl.value = name;
-        }
-        setCardContext(name, detailPath, oracleID);
-        setOpenPageLink(detailPath);
-
-        var fallbackVersion = normalizeVersion({
-          name: name,
-          mana_cost: manaCost,
-          type_line: typeLine,
-          oracle_text: oracleText,
-          image_uri: imageURI,
-          price_usd: price,
-          artist: artist,
-          set_code: setCode,
-          set_name: setName,
-          released_at: releasedAt,
-          faces: parseFaces(facesJSON),
-        });
-
-        currentVersions = [fallbackVersion];
-        populatePrintings(currentVersions, 0);
-        applyVersion(fallbackVersion);
-
-        modal.classList.remove('hidden');
-        setVersionsLoading(true);
-
-        var loadedVersions = await fetchCardVersions(name, oracleID);
-        if (!loadedVersions || loadedVersions.length === 0) {
-          populatePrintings(currentVersions, 0);
-          applyVersion(currentVersions[0]);
-          if (detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
-            printingSelectEl.focus();
-          }
-          return;
-        }
-
-        currentVersions = loadedVersions;
-        populatePrintings(currentVersions, 0);
-        applyVersion(currentVersions[0]);
-        if (detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
-          printingSelectEl.focus();
-        }
+      if (btn.getAttribute('data-card-detail-bound') === '1') return;
+      btn.setAttribute('data-card-detail-bound', '1');
+      btn.addEventListener('click', function () {
+        var payload = extractTriggerPayload(btn);
+        if (!payload) return;
+        openCardDetail(payload);
       });
     });
 
@@ -372,6 +501,11 @@
         renderFace(currentFaces[currentFaceIndex], currentVersions[selectedIdx] || null);
       });
     }
+
+    window.mtCardDetailModal = {
+      open: openCardDetail,
+      close: closeModal,
+    };
   });
   </script>
 {{ end }}

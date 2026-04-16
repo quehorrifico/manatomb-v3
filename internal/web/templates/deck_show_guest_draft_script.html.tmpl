@@ -7,7 +7,7 @@
     var previewWrap = document.getElementById('deck-card-preview');
     var previewImg = document.getElementById('deck-card-preview-img');
     var previewFallback = document.getElementById('deck-card-preview-fallback');
-    var topCommanderNameEl = document.getElementById('deck-top-commander');
+    var topCommanderNameEl = document.getElementById('deck-commander-name');
     var topCommanderArtWrap = document.getElementById('deck-top-commander-art-wrap');
     var topCommanderArtImg = document.getElementById('deck-top-commander-art');
     var exampleHandList = document.getElementById('deck-analytics-example-hand');
@@ -192,101 +192,22 @@
       return analyticsCardImageCache[cacheKey];
     }
 
-    function topCommanderPreviewData() {
-      var name = normalizeName(commanderName);
-      if (!name && topCommanderNameEl) {
-        name = normalizeName(topCommanderNameEl.textContent || '');
-      }
-      var imageURI = '';
-      if (topCommanderArtImg) {
-        imageURI = normalizeName(topCommanderArtImg.getAttribute('src') || '');
-      }
-      return { name: name, imageURI: imageURI };
-    }
-
     function bindTopCommanderPreview() {
-      if (!previewWrap || !topCommanderArtWrap) return;
+      if (!topCommanderArtWrap) return;
       if (topCommanderArtWrap.getAttribute('data-preview-bound') === '1') return;
       topCommanderArtWrap.setAttribute('data-preview-bound', '1');
-
-      if (window.mtDeckCardPreview && window.mtDeckCardPreview.tapMode) {
-        topCommanderArtWrap.addEventListener('click', function (event) {
-          if (topCommanderArtWrap.classList.contains('hidden')) return;
-          var data = topCommanderPreviewData();
-          if (window.mtDeckCardPreview && window.mtDeckCardPreview.toggle) {
-            window.mtDeckCardPreview.toggle(data.imageURI, data.name || 'Commander', event, topCommanderArtWrap);
-          }
-          if (!data.imageURI && data.name) {
-            resolveCardImage(data.name, '', true).then(function (uri) {
-              if (!uri) return;
-              if (topCommanderArtImg) topCommanderArtImg.src = uri;
-              topCommanderArtWrap.classList.remove('hidden');
-            });
-          }
-        });
-        return;
-      }
-
-      topCommanderArtWrap.addEventListener('mouseenter', function (event) {
+      topCommanderArtWrap.addEventListener('click', function () {
         if (topCommanderArtWrap.classList.contains('hidden')) return;
-        var data = topCommanderPreviewData();
-        if (window.mtDeckCardPreview && window.mtDeckCardPreview.move) {
-          window.mtDeckCardPreview.move(event);
-        }
-        if (window.mtDeckCardPreview) {
-          window.mtDeckCardPreview.show(data.imageURI, data.name || 'Commander');
-        }
-        if (!data.imageURI && data.name) {
-          resolveCardImage(data.name, '', true).then(function (uri) {
-            if (!uri) return;
-            if (topCommanderArtImg) topCommanderArtImg.src = uri;
-            topCommanderArtWrap.classList.remove('hidden');
-            if (window.mtDeckCardPreview) {
-              window.mtDeckCardPreview.show(uri, data.name || 'Commander');
-            }
-          });
-        }
+        if (typeof window.mtDeckOpenWorkbenchCardView !== 'function') return;
+        var current = normalizeName(commanderName);
+        if (!current) return;
+        var draft = isGuest ? (window.mtDeckCurrentGuestDraft || null) : (window.mtDeckCurrentSavedDraft || savedDeckSeed || null);
+        var cardMeta = draft ? draftMetaForCard(draft, current) : null;
+        window.mtDeckOpenWorkbenchCardView(current, cardMeta, {
+          imageURI: normalizeName(topCommanderArtImg && topCommanderArtImg.getAttribute('src') || ''),
+          resolveExact: !(cardMeta && cardMeta.cardID),
+        });
       });
-      topCommanderArtWrap.addEventListener('mousemove', function (event) {
-        if (window.mtDeckCardPreview && window.mtDeckCardPreview.move) {
-          window.mtDeckCardPreview.move(event);
-        }
-      });
-      topCommanderArtWrap.addEventListener('mouseleave', function () {
-        if (window.mtDeckCardPreview) {
-          window.mtDeckCardPreview.hide();
-        }
-      });
-    }
-
-    function extraArtTarget(extraName) {
-      var key = normalizeName(extraName).toLowerCase();
-      var lookup = {
-        'treasure tokens': { name: 'Treasure' },
-        'clue tokens': { name: 'Clue' },
-        'food tokens': { name: 'Food' },
-        'blood tokens': { name: 'Blood' },
-        'map tokens': { name: 'Map' },
-        'powerstone tokens': { name: 'Powerstone' },
-        'incubator tokens': { name: 'Incubator' },
-        'junk tokens': { name: 'Junk' },
-        'role tokens': { name: 'Role' },
-        'gold tokens': { name: 'Gold' },
-        'other tokens': { name: 'Token' },
-        'city\'s blessing': { name: 'The City\'s Blessing' },
-        'the monarch': { name: 'The Monarch' },
-        'the initiative': { name: 'The Initiative' },
-        'day/night': { name: 'Day' },
-        'energy counters': { name: 'Energy Reserve' },
-        'experience counters': { name: 'Experience Counter' },
-        'poison counters': { name: 'Poison Counter' },
-        'shield counters': { name: 'Shield Counter' },
-        'stun counters': { name: 'Stun Counter' },
-        '+1/+1 counters': { name: '+1/+1 Counter' },
-      };
-      if (lookup[key]) return lookup[key];
-      var fallback = normalizeName(extraName).replace(/\s+tokens?$/i, '').trim();
-      return { name: fallback || normalizeName(extraName) };
     }
 
     function createAnalyticsArtTile(opts) {
@@ -295,9 +216,15 @@
       var caption = normalizeName(opts && opts.caption ? opts.caption : name);
       var currentImageURI = normalizeName(opts && opts.imageURI ? opts.imageURI : '');
       var tileClassName = normalizeName(opts && opts.className ? opts.className : '');
+      var onOpen = opts && typeof opts.onOpen === 'function' ? opts.onOpen : null;
 
       var li = document.createElement('li');
       li.className = tileClassName ? ('mt-art-tile ' + tileClassName) : 'mt-art-tile';
+      if (onOpen) {
+        li.tabIndex = 0;
+        li.setAttribute('role', 'button');
+        li.classList.add('cursor-pointer');
+      }
 
       var cardFrame = document.createElement('div');
       cardFrame.className = 'mt-art-tile__frame';
@@ -341,22 +268,14 @@
         }
       }
 
-      if (window.mtDeckCardPreview && window.mtDeckCardPreview.tapMode) {
-        li.addEventListener('click', function (event) {
-          if (window.mtDeckCardPreview && window.mtDeckCardPreview.toggle) {
-            window.mtDeckCardPreview.toggle(currentImageURI, name || caption || 'Card', event, li);
-          }
+      if (onOpen) {
+        li.addEventListener('click', function () {
+          onOpen();
         });
-      } else {
-        li.addEventListener('mouseenter', function (event) {
-          if (window.mtDeckCardPreview && window.mtDeckCardPreview.move) window.mtDeckCardPreview.move(event);
-          if (window.mtDeckCardPreview) window.mtDeckCardPreview.show(currentImageURI, name || caption || 'Card');
-        });
-        li.addEventListener('mousemove', function (event) {
-          if (window.mtDeckCardPreview && window.mtDeckCardPreview.move) window.mtDeckCardPreview.move(event);
-        });
-        li.addEventListener('mouseleave', function () {
-          if (window.mtDeckCardPreview) window.mtDeckCardPreview.hide();
+        li.addEventListener('keydown', function (event) {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          onOpen();
         });
       }
 
@@ -368,13 +287,58 @@
       };
     }
 
-    function randomizeOrder(items) {
-      for (var i = items.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var tmp = items[i];
-        items[i] = items[j];
-        items[j] = tmp;
+    function buildMainboardPoolFromMap(cardMap, commander, cardMetaByName) {
+      var pool = [];
+      var activeCommander = normalizeName(commander).toLowerCase();
+      var entries = Object.entries(cardMap || {});
+
+      for (var i = 0; i < entries.length; i++) {
+        var cardName = normalizeName(entries[i][0]);
+        var qty = Number(entries[i][1] || 0);
+        if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
+        if (activeCommander && cardName.toLowerCase() === activeCommander) {
+          qty -= 1;
+        }
+        var cardMeta = cardMetaByName && cardMetaByName[cardName] ? cardMetaByName[cardName] : null;
+        var imageURI = normalizeName(cardMeta && cardMeta.imageURI ? cardMeta.imageURI : '');
+        for (var j = 0; j < qty; j++) {
+          pool.push({
+            name: cardName,
+            imageURI: imageURI,
+            cardMeta: cardMeta,
+          });
+        }
       }
+
+      return pool;
+    }
+
+    function buildSignedMainboardPool() {
+      var draft = window.mtDeckCurrentSavedDraft || savedDeckSeed;
+      if (!draft || typeof draft !== 'object') return [];
+
+      var cardMetaByName = {};
+      var names = Object.keys(draft.cards || {});
+      for (var i = 0; i < names.length; i++) {
+        var name = normalizeName(names[i]);
+        if (!name) continue;
+        cardMetaByName[name] = draftMetaForCard(draft, name) || null;
+      }
+      return buildMainboardPoolFromMap(draft.cards || {}, currentCommanderForDraft(draft), cardMetaByName);
+    }
+
+    function buildGuestMainboardPool() {
+      var draft = window.mtDeckCurrentGuestDraft;
+      if (!draft || typeof draft !== 'object') return [];
+
+      var cardMetaByName = {};
+      var names = Object.keys(draft.cards || {});
+      for (var i = 0; i < names.length; i++) {
+        var name = normalizeName(names[i]);
+        if (!name) continue;
+        cardMetaByName[name] = draftMetaForCard(draft, name) || null;
+      }
+      return buildMainboardPoolFromMap(draft.cards || {}, currentCommanderForDraft(draft), cardMetaByName);
     }
 
     function renderExampleHand(cardsInHand) {
@@ -397,6 +361,14 @@
           caption: name,
           imageURI: normalizeName(card.imageURI || ''),
           className: 'mt-art-tile--grid',
+          onOpen: (function (cardName, cardMeta) {
+            return function () {
+              if (typeof window.mtDeckOpenWorkbenchCardView !== 'function') return;
+              window.mtDeckOpenWorkbenchCardView(cardName, cardMeta, {
+                resolveExact: !(cardMeta && cardMeta.cardID),
+              });
+            };
+          })(name, card.cardMeta || null),
         });
         exampleHandList.appendChild(tile.node);
 
@@ -416,58 +388,43 @@
       }
     }
 
-    function buildMainboardPoolFromMap(cardMap, commander, imageByName) {
-      var pool = [];
-      var activeCommander = normalizeName(commander).toLowerCase();
-      var entries = Object.entries(cardMap || {});
-
-      for (var i = 0; i < entries.length; i++) {
-        var cardName = normalizeName(entries[i][0]);
-        var qty = Number(entries[i][1] || 0);
-        if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
-        if (activeCommander && cardName.toLowerCase() === activeCommander) {
-          qty -= 1;
-        }
-        for (var j = 0; j < qty; j++) {
-          pool.push({
-            name: cardName,
-            imageURI: imageByName && imageByName[cardName] ? imageByName[cardName] : '',
-          });
-        }
-      }
-
-      return pool;
+    function extraArtTarget(extraName) {
+      var key = normalizeName(extraName).toLowerCase();
+      var lookup = {
+        'treasure tokens': { name: 'Treasure' },
+        'clue tokens': { name: 'Clue' },
+        'food tokens': { name: 'Food' },
+        'blood tokens': { name: 'Blood' },
+        'map tokens': { name: 'Map' },
+        'powerstone tokens': { name: 'Powerstone' },
+        'incubator tokens': { name: 'Incubator' },
+        'junk tokens': { name: 'Junk' },
+        'role tokens': { name: 'Role' },
+        'gold tokens': { name: 'Gold' },
+        'other tokens': { name: 'Token' },
+        'city\'s blessing': { name: 'The City\'s Blessing' },
+        'the monarch': { name: 'The Monarch' },
+        'the initiative': { name: 'The Initiative' },
+        'day/night': { name: 'Day' },
+        'energy counters': { name: 'Energy Reserve' },
+        'experience counters': { name: 'Experience Counter' },
+        'poison counters': { name: 'Poison Counter' },
+        'shield counters': { name: 'Shield Counter' },
+        'stun counters': { name: 'Stun Counter' },
+        '+1/+1 counters': { name: '+1/+1 Counter' },
+      };
+      if (lookup[key]) return lookup[key];
+      var fallback = normalizeName(extraName).replace(/\s+tokens?$/i, '').trim();
+      return { name: fallback || normalizeName(extraName) };
     }
 
-    function buildSignedMainboardPool() {
-      var draft = window.mtDeckCurrentSavedDraft || savedDeckSeed;
-      if (!draft || typeof draft !== 'object') return [];
-
-      var imageByName = {};
-      var names = Object.keys(draft.cards || {});
-      for (var i = 0; i < names.length; i++) {
-        var name = normalizeName(names[i]);
-        if (!name) continue;
-        var meta = draftMetaForCard(draft, name);
-        var imageURI = normalizeName(meta && meta.imageURI ? meta.imageURI : '');
-        if (imageURI) imageByName[name] = imageURI;
+    function randomizeOrder(items) {
+      for (var i = items.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = items[i];
+        items[i] = items[j];
+        items[j] = tmp;
       }
-      return buildMainboardPoolFromMap(draft.cards || {}, currentCommanderForDraft(draft), imageByName);
-    }
-
-    function buildGuestMainboardPool() {
-      var draft = window.mtDeckCurrentGuestDraft;
-      if (!draft || typeof draft !== 'object') return [];
-      var imageByName = {};
-      var names = Object.keys(draft.cards || {});
-      for (var i = 0; i < names.length; i++) {
-        var name = normalizeName(names[i]);
-        if (!name) continue;
-        var meta = draftMetaForCard(draft, name);
-        var imageURI = normalizeName(meta && meta.imageURI ? meta.imageURI : '');
-        if (imageURI) imageByName[name] = imageURI;
-      }
-      return buildMainboardPoolFromMap(draft.cards || {}, currentCommanderForDraft(draft), imageByName);
     }
 
     function readSeedExtrasFromDOM() {
@@ -1041,6 +998,17 @@
       return body;
     }
 
+    function createCardViewButton(label, className, onOpen) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'border-0 bg-transparent p-0 ' + className;
+      btn.textContent = label;
+      btn.addEventListener('click', function () {
+        onOpen();
+      });
+      return btn;
+    }
+
     function createDeckTextRow(row, createActionMenu) {
       var cardMeta = row.cardMeta || {};
       var node = document.createElement('article');
@@ -1052,9 +1020,13 @@
       var titleRow = document.createElement('div');
       titleRow.className = 'flex items-center gap-2 min-w-0';
 
-      var title = document.createElement('p');
-      title.className = 'mt-list-row__title';
-      title.textContent = String(row.qty) + 'x ' + row.cardName;
+      var title = createCardViewButton(
+        String(row.qty) + 'x ' + row.cardName,
+        'mt-list-row__title text-left transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200',
+        function () {
+          openWorkbenchCardView(row.cardName, cardMeta);
+        }
+      );
       titleRow.appendChild(title);
 
       var manaCost = normalizeName(cardMeta.manaCost || '');
@@ -1091,8 +1063,14 @@
         article.style.zIndex = String(index + 1);
       }
 
-      var media = document.createElement('div');
-      media.className = 'mt-deck-art-card__media';
+      var media = document.createElement('button');
+      media.type = 'button';
+      media.className = 'mt-deck-art-card__media block w-full border-0 bg-transparent p-0 text-left focus:outline-none focus:ring-2 focus:ring-sky-400';
+      media.addEventListener('click', function () {
+        openWorkbenchCardView(row.cardName, cardMeta, {
+          imageURI: imageURI,
+        });
+      });
 
       if (imageURI) {
         var img = document.createElement('img');
@@ -1126,9 +1104,15 @@
       var body = document.createElement('div');
       body.className = 'mt-deck-art-card__body';
 
-      var title = document.createElement('p');
-      title.className = 'mt-art-card__title';
-      title.textContent = row.cardName;
+      var title = createCardViewButton(
+        row.cardName,
+        'mt-art-card__title text-left transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200',
+        function () {
+          openWorkbenchCardView(row.cardName, cardMeta, {
+            imageURI: imageURI,
+          });
+        }
+      );
       title.title = row.cardName;
       body.appendChild(title);
 
@@ -1169,9 +1153,13 @@
         tr.appendChild(qty);
 
         var card = document.createElement('td');
-        var name = document.createElement('p');
-        name.className = 'mt-deck-table__name';
-        name.textContent = row.cardName;
+        var name = createCardViewButton(
+          row.cardName,
+          'mt-deck-table__name text-left transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200',
+          function () {
+            openWorkbenchCardView(row.cardName, cardMeta);
+          }
+        );
         card.appendChild(name);
         tr.appendChild(card);
 
@@ -1384,6 +1372,7 @@
       }
       return null;
     }
+    window.mtDeckDraftMetaForCard = draftMetaForCard;
 
     function draftCardNameKey(cardMap, cardName) {
       if (!cardMap || typeof cardMap !== 'object') return '';
@@ -1495,6 +1484,70 @@
         return null;
       }
     }
+
+    function buildWorkbenchDetailPath(oracleID) {
+      var normalized = normalizeName(oracleID);
+      if (!normalized) return '';
+      return '/cards/view/' + encodeURIComponent(normalized);
+    }
+
+    function buildWorkbenchModalPayload(cardName, cardMeta, opts) {
+      var meta = cardMeta || {};
+      var options = opts || {};
+      var oracleID = normalizeName(options.oracleID || options.cardID || meta.cardID || meta.oracleID || '');
+      var payload = {
+        name: normalizeName(cardName || options.name || meta.name || ''),
+        oracleID: oracleID,
+        detailPath: normalizeName(options.detailPath || '') || buildWorkbenchDetailPath(oracleID),
+        manaCost: normalizeName(options.manaCost || meta.manaCost || ''),
+        typeLine: normalizeName(options.typeLine || meta.typeLine || ''),
+        oracleText: normalizeName(options.oracleText || meta.oracleText || ''),
+        imageURI: normalizeName(options.imageURI || meta.imageURI || ''),
+        priceUSD: normalizeName(options.priceUSD || meta.priceUSD || ''),
+        artist: normalizeName(options.artist || meta.artist || ''),
+        setCode: normalizeName(options.setCode || meta.setCode || ''),
+        setName: normalizeName(options.setName || meta.setName || ''),
+        releasedAt: normalizeName(options.releasedAt || meta.releasedAt || ''),
+        faces: Array.isArray(options.faces) ? options.faces : (Array.isArray(meta.faces) ? meta.faces : []),
+        detailMode: normalizeName(options.detailMode || options.mode || 'view') || 'view',
+      };
+      return payload;
+    }
+
+    async function openWorkbenchCardView(cardName, cardMeta, opts) {
+      var api = window.mtCardDetailModal;
+      if (!api || typeof api.open !== 'function') return;
+
+      var payload = buildWorkbenchModalPayload(cardName, cardMeta, opts);
+      if (!payload.name && !payload.oracleID) return;
+
+      var shouldResolveExact = !!(opts && opts.resolveExact);
+      if ((shouldResolveExact || (!payload.oracleID && payload.name)) && payload.name) {
+        var resolved = await resolveCardByName(payload.name, true);
+        if (resolved && resolved.name) {
+          var resolvedMeta = buildDraftCardMeta(resolved) || {};
+          payload = buildWorkbenchModalPayload(
+            payload.name,
+            {
+              cardID: resolvedMeta.cardID || payload.oracleID,
+              name: resolvedMeta.name || payload.name,
+              manaCost: resolvedMeta.manaCost || payload.manaCost,
+              typeLine: resolvedMeta.typeLine || payload.typeLine,
+              oracleText: resolvedMeta.oracleText || payload.oracleText,
+              imageURI: resolvedMeta.imageURI || payload.imageURI,
+              priceUSD: resolvedMeta.priceUSD || payload.priceUSD,
+              faces: Array.isArray(resolvedMeta.faces) && resolvedMeta.faces.length ? resolvedMeta.faces : payload.faces,
+            },
+            {
+              detailMode: payload.detailMode,
+            }
+          );
+        }
+      }
+
+      api.open(payload);
+    }
+    window.mtDeckOpenWorkbenchCardView = openWorkbenchCardView;
 
     function closeGuestActionMenu(node) {
       if (!node || typeof node.closest !== 'function') return;
@@ -2157,6 +2210,9 @@
 
         var panel = document.createElement('div');
         panel.className = 'mt-action-menu__panel';
+        panel.appendChild(createGuestMenuItem('View card', function () {
+          openWorkbenchCardView(cardName, cardMeta);
+        }));
         panel.appendChild(createGuestMenuItem('Add Copy', function () {
           adjustGuestCardQuantity(cardName, 1);
         }));
@@ -2191,9 +2247,15 @@
         bindGuestRowPreview(li, cardName, imageURI);
 
         var left = document.createElement('div');
-        var p = document.createElement('p');
-        p.className = 'mt-list-row__title';
-        p.textContent = qty + 'x ' + cardName;
+        var p = createCardViewButton(
+          qty + 'x ' + cardName,
+          'mt-list-row__title text-left transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200',
+          function () {
+            openWorkbenchCardView(cardName, cardMeta, {
+              imageURI: imageURI,
+            });
+          }
+        );
         left.appendChild(p);
 
         var right = document.createElement('div');
@@ -2588,6 +2650,9 @@
 
           var panel = document.createElement('div');
           panel.className = 'mt-action-menu__panel';
+          panel.appendChild(createSavedMenuItem('View card', function () {
+            openWorkbenchCardView(cardName, cardMeta);
+          }));
           panel.appendChild(createSavedMenuItem('Add Copy', function () {
             adjustSavedCardQuantity(cardMeta, 1);
           }));
