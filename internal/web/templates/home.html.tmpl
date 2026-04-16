@@ -19,6 +19,8 @@
     <div class="mt-panel p-5 sm:p-6 space-y-5">
       <div class="space-y-3">
         <form action="/cards" method="GET">
+          <input type="hidden" name="sort" value="relevance">
+          <input type="hidden" name="sort_dir" value="desc">
           <label for="home-card-search" class="sr-only">Search for a Magic card</label>
           <div class="flex flex-col sm:flex-row gap-3">
             <div class="relative flex-1" data-card-autocomplete-root>

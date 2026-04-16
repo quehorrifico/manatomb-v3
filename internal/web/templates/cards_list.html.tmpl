@@ -51,7 +51,39 @@
               Refine the query on the search page, then come back here for richer result actions.
             {{ end }}
           </p>
+          <p class="text-xs text-slate-500">Current order: <span class="font-medium text-slate-300">{{ $ctx.CurrentSortLabel }} · {{ $ctx.CurrentDirectionLabel }}</span></p>
+          {{ if $ctx.ShowOldestPrintingNote }}
+            <p class="text-xs text-slate-500">Oldest printing sorts by the first English print date, even though each card tile still shows the latest default English printing.</p>
+          {{ end }}
         </div>
+
+        <form method="GET" action="/cards" class="flex w-full max-w-full flex-col gap-1.5 rounded-2xl border border-slate-800 bg-slate-950/60 p-2.5 sm:w-auto sm:min-w-[14rem]">
+          {{ range $ctx.SortFields }}
+            <input type="hidden" name="{{ .Name }}" value="{{ .Value }}">
+          {{ end }}
+          <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500" for="cards-sort-select">Sort Results</label>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <select id="cards-sort-select"
+                    name="sort"
+                    class="mt-control mt-control--sm w-full min-w-0 text-xs text-slate-100"
+                    onchange="this.form.requestSubmit()">
+              {{ range $ctx.SortOptions }}
+                <option value="{{ .Value }}" {{ if eq $ctx.SelectedSort .Value }}selected{{ end }}>{{ .Label }}</option>
+              {{ end }}
+            </select>
+            <select name="sort_dir"
+                    aria-label="Sort direction"
+                    class="mt-control mt-control--sm w-full min-w-0 text-xs text-slate-100"
+                    onchange="this.form.requestSubmit()">
+              {{ range $ctx.DirectionOptions }}
+                <option value="{{ .Value }}" {{ if eq $ctx.SelectedSortDirection .Value }}selected{{ end }}>{{ .Label }}</option>
+              {{ end }}
+            </select>
+          </div>
+          <noscript>
+            <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Apply</button>
+          </noscript>
+        </form>
       </div>
 
       <div data-deck-action-status hidden class="rounded-2xl border px-4 py-3">

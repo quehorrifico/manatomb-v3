@@ -41,6 +41,8 @@ type CardSearchParams struct {
 	CommanderLegal bool
 	CommanderOnly  bool
 	IncludeTokens  bool
+	Sort           string
+	SortDirection  string
 	Limit          int
 }
 
@@ -181,6 +183,48 @@ func normalizeLayoutFilter(raw string) string {
 		return "double_faced_token"
 	default:
 		return ""
+	}
+}
+
+func normalizeCardSearchSort(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "alphabetical":
+		return "alphabetical"
+	case "mana_value":
+		return "mana_value"
+	case "newest_printing":
+		return "newest_printing"
+	case "oldest_printing":
+		return "oldest_printing"
+	case "rarity":
+		return "rarity"
+	default:
+		return "relevance"
+	}
+}
+
+func defaultCardSearchSortDirection(sortMode string, hasNameQuery bool) string {
+	switch normalizeCardSearchSort(sortMode) {
+	case "newest_printing":
+		return "desc"
+	case "relevance":
+		if hasNameQuery {
+			return "desc"
+		}
+		return "asc"
+	default:
+		return "asc"
+	}
+}
+
+func normalizeCardSearchSortDirection(sortMode string, hasNameQuery bool, raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "desc":
+		return "desc"
+	case "asc":
+		return "asc"
+	default:
+		return defaultCardSearchSortDirection(sortMode, hasNameQuery)
 	}
 }
 
@@ -330,6 +374,78 @@ func canonicalCardSelectSQL() string {
 		FROM oracle_cards oc
 		LEFT JOIN card_prints cp ON cp.scryfall_id = oc.default_print_id
 	`
+}
+
+func cardSearchNameOrderSQL() string {
+	return "lower(oc.name) ASC, oc.name ASC, oc.oracle_id ASC"
+}
+
+func cardSearchNameOrderSQLForDirection(direction string) string {
+	order := "ASC"
+	if direction == "desc" {
+		order = "DESC"
+	}
+	return "lower(oc.name) " + order + ", oc.name " + order + ", oc.oracle_id " + order
+}
+
+func cardSearchOldestEnglishPrintingExprSQL() string {
+	return `(
+			SELECT MIN(cp_oldest.released_at)
+			FROM card_prints cp_oldest
+			WHERE cp_oldest.oracle_id = oc.oracle_id
+			  AND lower(COALESCE(cp_oldest.lang, 'en')) = 'en'
+		)`
+}
+
+func cardSearchRarityRankExprSQL() string {
+	return `CASE lower(COALESCE(cp.rarity, ''))
+			WHEN 'common' THEN 0
+			WHEN 'uncommon' THEN 1
+			WHEN 'rare' THEN 2
+			WHEN 'mythic' THEN 3
+			ELSE 4
+		END`
+}
+
+func cardSearchOrderBySQL(rawSort string, rawDirection string, hasNameQuery bool, fuzzy bool) string {
+	direction := normalizeCardSearchSortDirection(rawSort, hasNameQuery, rawDirection)
+	alphabeticalOrder := cardSearchNameOrderSQLForDirection(direction)
+	nameOrder := cardSearchNameOrderSQL()
+	relevanceOrder := "DESC"
+	tiebreakerOrder := "ASC"
+	if direction == "desc" {
+		relevanceOrder = "DESC"
+		tiebreakerOrder = "ASC"
+	} else {
+		relevanceOrder = "ASC"
+		tiebreakerOrder = "DESC"
+	}
+
+	switch normalizeCardSearchSort(rawSort) {
+	case "alphabetical":
+		return alphabeticalOrder
+	case "mana_value":
+		return "COALESCE(oc.cmc, 0) " + strings.ToUpper(direction) + ", " + nameOrder
+	case "newest_printing":
+		return "oc.default_released_at " + strings.ToUpper(direction) + " NULLS LAST, " + nameOrder
+	case "oldest_printing":
+		return cardSearchOldestEnglishPrintingExprSQL() + " " + strings.ToUpper(direction) + " NULLS LAST, " + nameOrder
+	case "rarity":
+		rankDirection := strings.ToUpper(direction)
+		return "CASE WHEN " + cardSearchRarityRankExprSQL() + " = 4 THEN 1 ELSE 0 END ASC, " +
+			cardSearchRarityRankExprSQL() + " " + rankDirection + ", " +
+			"lower(COALESCE(cp.rarity, '')) " + rankDirection + ", " +
+			nameOrder
+	default:
+		if hasNameQuery && fuzzy {
+			return "(oc.name_search = $1) " + relevanceOrder + ", " +
+				"(oc.name_search LIKE $1 || '%') " + relevanceOrder + ", " +
+				"similarity(oc.name_search, $1) " + relevanceOrder + ", " +
+				"COALESCE(oc.edhrec_rank, 999999) " + tiebreakerOrder + ", " +
+				nameOrder
+		}
+		return alphabeticalOrder
+	}
 }
 
 func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []any) {
@@ -628,10 +744,11 @@ func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Ca
 
 	query := strings.TrimSpace(params.Query)
 	if query == "" {
+		orderSQL := cardSearchOrderBySQL(params.Sort, params.SortDirection, false, false)
 		filterSQL, filterArgs := buildCardSearchFilters(params, 1)
 		sqlText := canonicalCardSelectSQL() + `
 			WHERE 1=1` + filterSQL + `
-			ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
+			ORDER BY ` + orderSQL + `
 			LIMIT $` + fmt.Sprint(len(filterArgs)+1)
 		args := append(filterArgs, limit)
 
@@ -693,14 +810,10 @@ func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Ca
 	fuzzyParams := params
 	fuzzyParams.Query = ""
 	filterSQL, filterArgs = buildCardSearchFilters(fuzzyParams, 2)
+	orderSQL := cardSearchOrderBySQL(params.Sort, params.SortDirection, true, true)
 	fuzzySQL := canonicalCardSelectSQL() + `
 		WHERE oc.name_search % $1` + filterSQL + `
-		ORDER BY
-			(oc.name_search = $1) DESC,
-			(oc.name_search LIKE $1 || '%') DESC,
-			similarity(oc.name_search, $1) DESC,
-			COALESCE(oc.edhrec_rank, 999999) ASC,
-			oc.name ASC
+		ORDER BY ` + orderSQL + `
 		LIMIT $` + fmt.Sprint(len(filterArgs)+2)
 	fuzzyArgs := append([]any{normalizedQuery}, filterArgs...)
 	fuzzyArgs = append(fuzzyArgs, limit)

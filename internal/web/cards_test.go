@@ -360,6 +360,8 @@ func TestParseCardSearchRequestSupportsAdvancedOptions(t *testing.T) {
 		"price_value":     []string{"9.99"},
 		"commander_legal": []string{"1"},
 		"include_tokens":  []string{"1"},
+		"sort":            []string{"mana_value"},
+		"sort_dir":        []string{"desc"},
 	})
 	if errMsg != "" {
 		t.Fatalf("parseCardSearchRequest() errMsg = %q, want empty", errMsg)
@@ -400,6 +402,15 @@ func TestParseCardSearchRequestSupportsAdvancedOptions(t *testing.T) {
 	if !req.IncludeTokens {
 		t.Fatalf("parseCardSearchRequest().IncludeTokens = false, want true")
 	}
+	if req.Sort != "mana_value" {
+		t.Fatalf("parseCardSearchRequest().Sort = %q, want %q", req.Sort, "mana_value")
+	}
+	if req.SortDirection != "desc" {
+		t.Fatalf("parseCardSearchRequest().SortDirection = %q, want %q", req.SortDirection, "desc")
+	}
+	if !req.SortDirectionExplicit {
+		t.Fatalf("parseCardSearchRequest().SortDirectionExplicit = false, want true")
+	}
 }
 
 func TestParseCardSearchRequestSupportsMultipleTypeModes(t *testing.T) {
@@ -420,6 +431,81 @@ func TestParseCardSearchRequestSupportsMultipleTypeModes(t *testing.T) {
 	}
 	if req.TypeFilters[1].Value != "Creature" || req.TypeFilters[1].Mode != "not" {
 		t.Fatalf("parseCardSearchRequest().TypeFilters[1] = %#v, want Creature/not", req.TypeFilters[1])
+	}
+}
+
+func TestParseCardSearchRequestInvalidSortDefaultsToRelevance(t *testing.T) {
+	t.Parallel()
+
+	req, errMsg := parseCardSearchRequest(url.Values{
+		"sort": []string{"mystery"},
+	})
+	if errMsg != "" {
+		t.Fatalf("parseCardSearchRequest() errMsg = %q, want empty", errMsg)
+	}
+	if req.Sort != "relevance" {
+		t.Fatalf("parseCardSearchRequest().Sort = %q, want %q", req.Sort, "relevance")
+	}
+	if req.SortDirection != "asc" {
+		t.Fatalf("parseCardSearchRequest().SortDirection = %q, want %q", req.SortDirection, "asc")
+	}
+	if req.SortDirectionExplicit {
+		t.Fatalf("parseCardSearchRequest().SortDirectionExplicit = true, want false")
+	}
+}
+
+func TestParseCardSearchRequestRelevanceQueryDefaultsDescendingDirection(t *testing.T) {
+	t.Parallel()
+
+	req, errMsg := parseCardSearchRequest(url.Values{
+		"q":    []string{"Atraxa"},
+		"sort": []string{"relevance"},
+	})
+	if errMsg != "" {
+		t.Fatalf("parseCardSearchRequest() errMsg = %q, want empty", errMsg)
+	}
+	if req.SortDirection != "desc" {
+		t.Fatalf("parseCardSearchRequest().SortDirection = %q, want %q", req.SortDirection, "desc")
+	}
+	if req.SortDirectionExplicit {
+		t.Fatalf("parseCardSearchRequest().SortDirectionExplicit = true, want false")
+	}
+}
+
+func TestCardSearchQueryValuesIncludeSort(t *testing.T) {
+	t.Parallel()
+
+	values := cardSearchQueryValues(cardSearchRequest{
+		NameQuery:             "Atraxa",
+		Sort:                  "mana_value",
+		SortDirection:         "desc",
+		SortDirectionExplicit: true,
+	})
+	if got := values.Get("q"); got != "Atraxa" {
+		t.Fatalf("cardSearchQueryValues() q = %q, want %q", got, "Atraxa")
+	}
+	if got := values.Get("sort"); got != "mana_value" {
+		t.Fatalf("cardSearchQueryValues() sort = %q, want %q", got, "mana_value")
+	}
+	if got := values.Get("sort_dir"); got != "desc" {
+		t.Fatalf("cardSearchQueryValues() sort_dir = %q, want %q", got, "desc")
+	}
+}
+
+func TestCardSearchQueryValuesOmitImplicitSortDirection(t *testing.T) {
+	t.Parallel()
+
+	values := cardSearchQueryValues(cardSearchRequest{
+		NameQuery:     "Atraxa",
+		Sort:          "relevance",
+		SortDirection: "desc",
+		HasSearched:   true,
+	})
+	if got := values.Get("sort"); got != "relevance" {
+		t.Fatalf("cardSearchQueryValues() sort = %q, want %q", got, "relevance")
+	}
+	if got := values.Get("sort_dir"); got != "" {
+		t.Fatalf("cardSearchQueryValues() sort_dir = %q, want empty", got)
 	}
 }
 
@@ -525,20 +611,23 @@ func TestBuildCardSearchFilterChipsSupportAdvancedFilterRemovals(t *testing.T) {
 	t.Parallel()
 
 	req := cardSearchRequest{
-		NameQuery:      "Atraxa",
-		NameExact:      true,
-		ManaCostQuery:  "{W}{W}",
-		TextQuery:      "draw",
-		TypeFilters:    []cardSearchTypeFilter{{Value: "Angel", Mode: "is"}},
-		TypePartial:    true,
-		Stat:           "power",
-		StatOperator:   "gte",
-		StatValueRaw:   "2",
-		PriceOperator:  "lte",
-		PriceValueRaw:  "1.25",
-		CommanderLegal: true,
-		IncludeTokens:  true,
-		HasSearched:    true,
+		NameQuery:             "Atraxa",
+		NameExact:             true,
+		ManaCostQuery:         "{W}{W}",
+		TextQuery:             "draw",
+		TypeFilters:           []cardSearchTypeFilter{{Value: "Angel", Mode: "is"}},
+		TypePartial:           true,
+		Stat:                  "power",
+		StatOperator:          "gte",
+		StatValueRaw:          "2",
+		PriceOperator:         "lte",
+		PriceValueRaw:         "1.25",
+		CommanderLegal:        true,
+		IncludeTokens:         true,
+		Sort:                  "rarity",
+		SortDirection:         "desc",
+		SortDirectionExplicit: true,
+		HasSearched:           true,
 	}
 
 	chips := buildCardSearchFilterChips(req)
@@ -557,6 +646,12 @@ func TestBuildCardSearchFilterChipsSupportAdvancedFilterRemovals(t *testing.T) {
 	}
 	if got := exactQuery.Get("q"); got != "Atraxa" {
 		t.Fatalf("exact remove query q = %q, want %q", got, "Atraxa")
+	}
+	if got := exactQuery.Get("sort"); got != "rarity" {
+		t.Fatalf("exact remove query sort = %q, want %q", got, "rarity")
+	}
+	if got := exactQuery.Get("sort_dir"); got != "desc" {
+		t.Fatalf("exact remove query sort_dir = %q, want %q", got, "desc")
 	}
 
 	manaCostPath, ok := chipMap["Mana Cost: {W}{W}"]
@@ -597,6 +692,12 @@ func TestBuildCardSearchFilterChipsSupportAdvancedFilterRemovals(t *testing.T) {
 	if got := priceQuery.Get("stat_value"); got != "2" {
 		t.Fatalf("price remove query stat_value = %q, want %q", got, "2")
 	}
+	if got := priceQuery.Get("sort"); got != "rarity" {
+		t.Fatalf("price remove query sort = %q, want %q", got, "rarity")
+	}
+	if got := priceQuery.Get("sort_dir"); got != "desc" {
+		t.Fatalf("price remove query sort_dir = %q, want %q", got, "desc")
+	}
 
 	commanderLegalPath, ok := chipMap["Commander legal"]
 	if !ok {
@@ -623,6 +724,12 @@ func TestBuildCardSearchFilterChipsSupportAdvancedFilterRemovals(t *testing.T) {
 	}
 	if got := commanderLegalQuery.Get("price_value"); got != "1.25" {
 		t.Fatalf("commander-legal remove query price_value = %q, want %q", got, "1.25")
+	}
+	if got := commanderLegalQuery.Get("sort"); got != "rarity" {
+		t.Fatalf("commander-legal remove query sort = %q, want %q", got, "rarity")
+	}
+	if got := commanderLegalQuery.Get("sort_dir"); got != "desc" {
+		t.Fatalf("commander-legal remove query sort_dir = %q, want %q", got, "desc")
 	}
 }
 
@@ -709,11 +816,14 @@ func TestCardSearchEditPathUsesSearchEditorRoute(t *testing.T) {
 	t.Parallel()
 
 	got := cardSearchEditPath(cardSearchRequest{
-		NameQuery:   "Atraxa",
-		NameExact:   true,
-		TextQuery:   "draw",
-		TextMode:    "not",
-		HasSearched: true,
+		NameQuery:             "Atraxa",
+		NameExact:             true,
+		TextQuery:             "draw",
+		TextMode:              "not",
+		Sort:                  "oldest_printing",
+		SortDirection:         "desc",
+		SortDirectionExplicit: true,
+		HasSearched:           true,
 	})
 
 	parsed, err := url.Parse(got)
@@ -737,6 +847,12 @@ func TestCardSearchEditPathUsesSearchEditorRoute(t *testing.T) {
 	if got := query.Get("text_mode"); got != "not" {
 		t.Fatalf("cardSearchEditPath() text_mode = %q, want %q", got, "not")
 	}
+	if got := query.Get("sort"); got != "oldest_printing" {
+		t.Fatalf("cardSearchEditPath() sort = %q, want %q", got, "oldest_printing")
+	}
+	if got := query.Get("sort_dir"); got != "desc" {
+		t.Fatalf("cardSearchEditPath() sort_dir = %q, want %q", got, "desc")
+	}
 }
 
 func TestHandleCardSearchRedirectsToResultsWithoutFiltersWhenViewRequested(t *testing.T) {
@@ -751,8 +867,194 @@ func TestHandleCardSearchRedirectsToResultsWithoutFiltersWhenViewRequested(t *te
 	if rr.Code != http.StatusSeeOther {
 		t.Fatalf("HandleCardSearch() status = %d, want %d", rr.Code, http.StatusSeeOther)
 	}
-	if got := rr.Header().Get("Location"); got != "/cards" {
-		t.Fatalf("HandleCardSearch() redirect = %q, want %q", got, "/cards")
+	parsed, err := url.Parse(rr.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("url.Parse(Location) error = %v", err)
+	}
+	if parsed.Path != "/cards" {
+		t.Fatalf("HandleCardSearch() redirect path = %q, want %q", parsed.Path, "/cards")
+	}
+	if got := parsed.Query().Get("sort"); got != "relevance" {
+		t.Fatalf("HandleCardSearch() redirect sort = %q, want %q", got, "relevance")
+	}
+	if got := parsed.Query().Get("sort_dir"); got != "" {
+		t.Fatalf("HandleCardSearch() redirect sort_dir = %q, want empty", got)
+	}
+}
+
+func TestHandleCardSearchRedirectsPreserveSelectedSort(t *testing.T) {
+	t.Parallel()
+
+	app := &App{}
+	req := httptest.NewRequest(http.MethodGet, "/cards/search?view=1&q=Atraxa&sort=mana_value&sort_dir=desc", nil)
+	rr := httptest.NewRecorder()
+
+	app.HandleCardSearch(rr, req)
+
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("HandleCardSearch() status = %d, want %d", rr.Code, http.StatusSeeOther)
+	}
+
+	parsed, err := url.Parse(rr.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("url.Parse(Location) error = %v", err)
+	}
+	if parsed.Path != "/cards" {
+		t.Fatalf("HandleCardSearch() redirect path = %q, want %q", parsed.Path, "/cards")
+	}
+	if got := parsed.Query().Get("q"); got != "Atraxa" {
+		t.Fatalf("HandleCardSearch() redirect q = %q, want %q", got, "Atraxa")
+	}
+	if got := parsed.Query().Get("sort"); got != "mana_value" {
+		t.Fatalf("HandleCardSearch() redirect sort = %q, want %q", got, "mana_value")
+	}
+	if got := parsed.Query().Get("sort_dir"); got != "desc" {
+		t.Fatalf("HandleCardSearch() redirect sort_dir = %q, want %q", got, "desc")
+	}
+}
+
+func TestHandleCardSearchRedirectsRelevanceQueryWithoutImplicitDirection(t *testing.T) {
+	t.Parallel()
+
+	app := &App{}
+	req := httptest.NewRequest(http.MethodGet, "/cards/search?view=1&q=Atraxa&sort=relevance", nil)
+	rr := httptest.NewRecorder()
+
+	app.HandleCardSearch(rr, req)
+
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("HandleCardSearch() status = %d, want %d", rr.Code, http.StatusSeeOther)
+	}
+
+	parsed, err := url.Parse(rr.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("url.Parse(Location) error = %v", err)
+	}
+	if got := parsed.Query().Get("sort_dir"); got != "" {
+		t.Fatalf("HandleCardSearch() redirect sort_dir = %q, want empty", got)
+	}
+}
+
+func TestCardsListTemplateShowsSelectedSort(t *testing.T) {
+	page := cardListPageData{
+		Results: []searchResult{{
+			OracleID:   "123e4567-e89b-12d3-a456-426614174000",
+			DetailPath: cardDetailPath("123e4567-e89b-12d3-a456-426614174000"),
+			Name:       "Atraxa, Grand Unifier",
+		}},
+		HasSearched:            true,
+		CurrentPath:            "/cards?q=Atraxa&sort=mana_value&sort_dir=desc",
+		ClearPath:              "/cards/search",
+		EditFiltersPath:        "/cards/search?edit=1&q=Atraxa&sort=mana_value&sort_dir=desc",
+		SortOptions:            advancedCardSortOptions,
+		DirectionOptions:       advancedCardSortDirectionOptions,
+		SelectedSort:           "mana_value",
+		SelectedSortDirection:  "desc",
+		CurrentSortLabel:       "Mana Value",
+		CurrentDirectionLabel:  "Descending",
+		SortFields:             []cardSearchQueryField{{Name: "q", Value: "Atraxa"}},
+		ShowOldestPrintingNote: false,
+	}
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("could not determine current file path")
+	}
+
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(wd)
+	}()
+
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("os.Chdir(%q): %v", root, err)
+	}
+
+	rec := httptest.NewRecorder()
+	NewRenderer().Render(rec, "cards_list", TemplateData{
+		Data: page,
+	})
+
+	body := rec.Body.String()
+	if !strings.Contains(body, `<option value="mana_value" selected>Mana Value</option>`) {
+		t.Fatalf("cards_list template did not render the selected sort option: %s", body)
+	}
+	if !strings.Contains(body, `<option value="desc" selected>Descending</option>`) {
+		t.Fatalf("cards_list template did not render the selected direction option: %s", body)
+	}
+	if !strings.Contains(body, `name="q" value="Atraxa"`) {
+		t.Fatalf("cards_list template did not preserve hidden query fields: %s", body)
+	}
+	if !strings.Contains(body, `onchange="this.form.requestSubmit()"`) {
+		t.Fatalf("cards_list template did not render auto-submit sort controls: %s", body)
+	}
+	if !strings.Contains(body, `<noscript>`) {
+		t.Fatalf("cards_list template did not render a noscript fallback: %s", body)
+	}
+}
+
+func TestCardsSearchTemplateOmitsImplicitSortDirectionHiddenField(t *testing.T) {
+	page := cardSearchPageData{
+		Sort:                  "relevance",
+		SortDirection:         "desc",
+		SortDirectionExplicit: false,
+		CurrentSortLabel:      "Relevance",
+		CurrentDirectionLabel: "Descending",
+		ShowCurrentSort:       true,
+		SearchActionPath:      "/cards/search",
+		ClearPath:             "/cards/search",
+		ColorsSelected: map[string]bool{
+			"W": false,
+			"U": false,
+			"B": false,
+			"R": false,
+			"G": false,
+			"C": false,
+		},
+	}
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("could not determine current file path")
+	}
+
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(wd)
+	}()
+
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("os.Chdir(%q): %v", root, err)
+	}
+
+	rec := httptest.NewRecorder()
+	NewRenderer().Render(rec, "cards_search", TemplateData{
+		Data: page,
+	})
+
+	body := rec.Body.String()
+	if !strings.Contains(body, `name="sort" value="relevance"`) {
+		t.Fatalf("cards_search template did not preserve hidden sort field: %s", body)
+	}
+	searchFormMarker := `<form method="GET" action="/cards/search" class="space-y-6" data-card-search-form>`
+	searchFormStart := strings.Index(body, searchFormMarker)
+	if searchFormStart < 0 {
+		t.Fatalf("cards_search template did not render the advanced search form: %s", body)
+	}
+	searchFormBody := body[searchFormStart:]
+	if nextForm := strings.Index(searchFormBody[len(searchFormMarker):], "</form>"); nextForm >= 0 {
+		searchFormBody = searchFormBody[:len(searchFormMarker)+nextForm]
+	}
+	if strings.Contains(searchFormBody, `name="sort_dir"`) {
+		t.Fatalf("cards_search template unexpectedly rendered hidden sort_dir field in the advanced search form: %s", searchFormBody)
 	}
 }
 

@@ -7,12 +7,19 @@
       <div class="space-y-2">
         <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Advanced Search</h1>
         <p class="text-sm text-slate-400">Set the filters you want, then open the results page to review matching cards.</p>
+        {{ if $ctx.ShowCurrentSort }}
+          <p class="text-xs text-slate-500">Current result order: <span class="font-medium text-slate-300">{{ $ctx.CurrentSortLabel }} · {{ $ctx.CurrentDirectionLabel }}</span></p>
+        {{ end }}
       </div>
     </div>
 
     <section class="mt-panel p-5 sm:p-6 space-y-6">
       <form method="GET" action="{{ $ctx.SearchActionPath }}" class="space-y-6" data-card-search-form>
         <input type="hidden" name="view" value="1">
+        <input type="hidden" name="sort" value="{{ $ctx.Sort }}">
+        {{ if $ctx.SortDirectionExplicit }}
+          <input type="hidden" name="sort_dir" value="{{ $ctx.SortDirection }}">
+        {{ end }}
         <section class="space-y-4">
           <div class="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]">
             <div class="space-y-3">

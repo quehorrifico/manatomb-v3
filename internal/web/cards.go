@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -57,6 +58,11 @@ type cardSearchSelectOption struct {
 	Label string
 }
 
+type cardSearchQueryField struct {
+	Name  string
+	Value string
+}
+
 type cardSearchPageData struct {
 	NameQuery             string
 	NameExact             bool
@@ -89,57 +95,74 @@ type cardSearchPageData struct {
 	CommanderOnly         bool
 	CommanderLegal        bool
 	IncludeTokens         bool
+	Sort                  string
+	SortDirection         string
+	SortDirectionExplicit bool
+	CurrentSortLabel      string
+	CurrentDirectionLabel string
+	ShowCurrentSort       bool
 	SearchActionPath      string
 	ClearPath             string
 }
 
 type cardListPageData struct {
-	Results         []searchResult
-	HasSearched     bool
-	SavedDecks      []deckListItem
-	AppliedFilters  []cardSearchFilterChip
-	CurrentPath     string
-	ClearPath       string
-	EditFiltersPath string
+	Results                []searchResult
+	HasSearched            bool
+	SavedDecks             []deckListItem
+	AppliedFilters         []cardSearchFilterChip
+	CurrentPath            string
+	ClearPath              string
+	EditFiltersPath        string
+	SortOptions            []cardSearchSelectOption
+	DirectionOptions       []cardSearchSelectOption
+	SelectedSort           string
+	SelectedSortDirection  string
+	CurrentSortLabel       string
+	CurrentDirectionLabel  string
+	SortFields             []cardSearchQueryField
+	ShowOldestPrintingNote bool
 }
 
 type cardSearchRequest struct {
-	NameQuery       string
-	NameExact       bool
-	ManaCostQuery   string
-	TextQuery       string
-	TextMode        string
-	TypeFilters     []cardSearchTypeFilter
-	TypePartial     bool
-	Layout          string
-	Stat            string
-	StatOperator    string
-	StatValue       *int
-	StatValueRaw    string
-	StatMin         *float64
-	StatMax         *float64
-	StatMinRaw      string
-	StatMaxRaw      string
-	ColorParams     []string
-	ColorMode       string
-	ManaValueMin    *float64
-	ManaValueMax    *float64
-	ManaValueMinRaw string
-	ManaValueMaxRaw string
-	PriceOperator   string
-	PriceValue      *float64
-	PriceValueRaw   string
-	PriceMin        *float64
-	PriceMax        *float64
-	PriceMinRaw     string
-	PriceMaxRaw     string
-	Rarity          string
-	SetQuery        string
-	ArtistQuery     string
-	CommanderOnly   bool
-	CommanderLegal  bool
-	IncludeTokens   bool
-	HasSearched     bool
+	NameQuery             string
+	NameExact             bool
+	ManaCostQuery         string
+	TextQuery             string
+	TextMode              string
+	TypeFilters           []cardSearchTypeFilter
+	TypePartial           bool
+	Layout                string
+	Stat                  string
+	StatOperator          string
+	StatValue             *int
+	StatValueRaw          string
+	StatMin               *float64
+	StatMax               *float64
+	StatMinRaw            string
+	StatMaxRaw            string
+	ColorParams           []string
+	ColorMode             string
+	ManaValueMin          *float64
+	ManaValueMax          *float64
+	ManaValueMinRaw       string
+	ManaValueMaxRaw       string
+	PriceOperator         string
+	PriceValue            *float64
+	PriceValueRaw         string
+	PriceMin              *float64
+	PriceMax              *float64
+	PriceMinRaw           string
+	PriceMaxRaw           string
+	Rarity                string
+	SetQuery              string
+	ArtistQuery           string
+	CommanderOnly         bool
+	CommanderLegal        bool
+	IncludeTokens         bool
+	Sort                  string
+	SortDirection         string
+	SortDirectionExplicit bool
+	HasSearched           bool
 }
 
 type cardDetailFaceData struct {
@@ -246,6 +269,20 @@ var advancedCardStatOperatorOptions = []cardSearchSelectOption{
 	{Value: "lte", Label: "Less than or equal to"},
 	{Value: "gte", Label: "Greater than or equal to"},
 	{Value: "neq", Label: "Not equal to"},
+}
+
+var advancedCardSortOptions = []cardSearchSelectOption{
+	{Value: "relevance", Label: "Relevance"},
+	{Value: "alphabetical", Label: "Alphabetical"},
+	{Value: "mana_value", Label: "Mana Value"},
+	{Value: "newest_printing", Label: "Newest Printing"},
+	{Value: "oldest_printing", Label: "Oldest Printing"},
+	{Value: "rarity", Label: "Rarity"},
+}
+
+var advancedCardSortDirectionOptions = []cardSearchSelectOption{
+	{Value: "asc", Label: "Ascending"},
+	{Value: "desc", Label: "Descending"},
 }
 
 type cardResolveResponse struct {
@@ -758,6 +795,57 @@ func normalizeCardSearchTextMode(raw string) string {
 	}
 }
 
+func normalizeCardSearchSort(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "alphabetical":
+		return "alphabetical"
+	case "mana_value":
+		return "mana_value"
+	case "newest_printing":
+		return "newest_printing"
+	case "oldest_printing":
+		return "oldest_printing"
+	case "rarity":
+		return "rarity"
+	default:
+		return "relevance"
+	}
+}
+
+func defaultCardSearchSortDirection(sortMode string, hasNameQuery bool) string {
+	switch normalizeCardSearchSort(sortMode) {
+	case "newest_printing":
+		return "desc"
+	case "relevance":
+		if hasNameQuery {
+			return "desc"
+		}
+		return "asc"
+	default:
+		return "asc"
+	}
+}
+
+func normalizeCardSearchSortDirection(sortMode string, hasNameQuery bool, raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "desc":
+		return "desc"
+	case "asc":
+		return "asc"
+	default:
+		return defaultCardSearchSortDirection(sortMode, hasNameQuery)
+	}
+}
+
+func hasExplicitCardSearchSortDirection(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "asc", "desc":
+		return true
+	default:
+		return false
+	}
+}
+
 func normalizeCardSearchLayout(raw string) string {
 	value := strings.ToLower(strings.TrimSpace(raw))
 	for _, option := range advancedCardLayoutOptions {
@@ -989,11 +1077,14 @@ func parseCardSearchRequest(q url.Values) (cardSearchRequest, string) {
 		CommanderOnly:  strings.TrimSpace(q.Get("commander")) == "1",
 		CommanderLegal: strings.TrimSpace(q.Get("commander_legal")) == "1",
 		IncludeTokens:  strings.TrimSpace(q.Get("include_tokens")) == "1",
+		Sort:           normalizeCardSearchSort(q.Get("sort")),
 		PriceOperator:  normalizeCardSearchStatOperator(priceOperatorRaw),
 		PriceValueRaw:  priceValueRaw,
 		PriceMinRaw:    q.Get("price_min"),
 		PriceMaxRaw:    q.Get("price_max"),
 	}
+	req.SortDirection = normalizeCardSearchSortDirection(req.Sort, req.NameQuery != "", q.Get("sort_dir"))
+	req.SortDirectionExplicit = hasExplicitCardSearchSortDirection(q.Get("sort_dir"))
 
 	req.TypeFilters = normalizeCardSearchTypeFilters(q["type_value"], q["type_mode"])
 	if len(req.TypeFilters) == 0 {
@@ -1173,8 +1264,40 @@ func cardSearchQueryValues(req cardSearchRequest) url.Values {
 	if req.IncludeTokens {
 		values.Set("include_tokens", "1")
 	}
+	values.Set("sort", normalizeCardSearchSort(req.Sort))
+	if req.SortDirectionExplicit {
+		values.Set("sort_dir", normalizeCardSearchSortDirection(req.Sort, req.NameQuery != "", req.SortDirection))
+	}
 
 	return values
+}
+
+func cardSearchQueryFields(req cardSearchRequest, excluded ...string) []cardSearchQueryField {
+	values := cardSearchQueryValues(req)
+	exclude := make(map[string]struct{}, len(excluded))
+	for _, key := range excluded {
+		exclude[key] = struct{}{}
+	}
+
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		if _, skip := exclude[key]; skip {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	fields := make([]cardSearchQueryField, 0, len(keys))
+	for _, key := range keys {
+		for _, value := range values[key] {
+			fields = append(fields, cardSearchQueryField{
+				Name:  key,
+				Value: value,
+			})
+		}
+	}
+	return fields
 }
 
 func cardSearchPath(req cardSearchRequest) string {
@@ -1464,6 +1587,26 @@ func formatCardSearchLayoutLabel(raw string) string {
 	return strings.TrimSpace(raw)
 }
 
+func formatCardSearchSortLabel(raw string) string {
+	value := normalizeCardSearchSort(raw)
+	for _, option := range advancedCardSortOptions {
+		if option.Value == value {
+			return option.Label
+		}
+	}
+	return strings.TrimSpace(raw)
+}
+
+func formatCardSearchSortDirectionLabel(rawSort string, hasNameQuery bool, rawDirection string) string {
+	value := normalizeCardSearchSortDirection(rawSort, hasNameQuery, rawDirection)
+	for _, option := range advancedCardSortDirectionOptions {
+		if option.Value == value {
+			return option.Label
+		}
+	}
+	return strings.TrimSpace(rawDirection)
+}
+
 func (req cardSearchRequest) searchParams(limit int) cards.CardSearchParams {
 	var statValue *float64
 	if req.StatValue != nil {
@@ -1497,6 +1640,8 @@ func (req cardSearchRequest) searchParams(limit int) cards.CardSearchParams {
 		CommanderLegal: req.CommanderLegal,
 		CommanderOnly:  req.CommanderOnly,
 		IncludeTokens:  req.IncludeTokens,
+		Sort:           req.Sort,
+		SortDirection:  req.SortDirection,
 		Limit:          limit,
 	}
 }
@@ -1543,13 +1688,21 @@ func (a *App) HandleCardList(w http.ResponseWriter, r *http.Request) {
 	data := TemplateData{
 		CurrentUser: user,
 		Data: cardListPageData{
-			Results:         buildSearchResults(results),
-			HasSearched:     true,
-			SavedDecks:      savedDecks,
-			AppliedFilters:  buildCardSearchFilterChips(req),
-			CurrentPath:     currentPath,
-			ClearPath:       "/cards/search",
-			EditFiltersPath: cardSearchEditPath(req),
+			Results:                buildSearchResults(results),
+			HasSearched:            true,
+			SavedDecks:             savedDecks,
+			AppliedFilters:         buildCardSearchFilterChips(req),
+			CurrentPath:            currentPath,
+			ClearPath:              "/cards/search",
+			EditFiltersPath:        cardSearchEditPath(req),
+			SortOptions:            advancedCardSortOptions,
+			DirectionOptions:       advancedCardSortDirectionOptions,
+			SelectedSort:           normalizeCardSearchSort(req.Sort),
+			SelectedSortDirection:  normalizeCardSearchSortDirection(req.Sort, req.NameQuery != "", req.SortDirection),
+			CurrentSortLabel:       formatCardSearchSortLabel(req.Sort),
+			CurrentDirectionLabel:  formatCardSearchSortDirectionLabel(req.Sort, req.NameQuery != "", req.SortDirection),
+			SortFields:             cardSearchQueryFields(req, "sort", "sort_dir"),
+			ShowOldestPrintingNote: normalizeCardSearchSort(req.Sort) == "oldest_printing",
 		},
 		Flash: flash,
 		Error: errMsg,
@@ -1565,8 +1718,9 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req, errMsg := parseCardSearchRequest(r.URL.Query())
+	editRequested := strings.TrimSpace(r.URL.Query().Get("edit")) == "1"
 	viewRequested := strings.TrimSpace(r.URL.Query().Get("view")) == "1"
-	if (req.HasSearched || viewRequested) && errMsg == "" && strings.TrimSpace(r.URL.Query().Get("edit")) != "1" {
+	if (req.HasSearched || viewRequested) && errMsg == "" && !editRequested {
 		http.Redirect(w, r, cardSearchPath(req), http.StatusSeeOther)
 		return
 	}
@@ -1611,6 +1765,12 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 			CommanderOnly:         req.CommanderOnly,
 			CommanderLegal:        req.CommanderLegal,
 			IncludeTokens:         req.IncludeTokens,
+			Sort:                  normalizeCardSearchSort(req.Sort),
+			SortDirection:         normalizeCardSearchSortDirection(req.Sort, req.NameQuery != "", req.SortDirection),
+			SortDirectionExplicit: req.SortDirectionExplicit,
+			CurrentSortLabel:      formatCardSearchSortLabel(req.Sort),
+			CurrentDirectionLabel: formatCardSearchSortDirectionLabel(req.Sort, req.NameQuery != "", req.SortDirection),
+			ShowCurrentSort:       editRequested,
 			SearchActionPath:      "/cards/search",
 			ClearPath:             "/cards/search",
 		},

@@ -199,6 +199,233 @@ func TestBuildCardSearchFiltersSupportsPriceOperator(t *testing.T) {
 	}
 }
 
+func TestNormalizeCardSearchSortDefaultsToRelevance(t *testing.T) {
+	t.Parallel()
+
+	if got := normalizeCardSearchSort(""); got != "relevance" {
+		t.Fatalf("normalizeCardSearchSort(\"\") = %q, want %q", got, "relevance")
+	}
+	if got := normalizeCardSearchSort("unknown"); got != "relevance" {
+		t.Fatalf("normalizeCardSearchSort(\"unknown\") = %q, want %q", got, "relevance")
+	}
+}
+
+func TestNormalizeCardSearchSortDirectionUsesSortDefaults(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		sortMode     string
+		hasNameQuery bool
+		raw          string
+		want         string
+	}{
+		{
+			name:         "relevance with query",
+			sortMode:     "relevance",
+			hasNameQuery: true,
+			want:         "desc",
+		},
+		{
+			name:         "relevance without query",
+			sortMode:     "relevance",
+			hasNameQuery: false,
+			want:         "asc",
+		},
+		{
+			name:         "newest printing",
+			sortMode:     "newest_printing",
+			hasNameQuery: false,
+			want:         "desc",
+		},
+		{
+			name:         "mana value",
+			sortMode:     "mana_value",
+			hasNameQuery: false,
+			want:         "asc",
+		},
+		{
+			name:         "explicit desc",
+			sortMode:     "alphabetical",
+			hasNameQuery: false,
+			raw:          "desc",
+			want:         "desc",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := normalizeCardSearchSortDirection(tt.sortMode, tt.hasNameQuery, tt.raw); got != tt.want {
+				t.Fatalf("normalizeCardSearchSortDirection(%q, %t, %q) = %q, want %q", tt.sortMode, tt.hasNameQuery, tt.raw, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCardSearchOrderBySQLRelevanceWithNameQuery(t *testing.T) {
+	t.Parallel()
+
+	sqlText := cardSearchOrderBySQL("relevance", "desc", true, true)
+
+	for _, snippet := range []string{
+		"(oc.name_search = $1) DESC",
+		"(oc.name_search LIKE $1 || '%') DESC",
+		"similarity(oc.name_search, $1) DESC",
+		"COALESCE(oc.edhrec_rank, 999999) ASC",
+		"lower(oc.name) ASC",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("cardSearchOrderBySQL() missing SQL snippet %q in %q", snippet, sqlText)
+		}
+	}
+}
+
+func TestCardSearchOrderBySQLRelevanceWithoutNameQueryFallsBackAlphabetical(t *testing.T) {
+	t.Parallel()
+
+	sqlText := cardSearchOrderBySQL("relevance", "asc", false, false)
+
+	for _, snippet := range []string{
+		"lower(oc.name) ASC",
+		"oc.name ASC",
+		"oc.oracle_id ASC",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("cardSearchOrderBySQL() missing SQL snippet %q in %q", snippet, sqlText)
+		}
+	}
+	for _, snippet := range []string{
+		"similarity(oc.name_search, $1) DESC",
+		"COALESCE(oc.edhrec_rank, 999999) ASC",
+	} {
+		if strings.Contains(sqlText, snippet) {
+			t.Fatalf("cardSearchOrderBySQL() unexpectedly included SQL snippet %q in %q", snippet, sqlText)
+		}
+	}
+}
+
+func TestCardSearchOrderBySQLSupportsAlternateSorts(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		sortMode string
+		dir      string
+		snippets []string
+	}{
+		{
+			name:     "alphabetical",
+			sortMode: "alphabetical",
+			dir:      "asc",
+			snippets: []string{"lower(oc.name) ASC", "oc.oracle_id ASC"},
+		},
+		{
+			name:     "mana value",
+			sortMode: "mana_value",
+			dir:      "asc",
+			snippets: []string{"COALESCE(oc.cmc, 0) ASC", "lower(oc.name) ASC"},
+		},
+		{
+			name:     "newest printing",
+			sortMode: "newest_printing",
+			dir:      "desc",
+			snippets: []string{"oc.default_released_at DESC NULLS LAST", "lower(oc.name) ASC"},
+		},
+		{
+			name:     "oldest printing",
+			sortMode: "oldest_printing",
+			dir:      "asc",
+			snippets: []string{"SELECT MIN(cp_oldest.released_at)", "lower(COALESCE(cp_oldest.lang, 'en')) = 'en'"},
+		},
+		{
+			name:     "rarity",
+			sortMode: "rarity",
+			dir:      "asc",
+			snippets: []string{"CASE lower(COALESCE(cp.rarity, ''))", "WHEN 'common' THEN 0", "ELSE 4", "CASE WHEN CASE lower(COALESCE(cp.rarity, ''))"},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			sqlText := cardSearchOrderBySQL(tt.sortMode, tt.dir, true, true)
+			for _, snippet := range tt.snippets {
+				if !strings.Contains(sqlText, snippet) {
+					t.Fatalf("cardSearchOrderBySQL(%q) missing SQL snippet %q in %q", tt.sortMode, snippet, sqlText)
+				}
+			}
+		})
+	}
+}
+
+func TestCardSearchOrderBySQLSupportsDescendingAlternates(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		sortMode string
+		snippets []string
+	}{
+		{
+			name:     "alphabetical desc",
+			sortMode: "alphabetical",
+			snippets: []string{"lower(oc.name) DESC", "oc.oracle_id DESC"},
+		},
+		{
+			name:     "mana value desc",
+			sortMode: "mana_value",
+			snippets: []string{"COALESCE(oc.cmc, 0) DESC", "lower(oc.name) ASC"},
+		},
+		{
+			name:     "oldest printing desc",
+			sortMode: "oldest_printing",
+			snippets: []string{"DESC NULLS LAST", "lower(oc.name) ASC"},
+		},
+		{
+			name:     "rarity desc",
+			sortMode: "rarity",
+			snippets: []string{"THEN 1 ELSE 0 END ASC", "ELSE 4", "END DESC", "lower(COALESCE(cp.rarity, '')) DESC"},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			sqlText := cardSearchOrderBySQL(tt.sortMode, "desc", true, true)
+			for _, snippet := range tt.snippets {
+				if !strings.Contains(sqlText, snippet) {
+					t.Fatalf("cardSearchOrderBySQL(%q, desc) missing SQL snippet %q in %q", tt.sortMode, snippet, sqlText)
+				}
+			}
+		})
+	}
+}
+
+func TestCardSearchOrderBySQLRelevanceAscendingReversesRanking(t *testing.T) {
+	t.Parallel()
+
+	sqlText := cardSearchOrderBySQL("relevance", "asc", true, true)
+
+	for _, snippet := range []string{
+		"(oc.name_search = $1) ASC",
+		"(oc.name_search LIKE $1 || '%') ASC",
+		"similarity(oc.name_search, $1) ASC",
+		"COALESCE(oc.edhrec_rank, 999999) DESC",
+		"lower(oc.name) ASC",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("cardSearchOrderBySQL(relevance, asc) missing SQL snippet %q in %q", snippet, sqlText)
+		}
+	}
+}
+
 func arrayArgString(t *testing.T, arg any) string {
 	t.Helper()
 
