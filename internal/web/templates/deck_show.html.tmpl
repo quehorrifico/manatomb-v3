@@ -54,13 +54,14 @@
              class="space-y-4 min-w-0 {{ if not $isCommanderDeck }}hidden{{ end }}">
 
             <section id="deck-commander-panel" class="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 space-y-3">
-              <div id="deck-top-commander-art-wrap"
-                   class="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}{{ else }}hidden{{ end }}">
+              <button type="button"
+                      id="deck-top-commander-art-wrap"
+                      class="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-sky-400 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}{{ else }}hidden{{ end }}">
                 <img id="deck-top-commander-art"
                      src="{{ if and $c $c.ImageURI }}{{ $c.ImageURI }}{{ else if and $c (gt (len $c.Faces) 0) }}{{ (index $c.Faces 0).ImageURI }}{{ end }}"
                      alt="{{ if $d.CommanderName }}{{ $d.CommanderName }} commander art{{ else }}Commander art{{ end }}"
                      class="block w-full h-auto object-cover">
-              </div>
+              </button>
               <div id="deck-top-commander-placeholder"
                    class="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}hidden{{ end }}">
                 <div class="flex aspect-[5/7] items-center justify-center rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
@@ -74,37 +75,10 @@
                       id="deck-commander-flip"
                       class="mt-btn mt-btn--secondary mt-btn--sm w-full {{ if and $c (gt (len $c.Faces) 1) }}{{ else }}hidden{{ end }}">Turn Over</button>
 
-              <div class="space-y-3">
-                <div>
-                  <h3 id="deck-commander-name" class="mt-1 text-2xl font-semibold text-slate-50 break-words">
-                    {{ if $c }}{{ $c.Name }}{{ else if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}No commander selected{{ end }}
-                  </h3>
-                </div>
-
-                <div>
-                  <p class="text-[11px] uppercase tracking-wide text-slate-400">Mana Cost</p>
-                  <div class="mt-1 min-h-[1.2rem]">
-                    <span id="deck-commander-mana-cost"
-                          data-mana-cost="{{ if $c }}{{ $c.ManaCost }}{{ end }}"
-                          class="inline-flex flex-wrap items-center gap-1 align-middle text-sm text-slate-100">
-                      {{ if $c }}{{ if not $c.ManaCost }}None{{ end }}{{ else }}None{{ end }}
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <p class="text-[11px] uppercase tracking-wide text-slate-400">Type</p>
-                  <p id="deck-commander-type-line" class="mt-1 text-sm text-slate-300">
-                    {{ if $c }}{{ $c.TypeLine }}{{ end }}
-                  </p>
-                </div>
-
-                <div>
-                  <p class="text-[11px] uppercase tracking-wide text-slate-400">Oracle Text</p>
-                  <p id="deck-commander-oracle-text" class="mt-1 min-h-[112px] whitespace-pre-line text-sm leading-6 text-slate-100">
-                    {{ if $c }}{{ $c.OracleText }}{{ else }}Use the 3 dot menu on a card in Deck to set your commander.{{ end }}
-                  </p>
-                </div>
+              <div>
+                <button type="button" id="deck-commander-name" class="mt-1 text-left text-2xl font-semibold text-slate-50 break-words transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200">
+                  {{ if $c }}{{ $c.Name }}{{ else if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}No commander selected{{ end }}
+                </button>
               </div>
             </section>
         </div>
@@ -349,6 +323,67 @@
     </section>
   </main>
 
+  <div id="card-detail-modal" class="mt-modal hidden">
+    <div class="mt-modal-panel max-w-2xl">
+      <button type="button" class="absolute top-3 right-3 mt-btn mt-btn--secondary text-xs !px-3 !py-2" data-close-modal>
+        Close
+      </button>
+
+      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start">
+        <div class="flex items-center justify-center">
+          <img data-field="image"
+               alt=""
+               class="w-full max-w-xs h-auto mt-card-media shadow-md shadow-slate-900/80">
+        </div>
+
+        <div class="space-y-3 text-sm text-slate-200">
+          <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
+
+          <div class="space-y-1" data-field="printing-group">
+            <label for="printing-select" class="mt-field-label">Version</label>
+            <select id="printing-select" data-field="printing-select"
+                    class="mt-control mt-control--sm text-xs text-slate-100">
+              <option value="">Latest printing</option>
+            </select>
+            <p data-field="printing-meta" class="hidden text-[11px] uppercase tracking-wide text-slate-500"></p>
+          </div>
+
+          <p class="text-xs uppercase tracking-wide text-slate-400">
+            <span data-field="type-line"></span>
+          </p>
+
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+            <span>
+              <span class="font-medium text-slate-200">Cost:</span>
+              <span data-field="mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
+            </span>
+            <span>
+              <span class="font-medium text-slate-200">Price:</span>
+              <span data-field="price-usd">—</span>
+            </span>
+            <span>
+              <span class="font-medium text-slate-200">Artist:</span>
+              <span data-field="artist">—</span>
+            </span>
+          </div>
+
+          <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
+
+          <div class="flex flex-wrap justify-between gap-2 pt-2">
+            <a href="#"
+               data-field="open-page-link"
+               class="hidden mt-btn mt-btn--secondary text-xs !px-3 !py-2">
+              Open Full Page
+            </a>
+            <button type="button" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2 hidden" data-flip-card>
+              Flip Card
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {{ if not $isGuest }}
     <div id="deck-menu-overlay"
          class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 px-4 py-6">
@@ -398,6 +433,7 @@
     {{ if not $isGuest }}{{ toJSON $ctx.WorkspaceState }}{{ else }}null{{ end }}
   </script>
 
+  {{ template "card_detail_modal_script" . }}
   {{ template "deck_show_guest_draft_script" . }}
 
   <script>
@@ -420,9 +456,6 @@
       var overviewStatus = document.getElementById('deck-overview-status');
       var flipButton = document.getElementById('deck-commander-flip');
       var commanderNameEl = document.getElementById('deck-commander-name');
-      var commanderManaEl = document.getElementById('deck-commander-mana-cost');
-      var commanderTypeEl = document.getElementById('deck-commander-type-line');
-      var commanderOracleEl = document.getElementById('deck-commander-oracle-text');
       var commanderArtWrapEl = document.getElementById('deck-top-commander-art-wrap');
       var commanderPlaceholderEl = document.getElementById('deck-top-commander-placeholder');
       var commanderArtEl = document.getElementById('deck-top-commander-art');
@@ -441,12 +474,6 @@
 
       function commanderEmptyName() {
         return commanderRequiresSelection ? 'No commander selected' : 'No commander used';
-      }
-
-      function commanderEmptyOracle() {
-        return commanderRequiresSelection
-          ? 'Use the 3 dot menu on a card in Deck to set your commander.'
-          : 'Sandbox decks do not use a commander.';
       }
 
       function isUsableCommanderImageURI(value) {
@@ -475,12 +502,6 @@
         }
         if (!isCommander) {
           if (commanderNameEl) commanderNameEl.textContent = commanderEmptyName();
-          if (commanderManaEl) {
-            commanderManaEl.setAttribute('data-mana-cost', '');
-            commanderManaEl.textContent = 'None';
-          }
-          if (commanderTypeEl) commanderTypeEl.textContent = '';
-          if (commanderOracleEl) commanderOracleEl.textContent = commanderEmptyOracle();
           if (commanderArtWrapEl) commanderArtWrapEl.classList.add('hidden');
           if (commanderPlaceholderEl) commanderPlaceholderEl.classList.add('hidden');
           if (flipButton) flipButton.classList.add('hidden');
@@ -549,9 +570,6 @@
           : null;
 
         var name = face ? face.name : normalizeTag(commanderFallback.name || '');
-        var manaCost = face ? face.mana_cost : normalizeTag(commanderFallback.mana_cost || '');
-        var typeLine = face ? face.type_line : normalizeTag(commanderFallback.type_line || '');
-        var oracleText = face ? face.oracle_text : normalizeTag(commanderFallback.oracle_text || '');
         var imageURI = face ? face.image_uri : normalizeTag(commanderFallback.image_uri || '');
         var hasCommanderSelection = !!name;
         if (hasCommanderSelection && !isUsableCommanderImageURI(imageURI) && isUsableCommanderImageURI(commanderFallback.image_uri || '')) {
@@ -561,20 +579,10 @@
           imageURI = lastGoodCommanderArt;
         }
         if (!hasCommanderSelection) {
-          manaCost = '';
-          typeLine = '';
-          oracleText = commanderEmptyOracle();
           imageURI = '';
         }
 
         if (commanderNameEl) commanderNameEl.textContent = name || commanderEmptyName();
-        if (commanderManaEl) {
-          commanderManaEl.setAttribute('data-mana-cost', manaCost);
-          commanderManaEl.textContent = manaCost ? '' : 'None';
-          if (window.mtRenderManaCostPips) window.mtRenderManaCostPips(commanderManaEl);
-        }
-        if (commanderTypeEl) commanderTypeEl.textContent = typeLine || '';
-        if (commanderOracleEl) commanderOracleEl.textContent = oracleText || commanderEmptyOracle();
 
         if (commanderArtEl) {
           if (isUsableCommanderImageURI(imageURI)) {
@@ -624,6 +632,43 @@
 
       window.mtDeckSetCommanderOverview = setCommanderOverview;
 
+      function currentCommanderViewState() {
+        var face = currentCommanderFaces.length > 0
+          ? (currentCommanderFaces[currentCommanderFaceIndex] || currentCommanderFaces[0])
+          : null;
+        var cardName = normalizeTag(face ? face.name : commanderFallback.name || '');
+        if (!cardName) return null;
+        var draft = isGuest ? (window.mtDeckCurrentGuestDraft || null) : (window.mtDeckCurrentSavedDraft || null);
+        var lookupDraftMeta = window.mtDeckDraftMetaForCard;
+        var cardMeta = (draft && typeof lookupDraftMeta === 'function') ? lookupDraftMeta(draft, cardName) : null;
+        if (!cardMeta && commanderName) {
+          cardMeta = (draft && typeof lookupDraftMeta === 'function') ? lookupDraftMeta(draft, commanderName) : null;
+        }
+        return {
+          name: cardName,
+          cardMeta: cardMeta,
+          imageURI: normalizeTag(face ? face.image_uri : commanderFallback.image_uri || ''),
+          manaCost: normalizeTag(face ? face.mana_cost : commanderFallback.mana_cost || ''),
+          typeLine: normalizeTag(face ? face.type_line : commanderFallback.type_line || ''),
+          oracleText: normalizeTag(face ? face.oracle_text : commanderFallback.oracle_text || ''),
+          faces: currentCommanderFaces,
+        };
+      }
+
+      function openCommanderCardView() {
+        if (typeof window.mtDeckOpenWorkbenchCardView !== 'function') return;
+        var state = currentCommanderViewState();
+        if (!state || !state.name) return;
+        window.mtDeckOpenWorkbenchCardView(state.name, state.cardMeta, {
+          imageURI: state.imageURI,
+          manaCost: state.manaCost,
+          typeLine: state.typeLine,
+          oracleText: state.oracleText,
+          faces: state.faces,
+          resolveExact: !(state.cardMeta && state.cardMeta.cardID),
+        });
+      }
+
       if (commanderArtEl) {
         commanderArtEl.addEventListener('load', function () {
           var next = normalizeTag(commanderArtEl.getAttribute('src') || '');
@@ -643,6 +688,18 @@
             return;
           }
           if (commanderArtWrapEl) commanderArtWrapEl.classList.add('hidden');
+        });
+      }
+
+      if (commanderNameEl) {
+        commanderNameEl.addEventListener('click', function () {
+          openCommanderCardView();
+        });
+      }
+      if (commanderArtWrapEl && commanderArtWrapEl.getAttribute('data-preview-bound') !== '1') {
+        commanderArtWrapEl.addEventListener('click', function () {
+          if (commanderArtWrapEl.classList.contains('hidden')) return;
+          openCommanderCardView();
         });
       }
 
@@ -854,16 +911,39 @@
             var name = String(result.name || '').trim();
             if (!name) continue;
 
+            var row = document.createElement('div');
+            row.className = 'flex items-center gap-2 border-t border-slate-800 px-3 py-2 first:border-t-0';
+
             var button = document.createElement('button');
             button.type = 'button';
-            button.className = 'block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-200 first:border-t-0 hover:bg-slate-900 hover:text-sky-200';
+            button.className = 'min-w-0 flex-1 text-left text-sm text-slate-200 transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200';
             button.textContent = name;
             button.setAttribute('role', 'option');
             button.addEventListener('mousedown', function (event) {
               event.preventDefault();
               submitCard(this.textContent || '');
             });
-            suggestions.appendChild(button);
+            row.appendChild(button);
+
+            var viewButton = document.createElement('button');
+            viewButton.type = 'button';
+            viewButton.className = 'mt-btn mt-btn--secondary mt-btn--xs shrink-0';
+            viewButton.textContent = 'View';
+            viewButton.addEventListener('mousedown', function (event) {
+              event.preventDefault();
+            });
+            viewButton.addEventListener('click', (function (cardName) {
+              return function (event) {
+                event.preventDefault();
+                if (typeof window.mtDeckOpenWorkbenchCardView !== 'function') return;
+                window.mtDeckOpenWorkbenchCardView(cardName, null, {
+                  resolveExact: true,
+                });
+              };
+            })(name));
+            row.appendChild(viewButton);
+
+            suggestions.appendChild(row);
             items.push(button);
           }
 
