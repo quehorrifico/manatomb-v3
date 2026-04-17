@@ -49,6 +49,11 @@ type DeckCard struct {
 	Quantity      int
 }
 
+type DeckCardInput struct {
+	OracleID string
+	Qty      int
+}
+
 func normalizeBoard(board string) string {
 	switch strings.ToLower(strings.TrimSpace(board)) {
 	case "main":
@@ -199,6 +204,54 @@ func MoveMaybeToDeck(ctx context.Context, db *sql.DB, deckID int64, oracleID str
 	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, "main", 1); err != nil {
 		return err
 	}
+	return tx.Commit()
+}
+
+func SetMainboard(ctx context.Context, db *sql.DB, deckID int64, cardsIn []DeckCardInput) error {
+	if deckID <= 0 {
+		return fmt.Errorf("invalid deck id")
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM deck_cards
+		WHERE deck_id = $1 AND board = 'main'
+	`, deckID); err != nil {
+		return err
+	}
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO deck_cards (deck_id, oracle_id, qty, board)
+		VALUES ($1, $2::uuid, $3, 'main')
+	`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, item := range cardsIn {
+		oracleID := strings.TrimSpace(item.OracleID)
+		if oracleID == "" || item.Qty <= 0 {
+			continue
+		}
+		if _, err := stmt.ExecContext(ctx, deckID, oracleID, item.Qty); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE decks
+		SET updated_at = NOW()
+		WHERE id = $1
+	`, deckID); err != nil {
+		return err
+	}
+
 	return tx.Commit()
 }
 

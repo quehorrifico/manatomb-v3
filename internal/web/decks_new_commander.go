@@ -51,6 +51,7 @@ func (a *App) startCommanderDeck(w http.ResponseWriter, r *http.Request, command
 		http.Redirect(w, r, deckWorkbenchPath(deckWorkbenchOptions{
 			Format:        "Commander",
 			CommanderName: commanderName,
+			Reset:         true,
 		}), http.StatusSeeOther)
 		return
 	}

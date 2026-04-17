@@ -211,6 +211,13 @@ func (a *App) HandleDeckWorkbench(w http.ResponseWriter, r *http.Request) {
 			CommanderCandidateSet: nil,
 			// CommanderCandidates is only used for saved decks, not the local workbench.
 			CommanderCandidates: nil,
+			WorkspaceState: buildWorkspaceStateFromDeck(
+				fakeDeck,
+				nil,
+				nil,
+				nil,
+				commanderCard,
+			),
 			WorkbenchMode:       true,
 			WorkbenchSandbox:    isSandbox,
 		},

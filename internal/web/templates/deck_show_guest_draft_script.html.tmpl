@@ -101,6 +101,20 @@
       return (s || '').replace(/\s+/g, ' ').trim();
     }
 
+    function nextQuickBuildSeed() {
+      var jitter = Math.floor(Math.random() * 1000);
+      try {
+        if (window.crypto && window.crypto.getRandomValues) {
+          var buf = new Uint32Array(1);
+          window.crypto.getRandomValues(buf);
+          jitter = Number(buf[0] % 1000);
+        }
+      } catch (e) {
+        jitter = Math.floor(Math.random() * 1000);
+      }
+      return (Date.now() * 1000) + jitter;
+    }
+
     function manaSymbolAssetName(symbol) {
       var normalized = String(symbol || '').trim().toUpperCase();
       if (!normalized) return '';
@@ -520,6 +534,23 @@
       }
     }
 
+    function guestWorkspaceSeedDraft() {
+      if (!savedDeckSeed || typeof savedDeckSeed !== 'object') return null;
+      if (Number(savedDeckSeed.id || 0) > 0) return null;
+
+      return {
+        commanderName: normalizeName(savedDeckSeed.commanderName || commanderName || ''),
+        format: normalizeGuestFormat(savedDeckSeed.format || deckFormat),
+        commanderCandidates: Array.isArray(savedDeckSeed.commanderCandidates) ? savedDeckSeed.commanderCandidates.slice() : [],
+        name: guestDeckName,
+        description: String(savedDeckSeed.description || '').trim(),
+        tags: String(savedDeckSeed.tags || '').trim(),
+        cards: Object.assign({}, (savedDeckSeed.cards && typeof savedDeckSeed.cards === 'object') ? savedDeckSeed.cards : {}),
+        maybeCards: Object.assign({}, (savedDeckSeed.maybeCards && typeof savedDeckSeed.maybeCards === 'object') ? savedDeckSeed.maybeCards : {}),
+        cardMeta: Object.assign({}, (savedDeckSeed.cardMeta && typeof savedDeckSeed.cardMeta === 'object') ? savedDeckSeed.cardMeta : {})
+      };
+    }
+
     // ===== Guest draft deck behavior =====
     var urlParams;
     try {
@@ -554,7 +585,14 @@
     var copyBtn = document.getElementById('guest-copy-decklist');
     var copyStatus = document.getElementById('guest-copy-status');
     var addStatus = document.getElementById('deck-add-status');
+    var quickBuildWrap = document.getElementById('deck-quick-build-wrap');
+    var quickBuildBtn = document.getElementById('deck-quick-build');
+    var quickBuildSummaryEl = document.getElementById('deck-quick-build-summary');
     var playtestBtn = document.getElementById('guest-playtest');
+    var guestLoginSaveLink = document.getElementById('guest-login-to-save');
+    var guestSignupSaveLink = document.getElementById('guest-signup-to-save');
+    var guestPanelLoginSaveLink = document.getElementById('guest-panel-login-to-save');
+    var guestPanelSignupSaveLink = document.getElementById('guest-panel-signup-to-save');
     var deckMenuOpenBtn = document.getElementById('deck-menu-open');
     var deckMenuOverlay = document.getElementById('deck-menu-overlay');
     var deckMenuCloseBtn = document.getElementById('deck-menu-close');
@@ -590,6 +628,8 @@
     var deckGroupMode = loadDeckGroupMode();
     var deckSortMode = loadDeckSortMode();
     var deckViewMode = loadDeckViewMode();
+    var quickBuildBusy = false;
+    var quickBuildLastSeed = 0;
     shouldAutoSave = !!(urlParams && urlParams.get('save_guest') === '1');
 
     if (deckGroupModeField) {
@@ -602,9 +642,54 @@
       deckViewModeField.value = deckViewMode;
     }
 
+    function guestAuthSaveNextPath() {
+      var fallback = '/decks/new/workbench?save_guest=1';
+      try {
+        var nextURL = new URL(window.location.href);
+        nextURL.searchParams.delete('reset');
+        nextURL.searchParams.set('save_guest', '1');
+
+        var nextFormat = normalizeGuestFormat(guestFormatField ? guestFormatField.value : deckFormat);
+        if (nextFormat) {
+          nextURL.searchParams.set('format', nextFormat);
+        }
+
+        var nextCommander = normalizeName(commanderName);
+        if (nextFormat === 'Commander' && nextCommander) {
+          nextURL.searchParams.set('commander_name', nextCommander);
+        } else {
+          nextURL.searchParams.delete('commander_name');
+        }
+
+        return nextURL.pathname + (nextURL.search || '');
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function syncGuestAuthSaveLinks() {
+      if (!isGuest || isSignedIn) return;
+
+      var next = guestAuthSaveNextPath();
+      var loginHref = '/login?next=' + encodeURIComponent(next);
+      var signupHref = '/signup?next=' + encodeURIComponent(next);
+
+      if (guestLoginSaveLink) guestLoginSaveLink.href = loginHref;
+      if (guestSignupSaveLink) guestSignupSaveLink.href = signupHref;
+      if (guestPanelLoginSaveLink) guestPanelLoginSaveLink.href = loginHref;
+      if (guestPanelSignupSaveLink) guestPanelSignupSaveLink.href = signupHref;
+    }
+
+    syncGuestAuthSaveLinks();
+
     if (shouldResetDraft) {
       try {
         localStorage.removeItem(key);
+      } catch (e) {
+        // ignore storage failures
+      }
+      try {
+        sessionStorage.removeItem(returnKey);
       } catch (e) {
         // ignore storage failures
       }
@@ -654,6 +739,9 @@
         if (String(d.format || '') !== 'Commander') {
           d.format = 'Sandbox';
         }
+        if (shouldResetDraft && deckFormat === 'Commander') {
+          d.format = 'Commander';
+        }
         if (urlCommander && draftCommander && urlCommander.toLowerCase() !== draftCommander.toLowerCase()) {
           if (consumedPlaytestReturn || shouldAutoSave || isSignedIn) {
             // During auth-save flows, prefer the draft we already have over URL commander.
@@ -666,6 +754,10 @@
           draftCommander = urlCommander;
         } else if (draftCommander && !urlCommander) {
           commanderName = draftCommander;
+        }
+        if (shouldResetDraft && deckFormat === 'Commander' && urlCommander) {
+          d.commanderName = urlCommander;
+          commanderName = urlCommander;
         }
 
         if (!Array.isArray(d.commanderCandidates)) d.commanderCandidates = [];
@@ -1579,6 +1671,106 @@
       }, 2200);
     }
 
+    function cardMapQuantityTotal(cardMap) {
+      if (!cardMap || typeof cardMap !== 'object') return 0;
+      var total = 0;
+      var names = Object.keys(cardMap);
+      for (var i = 0; i < names.length; i++) {
+        var qty = Number(cardMap[names[i]] || 0);
+        if (!Number.isFinite(qty) || qty <= 0) continue;
+        total += qty;
+      }
+      return total;
+    }
+
+    function visibleNonCommanderQuantity(cardMap, commander) {
+      if (!cardMap || typeof cardMap !== 'object') return 0;
+      var total = 0;
+      var currentCommander = normalizeName(commander).toLowerCase();
+      var names = Object.keys(cardMap);
+      for (var i = 0; i < names.length; i++) {
+        var cardName = normalizeName(names[i]);
+        var qty = Number(cardMap[names[i]] || 0);
+        if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
+        if (currentCommander && cardName.toLowerCase() === currentCommander) {
+          qty -= 1;
+        }
+        if (qty > 0) total += qty;
+      }
+      return total;
+    }
+
+    function currentCommanderNameForState(d) {
+      var fromState = normalizeName(d && d.commanderName ? d.commanderName : '');
+      if (fromState) return fromState;
+      return normalizeName(commanderName);
+    }
+
+    function quickBuildEligibleState(d) {
+      var format = normalizeGuestFormat(d && d.format ? d.format : deckFormat);
+      if (format !== 'Commander') return false;
+      var currentCommander = currentCommanderNameForState(d);
+      if (!currentCommander) return false;
+      if (cardMapQuantityTotal((d && d.maybeCards) || {}) > 0) return false;
+      return visibleNonCommanderQuantity((d && d.cards) || {}, currentCommander) === 0;
+    }
+
+    function quickBuildCardsPayload(cardMap) {
+      var out = [];
+      var entries = Object.entries(cardMap || {});
+      entries.sort(function (a, b) { return String(a[0] || '').localeCompare(String(b[0] || '')); });
+      for (var i = 0; i < entries.length; i++) {
+        var name = normalizeName(entries[i][0]);
+        var qty = Number(entries[i][1] || 0);
+        if (!name || !Number.isFinite(qty) || qty <= 0) continue;
+        out.push({ name: name, qty: qty });
+      }
+      return out;
+    }
+
+    function setQuickBuildSummary(message) {
+      if (!quickBuildSummaryEl) return;
+      var text = String(message || '').trim();
+      quickBuildSummaryEl.textContent = text;
+      quickBuildSummaryEl.classList.toggle('hidden', !text);
+    }
+
+    function renderQuickBuildState(d) {
+      var eligible = quickBuildEligibleState(d);
+      if (quickBuildWrap) {
+        quickBuildWrap.classList.toggle('hidden', !(quickBuildBusy || eligible));
+      }
+      if (quickBuildBtn) {
+        quickBuildBtn.disabled = quickBuildBusy || !eligible;
+        quickBuildBtn.textContent = quickBuildBusy ? 'Building starter list…' : 'Quick Build';
+      }
+      if (!quickBuildBusy && eligible) {
+        setQuickBuildSummary('');
+      }
+    }
+
+    async function postQuickBuild(payload) {
+      var res = await fetch('/decks/quick-build', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload || {})
+      });
+      if (!res.ok) {
+        var errorText = '';
+        try {
+          errorText = await res.text();
+        } catch (e) {
+          errorText = '';
+        }
+        throw new Error(normalizeName(errorText) || 'Quick Build failed.');
+      }
+      return res.json();
+    }
+
     async function syncGuestCommanderOverview(d) {
       if (!window.mtDeckSetCommanderOverview) return;
 
@@ -1761,6 +1953,74 @@
       saveDraft(dd);
       render(dd);
       if (guestOverviewStatus) guestOverviewStatus.textContent = 'Saved locally.';
+    }
+
+    async function runGuestQuickBuild() {
+      if (quickBuildBusy) return;
+
+      var dd = loadDraft() || {
+        commanderName: commanderName,
+        format: 'Commander',
+        commanderCandidates: [],
+        name: guestDeckName,
+        description: '',
+        tags: '',
+        cards: {},
+        maybeCards: {},
+        cardMeta: {}
+      };
+      dd.cards = dd.cards || {};
+      dd.maybeCards = dd.maybeCards || {};
+      ensureDraftCardMetaMap(dd);
+
+      if (!quickBuildEligibleState(dd)) {
+        setGuestDeckStatus('Quick Build only works on an empty commander deck with your commander selected.');
+        return;
+      }
+
+      quickBuildBusy = true;
+      setQuickBuildSummary('');
+      renderQuickBuildState(dd);
+      if (addStatus) addStatus.textContent = 'Building starter list…';
+
+      try {
+        var requestSeed = nextQuickBuildSeed();
+        var out = await postQuickBuild({
+          name: guestDeckName,
+          description: String(dd.description || ''),
+          tags: String(dd.tags || ''),
+          commander_name: currentCommanderForDraft(dd),
+          format: dd.format || 'Commander',
+          seed: requestSeed,
+          cards: quickBuildCardsPayload(dd.cards),
+          maybe_cards: quickBuildCardsPayload(dd.maybeCards)
+        });
+
+        var next = out && out.workspace && typeof out.workspace === 'object' ? out.workspace : null;
+        if (!next) {
+          throw new Error('Quick Build failed.');
+        }
+
+        commanderName = normalizeName(next.commanderName || commanderName);
+        next.name = guestDeckName;
+        next.description = typeof next.description === 'string' ? next.description : String(dd.description || '');
+        next.tags = typeof next.tags === 'string' ? next.tags : String(dd.tags || '');
+
+        quickBuildLastSeed = Number((out && out.summary && out.summary.seed) || requestSeed || 0);
+        if (quickBuildBtn) quickBuildBtn.dataset.quickBuildSeed = quickBuildLastSeed ? String(quickBuildLastSeed) : '';
+        setQuickBuildSummary(out && out.summary && out.summary.explanation ? out.summary.explanation : '');
+        saveDraft(next);
+        render(next);
+        setGuestDeckStatus('Starter shell added. This is a playtest-ready first draft.');
+        if (guestOverviewStatus && out && out.summary && out.summary.explanation) {
+          guestOverviewStatus.textContent = out.summary.explanation;
+        }
+      } catch (e) {
+        setGuestDeckStatus(e && e.message ? e.message : 'Could not build a starter shell.');
+      } finally {
+        quickBuildBusy = false;
+        renderQuickBuildState(loadDraft() || dd);
+      }
     }
 
     function setAnalyticsField(id, value) {
@@ -2162,6 +2422,8 @@
       allowsCommanderCardAction = d.format === 'Commander';
       if (guestFormatField) guestFormatField.value = d.format;
       if (window.mtDeckSetOverviewFormat) window.mtDeckSetOverviewFormat(allowsCommanderCardAction);
+      if (window.mtDeckSetOverviewTags) window.mtDeckSetOverviewTags(d.tags || '');
+      syncGuestAuthSaveLinks();
 
       // Name/description hydration (if present)
       if (nameEl) nameEl.textContent = guestDeckName;
@@ -2317,6 +2579,7 @@
       if (deckCountLabel) deckCountLabel.textContent = '(' + totalCards + ')';
       if (maybeCountLabel) maybeCountLabel.textContent = '(' + maybeCardsTotal + ')';
       renderCommanderControls(d);
+      renderQuickBuildState(d);
       syncGuestCommanderOverview(d);
       window.mtDeckCurrentGuestDraft = d;
       window.mtDeckGuestSyncCommanderOverview = syncGuestCommanderOverview;
@@ -2591,6 +2854,44 @@
         }
       }
 
+      async function runSavedQuickBuild() {
+        if (quickBuildBusy) return;
+        if (!quickBuildEligibleState(savedDraft)) {
+          setSavedStatus('Quick Build only works on an empty commander deck with your commander selected.');
+          return;
+        }
+
+        quickBuildBusy = true;
+        setQuickBuildSummary('');
+        renderQuickBuildState(savedDraft);
+        setSavedStatus('Building starter list…');
+
+        try {
+          var requestSeed = nextQuickBuildSeed();
+          var out = await postQuickBuild({
+            deck_id: savedDraft.id,
+            commander_name: currentSavedCommander(savedDraft),
+            format: savedDraft.format || 'Commander',
+            seed: requestSeed
+          });
+          var next = normalizeSavedState(out && out.workspace ? out.workspace : null);
+          commanderName = currentSavedCommander(next);
+          quickBuildLastSeed = Number((out && out.summary && out.summary.seed) || requestSeed || 0);
+          if (quickBuildBtn) quickBuildBtn.dataset.quickBuildSeed = quickBuildLastSeed ? String(quickBuildLastSeed) : '';
+          setQuickBuildSummary(out && out.summary && out.summary.explanation ? out.summary.explanation : '');
+          renderSaved(next);
+          setSavedStatus('Starter shell added. This is a playtest-ready first draft.');
+          if (guestOverviewStatus && out && out.summary && out.summary.explanation) {
+            guestOverviewStatus.textContent = out.summary.explanation;
+          }
+        } catch (e) {
+          setSavedStatus(e && e.message ? e.message : 'Could not build a starter shell.');
+        } finally {
+          quickBuildBusy = false;
+          renderQuickBuildState(savedDraft);
+        }
+      }
+
       function submitSavedOverviewNow() {
         if (!savedOverviewPayload) return;
         var fields = savedOverviewPayload;
@@ -2630,6 +2931,7 @@
         commanderName = currentSavedCommander(d);
         allowsCommanderCardAction = d.format === 'Commander';
         if (window.mtDeckSetOverviewFormat) window.mtDeckSetOverviewFormat(allowsCommanderCardAction);
+        if (window.mtDeckSetOverviewTags) window.mtDeckSetOverviewTags(d.tags || '');
         if (guestFormatField) guestFormatField.value = d.format;
 
         var entries = Object.entries(d.cards || {});
@@ -2709,6 +3011,7 @@
         if (deckMenuVisibilityBtn) {
           deckMenuVisibilityBtn.textContent = d.isPublic ? 'Set Private' : 'Set Public';
         }
+        renderQuickBuildState(d);
 
         window.mtDeckCurrentSavedDraft = d;
         drawExampleHand();
@@ -2795,6 +3098,11 @@
           renderSaved(savedDraft);
         });
       }
+      if (quickBuildBtn) {
+        quickBuildBtn.addEventListener('click', function () {
+          runSavedQuickBuild();
+        });
+      }
 
       renderSaved(savedDraft);
     }
@@ -2807,7 +3115,7 @@
     // Init
     var draft = loadDraft();
     if (!draft) {
-      draft = {
+      draft = guestWorkspaceSeedDraft() || {
         commanderName: commanderName,
         format: deckFormat === 'Commander' ? 'Commander' : 'Sandbox',
         commanderCandidates: [],
@@ -3042,6 +3350,11 @@
 
     if (playtestBtn) {
       playtestBtn.addEventListener('click', launchGuestPlaytest);
+    }
+    if (quickBuildBtn) {
+      quickBuildBtn.addEventListener('click', function () {
+        runGuestQuickBuild();
+      });
     }
 
     async function importDraftToAccount() {

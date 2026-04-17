@@ -34,6 +34,7 @@ can be added without hunting through handler files.
 - `/decks/delete` -> delete deck
 - `/decks/commander` -> update a saved deck's commander from cards already in the deck
 - `/decks/analytics` -> deck analytics JSON (saved deck or local workbench payload)
+- `/decks/quick-build` -> build a commander starter shell for an empty saved or guest deck
 - `/decks/playtest/{id}` -> playtest deck
 - Compatibility aliases kept for older links:
   `/decks/new/commander/create`, `/decks/new/leader`, `/decks/leader`, `/decks/select-leader`,
@@ -46,6 +47,7 @@ can be added without hunting through handler files.
   - `internal/web/route_helpers.go`
   - `internal/web/decks_create_list.go`
   - `internal/web/decks_show_edit.go`
+  - `internal/web/decks_quickbuild.go`
   - `internal/web/decks_import.go`
   - `internal/web/decks_playtest.go`
 
