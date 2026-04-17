@@ -43,6 +43,25 @@
       </div>
     </section>
 
+    {{ if and $isGuest (not .CurrentUser) }}
+      <section id="guest-save-auth-panel" class="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="space-y-1">
+            <h2 class="text-sm font-semibold text-emerald-100">Save This Deck to Your Account</h2>
+            <p class="text-xs text-slate-300">Guest drafts stay local to this browser. Log in or sign up and Mana Tomb will bring you back here and save this deck automatically.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <a id="guest-panel-login-to-save"
+               href="/login?next=%2Fdecks%2Fnew%2Fworkbench%3Fsave_guest%3D1"
+               class="mt-btn mt-btn--secondary mt-btn--sm">Log In</a>
+            <a id="guest-panel-signup-to-save"
+               href="/signup?next=%2Fdecks%2Fnew%2Fworkbench%3Fsave_guest%3D1"
+               class="mt-btn mt-btn--primary mt-btn--sm">Create Account</a>
+          </div>
+        </div>
+      </section>
+    {{ end }}
+
     <section class="mt-panel p-4 sm:p-6 space-y-5">
       <div>
         <p class="mt-kicker">Overview</p>
@@ -123,6 +142,18 @@
     <section class="mt-panel p-4 sm:p-6 space-y-5">
       <div>
         <p class="mt-kicker">Deck</p>
+      </div>
+
+      <div id="deck-quick-build-wrap"
+           class="{{ if and $isCommanderDeck $d.CommanderName (eq $ctx.VisibleCardCount 0) (eq $ctx.MaybeCardCount 0) }}{{ else }}hidden {{ end }}rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="space-y-1">
+            <h3 class="text-sm font-semibold text-sky-100">Quick Build</h3>
+            <p class="text-xs text-slate-300">Fills your deck with a playable starter list based on your commander. Great for playtesting and refining.</p>
+            <p id="deck-quick-build-summary" class="hidden text-xs text-sky-200" aria-live="polite"></p>
+          </div>
+          <button type="button" id="deck-quick-build" class="mt-btn mt-btn--primary mt-btn--sm shrink-0">Quick Build</button>
+        </div>
       </div>
 
       <form id="deck-add-card-form" {{ if not $isGuest }}method="POST" action="/decks/{{ $d.ID }}"{{ else }}novalidate{{ end }} class="space-y-3">
@@ -430,7 +461,7 @@
   {{ end }}
 
   <script id="deck-workspace-seed" type="application/json">
-    {{ if not $isGuest }}{{ toJSON $ctx.WorkspaceState }}{{ else }}null{{ end }}
+    {{ toJSON $ctx.WorkspaceState }}
   </script>
 
   {{ template "card_detail_modal_script" . }}
@@ -787,6 +818,12 @@
         }
         updateTagButtons();
       }
+
+      window.mtDeckSetOverviewTags = function (raw) {
+        tags = parseTags(raw);
+        syncTags();
+        renderTags();
+      };
 
       function tagToneClasses(tagValue) {
         var key = canonicalDeckTag(tagValue);

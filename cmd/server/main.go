@@ -14,6 +14,7 @@ import (
 	"manatomb/app/internal/config"
 	"manatomb/app/internal/db"
 	"manatomb/app/internal/decks"
+	"manatomb/app/internal/quickbuild"
 	"manatomb/app/internal/web"
 )
 
@@ -38,6 +39,10 @@ func ensureTables(ctx context.Context, database *sql.DB) error {
 
 	if err := decks.EnsureDeckTables(ctx, database); err != nil {
 		return fmt.Errorf("ensure deck/deck_cards tables: %w", err)
+	}
+
+	if err := quickbuild.EnsureTables(ctx, database); err != nil {
+		return fmt.Errorf("ensure quick build tables: %w", err)
 	}
 
 	return nil
@@ -127,6 +132,7 @@ func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 		{pattern: "/decks/new/commander/create", post: app.HandleDeckCommanderSelect},
 		{pattern: "/decks/import", get: app.HandleDeckImportShow, post: app.HandleDeckImportText},
 		{pattern: "/decks/settings", get: app.HandleDeckEditShow, post: app.HandleDeckEditPost},
+		{pattern: "/decks/quick-build", post: app.HandleDeckQuickBuild},
 	})
 
 	registerDeckCompatibilityRoutes(mux, app)
