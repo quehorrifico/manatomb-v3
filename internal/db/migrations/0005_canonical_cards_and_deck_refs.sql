@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS deck_cards (
   board TEXT NOT NULL DEFAULT 'main',
   preferred_print_id UUID NULL REFERENCES card_prints(scryfall_id) ON DELETE SET NULL,
   PRIMARY KEY (deck_id, oracle_id, board),
-  CHECK (board IN ('main', 'maybe'))
+  CHECK (board IN ('main', 'maybe', 'side'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_deck_cards_deck_board ON deck_cards (deck_id, board);

@@ -141,6 +141,11 @@ func (a *App) HandlePublicDeckShow(w http.ResponseWriter, r *http.Request) {
 		a.RenderServerError(w, r, err)
 		return
 	}
+	sideboardDeckCards, err := decks.ListDeckSideboardCards(r.Context(), a.DB, d.ID)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
 
 	var commanderCard *cards.Card
 	if decks.FormatRequiresCommander(d.Format) {
@@ -160,12 +165,13 @@ func (a *App) HandlePublicDeckShow(w http.ResponseWriter, r *http.Request) {
 		CurrentUser: user,
 		Flash:       flash,
 		Data: publicDeckPageData{
-			Deck:           d,
-			DeckCards:      deckCards,
-			MaybeDeckCards: maybeDeckCards,
-			Analytics:      computeDeckAnalyticsFromDeckCards(d.Format, d.CommanderName, deckCards),
-			Commander:      commanderCard,
-			Owner:          owner,
+			Deck:               d,
+			DeckCards:          deckCards,
+			SideboardDeckCards: sideboardDeckCards,
+			MaybeDeckCards:     maybeDeckCards,
+			Analytics:          computeDeckAnalyticsFromDeckCards(d.Format, d.CommanderName, deckCards),
+			Commander:          commanderCard,
+			Owner:              owner,
 		},
 	}
 	a.Renderer.Render(w, "decks_public_show", data)

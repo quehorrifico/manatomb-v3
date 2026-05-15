@@ -42,10 +42,12 @@
     var openDeckPickerEl = modal.querySelector('[data-open-deck-picker]');
     var flipBtn = modal.querySelector('[data-flip-card]');
 
-    var currentFaces = [];
-    var currentFaceIndex = 0;
-    var currentVersions = [];
-    var modalRequestToken = 0;
+	    var currentFaces = [];
+	    var currentFaceIndex = 0;
+	    var currentVersions = [];
+	    var currentVersionContext = null;
+	    var currentPreferredPrintID = '';
+	    var modalRequestToken = 0;
 
     function buildDetailPath(oracleID) {
       oracleID = trimValue(oracleID);
@@ -130,66 +132,79 @@
     function normalizePayload(input) {
       var item = input || {};
       var payload = {
-        detailMode: trimValue(item.detailMode || item.mode) || 'view',
-        resolveExact: !!item.resolveExact,
-        oracleID: trimValue(item.oracleID || item.oracle_id),
-        detailPath: trimValue(item.detailPath || item.detail_path),
-        name: trimValue(item.name),
-        manaCost: trimValue(item.manaCost || item.mana_cost),
-        typeLine: trimValue(item.typeLine || item.type_line),
-        oracleText: trimValue(item.oracleText || item.oracle_text),
+	        detailMode: trimValue(item.detailMode || item.mode) || 'view',
+	        resolveExact: !!item.resolveExact,
+	        oracleID: trimValue(item.oracleID || item.oracle_id),
+	        scryfallID: trimValue(item.scryfallID || item.scryfall_id || item.printID || item.print_id),
+	        printID: trimValue(item.printID || item.print_id || item.scryfallID || item.scryfall_id),
+	        preferredPrintID: trimValue(item.preferredPrintID || item.preferred_print_id || item.printID || item.print_id || item.scryfallID || item.scryfall_id),
+	        detailPath: trimValue(item.detailPath || item.detail_path),
+	        name: trimValue(item.name),
+	        manaCost: trimValue(item.manaCost || item.mana_cost),
+	        typeLine: trimValue(item.typeLine || item.type_line),
+	        oracleText: trimValue(item.oracleText || item.oracle_text),
         imageURI: trimValue(item.imageURI || item.image_uri),
         priceUSD: trimValue(item.priceUSD || item.price_usd || ((item.prices && item.prices.usd) ? item.prices.usd : '')),
-        artist: trimValue(item.artist),
-        setCode: trimValue(item.setCode || item.set_code),
-        setName: trimValue(item.setName || item.set_name),
-        releasedAt: trimValue(item.releasedAt || item.released_at),
-        faces: parseFaces(item.faces),
-      };
+	        artist: trimValue(item.artist),
+	        setCode: trimValue(item.setCode || item.set_code),
+	        setName: trimValue(item.setName || item.set_name),
+	        collectorNumber: trimValue(item.collectorNumber || item.collector_number),
+	        rarity: trimValue(item.rarity),
+	        releasedAt: trimValue(item.releasedAt || item.released_at),
+	        faces: parseFaces(item.faces),
+	      };
       if (!payload.detailPath && payload.oracleID) {
         payload.detailPath = buildDetailPath(payload.oracleID);
       }
       return payload;
     }
 
-    function payloadToVersion(payload) {
-      return normalizeVersion({
-        oracle_id: payload.oracleID,
-        detail_path: payload.detailPath,
-        name: payload.name,
-        mana_cost: payload.manaCost,
-        type_line: payload.typeLine,
+	    function payloadToVersion(payload) {
+	      return normalizeVersion({
+	        scryfall_id: payload.scryfallID || payload.printID || payload.preferredPrintID,
+	        oracle_id: payload.oracleID,
+	        detail_path: payload.detailPath,
+	        name: payload.name,
+	        mana_cost: payload.manaCost,
+	        type_line: payload.typeLine,
         oracle_text: payload.oracleText,
         image_uri: payload.imageURI,
         price_usd: payload.priceUSD,
-        artist: payload.artist,
-        set_code: payload.setCode,
-        set_name: payload.setName,
-        released_at: payload.releasedAt,
-        faces: payload.faces,
-      });
-    }
+	        artist: payload.artist,
+	        set_code: payload.setCode,
+	        set_name: payload.setName,
+	        collector_number: payload.collectorNumber,
+	        rarity: payload.rarity,
+	        released_at: payload.releasedAt,
+	        faces: payload.faces,
+	      });
+	    }
 
     function mergePayload(baseInput, extraInput) {
       var base = normalizePayload(baseInput);
       var extra = normalizePayload(extraInput);
       var merged = {
-        detailMode: base.detailMode || extra.detailMode || 'view',
-        resolveExact: base.resolveExact || extra.resolveExact,
-        oracleID: base.oracleID || extra.oracleID,
-        detailPath: base.detailPath || extra.detailPath,
-        name: base.name || extra.name,
-        manaCost: base.manaCost || extra.manaCost,
+	        detailMode: base.detailMode || extra.detailMode || 'view',
+	        resolveExact: base.resolveExact || extra.resolveExact,
+	        oracleID: base.oracleID || extra.oracleID,
+	        scryfallID: base.scryfallID || extra.scryfallID,
+	        printID: base.printID || extra.printID,
+	        preferredPrintID: base.preferredPrintID || extra.preferredPrintID,
+	        detailPath: base.detailPath || extra.detailPath,
+	        name: base.name || extra.name,
+	        manaCost: base.manaCost || extra.manaCost,
         typeLine: base.typeLine || extra.typeLine,
         oracleText: base.oracleText || extra.oracleText,
         imageURI: base.imageURI || extra.imageURI,
         priceUSD: base.priceUSD || extra.priceUSD,
-        artist: base.artist || extra.artist,
-        setCode: base.setCode || extra.setCode,
-        setName: base.setName || extra.setName,
-        releasedAt: base.releasedAt || extra.releasedAt,
-        faces: base.faces && base.faces.length ? base.faces : extra.faces,
-      };
+	        artist: base.artist || extra.artist,
+	        setCode: base.setCode || extra.setCode,
+	        setName: base.setName || extra.setName,
+	        collectorNumber: base.collectorNumber || extra.collectorNumber,
+	        rarity: base.rarity || extra.rarity,
+	        releasedAt: base.releasedAt || extra.releasedAt,
+	        faces: base.faces && base.faces.length ? base.faces : extra.faces,
+	      };
       if (!merged.detailPath && merged.oracleID) {
         merged.detailPath = buildDetailPath(merged.oracleID);
       }
@@ -212,8 +227,8 @@
       printingMetaEl.classList.toggle('hidden', bits.length === 0);
     }
 
-    function populatePrintings(versions, selectedIndex) {
-      if (!printingSelectEl) return;
+	    function populatePrintings(versions, selectedIndex) {
+	      if (!printingSelectEl) return;
       printingSelectEl.innerHTML = '';
       if (!Array.isArray(versions) || versions.length === 0) {
         var emptyOpt = document.createElement('option');
@@ -246,8 +261,19 @@
       printingSelectEl.disabled = false;
       var idx = Number(selectedIndex || 0);
       if (!Number.isFinite(idx) || idx < 0 || idx >= versions.length) idx = 0;
-      printingSelectEl.value = String(idx);
-    }
+	      printingSelectEl.value = String(idx);
+	    }
+
+	    function selectedVersionIndex(versions, preferredPrintID) {
+	      var preferred = trimValue(preferredPrintID);
+	      if (!preferred || !Array.isArray(versions)) return 0;
+	      for (var i = 0; i < versions.length; i++) {
+	        if (trimValue(versions[i] && versions[i].scryfall_id).toLowerCase() === preferred.toLowerCase()) {
+	          return i;
+	        }
+	      }
+	      return 0;
+	    }
 
     function setVersionsLoading(loading) {
       if (!printingSelectEl) return;
@@ -402,9 +428,15 @@
       });
     }
 
-    async function openCardDetail(input) {
-      var payload = normalizePayload(input);
-      if (!payload.name && !payload.oracleID) return;
+	    async function openCardDetail(input) {
+	      var rawInput = input || {};
+	      currentVersionContext = rawInput.versionContext && typeof rawInput.versionContext === 'object' ? rawInput.versionContext : null;
+	      currentPreferredPrintID = trimValue(rawInput.preferredPrintID || rawInput.preferred_print_id || rawInput.printID || rawInput.print_id || rawInput.scryfallID || rawInput.scryfall_id);
+	      var payload = normalizePayload(input);
+	      if (!payload.name && !payload.oracleID) return;
+	      if (!currentPreferredPrintID) {
+	        currentPreferredPrintID = trimValue(payload.preferredPrintID || payload.printID || payload.scryfallID);
+	      }
 
       var requestToken = ++modalRequestToken;
       if (stickyNameInputEl) {
@@ -414,10 +446,11 @@
       setCardContext(payload.name, payload.detailPath, payload.oracleID);
       setOpenPageLink(payload.detailPath, payload.oracleID);
 
-      currentVersions = [payloadToVersion(payload)];
-      populatePrintings(currentVersions, 0);
-      applyVersion(currentVersions[0]);
-      modal.classList.remove('hidden');
+	      currentVersions = [payloadToVersion(payload)];
+	      var selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
+	      populatePrintings(currentVersions, selectedIdx);
+	      applyVersion(currentVersions[selectedIdx]);
+	      modal.classList.remove('hidden');
 
       var shouldResolveIdentity = !!payload.resolveExact || (!payload.oracleID && !!payload.name) || (!payload.detailPath && !!payload.name);
       if (shouldResolveIdentity) {
@@ -428,32 +461,35 @@
           if (stickyNameInputEl) {
             stickyNameInputEl.value = payload.name;
           }
-          setCardContext(payload.name, payload.detailPath, payload.oracleID);
-          setOpenPageLink(payload.detailPath, payload.oracleID);
-          currentVersions = [payloadToVersion(payload)];
-          populatePrintings(currentVersions, 0);
-          applyVersion(currentVersions[0]);
-        }
-      }
+	          setCardContext(payload.name, payload.detailPath, payload.oracleID);
+	          setOpenPageLink(payload.detailPath, payload.oracleID);
+	          currentVersions = [payloadToVersion(payload)];
+	          selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
+	          populatePrintings(currentVersions, selectedIdx);
+	          applyVersion(currentVersions[selectedIdx]);
+	        }
+	      }
 
       setVersionsLoading(true);
       var loadedVersions = await fetchCardVersions(payload.name, payload.oracleID, requestToken);
       if (requestToken !== modalRequestToken) return;
 
-      if (!loadedVersions || loadedVersions.length === 0) {
-        populatePrintings(currentVersions, 0);
-        applyVersion(currentVersions[0]);
-        if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
-          printingSelectEl.focus();
+	      if (!loadedVersions || loadedVersions.length === 0) {
+	        selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
+	        populatePrintings(currentVersions, selectedIdx);
+	        applyVersion(currentVersions[selectedIdx]);
+	        if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
+	          printingSelectEl.focus();
         }
         return;
       }
 
-      currentVersions = loadedVersions;
-      populatePrintings(currentVersions, 0);
-      applyVersion(currentVersions[0]);
-      if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
-        printingSelectEl.focus();
+	      currentVersions = loadedVersions;
+	      selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
+	      populatePrintings(currentVersions, selectedIdx);
+	      applyVersion(currentVersions[selectedIdx]);
+	      if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
+	        printingSelectEl.focus();
       }
     }
 
@@ -469,13 +505,21 @@
       }
     });
 
-    if (printingSelectEl) {
-      printingSelectEl.addEventListener('change', function () {
-        var idx = Number(printingSelectEl.value || '0');
-        if (!Number.isFinite(idx) || idx < 0 || idx >= currentVersions.length) idx = 0;
-        applyVersion(currentVersions[idx]);
-      });
-    }
+	    if (printingSelectEl) {
+	      printingSelectEl.addEventListener('change', function () {
+	        var idx = Number(printingSelectEl.value || '0');
+	        if (!Number.isFinite(idx) || idx < 0 || idx >= currentVersions.length) idx = 0;
+	        var version = currentVersions[idx];
+	        applyVersion(version);
+	        currentPreferredPrintID = trimValue(version && version.scryfall_id);
+	        if (currentVersionContext && typeof currentVersionContext.onSelect === 'function') {
+	          currentVersionContext.onSelect(version, {
+	            index: idx,
+	            versions: currentVersions.slice(),
+	          });
+	        }
+	      });
+	    }
 
     document.querySelectorAll('[data-card-detail]').forEach(function (btn) {
       if (btn.getAttribute('data-card-detail-bound') === '1') return;

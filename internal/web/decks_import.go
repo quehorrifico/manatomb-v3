@@ -22,6 +22,10 @@ type importDraftRequest struct {
 		Name string `json:"name"`
 		Qty  int    `json:"qty"`
 	} `json:"cards"`
+	SideboardCards []struct {
+		Name string `json:"name"`
+		Qty  int    `json:"qty"`
+	} `json:"sideboard_cards"`
 	MaybeCards []struct {
 		Name string `json:"name"`
 		Qty  int    `json:"qty"`
@@ -48,6 +52,7 @@ type workbenchImportPayload struct {
 	Description         string                    `json:"description"`
 	Format              string                    `json:"format"`
 	Cards               []workbenchImportSeedCard `json:"cards"`
+	SideboardCards      []workbenchImportSeedCard `json:"sideboard_cards,omitempty"`
 	MaybeCards          []workbenchImportSeedCard `json:"maybe_cards,omitempty"`
 	CommanderCandidates []string                  `json:"commander_candidates,omitempty"`
 }
@@ -106,8 +111,11 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allImportNames := make([]string, 0, len(req.Cards)+len(req.MaybeCards))
+	allImportNames := make([]string, 0, len(req.Cards)+len(req.SideboardCards)+len(req.MaybeCards))
 	for _, item := range req.Cards {
+		allImportNames = append(allImportNames, item.Name)
+	}
+	for _, item := range req.SideboardCards {
 		allImportNames = append(allImportNames, item.Name)
 	}
 	for _, item := range req.MaybeCards {
@@ -133,6 +141,46 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 		}
 
 		_ = decks.AddCard(r.Context(), a.DB, d.ID, resolution.Card.OracleID, qty) // best-effort
+	}
+
+	// Add sideboard cards (optional for local workbench imports).
+	// Skip unknown cards instead of failing the whole import.
+	sideboardByName := map[string]string{}
+	existingSideboard, err := decks.ListDeckSideboardCards(r.Context(), a.DB, d.ID)
+	if err == nil {
+		for _, rec := range existingSideboard {
+			name := strings.ToLower(strings.TrimSpace(rec.CardName))
+			if name == "" {
+				continue
+			}
+			sideboardByName[name] = rec.CardID
+		}
+	}
+
+	for _, item := range req.SideboardCards {
+		cardName := strings.TrimSpace(item.Name)
+		qty := item.Qty
+		if cardName == "" || qty <= 0 {
+			continue
+		}
+
+		resolution, ok := resolvedImportCards[strings.ToLower(cardName)]
+		if !ok {
+			continue
+		}
+
+		targetCardID := resolution.Card.OracleID
+		key := strings.ToLower(strings.TrimSpace(resolution.Card.Name))
+		if key == "" {
+			key = strings.ToLower(cardName)
+		}
+		if existingID, ok := sideboardByName[key]; ok && existingID != "" {
+			targetCardID = existingID
+		}
+
+		if err := decks.AddSideboardCard(r.Context(), a.DB, d.ID, targetCardID, qty); err == nil {
+			sideboardByName[key] = targetCardID
+		}
 	}
 
 	// Add maybeboard cards (optional for local workbench imports).

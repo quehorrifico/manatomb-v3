@@ -49,11 +49,39 @@ type deckAnalyticsData struct {
 	DeckExtras            []deckAnalyticsExtra `json:"deck_extras"`
 	GuideChecks           []deckGuideCheck     `json:"guide_checks,omitempty"`
 	ValidationWarnings    []string             `json:"validation_warnings,omitempty"`
+	PowerEstimate         deckPowerEstimate    `json:"power_estimate"`
 }
 
 type deckAnalyticsExtra struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
+}
+
+type deckPowerEstimate struct {
+	Available           bool              `json:"available"`
+	Bracket             int               `json:"bracket"`
+	BracketLabel        string            `json:"bracket_label"`
+	Summary             string            `json:"summary"`
+	Confidence          string            `json:"confidence"`
+	GameChangerCount    int               `json:"game_changer_count"`
+	GameChangers        []string          `json:"game_changers,omitempty"`
+	MassLandDenialCount int               `json:"mass_land_denial_count"`
+	MassLandDenialCards []string          `json:"mass_land_denial_cards,omitempty"`
+	ExtraTurnCount      int               `json:"extra_turn_count"`
+	ExtraTurnCards      []string          `json:"extra_turn_cards,omitempty"`
+	ComboSignalCount    int               `json:"combo_signal_count"`
+	ComboSignals        []string          `json:"combo_signals,omitempty"`
+	CompactComboCount   int               `json:"compact_combo_count"`
+	FastManaCount       int               `json:"fast_mana_count"`
+	TutorCount          int               `json:"tutor_count"`
+	Signals             []deckPowerSignal `json:"signals,omitempty"`
+}
+
+type deckPowerSignal struct {
+	Label  string `json:"label"`
+	Value  string `json:"value"`
+	Detail string `json:"detail,omitempty"`
+	Tone   string `json:"tone"`
 }
 
 type deckGuideCheck struct {
@@ -70,6 +98,14 @@ type deckAnalyticsCardInput struct {
 	OracleText string
 	AllParts   string
 	ColorID    string
+	CMC        float64
+	Qty        int
+}
+
+type deckPowerCardInput struct {
+	Name       string
+	TypeLine   string
+	OracleText string
 	CMC        float64
 	Qty        int
 }
@@ -116,6 +152,7 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 
 	var nonLandCMCSum float64
 	extraCounts := make(map[string]int)
+	powerRows := make([]deckPowerCardInput, 0, len(rows))
 
 	for _, row := range rows {
 		name := strings.TrimSpace(row.Name)
@@ -131,6 +168,14 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 		if qty <= 0 {
 			continue
 		}
+
+		powerRows = append(powerRows, deckPowerCardInput{
+			Name:       name,
+			TypeLine:   strings.TrimSpace(row.TypeLine),
+			OracleText: strings.TrimSpace(row.OracleText),
+			CMC:        row.CMC,
+			Qty:        qty,
+		})
 
 		out.MainboardCards += qty
 
@@ -253,6 +298,7 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 	out.DeckExtras = orderedDeckExtras(extraCounts)
 	out.GuideChecks = buildDeckGuideChecks(format, out)
 	out.ValidationWarnings = buildDeckValidationWarnings(format, commanderName, rows, out)
+	out.PowerEstimate = buildDeckPowerEstimate(format, commanderName, powerRows, out)
 
 	return out
 }
@@ -330,6 +376,450 @@ func isBasicLandCard(name, typeLine string) bool {
 	default:
 		return false
 	}
+}
+
+func buildDeckPowerEstimate(format, commanderName string, rows []deckPowerCardInput, analytics deckAnalyticsData) deckPowerEstimate {
+	format = decks.NormalizeFormat(format)
+	if !decks.FormatRequiresCommander(format) {
+		return deckPowerEstimate{}
+	}
+
+	out := deckPowerEstimate{
+		Available:     true,
+		Bracket:       2,
+		BracketLabel:  commanderBracketLabel(2),
+		Confidence:    commanderPowerConfidence(analytics.TotalCards),
+		FastManaCount: analytics.FastManaCount,
+		TutorCount:    analytics.TutorCount,
+	}
+
+	if strings.TrimSpace(commanderName) == "" {
+		out.Bracket = 1
+		out.BracketLabel = commanderBracketLabel(out.Bracket)
+		out.Confidence = "low"
+		out.Summary = "Set a commander for a useful estimate."
+		out.Signals = append(out.Signals, deckPowerSignal{
+			Label:  "Commander",
+			Value:  "Missing",
+			Detail: "Power checks are less useful until the command zone is set.",
+			Tone:   "warn",
+		})
+		return out
+	}
+
+	seenNames := make(map[string]bool)
+	for _, row := range rows {
+		name := strings.TrimSpace(row.Name)
+		qty := row.Qty
+		if name == "" || qty <= 0 {
+			continue
+		}
+
+		seenNames[commanderCardKey(name)] = true
+		oracle := strings.ToLower(strings.TrimSpace(row.OracleText))
+		typeLine := strings.ToLower(strings.TrimSpace(row.TypeLine))
+
+		if isCommanderGameChanger(name) {
+			out.GameChangerCount += qty
+			out.GameChangers = appendPowerName(out.GameChangers, name)
+		}
+		if isCommanderMassLandDenialCard(name, oracle) {
+			out.MassLandDenialCount += qty
+			out.MassLandDenialCards = appendPowerName(out.MassLandDenialCards, name)
+		}
+		if isCommanderExtraTurnCard(name, oracle) {
+			out.ExtraTurnCount += qty
+			out.ExtraTurnCards = appendPowerName(out.ExtraTurnCards, name)
+		}
+		if signal := commanderComboSignal(name, typeLine, oracle); signal != "" {
+			out.ComboSignalCount += qty
+			out.ComboSignals = appendPowerName(out.ComboSignals, signal)
+		}
+	}
+
+	commanderName = strings.TrimSpace(commanderName)
+	if isCommanderGameChanger(commanderName) && !containsFold(out.GameChangers, commanderName) {
+		out.GameChangerCount++
+		out.GameChangers = appendPowerName(out.GameChangers, commanderName+" (commander)")
+	}
+
+	out.CompactComboCount = commanderCompactComboCount(seenNames)
+	chainsExtraTurns := out.ExtraTurnCount >= 2 || (seenNames[commanderCardKey("Panoptic Mirror")] && out.ExtraTurnCount > 0)
+
+	switch {
+	case isCEDHLean(out, analytics):
+		out.Bracket = 5
+	case out.GameChangerCount > 3 || out.MassLandDenialCount > 0 || chainsExtraTurns || out.CompactComboCount > 0:
+		out.Bracket = 4
+	case out.GameChangerCount > 0 || out.ComboSignalCount >= 2 || analytics.FastManaCount >= 3 || analytics.TutorCount >= 4:
+		out.Bracket = 3
+	case analytics.TotalCards >= 90 && analytics.FastManaCount == 0 && analytics.TutorCount <= 1 && out.ComboSignalCount == 0 && out.ExtraTurnCount == 0:
+		out.Bracket = 2
+	default:
+		out.Bracket = 2
+	}
+
+	out.BracketLabel = commanderBracketLabel(out.Bracket)
+	out.Summary = commanderPowerSummary(out.Bracket, out.Confidence)
+	out.Signals = commanderPowerSignals(out, analytics, chainsExtraTurns)
+	return out
+}
+
+func commanderBracketLabel(bracket int) string {
+	switch bracket {
+	case 1:
+		return "Exhibition"
+	case 2:
+		return "Core"
+	case 3:
+		return "Upgraded"
+	case 4:
+		return "Optimized"
+	case 5:
+		return "cEDH"
+	default:
+		return "Unknown"
+	}
+}
+
+func commanderPowerSummary(bracket int, confidence string) string {
+	prefix := "Estimate"
+	if confidence == "low" {
+		prefix = "Early estimate"
+	}
+	switch bracket {
+	case 1:
+		return prefix + ": ultra-casual signals, but theme and intent still matter."
+	case 2:
+		return prefix + ": casual Commander with no major bracket pressure detected."
+	case 3:
+		return prefix + ": upgraded Commander with some high-impact cards or consistency."
+	case 4:
+		return prefix + ": high-power Commander due to unrestricted bracket signals."
+	case 5:
+		return prefix + ": cEDH-leaning signals from compact wins plus strong consistency."
+	default:
+		return prefix + ": add more cards to refine this."
+	}
+}
+
+func commanderPowerConfidence(totalCards int) string {
+	switch {
+	case totalCards >= 95:
+		return "high"
+	case totalCards >= 65:
+		return "medium"
+	default:
+		return "low"
+	}
+}
+
+func commanderPowerSignals(power deckPowerEstimate, analytics deckAnalyticsData, chainsExtraTurns bool) []deckPowerSignal {
+	signals := make([]deckPowerSignal, 0, 6)
+	gameChangerTone := "good"
+	if power.GameChangerCount > 3 {
+		gameChangerTone = "alert"
+	} else if power.GameChangerCount > 0 {
+		gameChangerTone = "warn"
+	}
+	signals = append(signals, deckPowerSignal{
+		Label:  "Game Changers",
+		Value:  fmt.Sprintf("%d", power.GameChangerCount),
+		Detail: detailList(power.GameChangers, "No listed Game Changers found."),
+		Tone:   gameChangerTone,
+	})
+
+	if power.MassLandDenialCount > 0 {
+		signals = append(signals, deckPowerSignal{
+			Label:  "Mass Land Denial",
+			Value:  fmt.Sprintf("%d", power.MassLandDenialCount),
+			Detail: detailList(power.MassLandDenialCards, "Detected."),
+			Tone:   "alert",
+		})
+	}
+
+	if power.ExtraTurnCount > 0 {
+		tone := "warn"
+		detail := detailList(power.ExtraTurnCards, "Extra-turn effects found.")
+		if chainsExtraTurns {
+			tone = "alert"
+			detail = "Chaining risk: " + detail
+		}
+		signals = append(signals, deckPowerSignal{
+			Label:  "Extra Turns",
+			Value:  fmt.Sprintf("%d", power.ExtraTurnCount),
+			Detail: detail,
+			Tone:   tone,
+		})
+	}
+
+	if power.CompactComboCount > 0 || power.ComboSignalCount > 0 {
+		tone := "warn"
+		value := fmt.Sprintf("%d signals", power.ComboSignalCount)
+		if power.CompactComboCount > 0 {
+			tone = "alert"
+			value = fmt.Sprintf("%d compact", power.CompactComboCount)
+		}
+		signals = append(signals, deckPowerSignal{
+			Label:  "Combos",
+			Value:  value,
+			Detail: detailList(power.ComboSignals, "Combo-adjacent cards found."),
+			Tone:   tone,
+		})
+	}
+
+	consistencyTone := "good"
+	if analytics.FastManaCount >= 5 || analytics.TutorCount >= 5 {
+		consistencyTone = "alert"
+	} else if analytics.FastManaCount >= 3 || analytics.TutorCount >= 4 {
+		consistencyTone = "warn"
+	}
+	signals = append(signals, deckPowerSignal{
+		Label:  "Consistency",
+		Value:  fmt.Sprintf("%d fast mana / %d tutors", analytics.FastManaCount, analytics.TutorCount),
+		Detail: "High density pushes decks toward faster, more repeatable games.",
+		Tone:   consistencyTone,
+	})
+
+	return signals
+}
+
+func isCEDHLean(power deckPowerEstimate, analytics deckAnalyticsData) bool {
+	if power.CompactComboCount == 0 {
+		return false
+	}
+	if power.GameChangerCount >= 8 && analytics.FastManaCount >= 4 && analytics.TutorCount >= 4 {
+		return true
+	}
+	return power.CompactComboCount >= 2 && power.GameChangerCount >= 6 && analytics.FastManaCount >= 3 && analytics.TutorCount >= 3
+}
+
+func isCommanderGameChanger(name string) bool {
+	_, ok := commanderGameChangerNames()[commanderCardKey(name)]
+	return ok
+}
+
+func commanderGameChangerNames() map[string]bool {
+	return map[string]bool{
+		commanderCardKey("Ad Nauseam"):                      true,
+		commanderCardKey("Ancient Tomb"):                    true,
+		commanderCardKey("Aura Shards"):                     true,
+		commanderCardKey("Biorhythm"):                       true,
+		commanderCardKey("Bolas's Citadel"):                 true,
+		commanderCardKey("Braids, Cabal Minion"):            true,
+		commanderCardKey("Chrome Mox"):                      true,
+		commanderCardKey("Coalition Victory"):               true,
+		commanderCardKey("Consecrated Sphinx"):              true,
+		commanderCardKey("Crop Rotation"):                   true,
+		commanderCardKey("Cyclonic Rift"):                   true,
+		commanderCardKey("Demonic Tutor"):                   true,
+		commanderCardKey("Drannith Magistrate"):             true,
+		commanderCardKey("Enlightened Tutor"):               true,
+		commanderCardKey("Farewell"):                        true,
+		commanderCardKey("Field of the Dead"):               true,
+		commanderCardKey("Fierce Guardianship"):             true,
+		commanderCardKey("Force of Will"):                   true,
+		commanderCardKey("Gaea's Cradle"):                   true,
+		commanderCardKey("Gamble"):                          true,
+		commanderCardKey("Gifts Ungiven"):                   true,
+		commanderCardKey("Glacial Chasm"):                   true,
+		commanderCardKey("Grand Arbiter Augustin IV"):       true,
+		commanderCardKey("Grim Monolith"):                   true,
+		commanderCardKey("Humility"):                        true,
+		commanderCardKey("Imperial Seal"):                   true,
+		commanderCardKey("Intuition"):                       true,
+		commanderCardKey("Jeska's Will"):                    true,
+		commanderCardKey("Lion's Eye Diamond"):              true,
+		commanderCardKey("Mana Vault"):                      true,
+		commanderCardKey("Mishra's Workshop"):               true,
+		commanderCardKey("Mox Diamond"):                     true,
+		commanderCardKey("Mystical Tutor"):                  true,
+		commanderCardKey("Narset, Parter of Veils"):         true,
+		commanderCardKey("Natural Order"):                   true,
+		commanderCardKey("Necropotence"):                    true,
+		commanderCardKey("Notion Thief"):                    true,
+		commanderCardKey("Opposition Agent"):                true,
+		commanderCardKey("Orcish Bowmasters"):               true,
+		commanderCardKey("Panoptic Mirror"):                 true,
+		commanderCardKey("Rhystic Study"):                   true,
+		commanderCardKey("Seedborn Muse"):                   true,
+		commanderCardKey("Serra's Sanctum"):                 true,
+		commanderCardKey("Smothering Tithe"):                true,
+		commanderCardKey("Survival of the Fittest"):         true,
+		commanderCardKey("Teferi's Protection"):             true,
+		commanderCardKey("Tergrid, God of Fright"):          true,
+		commanderCardKey("Thassa's Oracle"):                 true,
+		commanderCardKey("The One Ring"):                    true,
+		commanderCardKey("The Tabernacle at Pendrell Vale"): true,
+		commanderCardKey("Underworld Breach"):               true,
+		commanderCardKey("Vampiric Tutor"):                  true,
+		commanderCardKey("Worldly Tutor"):                   true,
+	}
+}
+
+func isCommanderMassLandDenialCard(name, oracle string) bool {
+	switch commanderCardKey(name) {
+	case commanderCardKey("Armageddon"),
+		commanderCardKey("Ravages of War"),
+		commanderCardKey("Cataclysm"),
+		commanderCardKey("Catastrophe"),
+		commanderCardKey("Jokulhaups"),
+		commanderCardKey("Obliterate"),
+		commanderCardKey("Decree of Annihilation"),
+		commanderCardKey("Devastation"),
+		commanderCardKey("Boom // Bust"),
+		commanderCardKey("Ruination"),
+		commanderCardKey("Blood Moon"),
+		commanderCardKey("Magus of the Moon"),
+		commanderCardKey("Back to Basics"),
+		commanderCardKey("Winter Orb"),
+		commanderCardKey("Static Orb"),
+		commanderCardKey("Stasis"),
+		commanderCardKey("Sunder"),
+		commanderCardKey("Wildfire"),
+		commanderCardKey("Burning of Xinye"),
+		commanderCardKey("Wake of Destruction"):
+		return true
+	}
+	return hasAny(oracle,
+		"destroy all lands",
+		"destroy all nonbasic lands",
+		"each player sacrifices all lands",
+		"lands don't untap",
+		"nonbasic lands are mountains",
+		"lands lose all abilities",
+		"players can't untap more than one land",
+	)
+}
+
+func isCommanderExtraTurnCard(name, oracle string) bool {
+	switch commanderCardKey(name) {
+	case commanderCardKey("Time Warp"),
+		commanderCardKey("Temporal Manipulation"),
+		commanderCardKey("Capture of Jingzhou"),
+		commanderCardKey("Nexus of Fate"),
+		commanderCardKey("Expropriate"),
+		commanderCardKey("Time Stretch"),
+		commanderCardKey("Karn's Temporal Sundering"),
+		commanderCardKey("Alrund's Epiphany"),
+		commanderCardKey("Walk the Aeons"),
+		commanderCardKey("Temporal Mastery"),
+		commanderCardKey("Beacon of Tomorrows"),
+		commanderCardKey("Part the Waterveil"),
+		commanderCardKey("Savor the Moment"),
+		commanderCardKey("Final Fortune"),
+		commanderCardKey("Last Chance"),
+		commanderCardKey("Warrior's Oath"),
+		commanderCardKey("Magistrate's Scepter"),
+		commanderCardKey("Time Sieve"):
+		return true
+	}
+	return strings.Contains(oracle, "extra turn")
+}
+
+func commanderComboSignal(name, typeLine, oracle string) string {
+	key := commanderCardKey(name)
+	comboNames := map[string]bool{
+		commanderCardKey("Aetherflux Reservoir"):      true,
+		commanderCardKey("Basalt Monolith"):           true,
+		commanderCardKey("Brain Freeze"):              true,
+		commanderCardKey("Demonic Consultation"):      true,
+		commanderCardKey("Devoted Druid"):             true,
+		commanderCardKey("Dramatic Reversal"):         true,
+		commanderCardKey("Dualcaster Mage"):           true,
+		commanderCardKey("Food Chain"):                true,
+		commanderCardKey("Goblin Bombardment"):        true,
+		commanderCardKey("Heliod, Sun-Crowned"):       true,
+		commanderCardKey("Isochron Scepter"):          true,
+		commanderCardKey("Karmic Guide"):              true,
+		commanderCardKey("Kiki-Jiki, Mirror Breaker"): true,
+		commanderCardKey("Lion's Eye Diamond"):        true,
+		commanderCardKey("Mikaeus, the Unhallowed"):   true,
+		commanderCardKey("Power Artifact"):            true,
+		commanderCardKey("Reveillark"):                true,
+		commanderCardKey("Rings of Brighthearth"):     true,
+		commanderCardKey("Sensei's Divining Top"):     true,
+		commanderCardKey("Splinter Twin"):             true,
+		commanderCardKey("Tainted Pact"):              true,
+		commanderCardKey("Thassa's Oracle"):           true,
+		commanderCardKey("Triskelion"):                true,
+		commanderCardKey("Twinflame"):                 true,
+		commanderCardKey("Underworld Breach"):         true,
+		commanderCardKey("Vizier of Remedies"):        true,
+		commanderCardKey("Walking Ballista"):          true,
+		commanderCardKey("Zealous Conscripts"):        true,
+	}
+	if comboNames[key] {
+		return name
+	}
+	if strings.Contains(oracle, "win the game") || strings.Contains(oracle, "infinite") {
+		return name
+	}
+	if strings.Contains(typeLine, "artifact") && strings.Contains(oracle, "untap") && strings.Contains(oracle, "add {") {
+		return name
+	}
+	return ""
+}
+
+func commanderCompactComboCount(seenNames map[string]bool) int {
+	pairs := [][2]string{
+		{"Thassa's Oracle", "Demonic Consultation"},
+		{"Thassa's Oracle", "Tainted Pact"},
+		{"Isochron Scepter", "Dramatic Reversal"},
+		{"Heliod, Sun-Crowned", "Walking Ballista"},
+		{"Kiki-Jiki, Mirror Breaker", "Zealous Conscripts"},
+		{"Kiki-Jiki, Mirror Breaker", "Village Bell-Ringer"},
+		{"Dualcaster Mage", "Twinflame"},
+		{"Dualcaster Mage", "Heat Shimmer"},
+		{"Basalt Monolith", "Rings of Brighthearth"},
+		{"Grim Monolith", "Power Artifact"},
+		{"Mikaeus, the Unhallowed", "Triskelion"},
+		{"Devoted Druid", "Vizier of Remedies"},
+		{"Underworld Breach", "Brain Freeze"},
+		{"Underworld Breach", "Lion's Eye Diamond"},
+		{"Sensei's Divining Top", "Bolas's Citadel"},
+	}
+	count := 0
+	for _, pair := range pairs {
+		if seenNames[commanderCardKey(pair[0])] && seenNames[commanderCardKey(pair[1])] {
+			count++
+		}
+	}
+	return count
+}
+
+func commanderCardKey(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	name = strings.ReplaceAll(name, "’", "'")
+	return strings.Join(strings.Fields(name), " ")
+}
+
+func appendPowerName(list []string, name string) []string {
+	name = strings.TrimSpace(name)
+	if name == "" || containsFold(list, name) {
+		return list
+	}
+	return append(list, name)
+}
+
+func containsFold(list []string, needle string) bool {
+	needle = commanderCardKey(needle)
+	for _, item := range list {
+		if commanderCardKey(strings.TrimSuffix(item, " (commander)")) == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func detailList(items []string, fallback string) string {
+	if len(items) == 0 {
+		return fallback
+	}
+	if len(items) <= 5 {
+		return strings.Join(items, ", ")
+	}
+	return strings.Join(items[:5], ", ") + fmt.Sprintf(" +%d more", len(items)-5)
 }
 
 func buildDeckValidationWarnings(format, commanderName string, rows []deckAnalyticsCardInput, analytics deckAnalyticsData) []string {

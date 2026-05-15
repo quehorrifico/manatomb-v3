@@ -36,17 +36,25 @@ type DeckInput struct {
 }
 
 type DeckCard struct {
-	CardID        string
-	CardName      string
-	ManaCost      string
-	ImageURI      string
-	TypeLine      string
-	OracleText    string
-	AllPartsJSON  string
-	CMC           float64
-	PriceUSD      string
-	ColorIdentity string
-	Quantity      int
+	CardID           string
+	CardName         string
+	ManaCost         string
+	ImageURI         string
+	TypeLine         string
+	OracleText       string
+	AllPartsJSON     string
+	CMC              float64
+	PriceUSD         string
+	ColorIdentity    string
+	Quantity         int
+	PreferredPrintID string
+	PrintID          string
+	SetCode          string
+	SetName          string
+	CollectorNumber  string
+	Rarity           string
+	ReleasedAt       string
+	Artist           string
 }
 
 type DeckCardInput struct {
@@ -56,10 +64,12 @@ type DeckCardInput struct {
 
 func normalizeBoard(board string) string {
 	switch strings.ToLower(strings.TrimSpace(board)) {
-	case "main":
+	case "main", "mainboard", "deck":
 		return "main"
-	case "maybe":
+	case "maybe", "maybeboard":
 		return "maybe"
+	case "side", "sideboard":
+		return "side"
 	default:
 		return ""
 	}
@@ -98,9 +108,23 @@ func adjustDeckCardQty(ctx context.Context, tx *sql.Tx, deckID int64, oracleID, 
 	}
 	if err == sql.ErrNoRows {
 		_, err = tx.ExecContext(ctx, `
-			INSERT INTO deck_cards (deck_id, oracle_id, qty, board)
-			VALUES ($1, $2::uuid, $3, $4)
-		`, deckID, oracleID, newQty, board)
+				INSERT INTO deck_cards (deck_id, oracle_id, qty, board, preferred_print_id)
+				VALUES (
+					$1,
+					$2::uuid,
+					$3,
+					$4,
+					(
+						SELECT preferred_print_id
+						FROM deck_cards
+						WHERE deck_id = $1
+						  AND oracle_id = $2::uuid
+						  AND preferred_print_id IS NOT NULL
+						ORDER BY board
+						LIMIT 1
+					)
+				)
+			`, deckID, oracleID, newQty, board)
 		return err
 	}
 	_, err = tx.ExecContext(ctx, `
@@ -133,6 +157,28 @@ func deckCardQtyInBoard(ctx context.Context, tx *sql.Tx, deckID int64, oracleID,
 	return qty, nil
 }
 
+func deckCardPreferredPrintInBoard(ctx context.Context, tx *sql.Tx, deckID int64, oracleID, board string) (sql.NullString, error) {
+	oracleID = strings.TrimSpace(oracleID)
+	board = normalizeBoard(board)
+	if oracleID == "" || board == "" {
+		return sql.NullString{}, nil
+	}
+
+	var printID sql.NullString
+	err := tx.QueryRowContext(ctx, `
+		SELECT preferred_print_id::text
+		FROM deck_cards
+		WHERE deck_id = $1 AND oracle_id = $2::uuid AND board = $3
+	`, deckID, oracleID, board).Scan(&printID)
+	if err == sql.ErrNoRows {
+		return sql.NullString{}, nil
+	}
+	if err != nil {
+		return sql.NullString{}, err
+	}
+	return printID, nil
+}
+
 func AddCard(ctx context.Context, db *sql.DB, deckID int64, oracleID string, delta int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -159,52 +205,189 @@ func AddMaybeCard(ctx context.Context, db *sql.DB, deckID int64, oracleID string
 	return tx.Commit()
 }
 
-func MoveCardToMaybe(ctx context.Context, db *sql.DB, deckID int64, oracleID string) error {
+func AddSideboardCard(ctx context.Context, db *sql.DB, deckID int64, oracleID string, delta int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	currentQty, err := deckCardQtyInBoard(ctx, tx, deckID, oracleID, "main")
-	if err != nil {
-		return err
-	}
-	if currentQty <= 0 {
-		return tx.Commit()
-	}
-
-	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, "main", -1); err != nil {
-		return err
-	}
-	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, "maybe", 1); err != nil {
+	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, "side", delta); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-func MoveMaybeToDeck(ctx context.Context, db *sql.DB, deckID int64, oracleID string) error {
+func SetCardQuantity(ctx context.Context, db *sql.DB, deckID int64, oracleID, board string, qty int) error {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	currentQty, err := deckCardQtyInBoard(ctx, tx, deckID, oracleID, "maybe")
+	board = normalizeBoard(board)
+	if board == "" {
+		return fmt.Errorf("invalid board")
+	}
+	if qty < 0 {
+		qty = 0
+	}
+
+	currentQty, err := deckCardQtyInBoard(ctx, tx, deckID, oracleID, board)
+	if err != nil {
+		return err
+	}
+	if currentQty == qty {
+		return tx.Commit()
+	}
+	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, board, qty-currentQty); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func SetCardPreferredPrint(ctx context.Context, db *sql.DB, deckID int64, oracleID, board, printID string) error {
+	if deckID <= 0 {
+		return fmt.Errorf("invalid deck id")
+	}
+	oracleID = strings.TrimSpace(oracleID)
+	if oracleID == "" {
+		return fmt.Errorf("missing oracle id")
+	}
+	board = normalizeBoard(board)
+	if board == "" {
+		return fmt.Errorf("invalid board")
+	}
+	printID = strings.TrimSpace(printID)
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var currentQty int
+	err = tx.QueryRowContext(ctx, `
+		SELECT qty
+		FROM deck_cards
+		WHERE deck_id = $1 AND oracle_id = $2::uuid AND board = $3
+	`, deckID, oracleID, board).Scan(&currentQty)
+	if err == sql.ErrNoRows {
+		return fmt.Errorf("card is not in board")
+	}
+	if err != nil {
+		return err
+	}
+
+	if printID == "" || strings.EqualFold(printID, "default") || strings.EqualFold(printID, "latest") {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE deck_cards
+			SET preferred_print_id = NULL
+			WHERE deck_id = $1 AND oracle_id = $2::uuid AND board = $3
+		`, deckID, oracleID, board); err != nil {
+			return err
+		}
+	} else {
+		var printOracleID string
+		err = tx.QueryRowContext(ctx, `
+			SELECT oracle_id::text
+			FROM card_prints
+			WHERE scryfall_id = $1::uuid
+		`, printID).Scan(&printOracleID)
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("card print not found")
+		}
+		if err != nil {
+			return err
+		}
+		if !strings.EqualFold(strings.TrimSpace(printOracleID), oracleID) {
+			return fmt.Errorf("card print does not match card")
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE deck_cards
+			SET preferred_print_id = $4::uuid
+			WHERE deck_id = $1 AND oracle_id = $2::uuid AND board = $3
+		`, deckID, oracleID, board, printID); err != nil {
+			return err
+		}
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE decks
+		SET updated_at = NOW()
+		WHERE id = $1
+	`, deckID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func MoveCardBetweenBoards(ctx context.Context, db *sql.DB, deckID int64, oracleID, fromBoard, toBoard string) error {
+	return MoveCardQuantityBetweenBoards(ctx, db, deckID, oracleID, fromBoard, toBoard, 1)
+}
+
+func MoveCardQuantityBetweenBoards(ctx context.Context, db *sql.DB, deckID int64, oracleID, fromBoard, toBoard string, qty int) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	fromBoard = normalizeBoard(fromBoard)
+	toBoard = normalizeBoard(toBoard)
+	if fromBoard == "" || toBoard == "" {
+		return fmt.Errorf("invalid board")
+	}
+	if fromBoard == toBoard {
+		return tx.Commit()
+	}
+
+	currentQty, err := deckCardQtyInBoard(ctx, tx, deckID, oracleID, fromBoard)
 	if err != nil {
 		return err
 	}
 	if currentQty <= 0 {
 		return tx.Commit()
 	}
-
-	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, "maybe", -1); err != nil {
+	sourcePreferredPrint, err := deckCardPreferredPrintInBoard(ctx, tx, deckID, oracleID, fromBoard)
+	if err != nil {
 		return err
 	}
-	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, "main", 1); err != nil {
+	targetQty, err := deckCardQtyInBoard(ctx, tx, deckID, oracleID, toBoard)
+	if err != nil {
 		return err
+	}
+	moveQty := qty
+	if moveQty <= 0 || moveQty > currentQty {
+		moveQty = currentQty
+	}
+
+	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, fromBoard, -moveQty); err != nil {
+		return err
+	}
+	if err := adjustDeckCardQty(ctx, tx, deckID, oracleID, toBoard, moveQty); err != nil {
+		return err
+	}
+	if targetQty <= 0 && sourcePreferredPrint.Valid && strings.TrimSpace(sourcePreferredPrint.String) != "" {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE deck_cards
+			SET preferred_print_id = $4::uuid
+			WHERE deck_id = $1 AND oracle_id = $2::uuid AND board = $3
+		`, deckID, oracleID, toBoard, strings.TrimSpace(sourcePreferredPrint.String)); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
+}
+
+func MoveCardToMaybe(ctx context.Context, db *sql.DB, deckID int64, oracleID string) error {
+	return MoveCardBetweenBoards(ctx, db, deckID, oracleID, "main", "maybe")
+}
+
+func MoveMaybeToDeck(ctx context.Context, db *sql.DB, deckID int64, oracleID string) error {
+	return MoveCardBetweenBoards(ctx, db, deckID, oracleID, "maybe", "main")
 }
 
 func SetMainboard(ctx context.Context, db *sql.DB, deckID int64, cardsIn []DeckCardInput) error {
@@ -266,10 +449,18 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 			COALESCE(oc.oracle_text, ''),
 			COALESCE(oc.all_parts::text, '[]'),
 			COALESCE(oc.cmc, 0),
-			COALESCE(cp.price_usd, ''),
-			COALESCE(array_to_string(oc.color_identity, ','), ''),
-			dc.qty
-		FROM deck_cards dc
+				COALESCE(cp.price_usd, ''),
+				COALESCE(array_to_string(oc.color_identity, ','), ''),
+				dc.qty,
+				COALESCE(dc.preferred_print_id::text, ''),
+				COALESCE(cp.scryfall_id::text, ''),
+				COALESCE(cp.set_code, ''),
+				COALESCE(cp.set_name, ''),
+				COALESCE(cp.collector_number, ''),
+				COALESCE(cp.rarity, ''),
+				COALESCE(to_char(cp.released_at, 'YYYY-MM-DD'), ''),
+				COALESCE(cp.artist, '')
+			FROM deck_cards dc
 		JOIN oracle_cards oc
 		  ON oc.oracle_id = dc.oracle_id
 		LEFT JOIN card_prints cp
@@ -298,6 +489,14 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 			&dc.PriceUSD,
 			&dc.ColorIdentity,
 			&dc.Quantity,
+			&dc.PreferredPrintID,
+			&dc.PrintID,
+			&dc.SetCode,
+			&dc.SetName,
+			&dc.CollectorNumber,
+			&dc.Rarity,
+			&dc.ReleasedAt,
+			&dc.Artist,
 		); err != nil {
 			return nil, err
 		}
@@ -312,6 +511,10 @@ func ListDeckCards(ctx context.Context, db *sql.DB, deckID int64) ([]DeckCard, e
 
 func ListDeckMaybeCards(ctx context.Context, db *sql.DB, deckID int64) ([]DeckCard, error) {
 	return listDeckCardsByBoard(ctx, db, deckID, "maybe")
+}
+
+func ListDeckSideboardCards(ctx context.Context, db *sql.DB, deckID int64) ([]DeckCard, error) {
+	return listDeckCardsByBoard(ctx, db, deckID, "side")
 }
 
 func CreateDeck(ctx context.Context, db *sql.DB, userID int64, name, description, commanderName string) (*Deck, error) {
@@ -526,7 +729,7 @@ func createDeckCardsV2(ctx context.Context, db *sql.DB, tableName string) error 
 			board TEXT NOT NULL DEFAULT 'main',
 			preferred_print_id UUID NULL REFERENCES card_prints(scryfall_id) ON DELETE SET NULL,
 			PRIMARY KEY (deck_id, oracle_id, board),
-			CHECK (board IN ('main', 'maybe'))
+			CHECK (board IN ('main', 'maybe', 'side'))
 		);
 	`, tableName))
 	return err
@@ -665,18 +868,15 @@ func EnsureDeckTables(ctx context.Context, db *sql.DB) error {
 	if _, err := db.ExecContext(ctx, `ALTER TABLE deck_cards ADD COLUMN IF NOT EXISTS preferred_print_id UUID NULL`); err != nil {
 		return err
 	}
+	if _, err := db.ExecContext(ctx, `ALTER TABLE deck_cards DROP CONSTRAINT IF EXISTS deck_cards_board_check`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `ALTER TABLE deck_cards DROP CONSTRAINT IF EXISTS deck_cards_v2_board_check`); err != nil {
+		return err
+	}
 	if _, err := db.ExecContext(ctx, `
-		DO $$
-		BEGIN
-			IF NOT EXISTS (
-				SELECT 1
-				FROM pg_constraint
-				WHERE conname = 'deck_cards_board_check'
-			) THEN
-				ALTER TABLE deck_cards
-				ADD CONSTRAINT deck_cards_board_check CHECK (board IN ('main', 'maybe'));
-			END IF;
-		END $$;
+		ALTER TABLE deck_cards
+		ADD CONSTRAINT deck_cards_board_check CHECK (board IN ('main', 'maybe', 'side'))
 	`); err != nil {
 		return err
 	}

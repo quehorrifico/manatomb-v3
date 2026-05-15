@@ -24,6 +24,7 @@ type quickBuildRequest struct {
 	Format        string                  `json:"format"`
 	Seed          int64                   `json:"seed"`
 	Cards         []quickBuildRequestCard `json:"cards"`
+	Sideboard     []quickBuildRequestCard `json:"sideboard_cards"`
 	MaybeCards    []quickBuildRequestCard `json:"maybe_cards"`
 }
 
@@ -137,8 +138,13 @@ func (a *App) handleSavedDeckQuickBuild(w http.ResponseWriter, r *http.Request, 
 		a.RenderServerError(w, r, err)
 		return
 	}
+	sideboardCards, err := decks.ListDeckSideboardCards(r.Context(), a.DB, deck.ID)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
 
-	if !deckEligibleForQuickBuild(deck.Format, deck.CommanderName, deckCards, maybeCards) {
+	if !deckEligibleForQuickBuild(deck.Format, deck.CommanderName, deckCards, sideboardCards, maybeCards) {
 		http.Error(w, "Quick Build is only available for empty commander decks with a commander selected.", http.StatusBadRequest)
 		return
 	}
@@ -193,7 +199,7 @@ func (a *App) handleGuestDeckQuickBuild(w http.ResponseWriter, r *http.Request, 
 		writeQuickBuildError(w, quickbuild.ErrUnsupportedRequest)
 		return
 	}
-	if !guestRequestEligibleForQuickBuild(commanderName, format, req.Cards, req.MaybeCards) {
+	if !guestRequestEligibleForQuickBuild(commanderName, format, req.Cards, req.Sideboard, req.MaybeCards) {
 		http.Error(w, "Quick Build is only available for empty commander decks with a commander selected.", http.StatusBadRequest)
 		return
 	}
@@ -226,6 +232,7 @@ func (a *App) handleGuestDeckQuickBuild(w http.ResponseWriter, r *http.Request, 
 		fakeDeck,
 		quickBuildResultToDeckCards(result),
 		nil,
+		nil,
 		[]commanderCandidate{{CardName: result.Commander.Name}},
 		nil,
 	)
@@ -253,11 +260,14 @@ func writeQuickBuildError(w http.ResponseWriter, err error) {
 	}
 }
 
-func deckEligibleForQuickBuild(format, commanderName string, deckCards, maybeCards []decks.DeckCard) bool {
+func deckEligibleForQuickBuild(format, commanderName string, deckCards, sideboardCards, maybeCards []decks.DeckCard) bool {
 	if defaultDeckFormat(format, commanderName, "") != "Commander" {
 		return false
 	}
 	if strings.TrimSpace(commanderName) == "" {
+		return false
+	}
+	if deckCardQuantityTotal(sideboardCards) > 0 {
 		return false
 	}
 	if deckCardQuantityTotal(maybeCards) > 0 {
@@ -266,7 +276,7 @@ func deckEligibleForQuickBuild(format, commanderName string, deckCards, maybeCar
 	return visibleDeckCardCount(deckCards, commanderName) == 0
 }
 
-func guestRequestEligibleForQuickBuild(commanderName, format string, cardsIn, maybeCardsIn []quickBuildRequestCard) bool {
+func guestRequestEligibleForQuickBuild(commanderName, format string, cardsIn, sideboardCardsIn, maybeCardsIn []quickBuildRequestCard) bool {
 	if defaultDeckFormat(format, commanderName, "") != "Commander" {
 		return false
 	}
@@ -276,6 +286,9 @@ func guestRequestEligibleForQuickBuild(commanderName, format string, cardsIn, ma
 	}
 
 	if quickBuildRequestCardTotal(maybeCardsIn) > 0 {
+		return false
+	}
+	if quickBuildRequestCardTotal(sideboardCardsIn) > 0 {
 		return false
 	}
 

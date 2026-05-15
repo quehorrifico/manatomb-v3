@@ -50,9 +50,46 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 
 		cardName := r.Form.Get("card_name")
 		cardID := strings.TrimSpace(r.Form.Get("card_id"))
+		sideCardID := strings.TrimSpace(r.Form.Get("side_card_id"))
 		maybeCardID := strings.TrimSpace(r.Form.Get("maybe_card_id"))
 		action := strings.TrimSpace(r.Form.Get("action"))
 		zone := strings.TrimSpace(r.Form.Get("zone"))
+		quantityRaw := strings.TrimSpace(r.Form.Get("quantity"))
+
+		addCardToBoard := func(board, oracleID string, delta int) error {
+			switch strings.ToLower(strings.TrimSpace(board)) {
+			case "maybe", "maybeboard":
+				return decks.AddMaybeCard(r.Context(), a.DB, id, oracleID, delta)
+			case "side", "sideboard":
+				return decks.AddSideboardCard(r.Context(), a.DB, id, oracleID, delta)
+			default:
+				return decks.AddCard(r.Context(), a.DB, id, oracleID, delta)
+			}
+		}
+
+		listCardsForBoard := func(board string) ([]decks.DeckCard, error) {
+			switch strings.ToLower(strings.TrimSpace(board)) {
+			case "maybe", "maybeboard":
+				return decks.ListDeckMaybeCards(r.Context(), a.DB, id)
+			case "side", "sideboard":
+				return decks.ListDeckSideboardCards(r.Context(), a.DB, id)
+			default:
+				return decks.ListDeckCards(r.Context(), a.DB, id)
+			}
+		}
+
+		boardCardIDFromRequest := func() (string, string) {
+			if cardID != "" {
+				return "main", cardID
+			}
+			if sideCardID != "" {
+				return "side", sideCardID
+			}
+			if maybeCardID != "" {
+				return "maybe", maybeCardID
+			}
+			return "", ""
+		}
 
 		if action == "save_overview" {
 			current, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
@@ -97,6 +134,79 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if action == "set_qty" {
+			sourceBoard, sourceCardID := boardCardIDFromRequest()
+			if sourceBoard == "" || sourceCardID == "" {
+				http.Error(w, "missing card information", http.StatusBadRequest)
+				return
+			}
+			nextQty, err := strconv.Atoi(quantityRaw)
+			if err != nil || nextQty < 0 {
+				http.Error(w, "invalid quantity", http.StatusBadRequest)
+				return
+			}
+			if err := decks.SetCardQuantity(r.Context(), a.DB, id, sourceCardID, sourceBoard, nextQty); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		if action == "set_board" {
+			sourceBoard, sourceCardID := boardCardIDFromRequest()
+			if sourceBoard == "" || sourceCardID == "" {
+				http.Error(w, "missing card information", http.StatusBadRequest)
+				return
+			}
+			targetBoard := "main"
+			switch strings.ToLower(strings.TrimSpace(r.Form.Get("to_board"))) {
+			case "maybe", "maybeboard":
+				targetBoard = "maybe"
+			case "side", "sideboard":
+				targetBoard = "side"
+			}
+			moveQty := 0
+			if quantityRaw != "" {
+				if parsedQty, err := strconv.Atoi(quantityRaw); err == nil {
+					moveQty = parsedQty
+				}
+			}
+			if err := decks.MoveCardQuantityBetweenBoards(r.Context(), a.DB, id, sourceCardID, sourceBoard, targetBoard, moveQty); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		if action == "set_print" {
+			sourceBoard, sourceCardID := boardCardIDFromRequest()
+			if sourceBoard == "" || sourceCardID == "" {
+				http.Error(w, "missing card information", http.StatusBadRequest)
+				return
+			}
+			printID := strings.TrimSpace(r.Form.Get("print_id"))
+			if err := decks.SetCardPreferredPrint(r.Context(), a.DB, id, sourceCardID, sourceBoard, printID); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
 		// Case 1: adding a new card by name (from the "Add card" form)
 		if cardName != "" {
 			resolved, err := cards.ResolveCardByNameFuzzy(r.Context(), a.DB, cardName)
@@ -131,32 +241,26 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Valid card, add +1 copy to the chosen zone.
-			var addErr error
+			targetBoard := "main"
+			switch strings.ToLower(strings.TrimSpace(zone)) {
+			case "maybe", "maybeboard":
+				targetBoard = "maybe"
+			case "side", "sideboard":
+				targetBoard = "side"
+			}
+
 			targetCardID := resolved.OracleID
 			resolvedName := strings.TrimSpace(resolved.Name)
-			if zone == "maybe" {
-				maybeDeckCards, err := decks.ListDeckMaybeCards(r.Context(), a.DB, id)
-				if err != nil {
-					a.RenderServerError(w, r, err)
-					return
-				}
-				if existingID, ok := deckCardIDForName(maybeDeckCards, resolvedName); ok {
-					targetCardID = existingID
-				}
-				addErr = decks.AddMaybeCard(r.Context(), a.DB, id, targetCardID, 1)
-			} else {
-				deckCards, err := decks.ListDeckCards(r.Context(), a.DB, id)
-				if err != nil {
-					a.RenderServerError(w, r, err)
-					return
-				}
-				if existingID, ok := deckCardIDForName(deckCards, resolvedName); ok {
-					targetCardID = existingID
-				}
-				addErr = decks.AddCard(r.Context(), a.DB, id, targetCardID, 1)
+			existingDeckCards, err := listCardsForBoard(targetBoard)
+			if err != nil {
+				a.RenderServerError(w, r, err)
+				return
 			}
-			if addErr != nil {
-				a.RenderServerError(w, r, addErr)
+			if existingID, ok := deckCardIDForName(existingDeckCards, resolvedName); ok {
+				targetCardID = existingID
+			}
+			if err := addCardToBoard(targetBoard, targetCardID, 1); err != nil {
+				a.RenderServerError(w, r, err)
 				return
 			}
 
@@ -168,7 +272,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Case 2: move a mainboard card to the maybeboard.
+		// Case 2: increment an existing mainboard card by card_id.
 		if action == "inc_main" && cardID != "" {
 			if err := decks.AddCard(r.Context(), a.DB, id, cardID, 1); err != nil {
 				a.RenderServerError(w, r, err)
@@ -182,7 +286,21 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Case 3: increment an existing maybeboard card by maybe_card_id.
+		// Case 3: increment an existing sideboard card by side_card_id.
+		if action == "inc_side" && sideCardID != "" {
+			if err := decks.AddSideboardCard(r.Context(), a.DB, id, sideCardID, 1); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		// Case 4: increment an existing maybeboard card by maybe_card_id.
 		if action == "inc_maybe" && maybeCardID != "" {
 			if err := decks.AddMaybeCard(r.Context(), a.DB, id, maybeCardID, 1); err != nil {
 				a.RenderServerError(w, r, err)
@@ -196,7 +314,21 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Case 4: move a mainboard card to the maybeboard.
+		// Case 5: move a mainboard card to the sideboard.
+		if action == "to_side" && cardID != "" {
+			if err := decks.MoveCardBetweenBoards(r.Context(), a.DB, id, cardID, "main", "side"); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		// Case 6: move a mainboard card to the maybeboard.
 		if action == "to_maybe" && cardID != "" {
 			if err := decks.MoveCardToMaybe(r.Context(), a.DB, id, cardID); err != nil {
 				a.RenderServerError(w, r, err)
@@ -210,7 +342,49 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Case 5: move a maybeboard card to the mainboard.
+		// Case 7: move a sideboard card to the mainboard.
+		if action == "to_main" && sideCardID != "" {
+			if err := decks.MoveCardBetweenBoards(r.Context(), a.DB, id, sideCardID, "side", "main"); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		// Case 8: move a sideboard card to the maybeboard.
+		if action == "side_to_maybe" && sideCardID != "" {
+			if err := decks.MoveCardBetweenBoards(r.Context(), a.DB, id, sideCardID, "side", "maybe"); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		// Case 9: move a maybeboard card to the sideboard.
+		if action == "to_side" && maybeCardID != "" {
+			if err := decks.MoveCardBetweenBoards(r.Context(), a.DB, id, maybeCardID, "maybe", "side"); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		// Case 10: move a maybeboard card to the mainboard.
 		if action == "to_main" && maybeCardID != "" {
 			if err := decks.MoveMaybeToDeck(r.Context(), a.DB, id, maybeCardID); err != nil {
 				a.RenderServerError(w, r, err)
@@ -224,7 +398,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Case 6: decrement an existing mainboard card by card_id.
+		// Case 11: decrement an existing mainboard card by card_id.
 		if cardID != "" {
 			// Use delta = -1 to decrement; AddCard will delete row if quantity goes to 0
 			if err := decks.AddCard(r.Context(), a.DB, id, cardID, -1); err != nil {
@@ -239,7 +413,21 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Case 7: decrement an existing maybeboard card by maybe_card_id.
+		// Case 12: decrement an existing sideboard card by side_card_id.
+		if sideCardID != "" {
+			if err := decks.AddSideboardCard(r.Context(), a.DB, id, sideCardID, -1); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		// Case 13: decrement an existing maybeboard card by maybe_card_id.
 		if maybeCardID != "" {
 			if err := decks.AddMaybeCard(r.Context(), a.DB, id, maybeCardID, -1); err != nil {
 				a.RenderServerError(w, r, err)
