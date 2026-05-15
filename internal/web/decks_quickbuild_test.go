@@ -10,21 +10,27 @@ import (
 func TestGuestRequestEligibleForQuickBuild(t *testing.T) {
 	if !guestRequestEligibleForQuickBuild("Atraxa, Praetors' Voice", "Commander", []quickBuildRequestCard{
 		{Name: "Atraxa, Praetors' Voice", Qty: 1},
-	}, nil) {
+	}, nil, nil) {
 		t.Fatalf("expected commander-only request to be eligible")
 	}
 
 	if guestRequestEligibleForQuickBuild("Atraxa, Praetors' Voice", "Commander", []quickBuildRequestCard{
 		{Name: "Atraxa, Praetors' Voice", Qty: 1},
 		{Name: "Sol Ring", Qty: 1},
-	}, nil) {
+	}, nil, nil) {
 		t.Fatalf("expected non-empty deck request to be rejected")
 	}
 
 	if guestRequestEligibleForQuickBuild("Atraxa, Praetors' Voice", "Sandbox", []quickBuildRequestCard{
 		{Name: "Atraxa, Praetors' Voice", Qty: 1},
-	}, nil) {
+	}, nil, nil) {
 		t.Fatalf("expected sandbox request to be rejected")
+	}
+
+	if guestRequestEligibleForQuickBuild("Atraxa, Praetors' Voice", "Commander", []quickBuildRequestCard{
+		{Name: "Atraxa, Praetors' Voice", Qty: 1},
+	}, []quickBuildRequestCard{{Name: "Negate", Qty: 1}}, nil) {
+		t.Fatalf("expected request with sideboard cards to be rejected")
 	}
 }
 
@@ -32,13 +38,19 @@ func TestDeckEligibleForQuickBuild(t *testing.T) {
 	deckCards := []decks.DeckCard{
 		{CardName: "Atraxa, Praetors' Voice", Quantity: 1},
 	}
-	if !deckEligibleForQuickBuild("Commander", "Atraxa, Praetors' Voice", deckCards, nil) {
+	if !deckEligibleForQuickBuild("Commander", "Atraxa, Praetors' Voice", deckCards, nil, nil) {
 		t.Fatalf("expected commander-only saved deck to be eligible")
 	}
 
 	deckCards = append(deckCards, decks.DeckCard{CardName: "Arcane Signet", Quantity: 1})
-	if deckEligibleForQuickBuild("Commander", "Atraxa, Praetors' Voice", deckCards, nil) {
+	if deckEligibleForQuickBuild("Commander", "Atraxa, Praetors' Voice", deckCards, nil, nil) {
 		t.Fatalf("expected saved deck with extra mainboard card to be rejected")
+	}
+
+	if deckEligibleForQuickBuild("Commander", "Atraxa, Praetors' Voice", []decks.DeckCard{
+		{CardName: "Atraxa, Praetors' Voice", Quantity: 1},
+	}, []decks.DeckCard{{CardName: "Negate", Quantity: 1}}, nil) {
+		t.Fatalf("expected saved deck with sideboard card to be rejected")
 	}
 }
 

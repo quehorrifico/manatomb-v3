@@ -118,6 +118,26 @@
 
         <section class="mt-panel p-4 sm:p-6">
           <div class="flex items-center justify-between gap-3">
+            <h2 class="mt-section-label">Sideboard</h2>
+            <p class="text-xs text-slate-500">{{ len $ctx.SideboardDeckCards }}</p>
+          </div>
+          <ul class="mt-3 divide-y divide-slate-800 text-sm">
+            {{ range $ctx.SideboardDeckCards }}
+              <li class="py-2 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="font-medium text-slate-100">{{ .CardName }}</p>
+                  <p class="text-xs text-slate-500">{{ .TypeLine }}</p>
+                </div>
+                <span class="text-xs text-slate-400 shrink-0">x{{ .Quantity }}</span>
+              </li>
+            {{ else }}
+              <li class="py-2 text-sm text-slate-500">Empty.</li>
+            {{ end }}
+          </ul>
+        </section>
+
+        <section class="mt-panel p-4 sm:p-6">
+          <div class="flex items-center justify-between gap-3">
             <h2 class="mt-section-label">Maybeboard</h2>
             <p class="text-xs text-slate-500">{{ len $ctx.MaybeDeckCards }}</p>
           </div>

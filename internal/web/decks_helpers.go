@@ -43,12 +43,13 @@ type deckNewPageData struct {
 }
 
 type publicDeckPageData struct {
-	Deck           *decks.Deck
-	DeckCards      []decks.DeckCard
-	MaybeDeckCards []decks.DeckCard
-	Analytics      deckAnalyticsData
-	Commander      *cards.Card
-	Owner          *account.PublicProfile
+	Deck               *decks.Deck
+	DeckCards          []decks.DeckCard
+	SideboardDeckCards []decks.DeckCard
+	MaybeDeckCards     []decks.DeckCard
+	Analytics          deckAnalyticsData
+	Commander          *cards.Card
+	Owner              *account.PublicProfile
 }
 
 type publicDeckListPageData struct {

@@ -862,7 +862,8 @@ func RandomTopCommanders(
 }
 
 // SearchCardNamesExactThenFuzzy powers deck-builder autocomplete style search.
-// It returns a single exact match when present, else a fuzzy list.
+// Positive limits return one exact match when present, else a fuzzy list.
+// A non-positive limit returns every fuzzy match, with any exact match first.
 func SearchCardNamesExactThenFuzzy(
 	ctx context.Context,
 	db *sql.DB,
@@ -874,10 +875,8 @@ func SearchCardNamesExactThenFuzzy(
 	if query == "" {
 		return nil, false, nil
 	}
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
+	unlimited := limit <= 0
+	if limit > 100 && !unlimited {
 		limit = 100
 	}
 
@@ -944,7 +943,8 @@ func SearchCardNamesExactThenFuzzy(
 		return nil, false, err
 	}
 	exactRows.Close()
-	if len(exactOut) > 0 {
+	hasExact := len(exactOut) > 0
+	if hasExact && !unlimited {
 		return exactOut, true, nil
 	}
 
@@ -978,9 +978,11 @@ func SearchCardNamesExactThenFuzzy(
 			similarity(oc.name_search, $1) DESC,
 			COALESCE(oc.edhrec_rank, 999999) ASC,
 			oc.name ASC
-		LIMIT $2
 	`
-	fuzzyArgs = append(fuzzyArgs, limit)
+	if !unlimited {
+		fuzzySQL += ` LIMIT $2`
+		fuzzyArgs = append(fuzzyArgs, limit)
+	}
 
 	rows, err := db.QueryContext(ctx, fuzzySQL, fuzzyArgs...)
 	if err != nil {
@@ -988,7 +990,11 @@ func SearchCardNamesExactThenFuzzy(
 	}
 	defer rows.Close()
 
-	out := make([]DBCard, 0, limit)
+	capacity := limit
+	if unlimited || capacity < 1 {
+		capacity = 64
+	}
+	out := make([]DBCard, 0, capacity)
 	for rows.Next() {
 		var (
 			oracleID, name, manaCost, typeLine, oracleText, imageURI string
@@ -1025,7 +1031,7 @@ func SearchCardNamesExactThenFuzzy(
 		return nil, false, err
 	}
 
-	return out, false, nil
+	return out, hasExact, nil
 }
 
 // ResolveCardByNameFuzzy returns an exact normalized-name match when possible,

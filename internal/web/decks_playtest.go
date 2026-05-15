@@ -63,6 +63,7 @@ type workbenchPlaytestPayload struct {
 	Description         string                               `json:"description"`
 	Tags                string                               `json:"tags"`
 	Cards               []workbenchPlaytestCard              `json:"cards"`
+	SideboardCards      []workbenchPlaytestCard              `json:"sideboard_cards"`
 	MaybeCards          []workbenchPlaytestCard              `json:"maybe_cards"`
 	CommanderCandidates []string                             `json:"commander_candidates"`
 	CardMeta            map[string]workbenchPlaytestCardMeta `json:"card_meta"`
@@ -76,6 +77,7 @@ type workbenchDraftSeed struct {
 	Description         string                               `json:"description"`
 	Tags                string                               `json:"tags"`
 	Cards               map[string]int                       `json:"cards"`
+	SideboardCards      map[string]int                       `json:"sideboardCards"`
 	MaybeCards          map[string]int                       `json:"maybeCards"`
 	CardMeta            map[string]workbenchPlaytestCardMeta `json:"cardMeta"`
 	CommanderCandidates []string                             `json:"commanderCandidates"`
@@ -214,6 +216,7 @@ func normalizeWorkbenchDraftSeed(in workbenchPlaytestPayload) workbenchDraftSeed
 		Description:         strings.TrimSpace(in.Description),
 		Tags:                strings.TrimSpace(in.Tags),
 		Cards:               normalizeWorkbenchCardCounts(in.Cards),
+		SideboardCards:      normalizeWorkbenchCardCounts(in.SideboardCards),
 		MaybeCards:          normalizeWorkbenchCardCounts(in.MaybeCards),
 		CardMeta:            normalizeWorkbenchCardMeta(in.CardMeta),
 		CommanderCandidates: normalizeWorkbenchCommanderCandidates(in.CommanderCandidates, commanderName),

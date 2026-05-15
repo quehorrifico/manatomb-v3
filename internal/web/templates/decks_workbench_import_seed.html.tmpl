@@ -24,12 +24,20 @@
 
     try {
       var cards = {};
+      var sideboardCards = {};
       var maybeCards = {};
       if (payload && Array.isArray(payload.cards)) {
         payload.cards.forEach(function (item) {
           if (!item || !item.name || !item.qty) return;
           if (item.qty <= 0) return;
           cards[item.name] = (cards[item.name] || 0) + item.qty;
+        });
+      }
+      if (payload && Array.isArray(payload.sideboard_cards)) {
+        payload.sideboard_cards.forEach(function (item) {
+          if (!item || !item.name || !item.qty) return;
+          if (item.qty <= 0) return;
+          sideboardCards[item.name] = (sideboardCards[item.name] || 0) + item.qty;
         });
       }
       if (payload && Array.isArray(payload.maybe_cards)) {
@@ -48,6 +56,7 @@
         description: payload.description || '',
         tags: '',
         cards: cards,
+        sideboardCards: sideboardCards,
         maybeCards: maybeCards,
         cardMeta: {},
         updatedAt: new Date().toISOString()

@@ -302,6 +302,7 @@ type cardResolveResponse struct {
 
 type cardVersionResponse struct {
 	ScryfallID      string           `json:"scryfall_id,omitempty"`
+	OracleID        string           `json:"oracle_id,omitempty"`
 	Lang            string           `json:"lang,omitempty"`
 	Name            string           `json:"name"`
 	ManaCost        string           `json:"mana_cost,omitempty"`
@@ -1982,6 +1983,7 @@ func (a *App) HandleCardVersions(w http.ResponseWriter, r *http.Request) {
 	for _, c := range versions {
 		payload.Versions = append(payload.Versions, cardVersionResponse{
 			ScryfallID:      c.ID,
+			OracleID:        c.OracleID,
 			Lang:            c.Lang,
 			Name:            c.Name,
 			ManaCost:        c.ManaCost,

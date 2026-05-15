@@ -15,8 +15,10 @@ type commanderCandidate struct {
 type deckPageData struct {
 	Deck                  *decks.Deck
 	DeckCards             []decks.DeckCard
+	SideboardDeckCards    []decks.DeckCard
 	MaybeDeckCards        []decks.DeckCard
 	VisibleCardCount      int
+	SideboardCardCount    int
 	MaybeCardCount        int
 	Analytics             deckAnalyticsData
 	Commander             *cards.Card

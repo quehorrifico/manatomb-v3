@@ -1120,7 +1120,17 @@
           }
 
           var maybeEntries = [];
+          var sideboardEntries = [];
           var maybeCards = (baseDraft && baseDraft.maybeCards && typeof baseDraft.maybeCards === "object") ? baseDraft.maybeCards : {};
+          var sideboardCards = (baseDraft && baseDraft.sideboardCards && typeof baseDraft.sideboardCards === "object") ? baseDraft.sideboardCards : {};
+          var sideboardNames = Object.keys(sideboardCards);
+          for (var s = 0; s < sideboardNames.length; s++) {
+            var sideboardName = String(sideboardNames[s] || "").trim();
+            var sideboardQty = Number(sideboardCards[sideboardName] || 0);
+            if (!sideboardName || !Number.isFinite(sideboardQty) || sideboardQty <= 0) continue;
+            sideboardEntries.push({ name: sideboardName, qty: sideboardQty });
+          }
+
           var maybeNames = Object.keys(maybeCards);
           for (var m = 0; m < maybeNames.length; m++) {
             var maybeName = String(maybeNames[m] || "").trim();
@@ -1136,6 +1146,7 @@
             description: String(baseDraft.description || "").trim(),
             tags: String(baseDraft.tags || "").trim(),
             cards: cardEntries,
+            sideboard_cards: sideboardEntries,
             maybe_cards: maybeEntries,
             commander_candidates: Array.isArray(baseDraft.commanderCandidates) ? baseDraft.commanderCandidates.slice() : [],
             card_meta: (baseDraft && baseDraft.cardMeta && typeof baseDraft.cardMeta === "object") ? baseDraft.cardMeta : {},
@@ -1152,6 +1163,7 @@
 
             var storageKey = payload.sandbox ? "manatomb.draftDeck.sandbox" : "manatomb.draftDeck";
             var cards = {};
+            var sideboardCards = {};
             var maybeCards = {};
 
             if (Array.isArray(payload.cards)) {
@@ -1161,6 +1173,16 @@
                 var cardQty = Number(card.qty || 0);
                 if (!cardName || !Number.isFinite(cardQty) || cardQty <= 0) continue;
                 cards[cardName] = (cards[cardName] || 0) + cardQty;
+              }
+            }
+
+            if (Array.isArray(payload.sideboard_cards)) {
+              for (var s = 0; s < payload.sideboard_cards.length; s++) {
+                var sideboardCard = payload.sideboard_cards[s] || {};
+                var sideboardName = String(sideboardCard.name || "").trim();
+                var sideboardQty = Number(sideboardCard.qty || 0);
+                if (!sideboardName || !Number.isFinite(sideboardQty) || sideboardQty <= 0) continue;
+                sideboardCards[sideboardName] = (sideboardCards[sideboardName] || 0) + sideboardQty;
               }
             }
 
@@ -1181,6 +1203,7 @@
               description: String(payload.description || "").trim(),
               tags: String(payload.tags || "").trim(),
               cards: cards,
+              sideboardCards: sideboardCards,
               maybeCards: maybeCards,
               cardMeta: (payload.card_meta && typeof payload.card_meta === "object") ? payload.card_meta : {},
               commanderCandidates: Array.isArray(payload.commander_candidates) ? payload.commander_candidates : [],

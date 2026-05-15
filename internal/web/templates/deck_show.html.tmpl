@@ -15,8 +15,8 @@
   {{ end }}
   {{ template "layout_header" . }}
 
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
-    <section class="space-y-4">
+  <main class="max-w-[1500px] mx-auto px-4 sm:px-6 py-5 space-y-4">
+    <section class="space-y-3">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0">
           <p class="mt-kicker">{{ if $isGuest }}Workspace{{ else }}Deck{{ end }}</p>
@@ -62,49 +62,43 @@
       </section>
     {{ end }}
 
-    <section class="mt-panel p-4 sm:p-6 space-y-5">
-      <div>
+    <section class="mt-panel p-4 sm:p-5 space-y-4">
+      <div class="flex items-center justify-between gap-3">
         <p class="mt-kicker">Overview</p>
       </div>
-
       <div id="deck-overview-layout"
-           class="{{ if $isCommanderDeck }}grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]{{ else }}space-y-4{{ end }}">
+           class="{{ if $isCommanderDeck }}grid gap-4 xl:grid-cols-[minmax(210px,240px)_minmax(0,1fr)]{{ else }}space-y-4{{ end }}">
         <div id="deck-overview-side"
-             class="space-y-4 min-w-0 {{ if not $isCommanderDeck }}hidden{{ end }}">
+             class="min-w-0 {{ if not $isCommanderDeck }}hidden{{ end }}">
 
-            <section id="deck-commander-panel" class="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 space-y-3">
-              <button type="button"
-                      id="deck-top-commander-art-wrap"
-                      class="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 text-left focus:outline-none focus:ring-2 focus:ring-sky-400 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}{{ else }}hidden{{ end }}">
-                <img id="deck-top-commander-art"
-                     src="{{ if and $c $c.ImageURI }}{{ $c.ImageURI }}{{ else if and $c (gt (len $c.Faces) 0) }}{{ (index $c.Faces 0).ImageURI }}{{ end }}"
-                     alt="{{ if $d.CommanderName }}{{ $d.CommanderName }} commander art{{ else }}Commander art{{ end }}"
-                     class="block w-full h-auto object-cover">
-              </button>
-              <div id="deck-top-commander-placeholder"
-                   class="rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-5 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}hidden{{ end }}">
-                <div class="flex aspect-[5/7] items-center justify-center rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
-                  <div class="space-y-4 text-center px-6">
-                    <div class="mx-auto h-32 w-24 rounded-2xl border border-slate-700 bg-slate-800/80 shadow-inner shadow-slate-950/80"></div>
-                    <p class="text-sm font-medium text-slate-200">Select a commander from Deck.</p>
-                  </div>
+            <section id="deck-commander-panel" class="mt-commander-panel">
+              <div class="mt-commander-card">
+                <button type="button"
+                        id="deck-top-commander-art-wrap"
+                        class="mt-commander-art focus:outline-none focus:ring-2 focus:ring-sky-400 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}{{ else }}hidden{{ end }}">
+                  <img id="deck-top-commander-art"
+                       src="{{ if and $c $c.ImageURI }}{{ $c.ImageURI }}{{ else if and $c (gt (len $c.Faces) 0) }}{{ (index $c.Faces 0).ImageURI }}{{ end }}"
+                       alt="{{ if $d.CommanderName }}{{ $d.CommanderName }} commander art{{ else }}Commander art{{ end }}"
+                       class="block h-full w-full object-cover">
+                </button>
+                <div id="deck-top-commander-placeholder"
+                     class="mt-commander-art mt-commander-art--empty {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}hidden{{ end }}">
+                  <span>Select</span>
                 </div>
-              </div>
-              <button type="button"
-                      id="deck-commander-flip"
-                      class="mt-btn mt-btn--secondary mt-btn--sm w-full {{ if and $c (gt (len $c.Faces) 1) }}{{ else }}hidden{{ end }}">Turn Over</button>
-
-              <div>
-                <button type="button" id="deck-commander-name" class="mt-1 text-left text-2xl font-semibold text-slate-50 break-words transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200">
+                <div id="deck-commander-menu-slot" class="mt-commander-menu-slot"></div>
+                <button type="button" id="deck-commander-name" class="hidden">
                   {{ if $c }}{{ $c.Name }}{{ else if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}No commander selected{{ end }}
                 </button>
+                <button type="button"
+                        id="deck-commander-flip"
+                        class="mt-commander-flip mt-btn mt-btn--secondary mt-btn--xs {{ if and $c (gt (len $c.Faces) 1) }}{{ else }}hidden{{ end }}">Turn Over</button>
               </div>
             </section>
         </div>
 
         <div class="space-y-3.5 min-w-0">
           <input type="hidden" id="deck-overview-tags-hidden" value="{{ $d.Tags }}">
-          <div class="grid gap-3 sm:grid-cols-2">
+          <div class="max-w-56">
             <label class="block text-sm text-slate-200">
               <span class="mt-field-label">Format</span>
               <select id="deck-overview-format" class="mt-control">
@@ -115,8 +109,7 @@
           </div>
           <div class="space-y-2.5">
             <span class="mt-field-label">Tags</span>
-            <div id="deck-overview-tags-list" class="flex flex-wrap gap-2"></div>
-            <p class="mt-hint">Select from the supported deck styles.</p>
+            <div id="deck-overview-tags-list" class="flex min-h-8 flex-wrap items-center gap-2"></div>
             <div class="flex flex-wrap gap-2">
               {{ range supportedDeckTags }}
                 <button type="button"
@@ -131,7 +124,7 @@
           <label class="block text-sm text-slate-200">
             <span class="mt-field-label">Notes</span>
             <textarea id="deck-overview-notes"
-                      rows="5"
+                      rows="4"
                       class="mt-control">{{ $d.Description }}</textarea>
           </label>
           <p id="deck-overview-status" class="text-xs text-slate-500">{{ if $isGuest }}Local changes save automatically.{{ else }}Changes save automatically.{{ end }}</p>
@@ -139,13 +132,13 @@
       </div>
     </section>
 
-    <section class="mt-panel p-4 sm:p-6 space-y-5">
-      <div>
-        <p class="mt-kicker">Deck</p>
+    <section class="mt-panel p-4 sm:p-5 space-y-4">
+      <div class="flex items-center justify-between gap-3">
+        <p class="mt-kicker">Cards</p>
       </div>
 
       <div id="deck-quick-build-wrap"
-           class="{{ if and $isCommanderDeck $d.CommanderName (eq $ctx.VisibleCardCount 0) (eq $ctx.MaybeCardCount 0) }}{{ else }}hidden {{ end }}rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4">
+           class="{{ if and $isCommanderDeck $d.CommanderName (eq $ctx.VisibleCardCount 0) (eq $ctx.SideboardCardCount 0) (eq $ctx.MaybeCardCount 0) }}{{ else }}hidden {{ end }}rounded-xl border border-sky-500/30 bg-sky-950/20 p-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div class="space-y-1">
             <h3 class="text-sm font-semibold text-sky-100">Quick Build</h3>
@@ -156,9 +149,9 @@
         </div>
       </div>
 
-      <form id="deck-add-card-form" {{ if not $isGuest }}method="POST" action="/decks/{{ $d.ID }}"{{ else }}novalidate{{ end }} class="space-y-3">
+      <form id="deck-add-card-form" {{ if not $isGuest }}method="POST" action="/decks/{{ $d.ID }}"{{ else }}novalidate{{ end }} class="grid gap-1.5">
         <label class="block text-sm text-slate-200">
-          <span class="mt-field-label">Card Search</span>
+          <span class="sr-only">Card Search</span>
           <div class="relative">
             <input type="text"
                    id="guest-card-name"
@@ -172,25 +165,43 @@
                    aria-haspopup="listbox"
                    aria-controls="deck-card-suggestions">
             <div id="deck-card-suggestions"
-                 class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                 class="mt-autocomplete-menu hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
                  role="listbox"></div>
           </div>
         </label>
-        <p class="mt-hint">Choose a suggestion or press Enter to add the card to the deck.</p>
+        <input type="hidden" id="deck-add-zone" name="zone" value="main">
       </form>
 
       <p id="deck-add-status" class="text-xs text-slate-500" aria-live="polite"></p>
 
       <div class="space-y-3">
-        <div class="flex items-center justify-between gap-3">
-          <h3 class="text-lg font-semibold text-slate-50">
-            Cards
-            <span id="deck-count-label" class="text-sm font-medium text-slate-500">{{ if $isGuest }}(0){{ else }}({{ $ctx.VisibleCardCount }}){{ end }}</span>
-          </h3>
-          <div class="flex items-center flex-wrap justify-end gap-3">
-            <label class="flex items-center gap-2 text-xs text-slate-400">
-              <span class="uppercase tracking-wide">Group By</span>
-              <select id="deck-group-mode" class="mt-control mt-control--sm !w-auto !min-w-[9rem]">
+        <div class="mt-deck-toolbar flex flex-col gap-2.5 xl:flex-row xl:items-end xl:justify-between">
+          <div class="mt-board-tabs" role="tablist" aria-label="Deck boards">
+            <button type="button" class="mt-board-tab" data-deck-board-tab="main" aria-selected="true">
+              <span>Main</span>
+              <span id="deck-count-label">{{ if $isGuest }}0{{ else }}{{ $ctx.VisibleCardCount }}{{ end }}</span>
+            </button>
+            <button type="button" class="mt-board-tab" data-deck-board-tab="side" aria-selected="false">
+              <span>Side</span>
+              <span id="deck-sideboard-count-label">{{ if $isGuest }}0{{ else }}{{ $ctx.SideboardCardCount }}{{ end }}</span>
+            </button>
+            <button type="button" class="mt-board-tab" data-deck-board-tab="maybe" aria-selected="false">
+              <span>Maybe</span>
+              <span id="guest-maybeboard-count-label">{{ if $isGuest }}0{{ else }}{{ $ctx.MaybeCardCount }}{{ end }}</span>
+            </button>
+          </div>
+          <div class="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4 xl:w-auto">
+            <label class="block text-xs text-slate-400">
+              <span class="mt-field-label mb-1">Filter</span>
+              <input id="deck-filter-query"
+                     type="search"
+                     class="mt-control mt-control--sm"
+                     placeholder="Name, type, text"
+                     autocomplete="off">
+            </label>
+            <label class="block text-xs text-slate-400">
+              <span class="mt-field-label mb-1">Group</span>
+              <select id="deck-group-mode" class="mt-control mt-control--sm">
                 <option value="none">None</option>
                 <option value="alphabet">Alphabet</option>
                 <option value="type">Type</option>
@@ -198,18 +209,18 @@
                 <option value="price">Price</option>
               </select>
             </label>
-            <label class="flex items-center gap-2 text-xs text-slate-400">
-              <span class="uppercase tracking-wide">Sort By</span>
-              <select id="deck-sort-mode" class="mt-control mt-control--sm !w-auto !min-w-[9rem]">
+            <label class="block text-xs text-slate-400">
+              <span class="mt-field-label mb-1">Sort</span>
+              <select id="deck-sort-mode" class="mt-control mt-control--sm">
                 <option value="alphabet">Alphabet</option>
                 <option value="mv">Mana Value</option>
                 <option value="type">Type</option>
                 <option value="price">Price</option>
               </select>
             </label>
-            <label class="flex items-center gap-2 text-xs text-slate-400">
-              <span class="uppercase tracking-wide">View As</span>
-              <select id="deck-view-mode" class="mt-control mt-control--sm !w-auto !min-w-[8rem]">
+            <label class="block text-xs text-slate-400">
+              <span class="mt-field-label mb-1">View</span>
+              <select id="deck-view-mode" class="mt-control mt-control--sm">
                 <option value="stacks">Stacks</option>
                 <option value="text">Text</option>
                 <option value="grid">Grid</option>
@@ -218,14 +229,14 @@
             </label>
           </div>
         </div>
-        <div id="deck-cards-list" class="space-y-3"></div>
+        <div id="deck-cards-list" class="space-y-2.5"></div>
         <p id="deck-cards-empty" class="text-sm text-slate-400 {{ if gt $ctx.VisibleCardCount 0 }}hidden{{ else }}hidden{{ end }}">
-          No cards yet.
+          Empty.
         </p>
       </div>
     </section>
 
-    <section class="mt-panel p-4 sm:p-6 space-y-5">
+    <section class="mt-panel p-4 sm:p-5 space-y-4">
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="mt-kicker">Analysis</p>
@@ -258,6 +269,54 @@
           <p class="text-slate-500 uppercase tracking-wide text-[10px]">Interaction</p>
           <p id="deck-analytics-interaction" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.InteractionCount }}</p>
         </div>
+      </div>
+
+      {{ $power := $ctx.Analytics.PowerEstimate }}
+      <div id="deck-power-panel" class="mt-power-panel {{ if $power.Available }}{{ else }}hidden{{ end }}">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="mt-power-badge">
+              <span>B</span><strong id="deck-power-bracket">{{ if $power.Available }}{{ $power.Bracket }}{{ else }}-{{ end }}</strong>
+            </div>
+            <div class="min-w-0">
+              <p id="deck-power-label" class="text-base font-semibold text-slate-50">{{ if $power.Available }}{{ $power.BracketLabel }}{{ else }}Commander only{{ end }}</p>
+              <p id="deck-power-summary" class="text-xs text-slate-400">{{ if $power.Available }}{{ $power.Summary }}{{ else }}Set the format to Commander to estimate bracket pressure.{{ end }}</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:min-w-[420px]">
+            <div class="mt-power-metric">
+              <span>Game Changers</span>
+              <strong id="deck-power-game-changers">{{ $power.GameChangerCount }}</strong>
+            </div>
+            <div class="mt-power-metric">
+              <span>Land Denial</span>
+              <strong id="deck-power-land-denial">{{ $power.MassLandDenialCount }}</strong>
+            </div>
+            <div class="mt-power-metric">
+              <span>Extra Turns</span>
+              <strong id="deck-power-extra-turns">{{ $power.ExtraTurnCount }}</strong>
+            </div>
+            <div class="mt-power-metric">
+              <span>Combos</span>
+              <strong id="deck-power-combos">{{ $power.CompactComboCount }}</strong>
+            </div>
+          </div>
+        </div>
+        <ul id="deck-power-signals-list" class="mt-3 grid gap-2 md:grid-cols-2">
+          {{ range $power.Signals }}
+            <li class="mt-power-signal mt-power-signal--{{ .Tone }}">
+              <span>{{ .Label }}</span>
+              <strong>{{ .Value }}</strong>
+              {{ if .Detail }}<small>{{ .Detail }}</small>{{ end }}
+            </li>
+          {{ else }}
+            <li class="mt-power-signal mt-power-signal--info">
+              <span>Signals</span>
+              <strong>Pending</strong>
+              <small>Add cards to estimate bracket pressure.</small>
+            </li>
+          {{ end }}
+        </ul>
       </div>
 
       {{ if $ctx.Analytics.ValidationWarnings }}
@@ -415,9 +474,19 @@
     </div>
   </div>
 
+  <div id="deck-card-preview"
+       class="pointer-events-none fixed left-0 top-0 z-[150] hidden w-56 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/80">
+    <img id="deck-card-preview-img"
+         src=""
+         alt=""
+         class="block w-full h-auto">
+    <div id="deck-card-preview-fallback"
+         class="hidden flex aspect-[5/7] items-center justify-center p-4 text-center text-sm font-medium text-slate-200"></div>
+  </div>
+
   {{ if not $isGuest }}
     <div id="deck-menu-overlay"
-         class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 px-4 py-6">
+         class="fixed inset-0 z-[190] hidden items-center justify-center bg-slate-950/85 px-4 py-6">
       <div class="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-950/95 p-5 shadow-2xl shadow-slate-950/80">
         <div class="space-y-2">
           <p class="mt-kicker">Deck Menu</p>
@@ -439,6 +508,10 @@
             </div>
           </div>
           <button type="button" id="deck-menu-copy" class="mt-btn mt-btn--secondary w-full justify-center">Copy Decklist</button>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="deck-menu-export-txt" class="mt-btn mt-btn--secondary justify-center">Export TXT</button>
+            <button type="button" id="deck-menu-export-csv" class="mt-btn mt-btn--secondary justify-center">Export CSV</button>
+          </div>
           <button type="button" id="deck-menu-visibility" class="mt-btn mt-btn--secondary w-full justify-center">
             {{ if $d.IsPublic }}Set Private{{ else }}Set Public{{ end }}
           </button>
@@ -503,6 +576,17 @@
       var currentCommanderFaceIndex = 0;
       var lastGoodCommanderArt = normalizeTag((commanderArtEl && commanderArtEl.getAttribute('src')) || '');
 
+      function closeDeckActionMenus() {
+        if (typeof window.mtDeckCloseActionMenus === 'function') {
+          window.mtDeckCloseActionMenus();
+          return;
+        }
+        var openMenus = document.querySelectorAll('details[data-card-action-menu][open]');
+        for (var i = 0; i < openMenus.length; i++) {
+          openMenus[i].open = false;
+        }
+      }
+
       function commanderEmptyName() {
         return commanderRequiresSelection ? 'No commander selected' : 'No commander used';
       }
@@ -522,7 +606,7 @@
         if (overviewLayout) {
           overviewLayout.classList.toggle('grid', !!isCommander);
           overviewLayout.classList.toggle('gap-4', !!isCommander);
-          overviewLayout.classList.toggle('xl:grid-cols-[320px_minmax(0,1fr)]', !!isCommander);
+          overviewLayout.classList.toggle('xl:grid-cols-[minmax(210px,240px)_minmax(0,1fr)]', !!isCommander);
           overviewLayout.classList.toggle('space-y-4', !isCommander);
         }
         if (overviewSide) {
@@ -767,6 +851,9 @@
           });
           button.className = active ? tone.button_active : tone.button;
           button.setAttribute('aria-pressed', active ? 'true' : 'false');
+          button.setAttribute('data-selected', active ? 'true' : 'false');
+          button.textContent = (active ? '- ' : '+ ') + tagValue;
+          button.title = (active ? 'Remove ' : 'Add ') + tagValue;
         }
       }
 
@@ -785,7 +872,7 @@
         if (tags.length === 0) {
           var empty = document.createElement('p');
           empty.className = 'text-sm text-slate-500';
-          empty.textContent = 'No tags yet.';
+          empty.textContent = 'None selected.';
           tagList.appendChild(empty);
           updateTagButtons();
           return;
@@ -803,6 +890,7 @@
             remove.className = tone.editor_remove;
             remove.textContent = 'x';
             remove.setAttribute('aria-label', 'Remove ' + tagValue);
+            remove.title = 'Remove';
             remove.addEventListener('click', function () {
               tags = tags.filter(function (tag) {
                 return tag.toLowerCase() !== tagValue.toLowerCase();
@@ -917,6 +1005,10 @@
           if (!value) return;
           addInput.value = value;
           closeSuggestions();
+          var event = new Event('submit', { bubbles: true, cancelable: true });
+          if (!addForm.dispatchEvent(event)) {
+            return;
+          }
           if (typeof addForm.requestSubmit === 'function') {
             addForm.requestSubmit();
           } else {
@@ -989,6 +1081,7 @@
             return;
           }
 
+          closeDeckActionMenus();
           suggestions.classList.remove('hidden');
           addInput.setAttribute('aria-expanded', 'true');
         }
@@ -1002,7 +1095,7 @@
 
           var token = ++requestToken;
           try {
-            var res = await fetch('/cards/autocomplete?q=' + encodeURIComponent(query) + '&limit=8', {
+            var res = await fetch('/cards/autocomplete?q=' + encodeURIComponent(query) + '&limit=0', {
               method: 'GET',
               credentials: 'same-origin'
             });
@@ -1047,19 +1140,13 @@
           }
         });
 
+        addInput.addEventListener('focus', closeDeckActionMenus);
+
         document.addEventListener('click', function (event) {
           if (event.target === addInput || suggestions.contains(event.target)) return;
           closeSuggestions();
         });
       }
-
-      document.addEventListener('click', function (event) {
-        var openMenus = document.querySelectorAll('details[data-card-action-menu][open]');
-        for (var i = 0; i < openMenus.length; i++) {
-          if (openMenus[i].contains(event.target)) continue;
-          openMenus[i].open = false;
-        }
-      });
 
       currentCommanderFaces = normalizedCommanderFaces(commanderFaces);
       setCommanderOverview({
