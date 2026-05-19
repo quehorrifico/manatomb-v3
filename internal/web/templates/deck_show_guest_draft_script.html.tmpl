@@ -758,6 +758,15 @@
     var sideboardCountLabel = document.getElementById('deck-sideboard-count-label');
     var maybeCountLabel = document.getElementById('guest-maybeboard-count-label');
     var guestAnalyticsStatus = document.getElementById('deck-analytics-status');
+    var analyticsStatButtons = Array.prototype.slice.call(document.querySelectorAll('[data-analytics-stat]'));
+    var analyticsCardListPanel = document.getElementById('deck-analytics-card-list-panel');
+    var analyticsCardListTitle = document.getElementById('deck-analytics-card-list-title');
+    var analyticsCardList = document.getElementById('deck-analytics-card-list');
+    var analyticsCardListClose = document.getElementById('deck-analytics-card-list-close');
+    var currentDeckAnalytics = savedDeckSeed && savedDeckSeed.analytics && typeof savedDeckSeed.analytics === 'object' ? savedDeckSeed.analytics : null;
+    var activeAnalyticsStatKey = '';
+    var deckStackLayoutFrame = 0;
+    var deckStackResizeBound = false;
     var saveInProgress = false;
     var shouldAutoSave = false;
     var analyticsTimer = null;
@@ -986,6 +995,9 @@
 
     function normalizeDeckGroupMode(value) {
       switch (String(value || '').toLowerCase()) {
+        case 'category':
+        case 'categories':
+          return 'category';
         case 'alphabet':
           return 'alphabet';
         case 'type':
@@ -1137,6 +1149,156 @@
       return '$10+';
     }
 
+    var deckCategoryDefinitions = [
+      { key: 'ramp', label: 'Ramp' },
+      { key: 'draw', label: 'Draw' },
+      { key: 'tutor', label: 'Tutors' },
+      { key: 'removal', label: 'Removal' },
+      { key: 'board_wipe', label: 'Board Wipes' },
+      { key: 'counterspell', label: 'Countermagic' },
+      { key: 'protection', label: 'Protection' },
+      { key: 'blink', label: 'Blink' },
+      { key: 'recursion', label: 'Recursion' },
+      { key: 'tokens', label: 'Tokens' },
+      { key: 'sacrifice', label: 'Sacrifice' },
+      { key: 'graveyard', label: 'Graveyard' },
+      { key: 'stax', label: 'Stax' },
+      { key: 'combo', label: 'Combo' },
+      { key: 'threat', label: 'Threats' },
+      { key: 'utility', label: 'Utility' },
+      { key: 'lands', label: 'Lands' },
+    ];
+    var deckCategoryOrder = deckCategoryDefinitions.map(function (category) { return category.label; });
+    var deckCategoryPriority = ['lands'].concat(deckCategoryDefinitions
+      .map(function (category) { return category.key; })
+      .filter(function (key) { return key !== 'lands'; }));
+    var deckCategoryLabels = {};
+    for (var deckCategoryIndex = 0; deckCategoryIndex < deckCategoryDefinitions.length; deckCategoryIndex++) {
+      deckCategoryLabels[deckCategoryDefinitions[deckCategoryIndex].key] = deckCategoryDefinitions[deckCategoryIndex].label;
+    }
+
+    function deckCategoryLabel(key) {
+      return deckCategoryLabels[key] || 'Utility';
+    }
+
+    function hasAnyText(text, needles) {
+      text = String(text || '');
+      needles = Array.isArray(needles) ? needles : [];
+      for (var i = 0; i < needles.length; i++) {
+        if (text.indexOf(needles[i]) >= 0) return true;
+      }
+      return false;
+    }
+
+    function isTutorMeta(oracle) {
+      oracle = String(oracle || '');
+      return oracle.indexOf('search your library for') >= 0 && oracle.indexOf('card') >= 0;
+    }
+
+    function isCardDrawMeta(oracle) {
+      return String(oracle || '').indexOf('draw ') >= 0;
+    }
+
+    function isRampMeta(typeLine, oracle) {
+      typeLine = String(typeLine || '');
+      oracle = String(oracle || '');
+      if (typeLine.indexOf('land') >= 0) return false;
+      return oracle.indexOf('add {') >= 0 || (oracle.indexOf('search your library for') >= 0 && oracle.indexOf('land') >= 0) || oracle.indexOf('treasure token') >= 0;
+    }
+
+    function hasProtectionMeta(oracle) {
+      return hasAnyText(oracle, ['hexproof', 'indestructible', 'protection from', 'ward {', "can't be countered"]);
+    }
+
+    function cardComboCategorySignal(cardName, typeLine, oracle) {
+      var key = normalizeName(cardName).toLowerCase().replace(/’/g, "'");
+      var comboNames = [
+        'aetherflux reservoir',
+        'basalt monolith',
+        'brain freeze',
+        'demonic consultation',
+        'devoted druid',
+        'dramatic reversal',
+        'dualcaster mage',
+        'food chain',
+        'goblin bombardment',
+        'heliod, sun-crowned',
+        'isochron scepter',
+        'karmic guide',
+        'kiki-jiki, mirror breaker',
+        "lion's eye diamond",
+        'mikaeus, the unhallowed',
+        'power artifact',
+        'reveillark',
+        'rings of brighthearth',
+        "sensei's divining top",
+        'splinter twin',
+        'tainted pact',
+        "thassa's oracle",
+        'triskelion',
+        'twinflame',
+        'underworld breach',
+        'vizier of remedies',
+        'walking ballista',
+        'zealous conscripts',
+      ];
+      if (comboNames.indexOf(key) >= 0) return true;
+      if (oracle.indexOf('win the game') >= 0 || oracle.indexOf('infinite') >= 0) return true;
+      return typeLine.indexOf('artifact') >= 0 && oracle.indexOf('untap') >= 0 && oracle.indexOf('add {') >= 0;
+    }
+
+    function deckCardCategoryKeys(cardMeta, cardName) {
+      cardMeta = cardMeta || {};
+      var typeLine = normalizeName(cardMeta.typeLine || '').toLowerCase();
+      var oracle = normalizeName(cardMeta.oracleText || '').toLowerCase();
+      var cmc = Number(cardMeta.cmc != null ? cardMeta.cmc : 0);
+      if (!Number.isFinite(cmc)) cmc = 0;
+      var out = [];
+      function add(key, ok) {
+        if (!ok || out.indexOf(key) >= 0) return;
+        out.push(key);
+      }
+
+      var isLand = typeLine.indexOf('land') >= 0;
+      add('lands', isLand);
+      add('ramp', !isLand && isRampMeta(typeLine, oracle));
+      add('draw', isCardDrawMeta(oracle) || hasAnyText(oracle, ['investigate', 'connive', 'impulse draw']));
+      add('tutor', isTutorMeta(oracle));
+      add('counterspell', oracle.indexOf('counter target') >= 0);
+      add('removal', hasAnyText(oracle, [
+        'destroy target',
+        'exile target',
+        'return target',
+        'target creature gets -',
+        "target permanent's owner puts it",
+        'fight target',
+        'deals damage to target creature',
+        'deals damage to any target',
+      ]));
+      add('board_wipe', hasAnyText(oracle, ['destroy all', 'exile all', 'each creature', 'all creatures get -']));
+      add('protection', hasProtectionMeta(oracle) || hasAnyText(oracle, ['phase out', 'prevent all damage', 'gain hexproof', 'gain indestructible']));
+      add('blink', hasAnyText(oracle, ['exile target creature you control, then return', 'exile another target', 'exile up to one target', 'exile any number of target', 'return it to the battlefield', 'return them to the battlefield', 'return those cards to the battlefield', 'flicker']));
+      add('recursion', hasAnyText(oracle, ['return target card from your graveyard', 'return target creature card from your graveyard', 'return a card from your graveyard', 'from your graveyard to the battlefield', 'reanimate']));
+      add('tokens', hasAnyText(oracle, ['create a', 'create two', 'create three', 'create x', 'token']));
+      add('sacrifice', hasAnyText(oracle, ['sacrifice another', 'sacrifice a creature:', 'sacrifice a permanent:', 'whenever you sacrifice']));
+      add('graveyard', hasAnyText(oracle, ['mill ', 'surveil', 'delirium', 'escape', 'flashback', 'threshold']));
+      add('stax', hasAnyText(oracle, ["can't cast", "can't attack", "don't untap", 'skip', 'spells cost', "players can't", "each opponent can't", 'enters the battlefield tapped']));
+      add('combo', cardComboCategorySignal(cardName, typeLine, oracle));
+
+      if (out.length === 0) {
+        out.push(typeLine.indexOf('creature') >= 0 || cmc >= 5 ? 'threat' : 'utility');
+      }
+      return out;
+    }
+
+    function primaryDeckCardCategory(cardMeta, cardName) {
+      var categories = deckCardCategoryKeys(cardMeta, cardName);
+      for (var i = 0; i < deckCategoryPriority.length; i++) {
+        if (categories.indexOf(deckCategoryPriority[i]) >= 0) return deckCategoryLabel(deckCategoryPriority[i]);
+      }
+      return 'Utility';
+    }
+
     function displayPrice(cardMeta) {
       var value = priceValue(cardMeta);
       if (value === null) return '—';
@@ -1207,9 +1369,11 @@
 
       var order;
       if (mode === 'type') {
-        order = ['Lands', 'Creatures', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Battles', 'Instants', 'Sorceries', 'Other'];
+        order = ['Creatures', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Battles', 'Instants', 'Sorceries', 'Other', 'Lands'];
       } else if (mode === 'mv') {
-        order = ['Lands', '0', '1', '2', '3', '4', '5', '6', '7+', 'Unknown'];
+        order = ['0', '1', '2', '3', '4', '5', '6', '7+', 'Unknown', 'Lands'];
+      } else if (mode === 'category') {
+        order = deckCategoryOrder.slice();
       } else if (mode === 'alphabet') {
         order = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
         order.push('#');
@@ -1225,6 +1389,8 @@
           groupName = primaryTypeGroup(row.cardMeta && row.cardMeta.typeLine ? row.cardMeta.typeLine : '');
         } else if (mode === 'mv') {
           groupName = manaValueGroup(row.cardMeta || {});
+        } else if (mode === 'category') {
+          groupName = primaryDeckCardCategory(row.cardMeta || {}, row.cardName || '');
         } else if (mode === 'alphabet') {
           groupName = alphabetGroup(row.cardName || '');
         } else {
@@ -1307,7 +1473,145 @@
       if (!listEl) return normalized;
       var grouped = normalizeDeckGroupMode(deckGroupMode) !== 'none' && normalized !== 'table';
       listEl.className = 'mt-deck-view-root mt-deck-view-root--' + normalized + (grouped ? ' mt-deck-view-root--grouped' : '');
+      if (!(grouped && normalized === 'stacks')) {
+        resetGroupedStackLayout();
+      }
       return normalized;
+    }
+
+    function clearGroupedStackSectionLayout(section) {
+      if (!section || !section.style) return;
+      section.style.position = '';
+      section.style.left = '';
+      section.style.top = '';
+      section.style.width = '';
+      section.style.margin = '';
+      section.style.zIndex = '';
+    }
+
+    function groupedStackSections() {
+      if (!listEl) return [];
+      return Array.prototype.slice.call(listEl.children || []).filter(function (child) {
+        return child && child.classList && child.classList.contains('mt-deck-view-section');
+      });
+    }
+
+    function groupedStackColumnCount(availableWidth, columnGap, minColumnWidth, sectionCount) {
+      var columns = Math.min(5, sectionCount);
+      while (columns > 1 && ((availableWidth - (columnGap * (columns - 1))) / columns) < minColumnWidth) {
+        columns--;
+      }
+      return Math.max(columns, 1);
+    }
+
+    function shortestGroupedStackColumn(columnHeights) {
+      var column = 0;
+      for (var i = 1; i < columnHeights.length; i++) {
+        if (columnHeights[i] < columnHeights[column]) {
+          column = i;
+        }
+      }
+      return column;
+    }
+
+    function resetGroupedStackLayout() {
+      if (!listEl) return;
+      if (deckStackLayoutFrame) {
+        window.cancelAnimationFrame(deckStackLayoutFrame);
+        deckStackLayoutFrame = 0;
+      }
+      listEl.style.position = '';
+      listEl.style.height = '';
+      listEl.removeAttribute('data-stack-layout-locked');
+
+      var sections = groupedStackSections();
+      for (var i = 0; i < sections.length; i++) {
+        clearGroupedStackSectionLayout(sections[i]);
+      }
+    }
+
+    function lockGroupedStackLayout() {
+      if (!listEl || !listEl.classList.contains('mt-deck-view-root--stacks') || !listEl.classList.contains('mt-deck-view-root--grouped')) {
+        resetGroupedStackLayout();
+        return;
+      }
+
+      var sections = groupedStackSections();
+      if (sections.length === 0) {
+        resetGroupedStackLayout();
+        return;
+      }
+
+      listEl.style.position = '';
+      listEl.style.height = '';
+      listEl.removeAttribute('data-stack-layout-locked');
+
+      for (var i = 0; i < sections.length; i++) {
+        clearGroupedStackSectionLayout(sections[i]);
+      }
+
+      var rootStyle = window.getComputedStyle(listEl);
+      var rowGap = parseFloat(rootStyle.rowGap || rootStyle.gap || '0');
+      if (!Number.isFinite(rowGap) || rowGap < 0) rowGap = 18;
+      var columnGap = parseFloat(rootStyle.columnGap || rootStyle.gap || '0');
+      if (!Number.isFinite(columnGap) || columnGap < 0) columnGap = 24;
+      var availableWidth = listEl.clientWidth || listEl.getBoundingClientRect().width || 196;
+      var firstBody = sections[0].querySelector('.mt-deck-view-section__body--stacks');
+      var minColumnWidth = Math.max(196, firstBody ? firstBody.offsetWidth : 0);
+      var columns = groupedStackColumnCount(availableWidth, columnGap, minColumnWidth, sections.length);
+      var columnWidth = columns > 0 ? (availableWidth - (columnGap * (columns - 1))) / columns : availableWidth;
+      if (!Number.isFinite(columnWidth) || columnWidth < minColumnWidth) {
+        columnWidth = Math.max(minColumnWidth, availableWidth);
+      }
+      var columnHeights = [];
+      for (var c = 0; c < columns; c++) {
+        columnHeights[c] = 0;
+      }
+
+      listEl.style.position = 'relative';
+      listEl.setAttribute('data-stack-layout-locked', '1');
+
+      for (var s = 0; s < sections.length; s++) {
+        var section = sections[s];
+        var column = s % columns;
+        if (s >= columns) {
+          column = shortestGroupedStackColumn(columnHeights);
+        }
+
+        section.style.position = 'absolute';
+        section.style.width = String(columnWidth) + 'px';
+        section.style.left = String(column * (columnWidth + columnGap)) + 'px';
+        section.style.top = String(columnHeights[column]) + 'px';
+        section.style.margin = '0';
+        section.style.zIndex = String(s + 1);
+
+        columnHeights[column] += (section.offsetHeight || 0) + rowGap;
+      }
+
+      var maxHeight = 0;
+      for (var h = 0; h < columnHeights.length; h++) {
+        maxHeight = Math.max(maxHeight, columnHeights[h]);
+      }
+
+      listEl.style.height = String(Math.max(maxHeight - rowGap, 0)) + 'px';
+    }
+
+    function scheduleGroupedStackLayoutLock() {
+      if (!listEl) return;
+      if (deckStackLayoutFrame) {
+        window.cancelAnimationFrame(deckStackLayoutFrame);
+      }
+      deckStackLayoutFrame = window.requestAnimationFrame(function () {
+        deckStackLayoutFrame = 0;
+        lockGroupedStackLayout();
+      });
+      if (!deckStackResizeBound) {
+        deckStackResizeBound = true;
+        window.addEventListener('resize', function () {
+          if (!listEl || !listEl.classList.contains('mt-deck-view-root--stacks') || !listEl.classList.contains('mt-deck-view-root--grouped')) return;
+          scheduleGroupedStackLayoutLock();
+        });
+      }
     }
 
     function createDeckSectionContainer(name, qty, viewMode) {
@@ -1880,9 +2184,11 @@
     function layoutDeckStackSection(container, expandedIndex) {
       if (!container) return;
       var cards = Array.prototype.slice.call(container.querySelectorAll('.mt-deck-art-card'));
+      var section = container.closest('.mt-deck-view-section');
       if (cards.length === 0) {
         container.style.height = '';
         container.removeAttribute('data-stack-expanded-index');
+        if (section) section.classList.remove('mt-deck-view-section--stack-active');
         return;
       }
 
@@ -1896,6 +2202,9 @@
       }
       container.setAttribute('data-stack-expanded-index', nextKey);
       container.setAttribute('data-stack-laid-out', '1');
+      if (section) {
+        section.classList.toggle('mt-deck-view-section--stack-active', normalizedExpandedIndex >= 0);
+      }
 
       var collapsedStep = 40;
       var firstCard = cards[0];
@@ -1914,7 +2223,7 @@
         card.classList.toggle('mt-deck-art-card--stack-active', i === normalizedExpandedIndex);
       }
 
-      var totalHeight = ((cards.length - 1) * collapsedStep) + cardHeight + extraSpace + 10;
+      var totalHeight = ((cards.length - 1) * collapsedStep) + cardHeight + 2;
       container.style.height = String(totalHeight) + 'px';
     }
 
@@ -1924,9 +2233,68 @@
 
       var cards = Array.prototype.slice.call(container.querySelectorAll('.mt-deck-art-card'));
       if (cards.length === 0) return;
+      var hoverScope = container;
+      var moveScope = listEl && listEl.contains(container) ? listEl : hoverScope;
       var pendingFrame = 0;
+      var lastPointerIndex = -1;
+      var collapsedStep = 40;
+
+      function openMenuStackIndex() {
+        var openMenu = container.querySelector('details[data-card-action-menu][open]');
+        if (!openMenu) return -1;
+        var activeCard = openMenu.closest('.mt-deck-art-card');
+        if (!activeCard) return -1;
+        var index = Number(activeCard.getAttribute('data-stack-index') || -1);
+        return Number.isFinite(index) ? index : -1;
+      }
+
+      function currentStackIndex() {
+        var raw = Number(container.getAttribute('data-stack-expanded-index') || -1);
+        return Number.isFinite(raw) ? raw : -1;
+      }
+
+      function stackIndexFromPointer(event) {
+        if (!event) return -1;
+        var firstCard = cards[0];
+        if (!firstCard) return -1;
+        var rect = container.getBoundingClientRect();
+        var cardWidth = Math.min(firstCard.offsetWidth || 196, container.clientWidth || 196, 196);
+        var x = Number(event.clientX || 0);
+        var y = Number(event.clientY || 0);
+        if (x < rect.left || x > rect.left + cardWidth || y < rect.top) {
+          return -1;
+        }
+
+        var relY = y - rect.top;
+        var cardHeight = firstCard.offsetHeight || 274;
+        var activeIndex = currentStackIndex();
+
+        for (var i = cards.length - 1; i >= 0; i--) {
+          var cardTop = parseFloat(cards[i].style.top || String(i * collapsedStep));
+          if (!Number.isFinite(cardTop)) cardTop = i * collapsedStep;
+          var visibleHeight = i === activeIndex || i === cards.length - 1 ? cardHeight : collapsedStep;
+          if (relY >= cardTop && relY <= cardTop + visibleHeight) {
+            return i;
+          }
+        }
+
+        if (activeIndex >= 0 && activeIndex < cards.length - 1) {
+          var activeTop = parseFloat(cards[activeIndex].style.top || String(activeIndex * collapsedStep));
+          var nextTop = parseFloat(cards[activeIndex + 1].style.top || String((activeIndex + 1) * collapsedStep));
+          if (!Number.isFinite(activeTop)) activeTop = activeIndex * collapsedStep;
+          if (!Number.isFinite(nextTop)) nextTop = (activeIndex + 1) * collapsedStep;
+
+          var activeBottom = activeTop + cardHeight;
+          var edgeBridge = 10;
+          if (relY > activeBottom - edgeBridge && relY < nextTop + edgeBridge) {
+            return activeIndex;
+          }
+        }
+        return -1;
+      }
 
       function scheduleStackLayout(index) {
+        lastPointerIndex = Number.isFinite(Number(index)) ? Number(index) : -1;
         if (pendingFrame) {
           window.cancelAnimationFrame(pendingFrame);
         }
@@ -1939,18 +2307,45 @@
       for (var i = 0; i < cards.length; i++) {
         (function (index) {
           var card = cards[index];
-          card.addEventListener('mouseenter', function () {
-            scheduleStackLayout(index);
-          });
           card.addEventListener('focusin', function () {
             scheduleStackLayout(index);
           });
+          var actionMenu = card.querySelector('details[data-card-action-menu]');
+          if (actionMenu) {
+            actionMenu.addEventListener('toggle', function () {
+              if (actionMenu.open) {
+                scheduleStackLayout(index);
+                return;
+              }
+              if (!hoverScope.matches(':hover')) {
+                scheduleStackLayout(-1);
+              }
+            });
+          }
         })(i);
       }
 
-      container.addEventListener('mouseleave', function () {
-        scheduleStackLayout(-1);
-      });
+      function handleStackPointerMove(event) {
+        if (!container.isConnected) {
+          moveScope.removeEventListener('pointermove', handleStackPointerMove);
+          moveScope.removeEventListener('mousemove', handleStackPointerMove);
+          hoverScope.removeEventListener('mouseleave', handleStackMouseLeave);
+          return;
+        }
+        var pinnedIndex = openMenuStackIndex();
+        var nextIndex = pinnedIndex >= 0 ? pinnedIndex : stackIndexFromPointer(event);
+        if (nextIndex === lastPointerIndex) return;
+        scheduleStackLayout(nextIndex);
+      }
+
+      function handleStackMouseLeave() {
+        var pinnedIndex = openMenuStackIndex();
+        scheduleStackLayout(pinnedIndex >= 0 ? pinnedIndex : -1);
+      }
+
+      moveScope.addEventListener('pointermove', handleStackPointerMove);
+      moveScope.addEventListener('mousemove', handleStackPointerMove);
+      hoverScope.addEventListener('mouseleave', handleStackMouseLeave);
 
       layoutDeckStackSection(container, -1);
     }
@@ -1963,7 +2358,10 @@
       var sections = groupedDeckSections(rows);
       var viewMode = setDeckListViewMode(deckViewMode);
       listEl.innerHTML = '';
-      if (rows.length === 0) return;
+      if (rows.length === 0) {
+        resetGroupedStackLayout();
+        return;
+      }
 
       if (viewMode === 'table') {
         var tableSection = document.createElement('section');
@@ -1992,6 +2390,10 @@
         if (viewMode === 'stacks') {
           bindDeckStackSection(body);
         }
+      }
+
+      if (viewMode === 'stacks' && normalizeDeckGroupMode(deckGroupMode) !== 'none') {
+        scheduleGroupedStackLayoutLock();
       }
     }
 
@@ -2392,6 +2794,7 @@
     }
 
     function closeOpenDeckActionMenus(exceptMenu) {
+      clearDeckActionMenuPointerDismiss();
       var closed = [];
       var openMenus = document.querySelectorAll('details[data-card-action-menu][open]');
       for (var i = 0; i < openMenus.length; i++) {
@@ -2407,6 +2810,55 @@
         if (menu.open) closeDeckActionMenu(menu);
       }
       removeOrphanedDeckActionMenuPanels();
+    }
+
+    function pointNearRect(x, y, rect, padding) {
+      if (!rect || rect.width <= 0 || rect.height <= 0) return false;
+      return x >= rect.left - padding &&
+        x <= rect.right + padding &&
+        y >= rect.top - padding &&
+        y <= rect.bottom + padding;
+    }
+
+    function pointerNearDeckActionMenu(menu, event) {
+      if (!menu || !event) return false;
+      var padding = 76;
+      var summary = menu.querySelector('summary');
+      var panel = deckActionMenuPanel(menu);
+      var x = Number(event.clientX || 0);
+      var y = Number(event.clientY || 0);
+      if (summary && pointNearRect(x, y, summary.getBoundingClientRect(), padding)) return true;
+      if (panel && pointNearRect(x, y, panel.getBoundingClientRect(), padding)) return true;
+      return false;
+    }
+
+    var deckActionMenuPointerDismissTimer = 0;
+
+    function clearDeckActionMenuPointerDismiss() {
+      if (!deckActionMenuPointerDismissTimer) return;
+      window.clearTimeout(deckActionMenuPointerDismissTimer);
+      deckActionMenuPointerDismissTimer = 0;
+    }
+
+    function scheduleDeckActionMenuPointerDismiss(event) {
+      var openMenus = document.querySelectorAll('details[data-card-action-menu][open]');
+      if (openMenus.length === 0) {
+        clearDeckActionMenuPointerDismiss();
+        return;
+      }
+
+      for (var i = 0; i < openMenus.length; i++) {
+        if (pointerNearDeckActionMenu(openMenus[i], event)) {
+          clearDeckActionMenuPointerDismiss();
+          return;
+        }
+      }
+
+      if (deckActionMenuPointerDismissTimer) return;
+      deckActionMenuPointerDismissTimer = window.setTimeout(function () {
+        deckActionMenuPointerDismissTimer = 0;
+        closeOpenDeckActionMenus();
+      }, 180);
     }
 
     function closeGuestActionMenu(node) {
@@ -2529,6 +2981,7 @@
         if (event.key !== 'Escape') return;
         closeOpenDeckActionMenus();
       });
+      document.addEventListener('pointermove', scheduleDeckActionMenuPointerDismiss, true);
     }
 
     function cardQuantityInDraftBoard(d, board, cardName) {
@@ -3188,6 +3641,79 @@
       }
     }
 
+    function analyticsStatLabel(key) {
+      var labels = {
+        all: 'Cards',
+        lands: 'Lands',
+        nonlands: 'Nonlands',
+        ramp: 'Ramp',
+        draw: 'Draw',
+        interaction: 'Interaction',
+      };
+      return labels[key] || 'Cards';
+    }
+
+    function analyticsStatCards(key) {
+      if (!currentDeckAnalytics || typeof currentDeckAnalytics !== 'object') return [];
+      var statCards = currentDeckAnalytics.stat_cards || currentDeckAnalytics.statCards || {};
+      var cards = statCards && Array.isArray(statCards[key]) ? statCards[key] : [];
+      return cards.slice();
+    }
+
+    function renderAnalyticsStatCardList(key) {
+      key = String(key || '').trim() || 'all';
+      activeAnalyticsStatKey = key;
+      if (!analyticsCardListPanel || !analyticsCardList || !analyticsCardListTitle) return;
+
+      analyticsCardListTitle.textContent = analyticsStatLabel(key);
+      analyticsCardList.innerHTML = '';
+      analyticsCardListPanel.classList.remove('hidden');
+
+      var cards = analyticsStatCards(key);
+      if (cards.length === 0) {
+        var empty = document.createElement('li');
+        empty.className = 'mt-analytics-card-list__item';
+        var emptyName = document.createElement('strong');
+        emptyName.textContent = 'No cards found';
+        empty.appendChild(emptyName);
+        analyticsCardList.appendChild(empty);
+        return;
+      }
+
+      for (var i = 0; i < cards.length; i++) {
+        var card = cards[i] || {};
+        var name = normalizeName(card.name || card.Name || '');
+        if (!name) continue;
+        var qty = Number(card.qty || card.Qty || 0);
+        if (!Number.isFinite(qty) || qty <= 0) qty = 1;
+
+        var item = document.createElement('li');
+        item.className = 'mt-analytics-card-list__item';
+
+        var title = document.createElement('strong');
+        title.textContent = String(qty) + ' ' + name;
+        item.appendChild(title);
+
+        var reason = normalizeName(card.reason || card.Reason || '');
+        var categories = Array.isArray(card.categories || card.Categories) ? (card.categories || card.Categories) : [];
+        if (!reason && categories.length > 0) {
+          reason = categories.slice(0, 3).map(normalizeName).filter(Boolean).join(', ');
+        }
+        if (reason) {
+          var meta = document.createElement('small');
+          meta.textContent = reason;
+          item.appendChild(meta);
+        }
+
+        analyticsCardList.appendChild(item);
+      }
+    }
+
+    function hideAnalyticsStatCardList() {
+      activeAnalyticsStatKey = '';
+      if (analyticsCardListPanel) analyticsCardListPanel.classList.add('hidden');
+    }
+
     function renderPowerEstimate(power) {
       var panel = document.getElementById('deck-power-panel');
       if (!panel) return;
@@ -3218,18 +3744,33 @@
         item.className = 'mt-power-signal mt-power-signal--' + tone;
 
         var label = document.createElement('span');
+        label.className = 'mt-power-signal__label';
         label.textContent = normalizeName(signal.label || '') || 'Signal';
         item.appendChild(label);
 
         var value = document.createElement('strong');
+        value.className = 'mt-power-signal__value';
         value.textContent = normalizeName(signal.value || '') || '0';
         item.appendChild(value);
 
         var detail = normalizeName(signal.detail || '');
         if (detail) {
           var small = document.createElement('small');
+          small.className = 'mt-power-signal__detail';
           small.textContent = detail;
           item.appendChild(small);
+        }
+
+        var cards = Array.isArray(signal.cards) ? signal.cards.map(normalizeName).filter(Boolean) : [];
+        if (cards.length > 0) {
+          var cardList = document.createElement('ul');
+          cardList.className = 'mt-power-signal__cards';
+          for (var c = 0; c < cards.length; c++) {
+            var cardItem = document.createElement('li');
+            cardItem.textContent = cards[c];
+            cardList.appendChild(cardItem);
+          }
+          item.appendChild(cardList);
         }
 
         list.appendChild(item);
@@ -3238,13 +3779,14 @@
       if (list.children.length === 0) {
         var empty = document.createElement('li');
         empty.className = 'mt-power-signal mt-power-signal--info';
-        empty.innerHTML = '<span>Signals</span><strong>Pending</strong><small>Add cards to estimate bracket pressure.</small>';
+        empty.innerHTML = '<span class="mt-power-signal__label">Signals</span><strong class="mt-power-signal__value">Pending</strong><small class="mt-power-signal__detail">Add cards to estimate bracket pressure.</small>';
         list.appendChild(empty);
       }
     }
 
     function renderAnalytics(a) {
       if (!a || typeof a !== 'object') return;
+      currentDeckAnalytics = a;
       setAnalyticsField('deck-analytics-total', Number(a.total_cards || 0));
       setAnalyticsField('deck-analytics-mainboard', Number(a.mainboard_cards || 0));
       setAnalyticsField('deck-analytics-commander-set', a.commander_set ? 'Yes' : 'No');
@@ -3275,7 +3817,19 @@
       renderGuideChecks(a.guide_checks || []);
       renderGuideWarnings(a.validation_warnings || []);
       renderPowerEstimate(a.power_estimate || null);
+      if (activeAnalyticsStatKey && analyticsCardListPanel && !analyticsCardListPanel.classList.contains('hidden')) {
+        renderAnalyticsStatCardList(activeAnalyticsStatKey);
+      }
       if (window.mtDeckSyncManaCurveBars) window.mtDeckSyncManaCurveBars();
+    }
+
+    for (var analyticsButtonIndex = 0; analyticsButtonIndex < analyticsStatButtons.length; analyticsButtonIndex++) {
+      analyticsStatButtons[analyticsButtonIndex].addEventListener('click', function () {
+        renderAnalyticsStatCardList(this.getAttribute('data-analytics-stat') || 'all');
+      });
+    }
+    if (analyticsCardListClose) {
+      analyticsCardListClose.addEventListener('click', hideAnalyticsStatCardList);
     }
 
     function deckAnalyticsPayload(d) {

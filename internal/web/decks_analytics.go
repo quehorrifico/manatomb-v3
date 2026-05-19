@@ -13,48 +13,65 @@ import (
 )
 
 type deckAnalyticsData struct {
-	TotalCards            int                  `json:"total_cards"`
-	MainboardCards        int                  `json:"mainboard_cards"`
-	CommanderSet          bool                 `json:"commander_set"`
-	LandCount             int                  `json:"land_count"`
-	NonLandCount          int                  `json:"nonland_count"`
-	AverageCMC            float64              `json:"average_cmc"`
-	AverageCMCDisplay     string               `json:"average_cmc_display"`
-	RampCount             int                  `json:"ramp_count"`
-	FastManaCount         int                  `json:"fast_mana_count"`
-	CardDrawCount         int                  `json:"card_draw_count"`
-	TutorCount            int                  `json:"tutor_count"`
-	InteractionCount      int                  `json:"interaction_count"`
-	CheapInteractionCount int                  `json:"cheap_interaction_count"`
-	CounterspellCount     int                  `json:"counterspell_count"`
-	RemovalCount          int                  `json:"removal_count"`
-	BoardWipeCount        int                  `json:"board_wipe_count"`
-	ProtectionCount       int                  `json:"protection_count"`
-	LowCMCNonLandCount    int                  `json:"low_cmc_nonland_count"`
-	CreatureCount         int                  `json:"creature_count"`
-	ArtifactCount         int                  `json:"artifact_count"`
-	EnchantmentCount      int                  `json:"enchantment_count"`
-	InstantCount          int                  `json:"instant_count"`
-	SorceryCount          int                  `json:"sorcery_count"`
-	PlaneswalkerCount     int                  `json:"planeswalker_count"`
-	BattleCount           int                  `json:"battle_count"`
-	Curve0Count           int                  `json:"curve_0_count"`
-	Curve1Count           int                  `json:"curve_1_count"`
-	Curve2Count           int                  `json:"curve_2_count"`
-	Curve3Count           int                  `json:"curve_3_count"`
-	Curve4Count           int                  `json:"curve_4_count"`
-	Curve5Count           int                  `json:"curve_5_count"`
-	Curve6Count           int                  `json:"curve_6_count"`
-	Curve7PlusCount       int                  `json:"curve_7_plus_count"`
-	DeckExtras            []deckAnalyticsExtra `json:"deck_extras"`
-	GuideChecks           []deckGuideCheck     `json:"guide_checks,omitempty"`
-	ValidationWarnings    []string             `json:"validation_warnings,omitempty"`
-	PowerEstimate         deckPowerEstimate    `json:"power_estimate"`
+	TotalCards            int                       `json:"total_cards"`
+	MainboardCards        int                       `json:"mainboard_cards"`
+	CommanderSet          bool                      `json:"commander_set"`
+	LandCount             int                       `json:"land_count"`
+	NonLandCount          int                       `json:"nonland_count"`
+	AverageCMC            float64                   `json:"average_cmc"`
+	AverageCMCDisplay     string                    `json:"average_cmc_display"`
+	RampCount             int                       `json:"ramp_count"`
+	FastManaCount         int                       `json:"fast_mana_count"`
+	CardDrawCount         int                       `json:"card_draw_count"`
+	TutorCount            int                       `json:"tutor_count"`
+	InteractionCount      int                       `json:"interaction_count"`
+	CheapInteractionCount int                       `json:"cheap_interaction_count"`
+	CounterspellCount     int                       `json:"counterspell_count"`
+	RemovalCount          int                       `json:"removal_count"`
+	BoardWipeCount        int                       `json:"board_wipe_count"`
+	ProtectionCount       int                       `json:"protection_count"`
+	LowCMCNonLandCount    int                       `json:"low_cmc_nonland_count"`
+	CreatureCount         int                       `json:"creature_count"`
+	ArtifactCount         int                       `json:"artifact_count"`
+	EnchantmentCount      int                       `json:"enchantment_count"`
+	InstantCount          int                       `json:"instant_count"`
+	SorceryCount          int                       `json:"sorcery_count"`
+	PlaneswalkerCount     int                       `json:"planeswalker_count"`
+	BattleCount           int                       `json:"battle_count"`
+	Curve0Count           int                       `json:"curve_0_count"`
+	Curve1Count           int                       `json:"curve_1_count"`
+	Curve2Count           int                       `json:"curve_2_count"`
+	Curve3Count           int                       `json:"curve_3_count"`
+	Curve4Count           int                       `json:"curve_4_count"`
+	Curve5Count           int                       `json:"curve_5_count"`
+	Curve6Count           int                       `json:"curve_6_count"`
+	Curve7PlusCount       int                       `json:"curve_7_plus_count"`
+	DeckExtras            []deckAnalyticsExtra      `json:"deck_extras"`
+	CategoryBreakdown     []deckRoleCategory        `json:"category_breakdown,omitempty"`
+	StatCards             map[string][]deckRoleCard `json:"stat_cards,omitempty"`
+	GuideChecks           []deckGuideCheck          `json:"guide_checks,omitempty"`
+	ValidationWarnings    []string                  `json:"validation_warnings,omitempty"`
+	PowerEstimate         deckPowerEstimate         `json:"power_estimate"`
 }
 
 type deckAnalyticsExtra struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
+}
+
+type deckRoleCategory struct {
+	Key   string         `json:"key"`
+	Label string         `json:"label"`
+	Count int            `json:"count"`
+	Cards []deckRoleCard `json:"cards,omitempty"`
+}
+
+type deckRoleCard struct {
+	Name       string   `json:"name"`
+	Qty        int      `json:"qty"`
+	TypeLine   string   `json:"type_line,omitempty"`
+	Categories []string `json:"categories,omitempty"`
+	Reason     string   `json:"reason,omitempty"`
 }
 
 type deckPowerEstimate struct {
@@ -72,16 +89,20 @@ type deckPowerEstimate struct {
 	ComboSignalCount    int               `json:"combo_signal_count"`
 	ComboSignals        []string          `json:"combo_signals,omitempty"`
 	CompactComboCount   int               `json:"compact_combo_count"`
+	CompactCombos       []string          `json:"compact_combos,omitempty"`
 	FastManaCount       int               `json:"fast_mana_count"`
+	FastManaCards       []string          `json:"fast_mana_cards,omitempty"`
 	TutorCount          int               `json:"tutor_count"`
+	TutorCards          []string          `json:"tutor_cards,omitempty"`
 	Signals             []deckPowerSignal `json:"signals,omitempty"`
 }
 
 type deckPowerSignal struct {
-	Label  string `json:"label"`
-	Value  string `json:"value"`
-	Detail string `json:"detail,omitempty"`
-	Tone   string `json:"tone"`
+	Label  string   `json:"label"`
+	Value  string   `json:"value"`
+	Detail string   `json:"detail,omitempty"`
+	Cards  []string `json:"cards,omitempty"`
+	Tone   string   `json:"tone"`
 }
 
 type deckGuideCheck struct {
@@ -148,10 +169,13 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 	out := deckAnalyticsData{
 		CommanderSet:      commanderSet,
 		AverageCMCDisplay: "0.00",
+		StatCards:         make(map[string][]deckRoleCard),
 	}
 
 	var nonLandCMCSum float64
 	extraCounts := make(map[string]int)
+	categoryCounts := make(map[string]int)
+	categoryCards := make(map[string][]deckRoleCard)
 	powerRows := make([]deckPowerCardInput, 0, len(rows))
 
 	for _, row := range rows {
@@ -179,7 +203,8 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 
 		out.MainboardCards += qty
 
-		typeLine := strings.ToLower(strings.TrimSpace(row.TypeLine))
+		rawTypeLine := strings.TrimSpace(row.TypeLine)
+		typeLine := strings.ToLower(rawTypeLine)
 		isLand := strings.Contains(typeLine, "land")
 		if isLand {
 			out.LandCount += qty
@@ -236,7 +261,8 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 			out.BattleCount += qty
 		}
 
-		oracle := strings.ToLower(strings.TrimSpace(row.OracleText))
+		rawOracle := strings.TrimSpace(row.OracleText)
+		oracle := strings.ToLower(rawOracle)
 		collectDeckExtras(extraCounts, oracle, row.AllParts, qty)
 		isCounterspell := strings.Contains(oracle, "counter target")
 		isRemoval := hasAny(oracle,
@@ -253,6 +279,11 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 			"all creatures get -",
 		)
 		isInteraction := isCounterspell || isRemoval || isBoardWipe
+		isTutor := isTutorCard(oracle)
+		isCardDraw := isCardDrawCard(oracle)
+		isRamp := isRampCard(typeLine, oracle)
+		isFastMana := isFastManaCard(typeLine, oracle, row.CMC)
+		hasProtection := hasProtectionText(oracle)
 		if isInteraction {
 			out.InteractionCount += qty
 			if row.CMC <= 2 {
@@ -268,21 +299,64 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 		if isBoardWipe {
 			out.BoardWipeCount += qty
 		}
-		if isTutorCard(oracle) {
+		if isTutor {
 			out.TutorCount += qty
 		}
-		if isCardDrawCard(oracle) {
+		if isCardDraw {
 			out.CardDrawCount += qty
 		}
-		if isRampCard(typeLine, oracle) {
+		if isRamp {
 			out.RampCount += qty
 		}
-		if isFastManaCard(typeLine, oracle, row.CMC) {
+		if isFastMana {
 			out.FastManaCount += qty
 		}
-		if hasProtectionText(oracle) {
+		if hasProtection {
 			out.ProtectionCount += qty
 		}
+
+		roleCategories := classifyDeckRoleCategories(name, typeLine, oracle, row.CMC)
+		roleCard := deckRoleCard{
+			Name:       name,
+			Qty:        qty,
+			TypeLine:   rawTypeLine,
+			Categories: deckRoleCategoryLabels(roleCategories),
+			Reason:     deckRoleCardReason(roleCategories),
+		}
+		appendDeckStatCard(out.StatCards, "all", roleCard)
+		if isLand {
+			appendDeckStatCard(out.StatCards, "lands", roleCard)
+		} else {
+			appendDeckStatCard(out.StatCards, "nonlands", roleCard)
+		}
+		if isRamp {
+			appendDeckStatCard(out.StatCards, "ramp", roleCard)
+		}
+		if isCardDraw {
+			appendDeckStatCard(out.StatCards, "draw", roleCard)
+		}
+		if isInteraction {
+			appendDeckStatCard(out.StatCards, "interaction", roleCard)
+		}
+		if isRemoval {
+			appendDeckStatCard(out.StatCards, "removal", roleCard)
+		}
+		if isBoardWipe {
+			appendDeckStatCard(out.StatCards, "board_wipe", roleCard)
+		}
+		if isCounterspell {
+			appendDeckStatCard(out.StatCards, "counterspell", roleCard)
+		}
+		if isTutor {
+			appendDeckStatCard(out.StatCards, "tutor", roleCard)
+		}
+		if hasProtection {
+			appendDeckStatCard(out.StatCards, "protection", roleCard)
+		}
+
+		primaryCategory := primaryDeckRoleCategory(roleCategories, typeLine)
+		categoryCounts[primaryCategory] += qty
+		categoryCards[primaryCategory] = append(categoryCards[primaryCategory], roleCard)
 	}
 
 	if out.CommanderSet {
@@ -296,6 +370,8 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 		out.AverageCMCDisplay = fmt.Sprintf("%.2f", out.AverageCMC)
 	}
 	out.DeckExtras = orderedDeckExtras(extraCounts)
+	out.CategoryBreakdown = orderedDeckRoleCategories(categoryCounts, categoryCards)
+	sortDeckStatCards(out.StatCards)
 	out.GuideChecks = buildDeckGuideChecks(format, out)
 	out.ValidationWarnings = buildDeckValidationWarnings(format, commanderName, rows, out)
 	out.PowerEstimate = buildDeckPowerEstimate(format, commanderName, powerRows, out)
@@ -362,6 +438,239 @@ func hasProtectionText(oracle string) bool {
 		"ward {",
 		"can't be countered",
 	)
+}
+
+type deckRoleDefinition struct {
+	Key   string
+	Label string
+}
+
+var deckRoleDefinitions = []deckRoleDefinition{
+	{Key: "ramp", Label: "Ramp"},
+	{Key: "draw", Label: "Draw"},
+	{Key: "tutor", Label: "Tutors"},
+	{Key: "removal", Label: "Removal"},
+	{Key: "board_wipe", Label: "Board Wipes"},
+	{Key: "counterspell", Label: "Countermagic"},
+	{Key: "protection", Label: "Protection"},
+	{Key: "blink", Label: "Blink"},
+	{Key: "recursion", Label: "Recursion"},
+	{Key: "tokens", Label: "Tokens"},
+	{Key: "sacrifice", Label: "Sacrifice"},
+	{Key: "graveyard", Label: "Graveyard"},
+	{Key: "stax", Label: "Stax"},
+	{Key: "combo", Label: "Combo"},
+	{Key: "threat", Label: "Threats"},
+	{Key: "utility", Label: "Utility"},
+	{Key: "lands", Label: "Lands"},
+}
+
+var deckRolePrimaryPriority = []string{
+	"lands",
+	"ramp",
+	"draw",
+	"tutor",
+	"removal",
+	"counterspell",
+	"board_wipe",
+	"protection",
+	"blink",
+	"recursion",
+	"tokens",
+	"sacrifice",
+	"graveyard",
+	"stax",
+	"combo",
+	"threat",
+	"utility",
+}
+
+func deckRoleLabel(key string) string {
+	for _, def := range deckRoleDefinitions {
+		if def.Key == key {
+			return def.Label
+		}
+	}
+	return "Utility"
+}
+
+func classifyDeckRoleCategories(name, typeLine, oracle string, cmc float64) []string {
+	name = strings.TrimSpace(name)
+	typeLine = strings.ToLower(strings.TrimSpace(typeLine))
+	oracle = strings.ToLower(strings.TrimSpace(oracle))
+	out := make([]string, 0, 4)
+	add := func(key string, ok bool) {
+		if !ok {
+			return
+		}
+		for _, existing := range out {
+			if existing == key {
+				return
+			}
+		}
+		out = append(out, key)
+	}
+
+	isLand := strings.Contains(typeLine, "land")
+	add("lands", isLand)
+	add("ramp", !isLand && isRampCard(typeLine, oracle))
+	add("draw", isCardDrawCard(oracle) || hasAny(oracle, "investigate", "connive", "impulse draw"))
+	add("tutor", isTutorCard(oracle))
+	add("counterspell", strings.Contains(oracle, "counter target"))
+	add("removal", hasAny(oracle,
+		"destroy target",
+		"exile target",
+		"return target",
+		"target creature gets -",
+		"target permanent's owner puts it",
+		"fight target",
+		"deals damage to target creature",
+		"deals damage to any target",
+	))
+	add("board_wipe", hasAny(oracle,
+		"destroy all",
+		"exile all",
+		"each creature",
+		"all creatures get -",
+	))
+	add("protection", hasProtectionText(oracle) || hasAny(oracle,
+		"phase out",
+		"prevent all damage",
+		"gain hexproof",
+		"gain indestructible",
+	))
+	add("blink", hasAny(oracle,
+		"exile target creature you control, then return",
+		"exile another target",
+		"exile up to one target",
+		"exile any number of target",
+		"return it to the battlefield",
+		"return them to the battlefield",
+		"return those cards to the battlefield",
+		"flicker",
+	))
+	add("recursion", hasAny(oracle,
+		"return target card from your graveyard",
+		"return target creature card from your graveyard",
+		"return a card from your graveyard",
+		"from your graveyard to the battlefield",
+		"reanimate",
+	))
+	add("tokens", hasAny(oracle,
+		"create a",
+		"create two",
+		"create three",
+		"create x",
+		"token",
+	))
+	add("sacrifice", hasAny(oracle,
+		"sacrifice another",
+		"sacrifice a creature:",
+		"sacrifice a permanent:",
+		"whenever you sacrifice",
+	))
+	add("graveyard", hasAny(oracle,
+		"mill ",
+		"surveil",
+		"delirium",
+		"escape",
+		"flashback",
+		"threshold",
+	))
+	add("stax", hasAny(oracle,
+		"can't cast",
+		"can't attack",
+		"don't untap",
+		"skip",
+		"spells cost",
+		"players can't",
+		"each opponent can't",
+		"enters the battlefield tapped",
+	))
+	add("combo", commanderComboSignal(name, typeLine, oracle) != "" || strings.Contains(oracle, "you win the game"))
+
+	if len(out) == 0 {
+		if strings.Contains(typeLine, "creature") || cmc >= 5 {
+			out = append(out, "threat")
+		} else {
+			out = append(out, "utility")
+		}
+	}
+	return out
+}
+
+func primaryDeckRoleCategory(categories []string, typeLine string) string {
+	if len(categories) == 0 {
+		return "utility"
+	}
+	for _, wanted := range deckRolePrimaryPriority {
+		for _, category := range categories {
+			if category == wanted {
+				return category
+			}
+		}
+	}
+	if strings.Contains(strings.ToLower(typeLine), "creature") {
+		return "threat"
+	}
+	return "utility"
+}
+
+func deckRoleCategoryLabels(categories []string) []string {
+	out := make([]string, 0, len(categories))
+	for _, category := range categories {
+		out = append(out, deckRoleLabel(category))
+	}
+	return out
+}
+
+func deckRoleCardReason(categories []string) string {
+	if len(categories) == 0 {
+		return ""
+	}
+	labels := deckRoleCategoryLabels(categories)
+	if len(labels) <= 3 {
+		return strings.Join(labels, ", ")
+	}
+	return strings.Join(labels[:3], ", ") + fmt.Sprintf(" +%d more", len(labels)-3)
+}
+
+func appendDeckStatCard(stats map[string][]deckRoleCard, key string, card deckRoleCard) {
+	if stats == nil || key == "" || card.Name == "" || card.Qty <= 0 {
+		return
+	}
+	stats[key] = append(stats[key], card)
+}
+
+func sortDeckRoleCards(cards []deckRoleCard) {
+	sort.SliceStable(cards, func(i, j int) bool {
+		return strings.ToLower(cards[i].Name) < strings.ToLower(cards[j].Name)
+	})
+}
+
+func sortDeckStatCards(stats map[string][]deckRoleCard) {
+	for key := range stats {
+		sortDeckRoleCards(stats[key])
+	}
+}
+
+func orderedDeckRoleCategories(counts map[string]int, cards map[string][]deckRoleCard) []deckRoleCategory {
+	out := make([]deckRoleCategory, 0, len(counts))
+	for _, def := range deckRoleDefinitions {
+		count := counts[def.Key]
+		if count <= 0 {
+			continue
+		}
+		list := append([]deckRoleCard(nil), cards[def.Key]...)
+		sortDeckRoleCards(list)
+		out = append(out, deckRoleCategory{
+			Key:   def.Key,
+			Label: def.Label,
+			Count: count,
+			Cards: list,
+		})
+	}
+	return out
 }
 
 func isBasicLandCard(name, typeLine string) bool {
@@ -435,6 +744,12 @@ func buildDeckPowerEstimate(format, commanderName string, rows []deckPowerCardIn
 			out.ComboSignalCount += qty
 			out.ComboSignals = appendPowerName(out.ComboSignals, signal)
 		}
+		if isFastManaCard(typeLine, oracle, row.CMC) {
+			out.FastManaCards = appendPowerName(out.FastManaCards, name)
+		}
+		if isTutorCard(oracle) {
+			out.TutorCards = appendPowerName(out.TutorCards, name)
+		}
 	}
 
 	commanderName = strings.TrimSpace(commanderName)
@@ -443,15 +758,16 @@ func buildDeckPowerEstimate(format, commanderName string, rows []deckPowerCardIn
 		out.GameChangers = appendPowerName(out.GameChangers, commanderName+" (commander)")
 	}
 
-	out.CompactComboCount = commanderCompactComboCount(seenNames)
+	out.CompactCombos = commanderCompactCombos(seenNames)
+	out.CompactComboCount = len(out.CompactCombos)
 	chainsExtraTurns := out.ExtraTurnCount >= 2 || (seenNames[commanderCardKey("Panoptic Mirror")] && out.ExtraTurnCount > 0)
 
 	switch {
 	case isCEDHLean(out, analytics):
 		out.Bracket = 5
-	case out.GameChangerCount > 3 || out.MassLandDenialCount > 0 || chainsExtraTurns || out.CompactComboCount > 0:
+	case out.GameChangerCount > 3 || out.MassLandDenialCount > 0 || chainsExtraTurns || out.CompactComboCount > 0 || (analytics.FastManaCount >= 5 && analytics.TutorCount >= 4):
 		out.Bracket = 4
-	case out.GameChangerCount > 0 || out.ComboSignalCount >= 2 || analytics.FastManaCount >= 3 || analytics.TutorCount >= 4:
+	case out.GameChangerCount > 0 || out.ComboSignalCount >= 2 || analytics.FastManaCount >= 3 || analytics.TutorCount >= 4 || out.ExtraTurnCount > 0:
 		out.Bracket = 3
 	case analytics.TotalCards >= 90 && analytics.FastManaCount == 0 && analytics.TutorCount <= 1 && out.ComboSignalCount == 0 && out.ExtraTurnCount == 0:
 		out.Bracket = 2
@@ -489,15 +805,15 @@ func commanderPowerSummary(bracket int, confidence string) string {
 	}
 	switch bracket {
 	case 1:
-		return prefix + ": ultra-casual signals, but theme and intent still matter."
+		return prefix + ": commander is missing, so bracket pressure cannot be evaluated."
 	case 2:
-		return prefix + ": casual Commander with no major bracket pressure detected."
+		return prefix + ": Core-level pressure based on the listed Commander bracket signals."
 	case 3:
-		return prefix + ": upgraded Commander with some high-impact cards or consistency."
+		return prefix + ": Upgraded pressure from the cards and patterns below."
 	case 4:
-		return prefix + ": high-power Commander due to unrestricted bracket signals."
+		return prefix + ": Optimized pressure from unrestricted bracket signals."
 	case 5:
-		return prefix + ": cEDH-leaning signals from compact wins plus strong consistency."
+		return prefix + ": cEDH-leaning pressure from compact wins and strong consistency."
 	default:
 		return prefix + ": add more cards to refine this."
 	}
@@ -516,70 +832,80 @@ func commanderPowerConfidence(totalCards int) string {
 
 func commanderPowerSignals(power deckPowerEstimate, analytics deckAnalyticsData, chainsExtraTurns bool) []deckPowerSignal {
 	signals := make([]deckPowerSignal, 0, 6)
-	gameChangerTone := "good"
-	if power.GameChangerCount > 3 {
-		gameChangerTone = "alert"
-	} else if power.GameChangerCount > 0 {
-		gameChangerTone = "warn"
-	}
-	signals = append(signals, deckPowerSignal{
-		Label:  "Game Changers",
-		Value:  fmt.Sprintf("%d", power.GameChangerCount),
-		Detail: detailList(power.GameChangers, "No listed Game Changers found."),
-		Tone:   gameChangerTone,
-	})
-
-	if power.MassLandDenialCount > 0 {
+	add := func(label, value, detail, tone string, cards []string) {
 		signals = append(signals, deckPowerSignal{
-			Label:  "Mass Land Denial",
-			Value:  fmt.Sprintf("%d", power.MassLandDenialCount),
-			Detail: detailList(power.MassLandDenialCards, "Detected."),
-			Tone:   "alert",
-		})
-	}
-
-	if power.ExtraTurnCount > 0 {
-		tone := "warn"
-		detail := detailList(power.ExtraTurnCards, "Extra-turn effects found.")
-		if chainsExtraTurns {
-			tone = "alert"
-			detail = "Chaining risk: " + detail
-		}
-		signals = append(signals, deckPowerSignal{
-			Label:  "Extra Turns",
-			Value:  fmt.Sprintf("%d", power.ExtraTurnCount),
-			Detail: detail,
-			Tone:   tone,
-		})
-	}
-
-	if power.CompactComboCount > 0 || power.ComboSignalCount > 0 {
-		tone := "warn"
-		value := fmt.Sprintf("%d signals", power.ComboSignalCount)
-		if power.CompactComboCount > 0 {
-			tone = "alert"
-			value = fmt.Sprintf("%d compact", power.CompactComboCount)
-		}
-		signals = append(signals, deckPowerSignal{
-			Label:  "Combos",
+			Label:  label,
 			Value:  value,
-			Detail: detailList(power.ComboSignals, "Combo-adjacent cards found."),
+			Detail: detail,
+			Cards:  append([]string(nil), cards...),
 			Tone:   tone,
 		})
 	}
 
-	consistencyTone := "good"
-	if analytics.FastManaCount >= 5 || analytics.TutorCount >= 5 {
-		consistencyTone = "alert"
-	} else if analytics.FastManaCount >= 3 || analytics.TutorCount >= 4 {
-		consistencyTone = "warn"
+	if power.Bracket <= 2 {
+		add(
+			"Bracket Pressure",
+			"None detected",
+			"No Game Changers, compact two-card combos, mass land denial, or chained extra turns found.",
+			"good",
+			nil,
+		)
+		return signals
 	}
-	signals = append(signals, deckPowerSignal{
-		Label:  "Consistency",
-		Value:  fmt.Sprintf("%d fast mana / %d tutors", analytics.FastManaCount, analytics.TutorCount),
-		Detail: "High density pushes decks toward faster, more repeatable games.",
-		Tone:   consistencyTone,
-	})
+
+	if power.Bracket >= 5 {
+		if power.CompactComboCount > 0 {
+			add("Compact Wins", fmt.Sprintf("%d", power.CompactComboCount), "Compact two-card win package detected.", "alert", power.CompactCombos)
+		}
+		if power.GameChangerCount >= 6 {
+			add("Game Changers", fmt.Sprintf("%d", power.GameChangerCount), "Game Changer density pushes this above casual brackets.", "alert", power.GameChangers)
+		}
+		if analytics.FastManaCount >= 3 || analytics.TutorCount >= 3 {
+			cards := mergePowerNameLists(power.FastManaCards, power.TutorCards)
+			add("Consistency", fmt.Sprintf("%d fast mana / %d tutors", analytics.FastManaCount, analytics.TutorCount), "Fast mana and tutor density support cEDH-leaning starts.", "alert", cards)
+		}
+		return signals
+	}
+
+	if power.Bracket >= 4 {
+		if power.GameChangerCount > 3 {
+			add("Game Changers", fmt.Sprintf("%d", power.GameChangerCount), "More than three Game Changers is an Optimized bracket signal.", "alert", power.GameChangers)
+		}
+		if power.MassLandDenialCount > 0 {
+			add("Mass Land Denial", fmt.Sprintf("%d", power.MassLandDenialCount), "Mass land denial is treated as Bracket 4+ pressure.", "alert", power.MassLandDenialCards)
+		}
+		if chainsExtraTurns {
+			add("Chained Extra Turns", fmt.Sprintf("%d", power.ExtraTurnCount), "Multiple extra-turn effects can take repeated turns.", "alert", power.ExtraTurnCards)
+		}
+		if power.CompactComboCount > 0 {
+			add("Compact Wins", fmt.Sprintf("%d", power.CompactComboCount), "Compact two-card win package detected.", "alert", power.CompactCombos)
+		}
+		if analytics.FastManaCount >= 5 && analytics.TutorCount >= 4 {
+			cards := mergePowerNameLists(power.FastManaCards, power.TutorCards)
+			add("Consistency", fmt.Sprintf("%d fast mana / %d tutors", analytics.FastManaCount, analytics.TutorCount), "High fast-mana and tutor density creates optimized consistency.", "alert", cards)
+		}
+		if len(signals) > 0 {
+			return signals
+		}
+	}
+
+	if power.GameChangerCount > 0 {
+		add("Game Changers", fmt.Sprintf("%d", power.GameChangerCount), "Any Game Changer moves the deck above Core.", "warn", power.GameChangers)
+	}
+	if power.ExtraTurnCount > 0 {
+		add("Extra Turns", fmt.Sprintf("%d", power.ExtraTurnCount), "Extra-turn access is an Upgraded bracket signal.", "warn", power.ExtraTurnCards)
+	}
+	if power.ComboSignalCount >= 2 {
+		add("Combo Signals", fmt.Sprintf("%d", power.ComboSignalCount), "Multiple combo pieces point toward compact or infinite wins.", "warn", power.ComboSignals)
+	}
+	if analytics.FastManaCount >= 3 || analytics.TutorCount >= 4 {
+		cards := mergePowerNameLists(power.FastManaCards, power.TutorCards)
+		add("Consistency", fmt.Sprintf("%d fast mana / %d tutors", analytics.FastManaCount, analytics.TutorCount), "Fast mana or tutor density raises consistency above Core.", "warn", cards)
+	}
+
+	if len(signals) == 0 {
+		add("Bracket Pressure", "Upgraded", "Card quality and deck density suggest stronger-than-Core play.", "warn", nil)
+	}
 
 	return signals
 }
@@ -761,7 +1087,7 @@ func commanderComboSignal(name, typeLine, oracle string) string {
 	return ""
 }
 
-func commanderCompactComboCount(seenNames map[string]bool) int {
+func commanderCompactCombos(seenNames map[string]bool) []string {
 	pairs := [][2]string{
 		{"Thassa's Oracle", "Demonic Consultation"},
 		{"Thassa's Oracle", "Tainted Pact"},
@@ -779,13 +1105,13 @@ func commanderCompactComboCount(seenNames map[string]bool) int {
 		{"Underworld Breach", "Lion's Eye Diamond"},
 		{"Sensei's Divining Top", "Bolas's Citadel"},
 	}
-	count := 0
+	out := make([]string, 0, 2)
 	for _, pair := range pairs {
 		if seenNames[commanderCardKey(pair[0])] && seenNames[commanderCardKey(pair[1])] {
-			count++
+			out = append(out, pair[0]+" + "+pair[1])
 		}
 	}
-	return count
+	return out
 }
 
 func commanderCardKey(name string) string {
@@ -802,6 +1128,19 @@ func appendPowerName(list []string, name string) []string {
 	return append(list, name)
 }
 
+func mergePowerNameLists(lists ...[]string) []string {
+	out := make([]string, 0)
+	for _, list := range lists {
+		for _, name := range list {
+			out = appendPowerName(out, name)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return strings.ToLower(out[i]) < strings.ToLower(out[j])
+	})
+	return out
+}
+
 func containsFold(list []string, needle string) bool {
 	needle = commanderCardKey(needle)
 	for _, item := range list {
@@ -810,16 +1149,6 @@ func containsFold(list []string, needle string) bool {
 		}
 	}
 	return false
-}
-
-func detailList(items []string, fallback string) string {
-	if len(items) == 0 {
-		return fallback
-	}
-	if len(items) <= 5 {
-		return strings.Join(items, ", ")
-	}
-	return strings.Join(items[:5], ", ") + fmt.Sprintf(" +%d more", len(items)-5)
 }
 
 func buildDeckValidationWarnings(format, commanderName string, rows []deckAnalyticsCardInput, analytics deckAnalyticsData) []string {
