@@ -203,6 +203,7 @@
               <span class="mt-field-label mb-1">Group</span>
               <select id="deck-group-mode" class="mt-control mt-control--sm">
                 <option value="none">None</option>
+                <option value="category">Categories</option>
                 <option value="alphabet">Alphabet</option>
                 <option value="type">Type</option>
                 <option value="mv">Mana Value</option>
@@ -245,30 +246,38 @@
       </div>
 
       <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div class="mt-stat-card">
+        <button type="button" class="mt-stat-card mt-stat-card--button text-left" data-analytics-stat="all">
           <p class="text-slate-500 uppercase tracking-wide text-[10px]">Cards</p>
           <p id="deck-analytics-total" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.TotalCards }}</p>
-        </div>
-        <div class="mt-stat-card">
+        </button>
+        <button type="button" class="mt-stat-card mt-stat-card--button text-left" data-analytics-stat="lands">
           <p class="text-slate-500 uppercase tracking-wide text-[10px]">Lands</p>
           <p id="deck-analytics-lands" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.LandCount }}</p>
-        </div>
-        <div class="mt-stat-card">
+        </button>
+        <button type="button" class="mt-stat-card mt-stat-card--button text-left" data-analytics-stat="nonlands">
           <p class="text-slate-500 uppercase tracking-wide text-[10px]">Avg MV</p>
           <p id="deck-analytics-avg-cmc" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.AverageCMCDisplay }}</p>
-        </div>
-        <div class="mt-stat-card">
+        </button>
+        <button type="button" class="mt-stat-card mt-stat-card--button text-left" data-analytics-stat="ramp">
           <p class="text-slate-500 uppercase tracking-wide text-[10px]">Ramp</p>
           <p id="deck-analytics-ramp" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.RampCount }}</p>
-        </div>
-        <div class="mt-stat-card">
+        </button>
+        <button type="button" class="mt-stat-card mt-stat-card--button text-left" data-analytics-stat="draw">
           <p class="text-slate-500 uppercase tracking-wide text-[10px]">Draw</p>
           <p id="deck-analytics-card-draw" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.CardDrawCount }}</p>
-        </div>
-        <div class="mt-stat-card">
+        </button>
+        <button type="button" class="mt-stat-card mt-stat-card--button text-left" data-analytics-stat="interaction">
           <p class="text-slate-500 uppercase tracking-wide text-[10px]">Interaction</p>
           <p id="deck-analytics-interaction" class="text-slate-100 text-base font-semibold">{{ $ctx.Analytics.InteractionCount }}</p>
+        </button>
+      </div>
+
+      <div id="deck-analytics-card-list-panel" class="mt-subpanel hidden p-3">
+        <div class="flex items-center justify-between gap-3">
+          <p id="deck-analytics-card-list-title" class="mt-kicker">Cards</p>
+          <button type="button" id="deck-analytics-card-list-close" class="mt-btn mt-btn--secondary mt-btn--xs">Close</button>
         </div>
+        <ul id="deck-analytics-card-list" class="mt-2 grid gap-1.5 text-sm text-slate-200 sm:grid-cols-2 lg:grid-cols-3"></ul>
       </div>
 
       {{ $power := $ctx.Analytics.PowerEstimate }}
@@ -302,18 +311,25 @@
             </div>
           </div>
         </div>
-        <ul id="deck-power-signals-list" class="mt-3 grid gap-2 md:grid-cols-2">
+        <ul id="deck-power-signals-list" class="mt-power-signals-list">
           {{ range $power.Signals }}
             <li class="mt-power-signal mt-power-signal--{{ .Tone }}">
-              <span>{{ .Label }}</span>
-              <strong>{{ .Value }}</strong>
-              {{ if .Detail }}<small>{{ .Detail }}</small>{{ end }}
+              <span class="mt-power-signal__label">{{ .Label }}</span>
+              <strong class="mt-power-signal__value">{{ .Value }}</strong>
+              {{ if .Detail }}<small class="mt-power-signal__detail">{{ .Detail }}</small>{{ end }}
+              {{ if .Cards }}
+                <ul class="mt-power-signal__cards">
+                  {{ range .Cards }}
+                    <li>{{ . }}</li>
+                  {{ end }}
+                </ul>
+              {{ end }}
             </li>
           {{ else }}
             <li class="mt-power-signal mt-power-signal--info">
-              <span>Signals</span>
-              <strong>Pending</strong>
-              <small>Add cards to estimate bracket pressure.</small>
+              <span class="mt-power-signal__label">Signals</span>
+              <strong class="mt-power-signal__value">Pending</strong>
+              <small class="mt-power-signal__detail">Add cards to estimate bracket pressure.</small>
             </li>
           {{ end }}
         </ul>
@@ -849,11 +865,15 @@
           var active = tags.some(function (tag) {
             return tag.toLowerCase() === tagValue.toLowerCase();
           });
-          button.className = active ? tone.button_active : tone.button;
+          button.className = tone.button;
+          button.classList.toggle('hidden', active);
+          button.disabled = active;
           button.setAttribute('aria-pressed', active ? 'true' : 'false');
           button.setAttribute('data-selected', active ? 'true' : 'false');
-          button.textContent = (active ? '- ' : '+ ') + tagValue;
-          button.title = (active ? 'Remove ' : 'Add ') + tagValue;
+          button.setAttribute('aria-hidden', active ? 'true' : 'false');
+          button.tabIndex = active ? -1 : 0;
+          button.textContent = '+ ' + tagValue;
+          button.title = 'Add ' + tagValue;
         }
       }
 

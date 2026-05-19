@@ -61,6 +61,30 @@ func TestComputeDeckAnalytics_GuideChecksPresent(t *testing.T) {
 	}
 }
 
+func TestComputeDeckAnalytics_StatCardsAndCategories(t *testing.T) {
+	t.Parallel()
+
+	rows := []deckAnalyticsCardInput{
+		{Name: "Forest", TypeLine: "Basic Land — Forest", Qty: 2},
+		{Name: "Rampant Growth", TypeLine: "Sorcery", OracleText: "Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.", Qty: 1, CMC: 2},
+		{Name: "Harmonize", TypeLine: "Sorcery", OracleText: "Draw three cards.", Qty: 1, CMC: 4},
+		{Name: "Swords to Plowshares", TypeLine: "Instant", OracleText: "Exile target creature. Its controller gains life equal to its power.", Qty: 1, CMC: 1},
+		{Name: "Eerie Interlude", TypeLine: "Instant", OracleText: "Exile any number of target creatures you control. Return those cards to the battlefield under their owner's control.", Qty: 1, CMC: 3},
+	}
+
+	analytics := computeDeckAnalytics("Commander", "Atraxa, Praetors' Voice", rows)
+	assertStatCard(t, analytics, "ramp", "Rampant Growth")
+	assertStatCard(t, analytics, "draw", "Harmonize")
+	assertStatCard(t, analytics, "interaction", "Swords to Plowshares")
+	assertCategory(t, analytics, "Ramp", 1)
+	assertCategory(t, analytics, "Draw", 1)
+	assertCategory(t, analytics, "Removal", 1)
+	assertCategory(t, analytics, "Blink", 1)
+	if got := analytics.CategoryBreakdown[len(analytics.CategoryBreakdown)-1].Label; got != "Lands" {
+		t.Fatalf("expected lands category to sort last, got %q", got)
+	}
+}
+
 func TestComputeDeckAnalytics_DeckSizeGuideAlert(t *testing.T) {
 	t.Parallel()
 
@@ -99,6 +123,15 @@ func TestComputeDeckAnalytics_CommanderPowerGameChangers(t *testing.T) {
 	if analytics.PowerEstimate.Bracket < 4 {
 		t.Fatalf("expected bracket 4+ for more than three game changers, got %d", analytics.PowerEstimate.Bracket)
 	}
+	if len(analytics.PowerEstimate.Signals) != 1 {
+		t.Fatalf("expected only the driving power signal, got %d", len(analytics.PowerEstimate.Signals))
+	}
+	signal := analytics.PowerEstimate.Signals[0]
+	if signal.Label != "Game Changers" {
+		t.Fatalf("expected Game Changers signal, got %q", signal.Label)
+	}
+	assertStringPresent(t, signal.Cards, "Rhystic Study")
+	assertStringPresent(t, signal.Cards, "Demonic Tutor")
 }
 
 func TestComputeDeckAnalytics_CommanderPowerCompactCombo(t *testing.T) {
@@ -118,4 +151,45 @@ func TestComputeDeckAnalytics_CommanderPowerCompactCombo(t *testing.T) {
 	if analytics.PowerEstimate.Bracket < 4 {
 		t.Fatalf("expected bracket 4+ for compact combo, got %d", analytics.PowerEstimate.Bracket)
 	}
+	assertStringPresent(t, analytics.PowerEstimate.CompactCombos, "Thassa's Oracle + Demonic Consultation")
+	if len(analytics.PowerEstimate.Signals) != 1 {
+		t.Fatalf("expected only compact combo signal, got %d", len(analytics.PowerEstimate.Signals))
+	}
+	if analytics.PowerEstimate.Signals[0].Label != "Compact Wins" {
+		t.Fatalf("expected Compact Wins signal, got %q", analytics.PowerEstimate.Signals[0].Label)
+	}
+	assertStringPresent(t, analytics.PowerEstimate.Signals[0].Cards, "Thassa's Oracle + Demonic Consultation")
+}
+
+func assertStatCard(t *testing.T, analytics deckAnalyticsData, key, wantName string) {
+	t.Helper()
+	for _, card := range analytics.StatCards[key] {
+		if card.Name == wantName {
+			return
+		}
+	}
+	t.Fatalf("expected %q in stat_cards[%q], got %#v", wantName, key, analytics.StatCards[key])
+}
+
+func assertCategory(t *testing.T, analytics deckAnalyticsData, wantLabel string, wantCount int) {
+	t.Helper()
+	for _, category := range analytics.CategoryBreakdown {
+		if category.Label == wantLabel {
+			if category.Count != wantCount {
+				t.Fatalf("expected %s count %d, got %d", wantLabel, wantCount, category.Count)
+			}
+			return
+		}
+	}
+	t.Fatalf("expected category %q in %#v", wantLabel, analytics.CategoryBreakdown)
+}
+
+func assertStringPresent(t *testing.T, got []string, want string) {
+	t.Helper()
+	for _, value := range got {
+		if value == want {
+			return
+		}
+	}
+	t.Fatalf("expected %q in %#v", want, got)
 }
