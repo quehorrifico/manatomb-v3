@@ -161,6 +161,7 @@ func registerCardAndRulesRoutes(mux *http.ServeMux, app *web.App) {
 
 // registerRoutes wires up all HTTP routes for the application.
 func registerRoutes(mux *http.ServeMux, app *web.App) {
+	mux.Handle("/assets/", web.AssetHandler())
 	registerHomeAndAuthRoutes(mux, app)
 	registerSettingsRoutes(mux, app)
 	registerDeckRoutes(mux, app)
