@@ -15,20 +15,38 @@ import (
 )
 
 type playtestCard struct {
-	Name       string `json:"name"`
-	ImageURI   string `json:"image_uri"`
-	ManaCost   string `json:"mana_cost"`
-	TypeLine   string `json:"type_line"`
-	OracleText string `json:"oracle_text"`
-	Qty        int    `json:"qty"`
+	Name            string            `json:"name"`
+	ImageURI        string            `json:"image_uri"`
+	ManaCost        string            `json:"mana_cost"`
+	ManaValue       float64           `json:"mana_value"`
+	Colors          playtestColorList `json:"colors,omitempty"`
+	ColorIdentity   playtestColorList `json:"color_identity,omitempty"`
+	TypeLine        string            `json:"type_line"`
+	OracleText      string            `json:"oracle_text"`
+	FlavorText      string            `json:"flavor_text"`
+	PriceUSD        string            `json:"price_usd"`
+	Artist          string            `json:"artist"`
+	SetCode         string            `json:"set_code"`
+	SetName         string            `json:"set_name"`
+	CollectorNumber string            `json:"collector_number"`
+	Qty             int               `json:"qty"`
 }
 
 type playtestCommander struct {
-	Name       string `json:"name"`
-	ImageURI   string `json:"image_uri"`
-	ManaCost   string `json:"mana_cost"`
-	TypeLine   string `json:"type_line"`
-	OracleText string `json:"oracle_text"`
+	Name            string            `json:"name"`
+	ImageURI        string            `json:"image_uri"`
+	ManaCost        string            `json:"mana_cost"`
+	ManaValue       float64           `json:"mana_value"`
+	Colors          playtestColorList `json:"colors,omitempty"`
+	ColorIdentity   playtestColorList `json:"color_identity,omitempty"`
+	TypeLine        string            `json:"type_line"`
+	OracleText      string            `json:"oracle_text"`
+	FlavorText      string            `json:"flavor_text"`
+	PriceUSD        string            `json:"price_usd"`
+	Artist          string            `json:"artist"`
+	SetCode         string            `json:"set_code"`
+	SetName         string            `json:"set_name"`
+	CollectorNumber string            `json:"collector_number"`
 }
 
 type playtestData struct {
@@ -46,14 +64,21 @@ type workbenchPlaytestCard struct {
 }
 
 type workbenchPlaytestCardMeta struct {
-	Name                 string  `json:"name,omitempty"`
-	ManaCost             string  `json:"manaCost,omitempty"`
-	TypeLine             string  `json:"typeLine,omitempty"`
-	OracleText           string  `json:"oracleText,omitempty"`
-	CMC                  float64 `json:"cmc,omitempty"`
-	PriceUSD             string  `json:"priceUSD,omitempty"`
-	ImageURI             string  `json:"imageURI,omitempty"`
-	IsCommanderCandidate bool    `json:"isCommanderCandidate,omitempty"`
+	Name                 string            `json:"name,omitempty"`
+	ManaCost             string            `json:"manaCost,omitempty"`
+	TypeLine             string            `json:"typeLine,omitempty"`
+	OracleText           string            `json:"oracleText,omitempty"`
+	FlavorText           string            `json:"flavorText,omitempty"`
+	CMC                  float64           `json:"cmc,omitempty"`
+	Colors               playtestColorList `json:"colors,omitempty"`
+	ColorIdentity        playtestColorList `json:"colorIdentity,omitempty"`
+	PriceUSD             string            `json:"priceUSD,omitempty"`
+	SetCode              string            `json:"setCode,omitempty"`
+	SetName              string            `json:"setName,omitempty"`
+	CollectorNumber      string            `json:"collectorNumber,omitempty"`
+	Artist               string            `json:"artist,omitempty"`
+	ImageURI             string            `json:"imageURI,omitempty"`
+	IsCommanderCandidate bool              `json:"isCommanderCandidate,omitempty"`
 }
 
 type workbenchPlaytestPayload struct {
@@ -99,7 +124,202 @@ func parsePlaytestDeckID(path string) (int64, error) {
 	return deckID, nil
 }
 
-func normalizeWorkbenchPlaytestCards(cardsIn []workbenchPlaytestCard) []playtestCard {
+type playtestColorList []string
+
+func (l *playtestColorList) UnmarshalJSON(data []byte) error {
+	raw := strings.TrimSpace(string(data))
+	if raw == "" || raw == "null" {
+		*l = nil
+		return nil
+	}
+
+	var values []string
+	if err := json.Unmarshal(data, &values); err == nil {
+		*l = normalizePlaytestColorList(values)
+		return nil
+	}
+
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*l = splitPlaytestColorList(value)
+	return nil
+}
+
+func normalizePlaytestColorList(values []string) playtestColorList {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := make(playtestColorList, 0, len(values))
+	for _, raw := range values {
+		value := strings.ToUpper(strings.TrimSpace(raw))
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
+}
+
+func splitPlaytestColorList(raw string) playtestColorList {
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\n' || r == '\t'
+	})
+	return normalizePlaytestColorList(parts)
+}
+
+func mergePlaytestCardMeta(card playtestCard, meta workbenchPlaytestCardMeta) playtestCard {
+	if card.ImageURI == "" {
+		card.ImageURI = strings.TrimSpace(meta.ImageURI)
+	}
+	if card.ManaCost == "" {
+		card.ManaCost = strings.TrimSpace(meta.ManaCost)
+	}
+	if card.ManaValue == 0 && meta.CMC != 0 {
+		card.ManaValue = meta.CMC
+	}
+	if len(card.Colors) == 0 {
+		card.Colors = normalizePlaytestColorList(meta.Colors)
+	}
+	if len(card.ColorIdentity) == 0 {
+		card.ColorIdentity = normalizePlaytestColorList(meta.ColorIdentity)
+	}
+	if card.TypeLine == "" {
+		card.TypeLine = strings.TrimSpace(meta.TypeLine)
+	}
+	if card.OracleText == "" {
+		card.OracleText = strings.TrimSpace(meta.OracleText)
+	}
+	if card.FlavorText == "" {
+		card.FlavorText = strings.TrimSpace(meta.FlavorText)
+	}
+	if card.PriceUSD == "" {
+		card.PriceUSD = strings.TrimSpace(meta.PriceUSD)
+	}
+	if card.Artist == "" {
+		card.Artist = strings.TrimSpace(meta.Artist)
+	}
+	if card.SetCode == "" {
+		card.SetCode = strings.TrimSpace(meta.SetCode)
+	}
+	if card.SetName == "" {
+		card.SetName = strings.TrimSpace(meta.SetName)
+	}
+	if card.CollectorNumber == "" {
+		card.CollectorNumber = strings.TrimSpace(meta.CollectorNumber)
+	}
+	return card
+}
+
+func playtestCardNeedsLookup(card playtestCard) bool {
+	return strings.TrimSpace(card.ImageURI) == "" ||
+		strings.TrimSpace(card.ManaCost) == "" ||
+		card.ManaValue == 0 ||
+		len(card.Colors) == 0 ||
+		len(card.ColorIdentity) == 0 ||
+		strings.TrimSpace(card.TypeLine) == "" ||
+		strings.TrimSpace(card.OracleText) == "" ||
+		strings.TrimSpace(card.FlavorText) == "" ||
+		strings.TrimSpace(card.PriceUSD) == "" ||
+		strings.TrimSpace(card.Artist) == "" ||
+		strings.TrimSpace(card.SetCode) == "" ||
+		strings.TrimSpace(card.SetName) == "" ||
+		strings.TrimSpace(card.CollectorNumber) == ""
+}
+
+func hydratePlaytestCardFromDB(card playtestCard, dbCard cards.DBCard) playtestCard {
+	if card.ImageURI == "" {
+		card.ImageURI = strings.TrimSpace(dbCard.ImageURI)
+	}
+	if card.ManaCost == "" {
+		card.ManaCost = strings.TrimSpace(dbCard.ManaCost)
+	}
+	if card.ManaValue == 0 && dbCard.CMC != 0 {
+		card.ManaValue = dbCard.CMC
+	}
+	if len(card.Colors) == 0 {
+		card.Colors = splitPlaytestColorList(dbCard.Colors)
+	}
+	if len(card.ColorIdentity) == 0 {
+		card.ColorIdentity = splitPlaytestColorList(dbCard.ColorIdentity)
+	}
+	if card.TypeLine == "" {
+		card.TypeLine = strings.TrimSpace(dbCard.TypeLine)
+	}
+	if card.OracleText == "" {
+		card.OracleText = strings.TrimSpace(dbCard.OracleText)
+	}
+	if card.FlavorText == "" {
+		card.FlavorText = strings.TrimSpace(dbCard.FlavorText)
+	}
+	if card.PriceUSD == "" {
+		card.PriceUSD = strings.TrimSpace(dbCard.PriceUSD)
+	}
+	if card.Artist == "" {
+		card.Artist = strings.TrimSpace(dbCard.Artist)
+	}
+	if card.SetCode == "" {
+		card.SetCode = strings.TrimSpace(dbCard.SetCode)
+	}
+	if card.SetName == "" {
+		card.SetName = strings.TrimSpace(dbCard.SetName)
+	}
+	if card.CollectorNumber == "" {
+		card.CollectorNumber = strings.TrimSpace(dbCard.CollectorNumber)
+	}
+	return card
+}
+
+func hydratePlaytestCommanderFromDB(commander playtestCommander, dbCard cards.DBCard) playtestCommander {
+	card := hydratePlaytestCardFromDB(playtestCard{
+		Name:            commander.Name,
+		ImageURI:        commander.ImageURI,
+		ManaCost:        commander.ManaCost,
+		ManaValue:       commander.ManaValue,
+		Colors:          commander.Colors,
+		ColorIdentity:   commander.ColorIdentity,
+		TypeLine:        commander.TypeLine,
+		OracleText:      commander.OracleText,
+		FlavorText:      commander.FlavorText,
+		PriceUSD:        commander.PriceUSD,
+		Artist:          commander.Artist,
+		SetCode:         commander.SetCode,
+		SetName:         commander.SetName,
+		CollectorNumber: commander.CollectorNumber,
+	}, dbCard)
+	return playtestCommander{
+		Name:            card.Name,
+		ImageURI:        card.ImageURI,
+		ManaCost:        card.ManaCost,
+		ManaValue:       card.ManaValue,
+		Colors:          card.Colors,
+		ColorIdentity:   card.ColorIdentity,
+		TypeLine:        card.TypeLine,
+		OracleText:      card.OracleText,
+		FlavorText:      card.FlavorText,
+		PriceUSD:        card.PriceUSD,
+		Artist:          card.Artist,
+		SetCode:         card.SetCode,
+		SetName:         card.SetName,
+		CollectorNumber: card.CollectorNumber,
+	}
+}
+
+func normalizeWorkbenchPlaytestCards(cardsIn []workbenchPlaytestCard, cardMeta map[string]workbenchPlaytestCardMeta) []playtestCard {
+	metaByName := normalizeWorkbenchCardMeta(cardMeta)
+	metaByKey := make(map[string]workbenchPlaytestCardMeta, len(metaByName))
+	for rawName, meta := range metaByName {
+		if key := strings.ToLower(strings.TrimSpace(rawName)); key != "" {
+			metaByKey[key] = meta
+		}
+		if key := strings.ToLower(strings.TrimSpace(meta.Name)); key != "" {
+			metaByKey[key] = meta
+		}
+	}
+
 	merged := make(map[string]playtestCard, len(cardsIn))
 	order := make([]string, 0, len(cardsIn))
 
@@ -109,17 +329,23 @@ func normalizeWorkbenchPlaytestCards(cardsIn []workbenchPlaytestCard) []playtest
 			continue
 		}
 
+		meta := metaByKey[strings.ToLower(name)]
+		cardName := name
+		if metaName := strings.TrimSpace(meta.Name); metaName != "" {
+			cardName = metaName
+		}
+
 		key := strings.ToLower(name)
 		if existing, ok := merged[key]; ok {
 			existing.Qty += row.Qty
-			merged[key] = existing
+			merged[key] = mergePlaytestCardMeta(existing, meta)
 			continue
 		}
 
-		merged[key] = playtestCard{
-			Name: name,
+		merged[key] = mergePlaytestCardMeta(playtestCard{
+			Name: cardName,
 			Qty:  row.Qty,
-		}
+		}, meta)
 		order = append(order, key)
 	}
 
@@ -163,7 +389,14 @@ func normalizeWorkbenchCardMeta(cardMeta map[string]workbenchPlaytestCardMeta) m
 		meta.ManaCost = strings.TrimSpace(meta.ManaCost)
 		meta.TypeLine = strings.TrimSpace(meta.TypeLine)
 		meta.OracleText = strings.TrimSpace(meta.OracleText)
+		meta.FlavorText = strings.TrimSpace(meta.FlavorText)
+		meta.Colors = normalizePlaytestColorList(meta.Colors)
+		meta.ColorIdentity = normalizePlaytestColorList(meta.ColorIdentity)
 		meta.PriceUSD = strings.TrimSpace(meta.PriceUSD)
+		meta.SetCode = strings.TrimSpace(meta.SetCode)
+		meta.SetName = strings.TrimSpace(meta.SetName)
+		meta.CollectorNumber = strings.TrimSpace(meta.CollectorNumber)
+		meta.Artist = strings.TrimSpace(meta.Artist)
 		meta.ImageURI = strings.TrimSpace(meta.ImageURI)
 		out[name] = meta
 	}
@@ -228,11 +461,21 @@ func deckRowsToPlaytestCards(deckCards []decks.DeckCard) []playtestCard {
 	out := make([]playtestCard, 0, len(deckCards))
 	for _, dc := range deckCards {
 		out = append(out, playtestCard{
-			Name:       strings.TrimSpace(dc.CardName),
-			ImageURI:   strings.TrimSpace(dc.ImageURI),
-			TypeLine:   strings.TrimSpace(dc.TypeLine),
-			OracleText: strings.TrimSpace(dc.OracleText),
-			Qty:        dc.Quantity,
+			Name:            strings.TrimSpace(dc.CardName),
+			ImageURI:        strings.TrimSpace(dc.ImageURI),
+			ManaCost:        strings.TrimSpace(dc.ManaCost),
+			ManaValue:       dc.CMC,
+			Colors:          splitPlaytestColorList(dc.Colors),
+			ColorIdentity:   splitPlaytestColorList(dc.ColorIdentity),
+			TypeLine:        strings.TrimSpace(dc.TypeLine),
+			OracleText:      strings.TrimSpace(dc.OracleText),
+			FlavorText:      strings.TrimSpace(dc.FlavorText),
+			PriceUSD:        strings.TrimSpace(dc.PriceUSD),
+			Artist:          strings.TrimSpace(dc.Artist),
+			SetCode:         strings.TrimSpace(dc.SetCode),
+			SetName:         strings.TrimSpace(dc.SetName),
+			CollectorNumber: strings.TrimSpace(dc.CollectorNumber),
+			Qty:             dc.Quantity,
 		})
 	}
 	return out
@@ -249,7 +492,8 @@ func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, ro
 		if name == "" || row.Qty <= 0 {
 			continue
 		}
-		if strings.TrimSpace(row.ImageURI) == "" || strings.TrimSpace(row.TypeLine) == "" {
+		row.Name = name
+		if playtestCardNeedsLookup(row) {
 			missingNames = append(missingNames, name)
 		}
 	}
@@ -268,24 +512,22 @@ func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, ro
 			continue
 		}
 
-		imageURI := strings.TrimSpace(row.ImageURI)
-		manaCost := strings.TrimSpace(row.ManaCost)
-		typeLine := strings.TrimSpace(row.TypeLine)
-		oracleText := strings.TrimSpace(row.OracleText)
-		if imageURI == "" || manaCost == "" || typeLine == "" || oracleText == "" {
+		row.Name = name
+		row.ImageURI = strings.TrimSpace(row.ImageURI)
+		row.ManaCost = strings.TrimSpace(row.ManaCost)
+		row.TypeLine = strings.TrimSpace(row.TypeLine)
+		row.OracleText = strings.TrimSpace(row.OracleText)
+		row.FlavorText = strings.TrimSpace(row.FlavorText)
+		row.PriceUSD = strings.TrimSpace(row.PriceUSD)
+		row.Artist = strings.TrimSpace(row.Artist)
+		row.SetCode = strings.TrimSpace(row.SetCode)
+		row.SetName = strings.TrimSpace(row.SetName)
+		row.CollectorNumber = strings.TrimSpace(row.CollectorNumber)
+		row.Colors = normalizePlaytestColorList(row.Colors)
+		row.ColorIdentity = normalizePlaytestColorList(row.ColorIdentity)
+		if playtestCardNeedsLookup(row) {
 			if dbCard, ok := resolvedByName[strings.ToLower(name)]; ok {
-				if imageURI == "" {
-					imageURI = strings.TrimSpace(dbCard.ImageURI)
-				}
-				if manaCost == "" {
-					manaCost = strings.TrimSpace(dbCard.ManaCost)
-				}
-				if typeLine == "" {
-					typeLine = strings.TrimSpace(dbCard.TypeLine)
-				}
-				if oracleText == "" {
-					oracleText = strings.TrimSpace(dbCard.OracleText)
-				}
+				row = hydratePlaytestCardFromDB(row, dbCard)
 			}
 		}
 
@@ -294,44 +536,53 @@ func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, ro
 				commander.Name = name
 			}
 			if commander.ImageURI == "" {
-				commander.ImageURI = imageURI
+				commander.ImageURI = row.ImageURI
 			}
 			if commander.ManaCost == "" {
-				commander.ManaCost = manaCost
+				commander.ManaCost = row.ManaCost
+			}
+			if commander.ManaValue == 0 {
+				commander.ManaValue = row.ManaValue
+			}
+			if len(commander.Colors) == 0 {
+				commander.Colors = row.Colors
+			}
+			if len(commander.ColorIdentity) == 0 {
+				commander.ColorIdentity = row.ColorIdentity
 			}
 			if commander.TypeLine == "" {
-				commander.TypeLine = typeLine
+				commander.TypeLine = row.TypeLine
 			}
 			if commander.OracleText == "" {
-				commander.OracleText = oracleText
+				commander.OracleText = row.OracleText
+			}
+			if commander.FlavorText == "" {
+				commander.FlavorText = row.FlavorText
+			}
+			if commander.PriceUSD == "" {
+				commander.PriceUSD = row.PriceUSD
+			}
+			if commander.Artist == "" {
+				commander.Artist = row.Artist
+			}
+			if commander.SetCode == "" {
+				commander.SetCode = row.SetCode
+			}
+			if commander.SetName == "" {
+				commander.SetName = row.SetName
+			}
+			if commander.CollectorNumber == "" {
+				commander.CollectorNumber = row.CollectorNumber
 			}
 			continue
 		}
 
-		out = append(out, playtestCard{
-			Name:       name,
-			ImageURI:   imageURI,
-			ManaCost:   manaCost,
-			TypeLine:   typeLine,
-			OracleText: oracleText,
-			Qty:        row.Qty,
-		})
+		out = append(out, row)
 	}
 
-	if commander.Name != "" && (commander.ImageURI == "" || commander.ManaCost == "" || commander.TypeLine == "" || commander.OracleText == "") {
+	if commander.Name != "" {
 		if dbCard, ok := resolvedByName[strings.ToLower(commander.Name)]; ok {
-			if commander.ImageURI == "" {
-				commander.ImageURI = strings.TrimSpace(dbCard.ImageURI)
-			}
-			if commander.ManaCost == "" {
-				commander.ManaCost = strings.TrimSpace(dbCard.ManaCost)
-			}
-			if commander.TypeLine == "" {
-				commander.TypeLine = strings.TrimSpace(dbCard.TypeLine)
-			}
-			if commander.OracleText == "" {
-				commander.OracleText = strings.TrimSpace(dbCard.OracleText)
-			}
+			commander = hydratePlaytestCommanderFromDB(commander, dbCard)
 		}
 	}
 
@@ -462,7 +713,7 @@ func (a *App) HandleDeckWorkbenchPlaytest(w http.ResponseWriter, r *http.Request
 	}
 	commanderName := workbenchDraft.CommanderName
 
-	cardsJSON, commanderJSON, err := a.buildPlaytestPayload(r.Context(), commanderName, normalizeWorkbenchPlaytestCards(in.Cards))
+	cardsJSON, commanderJSON, err := a.buildPlaytestPayload(r.Context(), commanderName, normalizeWorkbenchPlaytestCards(in.Cards, in.CardMeta))
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return

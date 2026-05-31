@@ -18,10 +18,17 @@ type DBCard struct {
 	ManaCost             string
 	TypeLine             string
 	OracleText           string
+	FlavorText           string
 	AllPartsJSON         string
 	ImageURI             string
+	Colors               string
 	ColorIdentity        string
 	CMC                  float64
+	PriceUSD             string
+	Artist               string
+	SetCode              string
+	SetName              string
+	CollectorNumber      string
 	IsCommanderCandidate bool
 }
 
@@ -108,10 +115,17 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 				COALESCE(oc.mana_cost, '') AS mana_cost,
 				COALESCE(oc.type_line, '') AS type_line,
 				COALESCE(oc.oracle_text, '') AS oracle_text,
+				COALESCE(cp.flavor_text, oc.flavor_text, '') AS flavor_text,
 				COALESCE(oc.all_parts::text, '[]') AS all_parts_json,
 				COALESCE(oc.default_image_uri, '') AS image_uri,
+				COALESCE(oc.colors, ARRAY[]::text[]) AS colors,
 				COALESCE(oc.color_identity, ARRAY[]::text[]) AS color_identity,
 				COALESCE(oc.cmc, 0) AS cmc,
+				COALESCE(oc.default_price_usd, '') AS price_usd,
+				COALESCE(oc.default_artist, '') AS artist,
+				COALESCE(oc.default_set_code, '') AS set_code,
+				COALESCE(oc.default_set_name, '') AS set_name,
+				COALESCE(cp.collector_number, '') AS collector_number,
 				COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
 				ROW_NUMBER() OVER (
 					PARTITION BY i.q
@@ -120,6 +134,8 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			FROM input i
 			JOIN oracle_cards oc
 			  ON oc.name_search = i.q
+			LEFT JOIN card_prints cp
+			  ON cp.scryfall_id = oc.default_print_id
 		)
 		SELECT
 			name_search,
@@ -128,10 +144,17 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			mana_cost,
 			type_line,
 			oracle_text,
+			flavor_text,
 			all_parts_json,
 			image_uri,
+			colors,
 			color_identity,
 			cmc,
+			price_usd,
+			artist,
+			set_code,
+			set_name,
+			collector_number,
 			is_commander_candidate
 		FROM ranked
 		WHERE rn = 1
@@ -144,10 +167,11 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 	out := make(map[string]DBCard, len(searches))
 	for rows.Next() {
 		var (
-			nameSearch, oracleID, name, manaCost, typeLine, oracleText, allPartsJSON, imageURI string
-			colorIdentity                                                                      []string
-			cmc                                                                                float64
-			isCommanderCandidate                                                               bool
+			nameSearch, oracleID, name, manaCost, typeLine, oracleText, flavorText, allPartsJSON, imageURI string
+			priceUSD, artist, setCode, setName, collectorNumber                                            string
+			colors, colorIdentity                                                                          []string
+			cmc                                                                                            float64
+			isCommanderCandidate                                                                           bool
 		)
 		if err := rows.Scan(
 			&nameSearch,
@@ -156,15 +180,22 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			&manaCost,
 			&typeLine,
 			&oracleText,
+			&flavorText,
 			&allPartsJSON,
 			&imageURI,
+			pq.Array(&colors),
 			pq.Array(&colorIdentity),
 			&cmc,
+			&priceUSD,
+			&artist,
+			&setCode,
+			&setName,
+			&collectorNumber,
 			&isCommanderCandidate,
 		); err != nil {
 			return nil, err
 		}
-		out[nameSearch] = scanDBCardRowWithAllParts(
+		card := scanDBCardRowWithAllParts(
 			oracleID,
 			name,
 			manaCost,
@@ -176,6 +207,14 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			cmc,
 			isCommanderCandidate,
 		)
+		card.FlavorText = strings.TrimSpace(flavorText)
+		card.Colors = strings.Join(colors, ",")
+		card.PriceUSD = strings.TrimSpace(priceUSD)
+		card.Artist = strings.TrimSpace(artist)
+		card.SetCode = strings.TrimSpace(setCode)
+		card.SetName = strings.TrimSpace(setName)
+		card.CollectorNumber = strings.TrimSpace(collectorNumber)
+		out[nameSearch] = card
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -191,10 +230,11 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 	}
 
 	var (
-		oracleID, rowName, manaCost, typeLine, oracleText, allPartsJSON, imageURI string
-		colorIdentity                                                             []string
-		cmc                                                                       float64
-		isCommanderCandidate                                                      bool
+		oracleID, rowName, manaCost, typeLine, oracleText, flavorText, allPartsJSON, imageURI string
+		priceUSD, artist, setCode, setName, collectorNumber                                   string
+		colors, colorIdentity                                                                 []string
+		cmc                                                                                   float64
+		isCommanderCandidate                                                                  bool
 	)
 	err := db.QueryRowContext(ctx, `
 		SELECT
@@ -203,12 +243,21 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 			COALESCE(oc.mana_cost, ''),
 			COALESCE(oc.type_line, ''),
 			COALESCE(oc.oracle_text, ''),
+			COALESCE(cp.flavor_text, oc.flavor_text, ''),
 			COALESCE(oc.all_parts::text, '[]'),
 			COALESCE(oc.default_image_uri, ''),
+			COALESCE(oc.colors, ARRAY[]::text[]),
 			COALESCE(oc.color_identity, ARRAY[]::text[]),
 			COALESCE(oc.cmc, 0),
+			COALESCE(oc.default_price_usd, ''),
+			COALESCE(oc.default_artist, ''),
+			COALESCE(oc.default_set_code, ''),
+			COALESCE(oc.default_set_name, ''),
+			COALESCE(cp.collector_number, ''),
 			COALESCE(oc.is_commander_candidate, false)
 		FROM oracle_cards oc
+		LEFT JOIN card_prints cp
+		  ON cp.scryfall_id = oc.default_print_id
 		WHERE oc.name_search = normalize_card_name($1)
 		ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
 		LIMIT 1
@@ -218,10 +267,17 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		&manaCost,
 		&typeLine,
 		&oracleText,
+		&flavorText,
 		&allPartsJSON,
 		&imageURI,
+		pq.Array(&colors),
 		pq.Array(&colorIdentity),
 		&cmc,
+		&priceUSD,
+		&artist,
+		&setCode,
+		&setName,
+		&collectorNumber,
 		&isCommanderCandidate,
 	)
 	if err == sql.ErrNoRows {
@@ -243,6 +299,13 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		cmc,
 		isCommanderCandidate,
 	)
+	card.FlavorText = strings.TrimSpace(flavorText)
+	card.Colors = strings.Join(colors, ",")
+	card.PriceUSD = strings.TrimSpace(priceUSD)
+	card.Artist = strings.TrimSpace(artist)
+	card.SetCode = strings.TrimSpace(setCode)
+	card.SetName = strings.TrimSpace(setName)
+	card.CollectorNumber = strings.TrimSpace(collectorNumber)
 	return &card, nil
 }
 

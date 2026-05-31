@@ -7,48 +7,12 @@
     {{ $authNext = "/decks/new" }}
   {{ end }}
 
-  <main class="max-w-[1680px] mx-auto px-4 xl:px-6 overflow-hidden">
+  <main class="w-full px-3 xl:px-4 overflow-hidden">
     <div class="pt-playtest-root">
-      <section class="mt-panel p-4 sm:p-5 flex-1 min-h-0 flex flex-col">
+      <section class="pt-battlefield-section mt-panel p-4 sm:p-5 flex-1 min-h-0 flex flex-col">
         <p id="pt-status" class="sr-only" aria-live="polite"></p>
 
         <div class="relative flex-1 min-h-0">
-          <div class="pt-battlefield-toolbar">
-            <div class="pt-battlefield-metrics">
-              <div class="pt-overlay-metric">
-                <span class="pt-overlay-metric__label">Turn</span>
-                <span id="pt-turn-count" class="pt-overlay-metric__value">0</span>
-              </div>
-              <div class="pt-overlay-metric pt-overlay-metric--life">
-                <span class="pt-overlay-metric__label">Life</span>
-                <button id="pt-life-down"
-                        type="button"
-                        class="pt-overlay-metric__step"
-                        aria-label="Lose 1 life">
-                  -
-                </button>
-                <span id="pt-life-total" class="pt-overlay-metric__value">0</span>
-                <button id="pt-life-up"
-                        type="button"
-                        class="pt-overlay-metric__step"
-                        aria-label="Gain 1 life">
-                  +
-                </button>
-              </div>
-            </div>
-            <div class="pt-battlefield-actions">
-              <button id="pt-end-turn"
-                      type="button"
-                      class="mt-btn mt-btn--secondary mt-btn--xs">
-                End Turn
-              </button>
-              <button id="pt-game-menu-toggle"
-                      type="button"
-                      class="mt-btn mt-btn--secondary mt-btn--xs">
-                Game Menu
-              </button>
-            </div>
-          </div>
           <div id="pt-zone-battlefield"
                data-zone="battlefield"
                class="pt-drop-zone pt-battlefield-zone h-full rounded-xl bg-slate-950/80 p-3 relative overflow-hidden"></div>
@@ -59,8 +23,7 @@
         <div class="pt-zones-grid flex-1 min-h-0">
           <div class="pt-zone-card">
             <div class="flex items-center justify-between gap-2">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Hand</p>
-              <span id="pt-count-hand" class="text-xs font-semibold text-slate-200">0</span>
+              <p id="pt-count-hand" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Hand (0)</p>
             </div>
             <div id="pt-zone-hand"
                  data-zone="hand"
@@ -71,7 +34,7 @@
             <div class="pt-zone-card">
               <div class="relative flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
-                  <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Library</p>
+                  <p id="pt-count-library" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Library (0)</p>
                   <button id="pt-library-menu-toggle"
                           type="button"
                           class="pt-menu-trigger"
@@ -79,29 +42,113 @@
                     ...
                   </button>
                 </div>
-                <span id="pt-count-library" class="text-xs font-semibold text-slate-200">0</span>
                 <div id="pt-library-menu"
-                     class="hidden pt-inline-menu right-0 top-full mt-2">
+                     class="hidden pt-inline-menu">
+                  <button id="pt-library-menu-draw"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Draw
+                  </button>
+                  <button id="pt-library-menu-draw-x"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Draw X
+                  </button>
                   <button id="pt-library-menu-shuffle"
                           type="button"
                           class="pt-inline-menu__item">
                     Shuffle
                   </button>
-                  <button id="pt-library-menu-scry-1"
+                  <button id="pt-library-menu-search"
                           type="button"
                           class="pt-inline-menu__item">
-                    Scry 1
+                    Search Library
                   </button>
-                  <button id="pt-library-menu-scry-2"
+                  <button id="pt-library-menu-reveal"
                           type="button"
                           class="pt-inline-menu__item">
-                    Scry 2
+                    Reveal
                   </button>
-                  <button id="pt-library-menu-scry-3"
+                  <button id="pt-library-menu-reveal-x"
                           type="button"
                           class="pt-inline-menu__item">
-                    Scry 3
+                    Reveal X
                   </button>
+                  <button id="pt-library-menu-scry"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Scry
+                  </button>
+                  <button id="pt-library-menu-scry-x"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Scry X
+                  </button>
+                  <button id="pt-library-menu-surveil"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Surveil
+                  </button>
+                  <button id="pt-library-menu-surveil-x"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Surveil X
+                  </button>
+                  <button id="pt-library-menu-mill"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Mill
+                  </button>
+                  <button id="pt-library-menu-mill-x"
+                          type="button"
+                          class="pt-inline-menu__item">
+                    Mill X
+                  </button>
+                  <button id="pt-library-menu-keyword-toggle"
+                          type="button"
+                          class="pt-inline-menu__item pt-inline-menu__item--split"
+                          aria-expanded="false">
+                    <span>Keyword</span>
+                    <span aria-hidden="true">›</span>
+                  </button>
+                  <div id="pt-library-menu-keyword-panel"
+                       class="hidden pt-library-menu__panel">
+                    <button id="pt-library-menu-discover"
+                            type="button"
+                            class="pt-inline-menu__item">
+                      Discover X
+                    </button>
+                    <button id="pt-library-menu-cascade"
+                            type="button"
+                            class="pt-inline-menu__item">
+                      Cascade
+                    </button>
+                    <button id="pt-library-menu-reveal-until-toggle"
+                            type="button"
+                            class="pt-inline-menu__item pt-inline-menu__item--split"
+                            aria-expanded="false">
+                      <span>Reveal Until</span>
+                      <span aria-hidden="true">›</span>
+                    </button>
+                    <div id="pt-library-menu-reveal-until-panel"
+                         class="hidden pt-library-menu__panel">
+                      <button type="button"
+                              class="pt-inline-menu__item pt-library-reveal-until"
+                              data-reveal-until="creature">
+                        Creature
+                      </button>
+                      <button type="button"
+                              class="pt-inline-menu__item pt-library-reveal-until"
+                              data-reveal-until="land">
+                        Land
+                      </button>
+                      <button type="button"
+                              class="pt-inline-menu__item pt-library-reveal-until"
+                              data-reveal-until="basic-land">
+                        Basic Land
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div id="pt-zone-library"
@@ -111,8 +158,7 @@
 
             <div class="pt-zone-card">
               <div class="flex items-center justify-between gap-2">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Graveyard</p>
-                <span id="pt-count-graveyard" class="text-xs font-semibold text-slate-200">0</span>
+                <p id="pt-count-graveyard" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Graveyard (0)</p>
               </div>
               <div id="pt-zone-graveyard"
                    data-zone="graveyard"
@@ -121,8 +167,7 @@
 
             <div class="pt-zone-card">
               <div class="flex items-center justify-between gap-2">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Exile</p>
-                <span id="pt-count-exile" class="text-xs font-semibold text-slate-200">0</span>
+                <p id="pt-count-exile" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Exile (0)</p>
               </div>
               <div id="pt-zone-exile"
                    data-zone="exile"
@@ -130,15 +175,234 @@
             </div>
 
             <div class="pt-zone-card">
-              <div class="flex items-center justify-between gap-2">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Command</p>
-                <span id="pt-count-command" class="text-xs font-semibold text-slate-200">0</span>
+              <div class="relative flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <p id="pt-count-command" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Command (0)</p>
+                  <button id="pt-command-menu-toggle"
+                          type="button"
+                          class="pt-menu-trigger"
+                          aria-label="Command Zone menu">
+                    ...
+                  </button>
+                </div>
+                <div id="pt-command-menu"
+                     class="hidden pt-inline-menu">
+                  <div class="pt-command-tax" aria-label="Commander tax">
+                    <button id="pt-command-tax-down"
+                            type="button"
+                            class="pt-command-tax__step"
+                            aria-label="Decrease commander tax">
+                      -
+                    </button>
+                    <span class="pt-command-tax__label">Tax <span id="pt-command-tax-value">0</span></span>
+                    <button id="pt-command-tax-up"
+                            type="button"
+                            class="pt-command-tax__step"
+                            aria-label="Increase commander tax">
+                      +
+                    </button>
+                  </div>
+                </div>
               </div>
               <div id="pt-zone-command"
                    data-zone="command"
                    class="pt-drop-zone pt-side-zone pt-stack-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden"></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="pt-game-bar" aria-label="Game controls">
+        <div class="pt-toolbar-buttons">
+          <button id="pt-toolbar-turn"
+                  type="button"
+                  class="pt-toolbar-button">
+            End Turn 0
+          </button>
+          <button id="pt-toolbar-life"
+                  type="button"
+                  class="pt-toolbar-button"
+                  data-toolbar-menu-toggle="life">
+            Life 0
+          </button>
+          <button id="pt-toolbar-damage"
+                  type="button"
+                  class="pt-toolbar-button"
+                  data-toolbar-menu-toggle="damage">
+            Cmd 0
+          </button>
+          <button id="pt-toolbar-mana"
+                  type="button"
+                  class="pt-toolbar-button"
+                  data-toolbar-menu-toggle="mana">
+            Mana 0
+          </button>
+          <button type="button"
+                  class="pt-toolbar-button"
+                  data-toolbar-menu-toggle="tools">
+            Tools
+          </button>
+          <button type="button"
+                  class="pt-toolbar-button"
+                  data-toolbar-menu-toggle="game">
+            Game
+          </button>
+        </div>
+        <button id="pt-visible-status"
+                type="button"
+                class="pt-visible-status"
+                aria-label="View game history">
+          <span id="pt-visible-status-text" class="pt-visible-status__text">Opening hand ready.</span>
+          <span class="pt-visible-status__hint">Click to view history</span>
+        </button>
+        <div class="hidden pt-toolbar-menu" data-toolbar-menu="life">
+          <div class="pt-toolbar-menu__counter">
+            <button id="pt-life-down"
+                    type="button"
+                    class="pt-overlay-metric__step"
+                    aria-label="Lose 1 life">
+              -
+            </button>
+            <span id="pt-life-total" class="pt-toolbar-menu__value">0</span>
+            <button id="pt-life-up"
+                    type="button"
+                    class="pt-overlay-metric__step"
+                    aria-label="Gain 1 life">
+              +
+            </button>
+          </div>
+        </div>
+        <div class="hidden pt-toolbar-menu" data-toolbar-menu="damage">
+          <div class="pt-toolbar-menu__counter">
+            <button id="pt-commander-damage-down"
+                    type="button"
+                    class="pt-overlay-metric__step"
+                    aria-label="Reduce commander damage">
+              -
+            </button>
+            <span id="pt-commander-damage-total" class="pt-toolbar-menu__value">0</span>
+            <button id="pt-commander-damage-up"
+                    type="button"
+                    class="pt-overlay-metric__step"
+                    aria-label="Increase commander damage">
+              +
+            </button>
+          </div>
+        </div>
+        <div class="hidden pt-toolbar-menu pt-toolbar-menu--wide" data-toolbar-menu="mana">
+          <div class="pt-mana-list">
+            <div class="pt-mana-item pt-mana-item--w">
+              <button type="button" class="pt-mana-step" data-mana="w" data-delta="-1" aria-label="Spend white mana">-</button>
+              <span class="pt-mana-symbol">W</span>
+              <span id="pt-mana-w" class="pt-mana-count">0</span>
+              <button type="button" class="pt-mana-step" data-mana="w" data-delta="1" aria-label="Add white mana">+</button>
+            </div>
+            <div class="pt-mana-item pt-mana-item--u">
+              <button type="button" class="pt-mana-step" data-mana="u" data-delta="-1" aria-label="Spend blue mana">-</button>
+              <span class="pt-mana-symbol">U</span>
+              <span id="pt-mana-u" class="pt-mana-count">0</span>
+              <button type="button" class="pt-mana-step" data-mana="u" data-delta="1" aria-label="Add blue mana">+</button>
+            </div>
+            <div class="pt-mana-item pt-mana-item--b">
+              <button type="button" class="pt-mana-step" data-mana="b" data-delta="-1" aria-label="Spend black mana">-</button>
+              <span class="pt-mana-symbol">B</span>
+              <span id="pt-mana-b" class="pt-mana-count">0</span>
+              <button type="button" class="pt-mana-step" data-mana="b" data-delta="1" aria-label="Add black mana">+</button>
+            </div>
+            <div class="pt-mana-item pt-mana-item--r">
+              <button type="button" class="pt-mana-step" data-mana="r" data-delta="-1" aria-label="Spend red mana">-</button>
+              <span class="pt-mana-symbol">R</span>
+              <span id="pt-mana-r" class="pt-mana-count">0</span>
+              <button type="button" class="pt-mana-step" data-mana="r" data-delta="1" aria-label="Add red mana">+</button>
+            </div>
+            <div class="pt-mana-item pt-mana-item--g">
+              <button type="button" class="pt-mana-step" data-mana="g" data-delta="-1" aria-label="Spend green mana">-</button>
+              <span class="pt-mana-symbol">G</span>
+              <span id="pt-mana-g" class="pt-mana-count">0</span>
+              <button type="button" class="pt-mana-step" data-mana="g" data-delta="1" aria-label="Add green mana">+</button>
+            </div>
+            <div class="pt-mana-item pt-mana-item--c">
+              <button type="button" class="pt-mana-step" data-mana="c" data-delta="-1" aria-label="Spend colorless mana">-</button>
+              <span class="pt-mana-symbol">C</span>
+              <span id="pt-mana-c" class="pt-mana-count">0</span>
+              <button type="button" class="pt-mana-step" data-mana="c" data-delta="1" aria-label="Add colorless mana">+</button>
+            </div>
+          </div>
+          <button id="pt-mana-clear"
+                  type="button"
+                  class="mt-btn mt-btn--secondary mt-btn--xs">
+            Clear
+          </button>
+        </div>
+        <div class="hidden pt-toolbar-menu" data-toolbar-menu="tools">
+          <button id="pt-token-toggle"
+                  type="button"
+                  class="pt-inline-menu__item pt-inline-menu__item--split"
+                  aria-expanded="false">
+            <span>Token</span>
+            <span aria-hidden="true">›</span>
+          </button>
+          <div id="pt-token-panel"
+               class="hidden pt-toolbar-submenu">
+            <button type="button"
+                    class="pt-inline-menu__item pt-token-preset"
+                    data-token-preset="treasure">
+              Treasure
+            </button>
+            <button type="button"
+                    class="pt-inline-menu__item pt-token-preset"
+                    data-token-preset="food">
+              Food
+            </button>
+            <button type="button"
+                    class="pt-inline-menu__item pt-token-preset"
+                    data-token-preset="clue">
+              Clue
+            </button>
+            <button id="pt-token-open"
+                    type="button"
+                    class="pt-inline-menu__item">
+              Custom
+            </button>
+          </div>
+          <button id="pt-coin-flip"
+                  type="button"
+                  class="mt-btn mt-btn--secondary mt-btn--sm w-full">
+            Coin
+          </button>
+          <button id="pt-organize-board"
+                  type="button"
+                  class="mt-btn mt-btn--secondary mt-btn--sm w-full">
+            Organize board
+          </button>
+          <button id="pt-dice-toggle"
+                  type="button"
+                  class="pt-inline-menu__item pt-inline-menu__item--split"
+                  aria-expanded="false">
+            <span>Dice</span>
+            <span aria-hidden="true">›</span>
+          </button>
+          <div id="pt-dice-panel"
+               class="hidden pt-toolbar-submenu">
+            <button type="button" class="pt-inline-menu__item pt-dice-option" data-sides="4">d4</button>
+            <button type="button" class="pt-inline-menu__item pt-dice-option" data-sides="6">d6</button>
+            <button type="button" class="pt-inline-menu__item pt-dice-option" data-sides="8">d8</button>
+            <button type="button" class="pt-inline-menu__item pt-dice-option" data-sides="10">d10</button>
+            <button type="button" class="pt-inline-menu__item pt-dice-option" data-sides="12">d12</button>
+            <button type="button" class="pt-inline-menu__item pt-dice-option" data-sides="20">d20</button>
+          </div>
+        </div>
+        <div class="hidden pt-toolbar-menu" data-toolbar-menu="game">
+          <button id="pt-game-menu-restart"
+                  type="button"
+                  class="mt-btn mt-btn--warning mt-btn--sm w-full">
+            Restart Playtest
+          </button>
+          <a id="pt-game-menu-return"
+             href="{{ $authNext }}"
+             class="mt-btn mt-btn--primary mt-btn--sm w-full">
+            Back to Deckbuilder
+          </a>
         </div>
       </section>
     </div>
@@ -165,6 +429,11 @@
                   class="mt-btn mt-btn--primary pt-opening-action">
             Keep
           </button>
+          <a id="pt-opening-return"
+             href="{{ $authNext }}"
+             class="hidden mt-btn mt-btn--primary pt-opening-action">
+            Back to Deckbuilder
+          </a>
         </div>
       </section>
     </div>
@@ -232,51 +501,20 @@
       </section>
     </div>
 
-    <div id="pt-game-menu-overlay" class="hidden fixed inset-0 z-40">
-      <button id="pt-game-menu-backdrop"
-              type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
-      <section class="pt-game-menu-dialog">
-        <div class="pt-opening-dialog__hero">
-          <div class="pt-opening-title-row">
-            <h2 class="pt-opening-label">Game Menu</h2>
-          </div>
-          <p class="pt-opening-hint">Leave playtest to return to deck editing, or close this menu and keep goldfishing.</p>
-        </div>
-
-        <div class="pt-opening-actions">
-          <a id="pt-game-menu-return"
-             href="{{ $authNext }}"
-             class="mt-btn mt-btn--primary pt-opening-action">
-            Back to Deck
-          </a>
-          <button id="pt-game-menu-restart"
-                  type="button"
-                  class="mt-btn mt-btn--warning pt-opening-action">
-            Restart Playtest
-          </button>
-          <button id="pt-game-menu-close"
-                  type="button"
-                  class="mt-btn mt-btn--secondary pt-opening-action">
-            Resume Playtest
-          </button>
-        </div>
-      </section>
-    </div>
-
     <div id="pt-scry-overlay" class="hidden fixed inset-0 z-40">
       <button id="pt-scry-backdrop"
               type="button"
               class="absolute inset-0 bg-slate-950/70"></button>
-      <section class="pt-opening-dialog">
+      <section class="pt-opening-dialog pt-scry-dialog">
         <div class="pt-opening-dialog__hero">
           <div class="pt-opening-title-row">
-            <h2 class="pt-opening-label">Scry</h2>
+            <h2 id="pt-scry-title" class="pt-opening-label">Scry</h2>
+            <span id="pt-scry-count" class="pt-scry-count">0 cards</span>
           </div>
           <p id="pt-scry-hint" class="pt-opening-hint">Choose which cards stay on top and which go to the bottom.</p>
         </div>
 
-        <div id="pt-scry-cards" class="pt-opening-hand-grid"></div>
+        <div id="pt-scry-cards" class="pt-opening-hand-grid pt-scry-grid"></div>
 
         <div class="pt-opening-actions">
           <button id="pt-scry-cancel"
@@ -293,40 +531,104 @@
       </section>
     </div>
 
-    <div id="pt-card-menu-overlay" class="hidden fixed inset-0 z-40">
-      <button id="pt-card-menu-backdrop"
+    <div id="pt-library-search-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-library-search-backdrop"
               type="button"
               class="absolute inset-0 bg-slate-950/70"></button>
-      <section class="pt-game-menu-dialog">
-        <div class="pt-opening-dialog__hero">
-          <div class="pt-opening-title-row">
-            <h2 id="pt-card-menu-title" class="pt-opening-label">Card</h2>
+      <section class="pt-library-search-dialog">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="space-y-2 min-w-0">
+            <h2 class="pt-opening-label">Search Library</h2>
+            <p id="pt-library-search-count" class="pt-opening-hint">Search your remaining library.</p>
           </div>
-        </div>
-
-        <div class="space-y-4">
-          <button id="pt-card-menu-details"
+          <button id="pt-library-search-close"
                   type="button"
-                  class="mt-btn mt-btn--primary w-full">
-            View Details
-          </button>
-
-          <div class="space-y-2">
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Move To</p>
-            <div class="grid grid-cols-2 gap-2">
-              <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="hand">Hand</button>
-              <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="graveyard">Graveyard</button>
-              <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="exile">Exile</button>
-              <button id="pt-card-menu-move-command" type="button" class="mt-btn mt-btn--secondary mt-btn--sm pt-card-move-btn" data-zone="command">Command</button>
-            </div>
-          </div>
-
-          <button id="pt-card-menu-close"
-                  type="button"
-                  class="mt-btn mt-btn--secondary w-full">
+                  class="mt-btn mt-btn--secondary mt-btn--xs">
             Close
           </button>
         </div>
+        <label class="block">
+          <span class="sr-only">Search library</span>
+          <input id="pt-library-search-input"
+                 type="search"
+                 autocomplete="off"
+                 class="mt-control"
+                 placeholder="Search by name, type, or text">
+        </label>
+        <div id="pt-library-search-results" class="pt-library-search-results"></div>
+      </section>
+    </div>
+
+    <div id="pt-count-picker-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-count-picker-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="pt-count-picker-dialog">
+        <div class="flex items-start justify-between gap-4">
+          <div class="space-y-1">
+            <h2 id="pt-count-picker-title" class="pt-opening-label">Choose Count</h2>
+            <p id="pt-count-picker-hint" class="pt-opening-hint">Choose how many cards.</p>
+          </div>
+          <button id="pt-count-picker-close"
+                  type="button"
+                  class="mt-btn mt-btn--secondary mt-btn--xs">
+            Close
+          </button>
+        </div>
+        <div id="pt-count-picker-options" class="pt-count-picker-options"></div>
+        <button id="pt-count-picker-custom"
+                type="button"
+                class="mt-btn mt-btn--secondary w-full">
+          Choose X
+        </button>
+      </section>
+    </div>
+
+    <div id="pt-custom-count-overlay" class="hidden fixed inset-0 z-50">
+      <button id="pt-custom-count-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] mt-panel bg-slate-950/95 p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 id="pt-custom-count-title" class="text-sm font-semibold text-slate-100">Choose X</h2>
+          <button id="pt-custom-count-close"
+                  type="button"
+                  class="mt-btn mt-btn--secondary mt-btn--xs">
+            Close
+          </button>
+        </div>
+        <label for="pt-custom-count-input" class="block text-xs text-slate-400 mb-1">Count</label>
+        <input id="pt-custom-count-input"
+               type="text"
+               inputmode="numeric"
+               pattern="[0-9]*"
+               value="1"
+               class="mt-control mt-control--sm">
+        <button id="pt-custom-count-submit"
+                type="button"
+                class="mt-btn mt-btn--primary w-full">
+          Confirm
+        </button>
+      </section>
+    </div>
+
+    <div id="pt-history-overlay" class="hidden fixed inset-0 z-40">
+      <button id="pt-history-backdrop"
+              type="button"
+              class="absolute inset-0 bg-slate-950/70"></button>
+      <section class="pt-history-dialog">
+        <div class="flex items-start justify-between gap-4">
+          <div class="space-y-1">
+            <h2 class="pt-opening-label">Game History</h2>
+            <p class="pt-opening-hint">Actions from the current playtest.</p>
+          </div>
+          <button id="pt-history-close"
+                  type="button"
+                  class="mt-btn mt-btn--secondary mt-btn--xs">
+            Close
+          </button>
+        </div>
+        <ol id="pt-history-list" class="pt-history-list"></ol>
       </section>
     </div>
 
@@ -335,13 +637,10 @@
               type="button"
               class="absolute inset-0 bg-slate-950/70"></button>
       <section class="pt-card-detail-dialog">
-        <div class="flex items-start justify-between gap-4">
-          <div class="space-y-2">
-            <div class="flex flex-wrap items-center gap-3">
-              <h2 id="pt-card-detail-name" class="pt-opening-label">Card</h2>
-              <div id="pt-card-detail-mana" class="flex flex-wrap items-center gap-1"></div>
-            </div>
-            <p id="pt-card-detail-type" class="text-sm text-slate-400"></p>
+        <div class="pt-card-detail-header">
+          <div class="min-w-0">
+            <h2 id="pt-card-detail-name" class="pt-card-detail-title">Card</h2>
+            <p id="pt-card-detail-type" class="pt-card-detail-subtitle"></p>
           </div>
           <button id="pt-card-detail-close"
                   type="button"
@@ -354,49 +653,353 @@
           <div class="pt-card-detail-art">
             <img id="pt-card-detail-image"
                  alt=""
-                 class="w-full h-auto rounded-xl bg-slate-900 hidden">
+                 class="w-full h-auto bg-slate-900 hidden">
             <div id="pt-card-detail-fallback"
-                 class="hidden min-h-[320px] rounded-xl bg-slate-900 p-6 text-center text-sm text-slate-300"></div>
+                 class="pt-card-detail-fallback hidden min-h-[320px] bg-slate-900 p-6 text-center text-sm text-slate-300"></div>
           </div>
-          <div class="space-y-4 min-w-0">
-            <div class="space-y-2">
-              <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Oracle Text</p>
+          <div class="pt-card-detail-body">
+            <div class="pt-card-detail-summary">
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Name</p>
+                <p id="pt-card-detail-name-field" class="pt-card-detail-field__value">-</p>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Type</p>
+                <p id="pt-card-detail-type-field" class="pt-card-detail-field__value">-</p>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Mana Value</p>
+                <p id="pt-card-detail-mana-value" class="pt-card-detail-field__value">-</p>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Colors</p>
+                <div id="pt-card-detail-colors" class="pt-card-detail-field__value pt-card-detail-colors"></div>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Color Identity</p>
+                <div id="pt-card-detail-color-identity" class="pt-card-detail-field__value pt-card-detail-colors"></div>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Price</p>
+                <p id="pt-card-detail-price" class="pt-card-detail-field__value">-</p>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Artist</p>
+                <p id="pt-card-detail-artist" class="pt-card-detail-field__value">-</p>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Set</p>
+                <p id="pt-card-detail-set" class="pt-card-detail-field__value">-</p>
+              </div>
+              <div class="pt-card-detail-field">
+                <p class="pt-card-detail-field__label">Collector Number</p>
+                <p id="pt-card-detail-collector-number" class="pt-card-detail-field__value">-</p>
+              </div>
+            </div>
+            <div class="pt-card-detail-panel">
+              <p class="pt-card-detail-panel__label">Oracle Text</p>
               <div id="pt-card-detail-oracle"
-                   class="rounded-xl border border-slate-800 bg-slate-950/70 p-4 text-sm leading-6 text-slate-200 whitespace-pre-wrap"></div>
+                   class="pt-card-detail-oracle"></div>
+            </div>
+            <div class="pt-card-detail-panel">
+              <p class="pt-card-detail-panel__label">Flavor Text</p>
+              <div id="pt-card-detail-flavor"
+                   class="pt-card-detail-oracle pt-card-detail-flavor"></div>
             </div>
           </div>
         </div>
       </section>
     </div>
 
+    <div id="pt-card-inline-menu"
+         class="hidden pt-inline-menu pt-card-inline-menu"
+         role="menu"
+         aria-label="Card menu">
+      <button id="pt-card-inline-menu-primary"
+              type="button"
+              class="pt-inline-menu__item pt-inline-menu__item--shortcut">
+        <span id="pt-card-inline-menu-primary-label" class="pt-inline-menu__label">Tap</span>
+        <span id="pt-card-inline-menu-primary-shortcut" class="pt-menu-shortcut">T</span>
+      </button>
+      <button id="pt-card-inline-menu-move-toggle"
+              type="button"
+              class="pt-inline-menu__item pt-inline-menu__item--split pt-inline-menu__item--shortcut"
+              aria-expanded="false">
+        <span class="pt-inline-menu__label">Move to</span>
+        <span class="pt-inline-menu__right">
+          <span aria-hidden="true">›</span>
+        </span>
+      </button>
+      <div id="pt-card-inline-menu-move-panel"
+           class="hidden pt-card-inline-menu__panel">
+        <button type="button" class="pt-inline-menu__item pt-inline-menu__item--shortcut pt-card-inline-move-btn" data-zone="battlefield">
+          <span class="pt-inline-menu__label">Battlefield</span>
+          <span class="pt-menu-shortcut">F</span>
+        </button>
+        <button type="button" class="pt-inline-menu__item pt-inline-menu__item--shortcut pt-card-inline-move-btn" data-zone="hand">
+          <span class="pt-inline-menu__label">Hand</span>
+          <span class="pt-menu-shortcut">H</span>
+        </button>
+        <button type="button" class="pt-inline-menu__item pt-inline-menu__item--shortcut pt-card-inline-move-btn" data-zone="library" data-library-position="top">
+          <span class="pt-inline-menu__label">Library Top</span>
+          <span class="pt-menu-shortcut">L</span>
+        </button>
+        <button type="button" class="pt-inline-menu__item pt-inline-menu__item--shortcut pt-card-inline-move-btn" data-zone="library" data-library-position="bottom">
+          <span class="pt-inline-menu__label">Library Bottom</span>
+          <span class="pt-menu-shortcut">B</span>
+        </button>
+        <button type="button" class="pt-inline-menu__item pt-inline-menu__item--shortcut pt-card-inline-move-btn" data-zone="graveyard">
+          <span class="pt-inline-menu__label">Graveyard</span>
+          <span class="pt-menu-shortcut">G</span>
+        </button>
+        <button type="button" class="pt-inline-menu__item pt-inline-menu__item--shortcut pt-card-inline-move-btn" data-zone="exile">
+          <span class="pt-inline-menu__label">Exile</span>
+          <span class="pt-menu-shortcut">E</span>
+        </button>
+        <button id="pt-card-inline-menu-move-command"
+                type="button"
+                class="pt-inline-menu__item pt-inline-menu__item--shortcut pt-card-inline-move-btn"
+                data-zone="command">
+          <span class="pt-inline-menu__label">Command</span>
+          <span class="pt-menu-shortcut">Q</span>
+        </button>
+      </div>
+      <button id="pt-card-inline-menu-counters-toggle"
+              type="button"
+              class="pt-inline-menu__item pt-inline-menu__item--split pt-inline-menu__item--shortcut"
+              aria-expanded="false">
+        <span class="pt-inline-menu__label">Counters</span>
+        <span class="pt-inline-menu__right">
+          <span class="pt-menu-shortcut">C</span>
+          <span aria-hidden="true">›</span>
+        </span>
+      </button>
+      <div id="pt-card-inline-menu-counters-panel"
+           class="hidden pt-card-inline-menu__panel">
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="plus1" data-counter-label="+1/+1">+1/+1</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="plusx" data-counter-label="+X/+X">+X/+X</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="minus1" data-counter-label="-1/-1">-1/-1</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="minusx" data-counter-label="-X/-X">-X/-X</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="lifelink" data-counter-label="Lifelink">Lifelink</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="hexproof" data-counter-label="Hexproof">Hexproof</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="indestructible" data-counter-label="Indestructible">Indestructible</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="reach" data-counter-label="Reach">Reach</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="first-strike" data-counter-label="First Strike">First Strike</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="deathtouch" data-counter-label="Deathtouch">Deathtouch</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="trample" data-counter-label="Trample">Trample</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="double-strike" data-counter-label="Double Strike">Double Strike</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-counter-btn" data-counter-type="vigilance" data-counter-label="Vigilance">Vigilance</button>
+      </div>
+      <button id="pt-card-inline-menu-copy-toggle"
+              type="button"
+              class="pt-inline-menu__item pt-inline-menu__item--split pt-inline-menu__item--shortcut"
+              aria-expanded="false">
+        <span class="pt-inline-menu__label">Create copy</span>
+        <span class="pt-inline-menu__right">
+          <span class="pt-menu-shortcut">X</span>
+          <span aria-hidden="true">›</span>
+        </span>
+      </button>
+      <div id="pt-card-inline-menu-copy-panel"
+           class="hidden pt-card-inline-menu__panel">
+        <button type="button" class="pt-inline-menu__item pt-card-inline-copy-btn" data-copy-count="1">1</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-copy-btn" data-copy-count="2">2</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-copy-btn" data-copy-count="3">3</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-copy-btn" data-copy-count="4">4</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-copy-btn" data-copy-count="5">5</button>
+        <button type="button" class="pt-inline-menu__item pt-card-inline-copy-btn" data-copy-count="custom">X</button>
+      </div>
+      <button id="pt-card-inline-menu-details"
+              type="button"
+              class="pt-inline-menu__item pt-inline-menu__item--shortcut">
+        <span class="pt-inline-menu__label">View Details</span>
+        <span class="pt-menu-shortcut">V</span>
+      </button>
+    </div>
+
     <style>
       .pt-playtest-root {
+        --pt-card-width: 108px;
+        --pt-card-height: 151px;
         height: calc(100vh - 1.5rem);
         height: calc(100dvh - 1.5rem);
         min-height: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.35rem;
         overflow: hidden;
       }
 
+      .pt-battlefield-section {
+        min-height: 0;
+      }
+
       .pt-zones-section {
-        flex: 0 0 clamp(198px, 28vh, 244px);
+        flex: 0 0 clamp(190px, 26vh, 245px);
         height: auto;
       }
 
       .pt-zones-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.4fr) minmax(480px, 1fr);
-        gap: 0.55rem;
+        grid-template-columns: minmax(380px, 1fr) minmax(480px, 0.78fr);
+        gap: 0.35rem;
         min-height: 0;
+        height: 100%;
       }
 
       .pt-side-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.55rem;
+        grid-template-columns: repeat(4, minmax(var(--pt-card-width), 1fr));
+        gap: 0.35rem;
         min-height: 0;
+      }
+
+      @media (min-width: 1180px) {
+        .pt-playtest-root {
+          gap: 0.42rem;
+        }
+      }
+
+      @media (max-width: 980px) {
+        .pt-zones-section {
+          flex-basis: clamp(220px, 34vh, 300px);
+        }
+
+        .pt-zones-grid {
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: minmax(112px, 1fr) minmax(96px, 0.82fr);
+        }
+
+        .pt-side-grid {
+          grid-template-columns: repeat(4, minmax(var(--pt-card-width), 1fr));
+          overflow-x: auto;
+        }
+      }
+
+      .pt-game-bar {
+        position: relative;
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.45rem;
+        width: 100%;
+        min-height: 2.8rem;
+        border-radius: 0.75rem;
+        border: 1px solid rgba(30, 41, 59, 0.92);
+        background: rgba(2, 6, 23, 0.92);
+        box-shadow: 0 14px 36px rgba(2, 6, 23, 0.38);
+        padding: 0.42rem 0.5rem;
+        overflow: visible;
+      }
+
+      .pt-toolbar-buttons {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-width: 0;
+        flex: 0 0 auto;
+      }
+
+      .pt-toolbar-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        min-height: 1.9rem;
+        border-radius: 0.6rem;
+        border: 1px solid rgba(51, 65, 85, 0.92);
+        background: rgba(15, 23, 42, 0.88);
+        color: rgb(226 232 240);
+        font-size: 0.74rem;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        padding: 0.42rem 0.65rem;
+      }
+
+      .pt-toolbar-button:hover,
+      .pt-toolbar-button[aria-expanded="true"] {
+        border-color: rgba(56, 189, 248, 0.48);
+        background: rgba(8, 47, 73, 0.42);
+        color: rgb(240 249 255);
+      }
+
+      .pt-toolbar-menu {
+        position: absolute;
+        left: 0.5rem;
+        right: auto;
+        bottom: calc(100% + 0.4rem);
+        z-index: 320;
+        min-width: 13rem;
+        max-width: min(92vw, 38rem);
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        border-radius: 0.8rem;
+        border: 1px solid rgba(51, 65, 85, 0.92);
+        background: rgba(2, 6, 23, 0.98);
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.5);
+        padding: 0.55rem;
+      }
+
+      .pt-toolbar-menu.hidden {
+        display: none;
+      }
+
+      .pt-toolbar-menu--wide {
+        width: min(38rem, calc(100vw - 1.5rem));
+      }
+
+      .pt-toolbar-menu__counter {
+        display: grid;
+        grid-template-columns: 2rem minmax(3rem, 1fr) 2rem;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .pt-toolbar-menu__value {
+        min-width: 3rem;
+        text-align: center;
+        color: rgb(248 250 252);
+        font-size: 1.25rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .pt-toolbar-submenu,
+      .pt-library-menu__panel {
+        position: fixed;
+        z-index: 340;
+        min-width: 9.5rem;
+        max-width: calc(100vw - 1rem);
+        max-height: min(54vh, 20rem);
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(51, 65, 85, 0.92);
+        background: rgba(2, 6, 23, 0.98);
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.48);
+        padding: 0.35rem;
+      }
+
+      .pt-toolbar-submenu.hidden,
+      .pt-library-menu__panel.hidden {
+        display: none;
+      }
+
+      .pt-toolbar-mana-summary,
+      .pt-toolbar-mana-pips {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.12rem;
+      }
+
+      .pt-toolbar-mana-pips img {
+        width: 0.92rem;
+        height: 0.92rem;
       }
 
       .pt-zone-card {
@@ -404,34 +1007,97 @@
         min-height: 0;
         display: flex;
         flex-direction: column;
-        border-radius: 0.85rem;
-        border: 1px solid rgba(30, 41, 59, 0.92);
-        background: rgba(2, 6, 23, 0.58);
-        padding: 0.5rem 0.55rem;
+        border-radius: 0.45rem;
+        border: 0;
+        background: transparent;
+        padding: 0.18rem 0.2rem;
       }
 
-      .pt-battlefield-toolbar {
-        position: absolute;
-        top: 0.7rem;
-        left: 0.7rem;
-        right: 0.7rem;
-        z-index: 30;
+      .pt-command-tax {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
+        gap: 0.45rem;
+        width: 100%;
+        border-radius: 0.65rem;
+        border: 1px solid rgba(51, 65, 85, 0.78);
+        background: rgba(15, 23, 42, 0.72);
+        color: rgb(203 213 225);
+        padding: 0.4rem;
+      }
+
+      .pt-command-tax__label {
+        min-width: 2.7rem;
+        text-align: center;
+        font-size: 0.66rem;
+        font-weight: 800;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .pt-command-tax__step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.05rem;
+        height: 1.05rem;
+        border-radius: 9999px;
+        color: rgb(226 232 240);
+        font-size: 0.74rem;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .pt-command-tax__step:hover {
+        background: rgba(30, 41, 59, 0.88);
+        color: rgb(248 250 252);
+      }
+
+      .pt-command-tax__step:disabled {
+        opacity: 0.36;
+        cursor: not-allowed;
+      }
+
+      .pt-visible-status {
+        display: flex;
+        align-items: center;
         gap: 0.75rem;
+        flex: 1 1 16rem;
+        min-width: 10rem;
+        max-width: 34rem;
+        border: 1px solid rgba(51, 65, 85, 0.6);
+        border-radius: 0.55rem;
+        background: rgba(15, 23, 42, 0.58);
+        padding: 0.38rem 0.6rem;
+        color: rgb(203 213 225);
+        font-size: 0.78rem;
+        line-height: 1.25;
+        text-align: left;
+        overflow: hidden;
+        backdrop-filter: blur(8px);
+        cursor: pointer;
       }
 
-      .pt-battlefield-metrics {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
+      .pt-visible-status__text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      .pt-battlefield-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
+      .pt-visible-status__hint {
+        margin-left: auto;
+        flex: 0 0 auto;
+        color: rgba(203, 213, 225, 0.5);
+        font-size: 0.66rem;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .pt-visible-status:hover {
+        border-color: rgba(56, 189, 248, 0.42);
+        background: rgba(15, 23, 42, 0.78);
+        color: rgb(226 232 240);
       }
 
       .pt-overlay-metric {
@@ -483,6 +1149,146 @@
         color: rgb(248 250 252);
       }
 
+      .pt-mana-tracker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(51, 65, 85, 0.94);
+        border-radius: 9999px;
+        background: rgba(2, 6, 23, 0.92);
+        box-shadow: 0 12px 24px rgba(2, 6, 23, 0.35);
+        padding: 0.28rem 0.45rem 0.28rem 0.6rem;
+        color: rgb(226 232 240);
+        backdrop-filter: blur(8px);
+      }
+
+      .pt-mana-list {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+      }
+
+      .pt-mana-item {
+        display: inline-grid;
+        grid-template-columns: 1rem 1.2rem 1.05rem 1rem;
+        align-items: center;
+        justify-items: center;
+        min-height: 1.45rem;
+        border-radius: 9999px;
+        border: 1px solid rgba(51, 65, 85, 0.72);
+        background: rgba(15, 23, 42, 0.88);
+        overflow: hidden;
+      }
+
+      .pt-mana-symbol {
+        width: 1.05rem;
+        height: 1.05rem;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.58rem;
+        font-weight: 800;
+        color: rgb(15 23 42);
+        background: transparent;
+      }
+
+      .pt-mana-symbol img {
+        width: 1.05rem;
+        height: 1.05rem;
+      }
+
+      .pt-mana-count {
+        min-width: 1rem;
+        color: rgb(248 250 252);
+        font-size: 0.74rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .pt-mana-step,
+      .pt-mana-clear {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: rgb(203 213 225);
+        font-size: 0.66rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .pt-mana-step {
+        width: 1rem;
+        height: 1.45rem;
+      }
+
+      .pt-mana-step:hover,
+      .pt-mana-clear:hover {
+        color: rgb(248 250 252);
+        background: rgba(30, 41, 59, 0.74);
+      }
+
+      .pt-mana-clear {
+        min-height: 1.45rem;
+        border-radius: 9999px;
+        padding: 0 0.45rem;
+      }
+
+      @media (max-width: 760px) {
+        .pt-game-bar {
+          gap: 0.35rem;
+          align-items: center;
+          flex-direction: row;
+        }
+
+        .pt-toolbar-buttons {
+          flex: 0 1 auto;
+          width: auto;
+          overflow-x: auto;
+        }
+
+        .pt-mana-tracker {
+          width: min(100%, 22rem);
+          border-radius: 0.85rem;
+          flex-wrap: wrap;
+        }
+
+        .pt-mana-list {
+          flex-wrap: wrap;
+        }
+
+        .pt-visible-status {
+          width: auto;
+          flex: 1 1 8rem;
+          max-width: none;
+          min-width: 7rem;
+        }
+
+        .pt-visible-status__hint {
+          display: none;
+        }
+
+        .pt-card-detail-dialog {
+          width: min(560px, calc(100vw - 1.25rem));
+          padding: 1rem;
+        }
+
+        .pt-card-detail-header {
+          gap: 0.75rem;
+        }
+
+        .pt-card-detail-grid,
+        .pt-card-detail-summary {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .pt-card-detail-art {
+          width: min(240px, 100%);
+          margin: 0 auto;
+        }
+      }
+
       .pt-menu-trigger {
         display: inline-flex;
         align-items: center;
@@ -504,14 +1310,21 @@
       }
 
       .pt-inline-menu {
-        position: absolute;
-        z-index: 20;
+        position: fixed;
+        z-index: 330;
         min-width: 8.5rem;
+        max-width: calc(100vw - 1rem);
+        max-height: min(60vh, 22rem);
+        overflow: auto;
         border-radius: 0.85rem;
         border: 1px solid rgba(51, 65, 85, 0.92);
         background: rgba(2, 6, 23, 0.96);
         box-shadow: 0 18px 40px rgba(2, 6, 23, 0.42);
         padding: 0.35rem;
+      }
+
+      .pt-inline-menu.hidden {
+        display: none;
       }
 
       .pt-inline-menu__item {
@@ -526,9 +1339,89 @@
         text-align: left;
       }
 
+      .pt-inline-menu__item:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+      }
+
+      .pt-inline-menu__item--split {
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .pt-inline-menu__item--shortcut {
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .pt-inline-menu__label {
+        min-width: 0;
+      }
+
+      .pt-inline-menu__right {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-left: auto;
+      }
+
+      .pt-menu-shortcut {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 9999px;
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(226, 232, 240, 0.64);
+        font-size: 0.64rem;
+        font-weight: 900;
+        line-height: 1;
+        min-width: 1.25rem;
+        padding: 0.15rem 0.32rem;
+        text-align: center;
+        text-transform: uppercase;
+      }
+
       .pt-inline-menu__item:hover {
         background: rgba(15, 23, 42, 0.94);
         color: rgb(240 249 255);
+      }
+
+      .pt-inline-menu__item:disabled:hover {
+        background: transparent;
+        color: rgb(226 232 240);
+      }
+
+      .pt-card-inline-menu {
+        min-width: 12rem;
+      }
+
+      .pt-card-inline-menu__panel {
+        position: fixed;
+        z-index: 340;
+        min-width: 10rem;
+        max-width: calc(100vw - 1rem);
+        max-height: min(54vh, 20rem);
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(51, 65, 85, 0.92);
+        background: rgba(2, 6, 23, 0.98);
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.48);
+        padding: 0.35rem;
+      }
+
+      .pt-card-inline-menu__panel.hidden {
+        display: none;
+      }
+
+      #pt-token-overlay,
+      #pt-scry-overlay,
+      #pt-library-search-overlay,
+      #pt-count-picker-overlay,
+      #pt-custom-count-overlay,
+      #pt-card-detail-overlay,
+      #pt-history-overlay {
+        z-index: 500;
       }
 
       .pt-drop-zone.pt-drop-zone--active {
@@ -546,8 +1439,8 @@
       }
 
       .pt-card {
-        width: 96px;
-        border-radius: 0.65rem;
+        width: var(--pt-card-width);
+        border-radius: 0;
         overflow: hidden;
         background: rgb(2 6 23);
         box-shadow: 0 8px 22px rgba(2, 6, 23, 0.55);
@@ -566,17 +1459,17 @@
       }
 
       .pt-card.pt-card--opening {
-        width: clamp(140px, 11vw, 190px);
+        width: var(--pt-card-width);
       }
 
       .pt-card.pt-card--stack {
-        width: 72px;
+        width: var(--pt-card-width);
       }
 
       .pt-card.pt-card--tapped {
-        transform: rotate(90deg) scale(0.96);
-        margin-left: 12px;
-        margin-right: 12px;
+        transform: rotate(90deg);
+        margin-left: 22px;
+        margin-right: 22px;
       }
 
       .pt-card__image {
@@ -601,13 +1494,74 @@
         background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
       }
 
-      .pt-card__chips {
+      .pt-card__counters {
         position: absolute;
-        top: 5px;
-        left: 5px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 2;
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
+        gap: 2px;
+        max-height: 45%;
+        overflow: hidden;
+        padding: 3px;
+        background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.84) 36%, rgba(2, 6, 23, 0.94));
+      }
+
+      .pt-card__counter {
+        border: 1px solid rgba(148, 163, 184, 0.42);
+        background: rgba(15, 23, 42, 0.86);
+        color: rgb(226 232 240);
+        font-size: 0.55rem;
+        font-weight: 800;
+        line-height: 1;
+        padding: 0.15rem 0.22rem;
+        text-transform: uppercase;
+      }
+
+      .pt-card-flight,
+      .pt-drag-avatar {
+        position: fixed;
+        z-index: 9999;
+        pointer-events: none;
+        margin: 0;
+        transform-origin: top left;
+        will-change: transform, opacity;
+      }
+
+      .pt-card-flight {
+        transition:
+          transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+          opacity 180ms ease;
+      }
+
+      .pt-drag-avatar {
+        opacity: 0.96;
+        filter: drop-shadow(0 18px 32px rgba(2, 6, 23, 0.48));
+      }
+
+      .pt-drag-avatar.pt-card--tapped {
+        margin-left: 0;
+        margin-right: 0;
+        transform: rotate(90deg);
+        transform-origin: center center;
+      }
+
+      .pt-card--dragging-origin {
+        opacity: 0;
+      }
+
+      .pt-card--landing-hidden {
+        visibility: hidden;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .pt-card,
+        .pt-card-flight,
+        .pt-scry-fan-card {
+          transition: none;
+        }
       }
 
       .pt-card__menu {
@@ -616,28 +1570,6 @@
         right: 4px;
         transform: translateY(-50%);
         z-index: 3;
-      }
-
-      .pt-chip {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 9999px;
-        padding: 1px 7px;
-        font-size: 10px;
-        line-height: 1.25;
-        letter-spacing: 0.02em;
-      }
-
-      .pt-chip--commander {
-        background: rgb(186 230 253);
-        color: rgb(2 6 23);
-        font-weight: 700;
-      }
-
-      .pt-chip--tapped {
-        background: rgb(250 204 21);
-        color: rgb(15 23 42);
-        font-weight: 700;
       }
 
       .pt-hand-zone {
@@ -667,6 +1599,105 @@
       .pt-side-zone {
         min-height: 0;
         flex: 1;
+      }
+
+      .pt-hand-zone,
+      .pt-side-zone {
+        border-radius: 0.55rem;
+        background: rgba(2, 6, 23, 0.68);
+      }
+
+      .pt-count-picker-dialog {
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: min(420px, calc(100vw - 2rem));
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(71, 85, 105, 0.88);
+        background: rgba(2, 6, 23, 0.97);
+        padding: 1rem;
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.58);
+      }
+
+      .pt-count-picker-options {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.4rem;
+      }
+
+      .pt-count-picker-options--labeled {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pt-count-picker-option {
+        min-height: 2.4rem;
+        border-radius: 0.7rem;
+        border: 1px solid rgba(51, 65, 85, 0.88);
+        background: rgba(15, 23, 42, 0.9);
+        color: rgb(226 232 240);
+        font-size: 0.9rem;
+        font-weight: 800;
+      }
+
+      .pt-count-picker-option:hover {
+        border-color: rgba(56, 189, 248, 0.48);
+        background: rgba(8, 47, 73, 0.48);
+        color: rgb(240 249 255);
+      }
+
+      .pt-history-dialog {
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: min(620px, calc(100vw - 2rem));
+        max-height: min(70vh, 680px);
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        overflow: hidden;
+        border-radius: 1.1rem;
+        border: 1px solid rgba(71, 85, 105, 0.88);
+        background: rgba(2, 6, 23, 0.97);
+        padding: 1.1rem;
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.58);
+      }
+
+      .pt-history-list {
+        min-height: 0;
+        overflow: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        padding-right: 0.2rem;
+      }
+
+      .pt-history-item {
+        display: grid;
+        grid-template-columns: 4.6rem minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: start;
+        border-radius: 0.7rem;
+        border: 1px solid rgba(51, 65, 85, 0.68);
+        background: rgba(15, 23, 42, 0.62);
+        padding: 0.65rem 0.75rem;
+      }
+
+      .pt-history-item__turn {
+        color: rgb(148 163 184);
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1.3;
+        text-transform: uppercase;
+      }
+
+      .pt-history-item__text {
+        min-width: 0;
+        color: rgb(226 232 240);
+        font-size: 0.88rem;
+        line-height: 1.35;
       }
 
       .pt-opening-overlay {
@@ -723,7 +1754,7 @@
         font-size: clamp(1.5rem, 2vw, 2rem);
         line-height: 1.05;
         font-weight: 700;
-        letter-spacing: -0.03em;
+        letter-spacing: 0;
         color: rgb(248 250 252);
       }
 
@@ -781,7 +1812,7 @@
       .pt-card-detail-dialog {
         position: absolute;
         inset: 50% auto auto 50%;
-        width: min(980px, calc(100vw - 2rem));
+        width: min(900px, calc(100vw - 2rem));
         max-height: calc(100vh - 2rem);
         max-height: calc(100dvh - 2rem);
         transform: translate(-50%, -50%);
@@ -800,9 +1831,33 @@
           inset 0 1px 0 rgba(148, 163, 184, 0.12);
       }
 
+      .pt-card-detail-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.72);
+        padding-bottom: 1rem;
+      }
+
+      .pt-card-detail-title {
+        margin: 0;
+        color: rgb(248 250 252);
+        font-size: clamp(1.35rem, 2.4vw, 2rem);
+        font-weight: 850;
+        line-height: 1.05;
+      }
+
+      .pt-card-detail-subtitle {
+        margin-top: 0.45rem;
+        color: rgb(148 163 184);
+        font-size: 0.92rem;
+        line-height: 1.35;
+      }
+
       .pt-card-detail-grid {
         display: grid;
-        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+        grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
         gap: 1.25rem;
         align-items: start;
       }
@@ -811,15 +1866,369 @@
         min-width: 0;
       }
 
+      .pt-card-detail-art img,
+      .pt-card-detail-fallback {
+        border: 1px solid rgba(51, 65, 85, 0.78);
+        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.42);
+      }
+
+      .pt-card-detail-body {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+
+      .pt-card-detail-summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+
+      .pt-card-detail-field,
+      .pt-card-detail-panel {
+        border: 1px solid rgba(51, 65, 85, 0.72);
+        background: rgba(15, 23, 42, 0.58);
+      }
+
+      .pt-card-detail-field {
+        min-width: 0;
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+      }
+
+      .pt-card-detail-field__label,
+      .pt-card-detail-panel__label {
+        color: rgb(100 116 139);
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .pt-card-detail-field__value {
+        margin-top: 0.45rem;
+        min-height: 1.35rem;
+        color: rgb(226 232 240);
+        font-size: 0.9rem;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .pt-card-detail-colors {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.24rem;
+      }
+
+      .pt-card-detail-flavor {
+        color: rgb(203 213 225);
+        font-style: italic;
+      }
+
+      .pt-card-detail-panel {
+        border-radius: 0.85rem;
+        padding: 0.9rem;
+      }
+
+      .pt-card-detail-oracle {
+        margin-top: 0.7rem;
+        color: rgb(226 232 240);
+        font-size: 0.93rem;
+        line-height: 1.65;
+        white-space: pre-wrap;
+      }
+
+      .pt-library-search-dialog {
+        position: absolute;
+        inset: 50% auto auto 50%;
+        width: min(1040px, calc(100vw - 2rem));
+        max-height: calc(100vh - 2rem);
+        max-height: calc(100dvh - 2rem);
+        transform: translate(-50%, -50%);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        overflow: hidden;
+        border-radius: 1.2rem;
+        border: 1px solid rgba(71, 85, 105, 0.88);
+        background:
+          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
+          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+        padding: 1.35rem 1.4rem 1.2rem;
+        box-shadow:
+          0 24px 60px rgba(2, 6, 23, 0.58),
+          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+      }
+
+      .pt-library-search-results {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+        gap: 0.8rem;
+        overflow: auto;
+        padding: 0.15rem 0.1rem 0.25rem;
+      }
+
+      .pt-library-search-card {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.55rem;
+      }
+
+      .pt-library-search-card .pt-card {
+        width: var(--pt-card-width);
+      }
+
+      .pt-library-search-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.35rem;
+        width: 100%;
+      }
+
+      .pt-scry-dialog {
+        --pt-card-width: 96px;
+        --pt-card-height: 134px;
+        inset: 1.25rem;
+      }
+
+      @media (min-width: 900px) {
+        .pt-scry-dialog {
+          --pt-card-width: 104px;
+          --pt-card-height: 146px;
+        }
+      }
+
+      .pt-scry-count {
+        border-radius: 9999px;
+        border: 1px solid rgba(51, 65, 85, 0.84);
+        background: rgba(15, 23, 42, 0.82);
+        padding: 0.28rem 0.55rem;
+        color: rgb(203 213 225);
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .pt-scry-grid {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 0.9rem;
+        align-content: normal;
+        justify-items: stretch;
+      }
+
       .pt-scry-card {
         display: flex;
         flex-direction: column;
-        gap: 0.65rem;
+        gap: 0.5rem;
         align-items: center;
+        width: 100%;
+      }
+
+      .pt-scry-card__meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.45rem;
+        width: min(100%, var(--pt-card-width));
+        color: rgb(148 163 184);
+        font-size: 0.68rem;
+        font-weight: 800;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .pt-scry-card__destination {
+        color: rgb(203 213 225);
       }
 
       .pt-scry-card__toggle {
-        min-width: 110px;
+        min-width: var(--pt-card-width);
+      }
+
+      .pt-scry-card__toggle--away {
+        border-color: rgba(245, 158, 11, 0.5);
+        background: rgba(120, 53, 15, 0.32);
+      }
+
+      .pt-scry-card__toggle--top {
+        border-color: rgba(56, 189, 248, 0.5);
+        background: rgba(8, 47, 73, 0.32);
+      }
+
+      .pt-scry-lane {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+
+      .pt-scry-lane__header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        color: rgb(203 213 225);
+      }
+
+      .pt-scry-lane__title {
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .pt-scry-lane__hint {
+        color: rgb(148 163 184);
+        font-size: 0.74rem;
+        line-height: 1.25;
+        text-align: right;
+      }
+
+      .pt-scry-fan-box {
+        min-height: calc(var(--pt-card-height) + 2rem);
+        border: 1px solid rgba(51, 65, 85, 0.84);
+        background: rgba(2, 6, 23, 0.52);
+        padding: 0.75rem;
+        overflow: hidden;
+      }
+
+      .pt-scry-fan-box--bottom {
+        background: rgba(15, 23, 42, 0.62);
+      }
+
+      .pt-scry-fan-box.pt-drop-zone--active {
+        border-color: rgba(56, 189, 248, 0.62);
+        background: rgba(8, 47, 73, 0.38);
+      }
+
+      .pt-scry-fan {
+        min-height: var(--pt-card-height);
+        display: flex;
+        align-items: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.1rem 0.2rem 0.45rem;
+        scrollbar-width: thin;
+      }
+
+      .pt-scry-fan-card {
+        flex: 0 0 var(--pt-card-width);
+        position: relative;
+        transition:
+          margin-left 150ms ease,
+          transform 170ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform, margin-left;
+      }
+
+      .pt-scry-fan-card .pt-card {
+        width: var(--pt-card-width);
+      }
+
+      .pt-reveal-tools {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border: 1px solid rgba(51, 65, 85, 0.78);
+        background: rgba(15, 23, 42, 0.64);
+        padding: 0.65rem 0.75rem;
+      }
+
+      .pt-reveal-tools__label {
+        color: rgb(226 232 240);
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1.2;
+      }
+
+      .pt-reveal-toggle {
+        display: inline-grid;
+        grid-template-columns: repeat(2, minmax(3rem, 1fr));
+        gap: 0.25rem;
+        border-radius: 9999px;
+        border: 1px solid rgba(51, 65, 85, 0.72);
+        background: rgba(2, 6, 23, 0.72);
+        padding: 0.18rem;
+      }
+
+      .pt-reveal-toggle__option {
+        border-radius: 9999px;
+        color: rgb(148 163 184);
+        font-size: 0.72rem;
+        font-weight: 900;
+        line-height: 1;
+        padding: 0.42rem 0.62rem;
+      }
+
+      .pt-reveal-toggle__option[aria-pressed="true"] {
+        background: rgba(14, 165, 233, 0.24);
+        color: rgb(240 249 255);
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.42) inset;
+      }
+
+      .pt-reveal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(var(--pt-card-width), 1fr));
+        gap: 0.75rem;
+        align-items: start;
+      }
+
+      .pt-reveal-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+      }
+
+      .pt-reveal-card .pt-card {
+        width: var(--pt-card-width);
+      }
+
+      .pt-reveal-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.28rem;
+        width: min(100%, calc(var(--pt-card-width) + 2.6rem));
+      }
+
+      .pt-reveal-action {
+        border-radius: 0.55rem;
+        border: 1px solid rgba(51, 65, 85, 0.84);
+        background: rgba(15, 23, 42, 0.78);
+        color: rgb(226 232 240);
+        font-size: 0.66rem;
+        font-weight: 800;
+        line-height: 1;
+        padding: 0.45rem 0.35rem;
+        text-align: center;
+      }
+
+      .pt-reveal-action:hover {
+        border-color: rgba(56, 189, 248, 0.48);
+        background: rgba(8, 47, 73, 0.42);
+        color: rgb(240 249 255);
+      }
+
+      .pt-scry-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: var(--pt-card-height);
+        color: rgb(100 116 139);
+        font-size: 0.84rem;
+        text-align: center;
       }
 
       .pt-card--selected {
@@ -831,17 +2240,18 @@
 
       .pt-library-stack {
         position: relative;
-        width: 74px;
-        height: 104px;
+        width: var(--pt-card-width);
+        height: var(--pt-card-height);
         margin: 2px auto 0;
       }
 
       .pt-library-stack__card {
         position: absolute;
         inset: 0;
-        border-radius: 0.65rem;
+        border-radius: 0;
         border: 1px solid rgba(15, 23, 42, 0.92);
-        background:
+        background-image:
+          url("https://cards.scryfall.io/back.png"),
           radial-gradient(circle at 18% 20%, rgba(220, 38, 38, 0.82), transparent 6%),
           radial-gradient(circle at 29% 10%, rgba(245, 158, 11, 0.84), transparent 6%),
           radial-gradient(circle at 43% 6%, rgba(250, 204, 21, 0.9), transparent 6%),
@@ -849,1583 +2259,66 @@
           radial-gradient(circle at 68% 20%, rgba(59, 130, 246, 0.84), transparent 6%),
           radial-gradient(circle at center, rgba(221, 194, 124, 0.62) 0%, rgba(143, 94, 46, 0.74) 22%, transparent 24%),
           radial-gradient(circle at center, rgba(21, 69, 122, 0.98) 0%, rgba(21, 69, 122, 0.98) 34%, rgba(58, 35, 16, 1) 36%, rgba(136, 87, 37, 0.96) 47%, rgba(39, 22, 8, 1) 61%, rgba(90, 56, 20, 0.96) 73%, rgba(14, 21, 34, 1) 100%);
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
         box-shadow: 0 8px 20px rgba(2, 6, 23, 0.42);
       }
 
       .pt-library-stack__card:nth-child(2) {
-        transform: translate(-5px, 4px);
+        --pt-library-card-x: -5px;
+        --pt-library-card-y: 4px;
+        transform: translate(var(--pt-library-card-x), var(--pt-library-card-y));
       }
 
       .pt-library-stack__card:nth-child(3) {
-        transform: translate(-10px, 8px);
+        --pt-library-card-x: -10px;
+        --pt-library-card-y: 8px;
+        transform: translate(var(--pt-library-card-x), var(--pt-library-card-y));
       }
 
-      .pt-library-stack__card::before {
-        content: "MAGIC";
-        position: absolute;
-        left: 50%;
-        top: 17px;
-        transform: translateX(-50%);
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.16em;
-        color: rgba(255, 226, 170, 0.92);
-        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+      .pt-library-stack__card {
+        --pt-library-card-x: 0px;
+        --pt-library-card-y: 0px;
       }
 
-      .pt-library-stack__card::after {
-        content: "THE GATHERING";
-        position: absolute;
-        left: 50%;
-        bottom: 15px;
-        transform: translateX(-50%);
-        font-size: 6px;
-        font-weight: 700;
-        letter-spacing: 0.22em;
-        color: rgba(243, 244, 246, 0.86);
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      .pt-library-zone--shuffle .pt-library-stack__card {
+        animation: pt-library-shuffle 440ms ease-out;
       }
+
+      .pt-library-zone--shuffle .pt-library-stack__card:nth-child(2) {
+        animation-delay: 45ms;
+      }
+
+      .pt-library-zone--shuffle .pt-library-stack__card:nth-child(3) {
+        animation-delay: 90ms;
+      }
+
+      @keyframes pt-library-shuffle {
+        0%, 100% {
+          transform: translate(var(--pt-library-card-x), var(--pt-library-card-y)) rotate(0deg);
+        }
+        32% {
+          transform: translate(calc(var(--pt-library-card-x) + 7px), calc(var(--pt-library-card-y) - 3px)) rotate(1.2deg);
+        }
+        66% {
+          transform: translate(calc(var(--pt-library-card-x) - 5px), calc(var(--pt-library-card-y) + 2px)) rotate(-0.8deg);
+        }
+      }
+
     </style>
 
+    {{ template "card_ui_helpers_script" . }}
     <script>
-      (function () {
-        var librarySeed = {{ $ctx.CardsJSON }};
-        var commanderSeed = {{ $ctx.CommanderJSON }};
-        var workbenchDraftSeed = {{ if $ctx.WorkbenchJSON }}{{ $ctx.WorkbenchJSON }}{{ else }}null{{ end }};
-        var deckFormat = {{ printf "%q" $deck.Format }};
-        var isWorkbenchPlaytest = {{ if $ctx.WorkbenchMode }}true{{ else }}false{{ end }};
-        var cardIDSeed = 1;
-
-        var battlefieldCardWidth = 96;
-        var battlefieldCardHeight = 136;
-        var battlefieldSnapGap = 8;
-        var battlefieldSnapRow = 32;
-        var stackedCardWidth = 72;
-        var stackedCardHeight = 104;
-        var stackedOffsetX = 8;
-        var stackedOffsetY = 3;
-
-        function manaSymbolAssetName(symbol) {
-          var normalized = String(symbol || "").trim().toUpperCase();
-          if (!normalized) return "";
-          return normalized.replace(/\//g, "");
-        }
-
-        function renderManaSymbols(manaCost) {
-          var cost = String(manaCost || "").trim();
-          if (!cost) return "";
-          var html = "";
-          var re = /\{([^}]+)\}/g;
-          var match;
-          while ((match = re.exec(cost)) !== null) {
-            var sym = String(match[1] || "").trim();
-            if (!sym) continue;
-            var assetName = manaSymbolAssetName(sym);
-            if (!assetName) continue;
-            html += '<img src="https://svgs.scryfall.io/card-symbols/' +
-              encodeURIComponent(assetName) +
-              '.svg" alt="{' + sym + '}" class="inline-block h-5 w-5 align-text-bottom">';
-          }
-          return html;
-        }
-
-        function createCard(name, imageURI, manaCost, typeLine, oracleText, isCommander) {
-          return {
-            id: cardIDSeed++,
-            name: String(name || "").trim(),
-            imageURI: String(imageURI || "").trim(),
-            manaCost: String(manaCost || "").trim(),
-            typeLine: String(typeLine || "").trim(),
-            oracleText: String(oracleText || "").trim(),
-            tapped: false,
-            isCommander: !!isCommander,
-            bfX: null,
-            bfY: null
-          };
-        }
-
-        function isLandCard(card) {
-          if (!card) return false;
-          return /land/i.test(String(card.typeLine || ""));
-        }
-
-        function shuffle(cards) {
-          for (var i = cards.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var tmp = cards[i];
-            cards[i] = cards[j];
-            cards[j] = tmp;
-          }
-          return cards;
-        }
-
-        function buildLibrary(seedRows) {
-          var lib = [];
-          for (var i = 0; i < seedRows.length; i++) {
-            var row = seedRows[i] || {};
-            var name = String(row.name || "").trim();
-            var imageURI = String(row.image_uri || "").trim();
-            var manaCost = String(row.mana_cost || "").trim();
-            var typeLine = String(row.type_line || "").trim();
-            var oracleText = String(row.oracle_text || "").trim();
-            var qty = Number(row.qty || 0);
-            if (!name || qty <= 0) continue;
-            for (var q = 0; q < qty; q++) {
-              lib.push(createCard(name, imageURI, manaCost, typeLine, oracleText, false));
-            }
-          }
-          return lib;
-        }
-
-        function zoneLabel(zone) {
-          if (zone === "command") return "Command";
-          if (zone === "library") return "Library";
-          if (zone === "hand") return "Hand";
-          if (zone === "battlefield") return "Battlefield";
-          if (zone === "graveyard") return "Graveyard";
-          if (zone === "exile") return "Exile";
-          return zone;
-        }
-
-        var zoneOrder = ["command", "library", "hand", "battlefield", "graveyard", "exile"];
-
-        function startingLifeTotal(format) {
-          switch (String(format || "").trim().toLowerCase()) {
-            case "commander":
-              return 40;
-            case "duel commander":
-            case "standard":
-            case "pioneer":
-            case "modern":
-            case "legacy":
-            case "vintage":
-            case "pauper":
-            case "historic":
-            case "explorer":
-            case "timeless":
-            case "alchemy":
-            case "oathbreaker":
-            case "premodern":
-            case "draft":
-            case "sealed":
-            case "cube":
-            case "casual":
-              return 20;
-            case "brawl":
-            case "historic brawl":
-              return 25;
-            default:
-              return 20;
-          }
-        }
-
-        var state = {
-          phase: "opening", // opening | cleanup | play
-          zones: {
-            command: [],
-            library: [],
-            hand: [],
-            battlefield: [],
-            graveyard: [],
-            exile: []
-          },
-          turn: 0,
-          life: startingLifeTotal(deckFormat),
-          mulligans: 0,
-          openingSelectionIDs: [],
-          draggingCardID: null,
-          activeCardID: null,
-          scryCards: []
-        };
-
-        var openingScreen = document.getElementById("pt-opening-screen");
-        var openingHandEl = document.getElementById("pt-opening-hand");
-        var openingLabelEl = document.getElementById("pt-opening-label");
-        var openingHintEl = document.getElementById("pt-opening-hint");
-        var openingProgressEl = document.getElementById("pt-opening-progress");
-
-        var zoneEls = {
-          command: document.getElementById("pt-zone-command"),
-          library: document.getElementById("pt-zone-library"),
-          hand: document.getElementById("pt-zone-hand"),
-          battlefield: document.getElementById("pt-zone-battlefield"),
-          graveyard: document.getElementById("pt-zone-graveyard"),
-          exile: document.getElementById("pt-zone-exile")
-        };
-
-        var elStatus = document.getElementById("pt-status");
-        var elTurnCount = document.getElementById("pt-turn-count");
-        var elLifeTotal = document.getElementById("pt-life-total");
-        var countEls = {
-          command: document.getElementById("pt-count-command"),
-          library: document.getElementById("pt-count-library"),
-          hand: document.getElementById("pt-count-hand"),
-          graveyard: document.getElementById("pt-count-graveyard"),
-          exile: document.getElementById("pt-count-exile")
-        };
-
-        var btnKeep = document.getElementById("pt-keep");
-        var btnMulligan = document.getElementById("pt-mulligan");
-        var btnLifeDown = document.getElementById("pt-life-down");
-        var btnLifeUp = document.getElementById("pt-life-up");
-        var btnEndTurn = document.getElementById("pt-end-turn");
-        var btnGameMenuToggle = document.getElementById("pt-game-menu-toggle");
-        var btnLibraryMenuToggle = document.getElementById("pt-library-menu-toggle");
-        var libraryMenu = document.getElementById("pt-library-menu");
-        var btnLibraryMenuShuffle = document.getElementById("pt-library-menu-shuffle");
-        var btnLibraryMenuScry1 = document.getElementById("pt-library-menu-scry-1");
-        var btnLibraryMenuScry2 = document.getElementById("pt-library-menu-scry-2");
-        var btnLibraryMenuScry3 = document.getElementById("pt-library-menu-scry-3");
-        var gameMenuOverlay = document.getElementById("pt-game-menu-overlay");
-        var btnGameMenuBackdrop = document.getElementById("pt-game-menu-backdrop");
-        var btnGameMenuRestart = document.getElementById("pt-game-menu-restart");
-        var btnGameMenuClose = document.getElementById("pt-game-menu-close");
-        var gameMenuReturnLink = document.getElementById("pt-game-menu-return");
-        var scryOverlay = document.getElementById("pt-scry-overlay");
-        var btnScryBackdrop = document.getElementById("pt-scry-backdrop");
-        var btnScryCancel = document.getElementById("pt-scry-cancel");
-        var btnScryFinish = document.getElementById("pt-scry-finish");
-        var scryCardsEl = document.getElementById("pt-scry-cards");
-        var cardMenuOverlay = document.getElementById("pt-card-menu-overlay");
-        var btnCardMenuBackdrop = document.getElementById("pt-card-menu-backdrop");
-        var btnCardMenuClose = document.getElementById("pt-card-menu-close");
-        var btnCardMenuDetails = document.getElementById("pt-card-menu-details");
-        var cardMenuTitle = document.getElementById("pt-card-menu-title");
-        var btnCardMenuMoveCommand = document.getElementById("pt-card-menu-move-command");
-        var cardMoveButtons = document.querySelectorAll(".pt-card-move-btn");
-        var cardDetailOverlay = document.getElementById("pt-card-detail-overlay");
-        var btnCardDetailBackdrop = document.getElementById("pt-card-detail-backdrop");
-        var btnCardDetailClose = document.getElementById("pt-card-detail-close");
-        var cardDetailName = document.getElementById("pt-card-detail-name");
-        var cardDetailMana = document.getElementById("pt-card-detail-mana");
-        var cardDetailType = document.getElementById("pt-card-detail-type");
-        var cardDetailOracle = document.getElementById("pt-card-detail-oracle");
-        var cardDetailImage = document.getElementById("pt-card-detail-image");
-        var cardDetailFallback = document.getElementById("pt-card-detail-fallback");
-
-        function buildWorkbenchReturnPayload() {
-          if (!isWorkbenchPlaytest) return null;
-          var baseDraft = (workbenchDraftSeed && typeof workbenchDraftSeed === "object") ? workbenchDraftSeed : {};
-          var commanderName = String(baseDraft.commanderName || "").trim();
-          var format = String(baseDraft.format || "").trim() === "Commander" ? "Commander" : "Sandbox";
-
-          var cardEntries = [];
-          var cardSource = (baseDraft && baseDraft.cards && typeof baseDraft.cards === "object") ? baseDraft.cards : {};
-          var cardNames = Object.keys(cardSource);
-          for (var n = 0; n < cardNames.length; n++) {
-            var cardName = String(cardNames[n] || "").trim();
-            var qty = Number(cardSource[cardName] || 0);
-            if (!cardName || !Number.isFinite(qty) || qty <= 0) continue;
-            cardEntries.push({ name: cardName, qty: qty });
-          }
-
-          var maybeEntries = [];
-          var sideboardEntries = [];
-          var maybeCards = (baseDraft && baseDraft.maybeCards && typeof baseDraft.maybeCards === "object") ? baseDraft.maybeCards : {};
-          var sideboardCards = (baseDraft && baseDraft.sideboardCards && typeof baseDraft.sideboardCards === "object") ? baseDraft.sideboardCards : {};
-          var sideboardNames = Object.keys(sideboardCards);
-          for (var s = 0; s < sideboardNames.length; s++) {
-            var sideboardName = String(sideboardNames[s] || "").trim();
-            var sideboardQty = Number(sideboardCards[sideboardName] || 0);
-            if (!sideboardName || !Number.isFinite(sideboardQty) || sideboardQty <= 0) continue;
-            sideboardEntries.push({ name: sideboardName, qty: sideboardQty });
-          }
-
-          var maybeNames = Object.keys(maybeCards);
-          for (var m = 0; m < maybeNames.length; m++) {
-            var maybeName = String(maybeNames[m] || "").trim();
-            var maybeQty = Number(maybeCards[maybeName] || 0);
-            if (!maybeName || !Number.isFinite(maybeQty) || maybeQty <= 0) continue;
-            maybeEntries.push({ name: maybeName, qty: maybeQty });
-          }
-
-          return {
-            commander_name: commanderName,
-            format: format,
-            name: "New Guest Deck",
-            description: String(baseDraft.description || "").trim(),
-            tags: String(baseDraft.tags || "").trim(),
-            cards: cardEntries,
-            sideboard_cards: sideboardEntries,
-            maybe_cards: maybeEntries,
-            commander_candidates: Array.isArray(baseDraft.commanderCandidates) ? baseDraft.commanderCandidates.slice() : [],
-            card_meta: (baseDraft && baseDraft.cardMeta && typeof baseDraft.cardMeta === "object") ? baseDraft.cardMeta : {},
-            sandbox: !!(baseDraft && baseDraft.sandbox)
-          };
-        }
-
-        function persistWorkbenchDraftLocally() {
-          if (!isWorkbenchPlaytest) return;
-
-          try {
-            var payload = buildWorkbenchReturnPayload();
-            if (!payload) return;
-
-            var storageKey = payload.sandbox ? "manatomb.draftDeck.sandbox" : "manatomb.draftDeck";
-            var cards = {};
-            var sideboardCards = {};
-            var maybeCards = {};
-
-            if (Array.isArray(payload.cards)) {
-              for (var i = 0; i < payload.cards.length; i++) {
-                var card = payload.cards[i] || {};
-                var cardName = String(card.name || "").trim();
-                var cardQty = Number(card.qty || 0);
-                if (!cardName || !Number.isFinite(cardQty) || cardQty <= 0) continue;
-                cards[cardName] = (cards[cardName] || 0) + cardQty;
-              }
-            }
-
-            if (Array.isArray(payload.sideboard_cards)) {
-              for (var s = 0; s < payload.sideboard_cards.length; s++) {
-                var sideboardCard = payload.sideboard_cards[s] || {};
-                var sideboardName = String(sideboardCard.name || "").trim();
-                var sideboardQty = Number(sideboardCard.qty || 0);
-                if (!sideboardName || !Number.isFinite(sideboardQty) || sideboardQty <= 0) continue;
-                sideboardCards[sideboardName] = (sideboardCards[sideboardName] || 0) + sideboardQty;
-              }
-            }
-
-            if (Array.isArray(payload.maybe_cards)) {
-              for (var j = 0; j < payload.maybe_cards.length; j++) {
-                var maybeCard = payload.maybe_cards[j] || {};
-                var maybeName = String(maybeCard.name || "").trim();
-                var maybeQty = Number(maybeCard.qty || 0);
-                if (!maybeName || !Number.isFinite(maybeQty) || maybeQty <= 0) continue;
-                maybeCards[maybeName] = (maybeCards[maybeName] || 0) + maybeQty;
-              }
-            }
-
-            var draft = {
-              commanderName: String(payload.commander_name || "").trim(),
-              format: String(payload.format || "").trim() || "Sandbox",
-              name: "New Guest Deck",
-              description: String(payload.description || "").trim(),
-              tags: String(payload.tags || "").trim(),
-              cards: cards,
-              sideboardCards: sideboardCards,
-              maybeCards: maybeCards,
-              cardMeta: (payload.card_meta && typeof payload.card_meta === "object") ? payload.card_meta : {},
-              commanderCandidates: Array.isArray(payload.commander_candidates) ? payload.commander_candidates : [],
-              sandbox: !!payload.sandbox,
-              updatedAt: new Date().toISOString()
-            };
-
-            var raw = JSON.stringify(draft);
-            localStorage.setItem(storageKey, raw);
-            try {
-              sessionStorage.setItem(storageKey + ".playtestReturn", raw);
-            } catch (e) {
-              // ignore session storage failures
-            }
-          } catch (e) {
-            // ignore storage failures
-          }
-        }
-
-        function submitWorkbenchReturn() {
-          if (!isWorkbenchPlaytest) {
-            if (gameMenuReturnLink && gameMenuReturnLink.href) {
-              window.location.assign(gameMenuReturnLink.href);
-            }
-            return;
-          }
-
-          try {
-            persistWorkbenchDraftLocally();
-            if (gameMenuReturnLink && gameMenuReturnLink.href) {
-              window.location.assign(gameMenuReturnLink.href);
-              return;
-            }
-            window.location.assign("/decks/new/workbench");
-          } catch (e) {
-            if (gameMenuReturnLink && gameMenuReturnLink.href) {
-              window.location.assign(gameMenuReturnLink.href);
-            }
-          }
-        }
-
-        function setStatus(msg) {
-          var text = String(msg || "").trim();
-          if (elStatus) elStatus.textContent = text;
-        }
-
-        function getZoneArray(zone) {
-          return state.zones[zone] || null;
-        }
-
-        function libraryMenuOpen() {
-          return !!libraryMenu && !libraryMenu.classList.contains("hidden");
-        }
-
-        function setLibraryMenu(open) {
-          if (!libraryMenu) return;
-          libraryMenu.classList.toggle("hidden", !open);
-        }
-
-        function setScryOverlay(open) {
-          if (!scryOverlay) return;
-          if (open) setLibraryMenu(false);
-          scryOverlay.classList.toggle("hidden", !open);
-          if (open) {
-            renderScryCards();
-          }
-        }
-
-        function scryOverlayOpen() {
-          return !!scryOverlay && !scryOverlay.classList.contains("hidden");
-        }
-
-        function setCardMenuOverlay(open, cardID) {
-          if (!cardMenuOverlay) return;
-          if (open) setLibraryMenu(false);
-          if (typeof cardID === "number") {
-            state.activeCardID = cardID;
-          }
-          cardMenuOverlay.classList.toggle("hidden", !open);
-          if (open) renderCardMenu();
-        }
-
-        function cardMenuOverlayOpen() {
-          return !!cardMenuOverlay && !cardMenuOverlay.classList.contains("hidden");
-        }
-
-        function setCardDetailOverlay(open) {
-          if (!cardDetailOverlay) return;
-          cardDetailOverlay.classList.toggle("hidden", !open);
-          if (!open) return;
-          renderCardDetail();
-        }
-
-        function cardDetailOverlayOpen() {
-          return !!cardDetailOverlay && !cardDetailOverlay.classList.contains("hidden");
-        }
-
-        function requiredOpeningReturns() {
-          return Math.max(0, Math.min(state.mulligans, state.zones.hand.length));
-        }
-
-        function isOpeningSelected(cardID) {
-          return Array.isArray(state.openingSelectionIDs) && state.openingSelectionIDs.indexOf(cardID) >= 0;
-        }
-
-        function toggleOpeningSelection(cardID) {
-          if (state.phase !== "cleanup") return;
-          var required = requiredOpeningReturns();
-          if (required <= 0) return;
-
-          var next = Array.isArray(state.openingSelectionIDs) ? state.openingSelectionIDs.slice() : [];
-          var idx = next.indexOf(cardID);
-          if (idx >= 0) {
-            next.splice(idx, 1);
-          } else if (next.length < required) {
-            next.push(cardID);
-          }
-
-          state.openingSelectionIDs = next;
-          render();
-        }
-
-        function findCard(cardID) {
-          for (var i = 0; i < zoneOrder.length; i++) {
-            var zoneName = zoneOrder[i];
-            var zone = getZoneArray(zoneName);
-            if (!zone) continue;
-            for (var j = 0; j < zone.length; j++) {
-              if (zone[j] && zone[j].id === cardID) {
-                return {
-                  zone: zoneName,
-                  index: j,
-                  card: zone[j]
-                };
-              }
-            }
-          }
-          return null;
-        }
-
-        function activeCard() {
-          if (typeof state.activeCardID !== "number") return null;
-          return findCard(state.activeCardID);
-        }
-
-        function drawCards(count) {
-          var drew = 0;
-          for (var i = 0; i < count; i++) {
-            if (state.zones.library.length === 0) break;
-            var card = state.zones.library.pop();
-            card.tapped = false;
-            card.bfX = null;
-            card.bfY = null;
-            state.zones.hand.push(card);
-            drew += 1;
-          }
-          return drew;
-        }
-
-        function clampBattlefieldPosition(x, y) {
-          var el = zoneEls.battlefield;
-          if (!el) {
-            return {
-              x: Math.max(0, x),
-              y: Math.max(0, y)
-            };
-          }
-          var maxX = Math.max(0, el.clientWidth - battlefieldCardWidth);
-          var maxY = Math.max(0, el.clientHeight - battlefieldCardHeight);
-          return {
-            x: Math.min(maxX, Math.max(0, Math.round(x))),
-            y: Math.min(maxY, Math.max(0, Math.round(y)))
-          };
-        }
-
-        function battlefieldDropPosition(dropEvent) {
-          if (!dropEvent || !zoneEls.battlefield) return null;
-          var rect = zoneEls.battlefield.getBoundingClientRect();
-          var x = dropEvent.clientX - rect.left - battlefieldCardWidth / 2;
-          var y = dropEvent.clientY - rect.top - battlefieldCardHeight / 2;
-          return clampBattlefieldPosition(x, y);
-        }
-
-        function landSnapPosition(card, dropEvent) {
-          var base = battlefieldDropPosition(dropEvent);
-          var el = zoneEls.battlefield;
-          var maxY = 0;
-          if (el) {
-            maxY = Math.max(0, el.clientHeight - battlefieldCardHeight - 2);
-          }
-
-          var x = 0;
-          if (base) {
-            x = base.x;
-          } else {
-            var lands = [];
-            var bf = state.zones.battlefield;
-            for (var i = 0; i < bf.length; i++) {
-              if (isLandCard(bf[i])) lands.push(bf[i]);
-            }
-            var idx = lands.indexOf(card);
-            if (idx < 0) idx = Math.max(0, lands.length - 1);
-            x = idx * (battlefieldCardWidth + battlefieldSnapGap);
-          }
-          return clampBattlefieldPosition(x, maxY);
-        }
-
-        function battlefieldSnapPosition(card) {
-          var bf = state.zones.battlefield;
-          var idx = bf.indexOf(card);
-          if (idx < 0) idx = Math.max(0, bf.length - 1);
-
-          var width = zoneEls.battlefield ? zoneEls.battlefield.clientWidth : 720;
-          var columns = Math.max(1, Math.floor((width + battlefieldSnapGap) / (battlefieldCardWidth + battlefieldSnapGap)));
-          var col = idx % columns;
-          var row = Math.floor(idx / columns);
-          var x = col * (battlefieldCardWidth + battlefieldSnapGap);
-          var y = row * battlefieldSnapRow;
-          return clampBattlefieldPosition(x, y);
-        }
-
-        function setBattlefieldPosition(card, dropEvent, preferDropPoint) {
-          if (!card) return;
-
-          if (isLandCard(card)) {
-            var landPos = landSnapPosition(card, preferDropPoint ? dropEvent : null);
-            card.bfX = landPos.x;
-            card.bfY = landPos.y;
-            return;
-          }
-
-          var pos = null;
-          if (preferDropPoint) {
-            pos = battlefieldDropPosition(dropEvent);
-          }
-          if (!pos) {
-            pos = battlefieldSnapPosition(card);
-          }
-          card.bfX = pos.x;
-          card.bfY = pos.y;
-        }
-
-        function untapAllBattlefield() {
-          var untapped = 0;
-          var battlefield = state.zones.battlefield;
-          for (var i = 0; i < battlefield.length; i++) {
-            if (battlefield[i] && battlefield[i].tapped) {
-              battlefield[i].tapped = false;
-              untapped += 1;
-            }
-          }
-          return untapped;
-        }
-
-        function startOpening() {
-          state.phase = "opening";
-          state.turn = 0;
-          state.life = startingLifeTotal(deckFormat);
-          state.mulligans = 0;
-          state.openingSelectionIDs = [];
-          state.draggingCardID = null;
-          state.activeCardID = null;
-          state.scryCards = [];
-          setLibraryMenu(false);
-          setGameMenuOverlay(false);
-          setCardMenuOverlay(false);
-          setCardDetailOverlay(false);
-          setScryOverlay(false);
-
-          state.zones.command = [];
-          state.zones.library = shuffle(buildLibrary(librarySeed));
-          state.zones.hand = [];
-          state.zones.battlefield = [];
-          state.zones.graveyard = [];
-          state.zones.exile = [];
-
-          if (commanderSeed && commanderSeed.name) {
-            state.zones.command.push(createCard(
-              commanderSeed.name,
-              commanderSeed.image_uri,
-              commanderSeed.mana_cost,
-              commanderSeed.type_line,
-              commanderSeed.oracle_text,
-              true
-            ));
-          }
-
-          drawCards(7);
-          setStatus("");
-          render();
-        }
-
-        function adjustLife(delta) {
-          delta = Number(delta || 0);
-          if (!Number.isFinite(delta) || delta === 0) return;
-          state.life += delta;
-          render();
-        }
-
-        function keepOpening() {
-          if (state.phase === "cleanup") {
-            commitOpeningSelection();
-            return;
-          }
-          if (state.phase !== "opening") return;
-          var required = requiredOpeningReturns();
-          if (required > 0) {
-            state.phase = "cleanup";
-            state.openingSelectionIDs = [];
-            setStatus("");
-            render();
-            return;
-          }
-          state.phase = "play";
-          state.turn = 1;
-          setStatus("");
-          render();
-        }
-
-        function mulliganOpening() {
-          if (state.phase !== "opening") return;
-
-          state.zones.library = state.zones.library.concat(state.zones.hand);
-          state.zones.hand = [];
-          shuffle(state.zones.library);
-          state.mulligans += 1;
-          drawCards(7);
-
-          setStatus("");
-          render();
-        }
-
-        function commitOpeningSelection() {
-          if (state.phase !== "cleanup") return;
-
-          var required = requiredOpeningReturns();
-          var selected = Array.isArray(state.openingSelectionIDs) ? state.openingSelectionIDs.slice() : [];
-          if (selected.length !== required) {
-            setStatus("");
-            return;
-          }
-
-          var selectedMap = {};
-          for (var i = 0; i < selected.length; i++) {
-            selectedMap[selected[i]] = true;
-          }
-
-          var kept = [];
-          var returned = [];
-          var hand = state.zones.hand || [];
-          for (var j = 0; j < hand.length; j++) {
-            var card = hand[j];
-            if (card && selectedMap[card.id]) {
-              card.tapped = false;
-              card.bfX = null;
-              card.bfY = null;
-              returned.push(card);
-            } else {
-              kept.push(card);
-            }
-          }
-
-          state.zones.hand = kept;
-          state.zones.library = returned.concat(state.zones.library);
-          state.openingSelectionIDs = [];
-          state.phase = "play";
-          state.turn = 1;
-          setStatus("");
-          render();
-        }
-
-        function drawOne() {
-          if (state.phase !== "play") {
-            setStatus("Keep your opening hand first.");
-            return;
-          }
-          var drew = drawCards(1);
-          if (drew === 0) {
-            setStatus("Library is empty.");
-          } else {
-            setStatus("Drew a card.");
-          }
-          render();
-        }
-
-        function shuffleLibrary() {
-          if (state.phase !== "play") {
-            setStatus("Keep your opening hand first.");
-            return;
-          }
-          if (!state.zones.library.length) {
-            setStatus("Library is empty.");
-            return;
-          }
-          shuffle(state.zones.library);
-          setStatus("Library shuffled.");
-          render();
-        }
-
-        function startScry(count) {
-          count = Number(count || 0);
-          if (state.phase !== "play") {
-            setStatus("Keep your opening hand first.");
-            return;
-          }
-          if (!Number.isFinite(count) || count <= 0) return;
-          if (!state.zones.library.length) {
-            setStatus("Library is empty.");
-            return;
-          }
-
-          setLibraryMenu(false);
-          state.scryCards = [];
-
-          var limit = Math.min(count, state.zones.library.length);
-          for (var i = 0; i < limit; i++) {
-            var card = state.zones.library.pop();
-            if (!card) continue;
-            card.scryBottom = false;
-            state.scryCards.push(card);
-          }
-
-          setScryOverlay(true);
-        }
-
-        function cancelScry() {
-          if (!Array.isArray(state.scryCards) || state.scryCards.length === 0) {
-            setScryOverlay(false);
-            return;
-          }
-          for (var i = state.scryCards.length - 1; i >= 0; i--) {
-            delete state.scryCards[i].scryBottom;
-            state.zones.library.push(state.scryCards[i]);
-          }
-          state.scryCards = [];
-          setScryOverlay(false);
-          render();
-        }
-
-        function finishScry() {
-          var cards = Array.isArray(state.scryCards) ? state.scryCards.slice() : [];
-          var keepTop = [];
-          var moveBottom = [];
-          for (var i = 0; i < cards.length; i++) {
-            if (cards[i] && cards[i].scryBottom) {
-              moveBottom.push(cards[i]);
-            } else if (cards[i]) {
-              keepTop.push(cards[i]);
-            }
-          }
-
-          if (moveBottom.length > 0) {
-            for (var k = 0; k < moveBottom.length; k++) {
-              delete moveBottom[k].scryBottom;
-            }
-            state.zones.library = moveBottom.concat(state.zones.library);
-          }
-          for (var j = keepTop.length - 1; j >= 0; j--) {
-            delete keepTop[j].scryBottom;
-            state.zones.library.push(keepTop[j]);
-          }
-
-          state.scryCards = [];
-          setScryOverlay(false);
-          setStatus("Scry finished.");
-          render();
-        }
-
-        function nextTurn() {
-          if (state.phase !== "play") {
-            setStatus("Keep your opening hand first.");
-            return;
-          }
-          state.turn += 1;
-          var untapped = untapAllBattlefield();
-          var drew = drawCards(1);
-          var text = "Turn " + state.turn + ": ";
-          if (untapped > 0) {
-            text += "untapped " + untapped + " permanent(s), ";
-          }
-          text += drew > 0 ? "drew a card." : "no card to draw.";
-          setStatus(text);
-          render();
-        }
-
-        function canDrop(sourceZone, targetZone, card) {
-          if (!card) return false;
-
-          if (sourceZone === targetZone) {
-            return targetZone === "battlefield" || targetZone === "hand";
-          }
-
-          if (targetZone === "library") return false;
-          if (targetZone === "command" && !card.isCommander) return false;
-          if (state.phase !== "play") return false;
-          return true;
-        }
-
-        function handInsertIndex(clientX, draggingCardID) {
-          if (!zoneEls.hand) return state.zones.hand.length;
-          var nodes = zoneEls.hand.querySelectorAll("[data-zone-card='hand']");
-          var insert = state.zones.hand.length;
-          for (var i = 0; i < nodes.length; i++) {
-            var node = nodes[i];
-            var nodeID = Number(node.dataset.cardId || 0);
-            if (nodeID === draggingCardID) continue;
-            var rect = node.getBoundingClientRect();
-            var mid = rect.left + rect.width / 2;
-            if (clientX < mid) {
-              var loc = findCard(nodeID);
-              if (loc && loc.zone === "hand") {
-                insert = loc.index;
-              }
-              break;
-            }
-          }
-          return insert;
-        }
-
-        function reorderHandCard(cardID, dropEvent) {
-          var found = findCard(cardID);
-          if (!found || found.zone !== "hand") return;
-          var hand = state.zones.hand;
-          var from = found.index;
-          var insert = hand.length;
-          if (dropEvent && typeof dropEvent.clientX === "number") {
-            insert = handInsertIndex(dropEvent.clientX, cardID);
-          }
-
-          var card = hand[from];
-          hand.splice(from, 1);
-          if (insert > from) insert -= 1;
-          insert = Math.max(0, Math.min(insert, hand.length));
-          hand.splice(insert, 0, card);
-        }
-
-        function moveCard(cardID, targetZone, dropEvent) {
-          var located = findCard(cardID);
-          if (!located) return;
-
-          if (!canDrop(located.zone, targetZone, located.card)) {
-            if (state.phase !== "play") {
-              setStatus("Complete keep/mulligan first.");
-            }
-            return;
-          }
-
-          if (located.zone === "hand" && targetZone === "hand") {
-            reorderHandCard(cardID, dropEvent);
-            render();
-            return;
-          }
-
-          if (located.zone === "battlefield" && targetZone === "battlefield") {
-            setBattlefieldPosition(located.card, dropEvent, true);
-            var bf = state.zones.battlefield;
-            bf.splice(located.index, 1);
-            bf.push(located.card);
-            setStatus(located.card.name + " repositioned.");
-            render();
-            return;
-          }
-
-          var source = getZoneArray(located.zone);
-          var target = getZoneArray(targetZone);
-          if (!source || !target) return;
-
-          source.splice(located.index, 1);
-          var card = located.card;
-
-          if (targetZone !== "battlefield") {
-            card.tapped = false;
-            card.bfX = null;
-            card.bfY = null;
-          }
-
-          target.push(card);
-
-          if (targetZone === "battlefield") {
-            setBattlefieldPosition(card, dropEvent, true);
-          }
-
-          setStatus(card.name + " moved to " + zoneLabel(targetZone) + ".");
-          render();
-        }
-
-        function clearDropHighlights() {
-          for (var i = 0; i < zoneOrder.length; i++) {
-            var zoneName = zoneOrder[i];
-            var el = zoneEls[zoneName];
-            if (el) el.classList.remove("pt-drop-zone--active");
-          }
-        }
-
-        function createCardNode(card, zoneName, isOpening) {
-          var node = document.createElement("article");
-          node.className = "pt-card";
-          if (isOpening) node.classList.add("pt-card--opening");
-          if (isOpening && isOpeningSelected(card.id)) node.classList.add("pt-card--selected");
-          if (zoneName === "battlefield" && card.tapped) {
-            node.classList.add("pt-card--tapped");
-          }
-          if (zoneName === "command" || zoneName === "graveyard" || zoneName === "exile") {
-            node.classList.add("pt-card--stack");
-          }
-          node.setAttribute("draggable", isOpening ? "false" : "true");
-          node.dataset.cardId = String(card.id);
-          node.dataset.zoneCard = zoneName;
-
-          if (card.imageURI) {
-            var img = document.createElement("img");
-            img.className = "pt-card__image";
-            img.src = card.imageURI;
-            img.alt = card.name;
-            node.appendChild(img);
-          } else {
-            var fallback = document.createElement("div");
-            fallback.className = "pt-card__fallback";
-            fallback.textContent = card.name || "Unknown card";
-            node.appendChild(fallback);
-          }
-
-          var hasChip = false;
-          var chips = document.createElement("div");
-          chips.className = "pt-card__chips";
-          if (card.isCommander) {
-            var commanderChip = document.createElement("span");
-            commanderChip.className = "pt-chip pt-chip--commander";
-            commanderChip.textContent = "CMDR";
-            chips.appendChild(commanderChip);
-            hasChip = true;
-          }
-          if (zoneName === "battlefield" && card.tapped) {
-            var tappedChip = document.createElement("span");
-            tappedChip.className = "pt-chip pt-chip--tapped";
-            tappedChip.textContent = "Tapped";
-            chips.appendChild(tappedChip);
-            hasChip = true;
-          }
-          if (hasChip) node.appendChild(chips);
-
-          if (!isOpening && zoneName === "battlefield") {
-            var menuBtn = document.createElement("button");
-            menuBtn.type = "button";
-            menuBtn.className = "pt-menu-trigger pt-card__menu";
-            menuBtn.textContent = "...";
-            menuBtn.setAttribute("aria-label", "Card menu");
-            menuBtn.draggable = false;
-            menuBtn.addEventListener("mousedown", function (e) {
-              e.stopPropagation();
-            });
-            menuBtn.addEventListener("click", function (e) {
-              e.preventDefault();
-              e.stopPropagation();
-              setCardMenuOverlay(true, card.id);
-            });
-            node.appendChild(menuBtn);
-          }
-
-          if (!isOpening) {
-            node.addEventListener("dragstart", function (e) {
-              state.draggingCardID = card.id;
-              if (e.dataTransfer) {
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", String(card.id));
-              }
-            });
-
-            node.addEventListener("dragend", function () {
-              state.draggingCardID = null;
-              clearDropHighlights();
-            });
-          }
-
-          if (isOpening) {
-            node.title = state.phase === "cleanup"
-              ? "Click to select this card to put back."
-              : "Review your opening hand.";
-            node.addEventListener("click", function () {
-              if (state.phase === "cleanup") {
-                toggleOpeningSelection(card.id);
-              }
-            });
-            return node;
-          }
-
-          if (zoneName === "hand") {
-            node.title = "Click to play to battlefield. Drag to reorder or move.";
-            node.addEventListener("click", function () {
-              if (state.phase !== "play") return;
-              moveCard(card.id, "battlefield");
-            });
-          } else if (zoneName === "command") {
-            node.title = "Click to cast to battlefield. Drag to move zones.";
-            node.addEventListener("click", function () {
-              if (state.phase !== "play") return;
-              moveCard(card.id, "battlefield");
-            });
-          } else if (zoneName === "battlefield") {
-            node.title = "Click to tap/untap. Drag to reposition or move.";
-            node.addEventListener("click", function () {
-              card.tapped = !card.tapped;
-              var bf = state.zones.battlefield;
-              var idx = bf.indexOf(card);
-              if (idx >= 0) {
-                bf.splice(idx, 1);
-                bf.push(card);
-              }
-              render();
-            });
-          } else {
-            node.title = "Drag to move zones.";
-          }
-
-          return node;
-        }
-
-        function renderScryCards() {
-          if (!scryCardsEl) return;
-          scryCardsEl.innerHTML = "";
-
-          var cards = Array.isArray(state.scryCards) ? state.scryCards : [];
-          if (cards.length === 0) {
-            var empty = document.createElement("p");
-            empty.className = "text-sm text-slate-500 self-center";
-            empty.textContent = "No cards to scry.";
-            scryCardsEl.appendChild(empty);
-            return;
-          }
-
-          for (var i = 0; i < cards.length; i++) {
-            (function (card) {
-              var wrap = document.createElement("div");
-              wrap.className = "pt-scry-card";
-
-              var node = createCardNode(card, "hand", true);
-              wrap.appendChild(node);
-
-              var toggle = document.createElement("button");
-              toggle.type = "button";
-              toggle.className = "mt-btn mt-btn--secondary mt-btn--xs pt-scry-card__toggle";
-              toggle.textContent = card.scryBottom ? "Bottom" : "Top";
-              toggle.addEventListener("click", function () {
-                card.scryBottom = !card.scryBottom;
-                renderScryCards();
-              });
-              wrap.appendChild(toggle);
-
-              scryCardsEl.appendChild(wrap);
-            })(cards[i]);
-          }
-        }
-
-        function renderCardMenu() {
-          var located = activeCard();
-          var card = located ? located.card : null;
-          if (!card) {
-            setCardMenuOverlay(false);
-            return;
-          }
-          if (cardMenuTitle) cardMenuTitle.textContent = card.name || "Card";
-          if (btnCardMenuMoveCommand) {
-            btnCardMenuMoveCommand.classList.toggle("hidden", !card.isCommander);
-          }
-        }
-
-        function renderCardDetail() {
-          var located = activeCard();
-          var card = located ? located.card : null;
-          if (!card) {
-            setCardDetailOverlay(false);
-            return;
-          }
-
-          if (cardDetailName) cardDetailName.textContent = card.name || "Card";
-          if (cardDetailMana) {
-            cardDetailMana.innerHTML = renderManaSymbols(card.manaCost);
-            cardDetailMana.classList.toggle("hidden", !String(card.manaCost || "").trim());
-          }
-          if (cardDetailType) cardDetailType.textContent = card.typeLine || "";
-          if (cardDetailOracle) {
-            cardDetailOracle.textContent = card.oracleText || "No oracle text.";
-          }
-          if (cardDetailImage) {
-            if (card.imageURI) {
-              cardDetailImage.src = card.imageURI;
-              cardDetailImage.alt = card.name || "Card";
-              cardDetailImage.classList.remove("hidden");
-              if (cardDetailFallback) cardDetailFallback.classList.add("hidden");
-            } else {
-              cardDetailImage.src = "";
-              cardDetailImage.classList.add("hidden");
-              if (cardDetailFallback) {
-                cardDetailFallback.textContent = card.name || "Unknown card";
-                cardDetailFallback.classList.remove("hidden");
-              }
-            }
-          }
-        }
-
-        function renderOpeningHand() {
-          if (!openingHandEl) return;
-          openingHandEl.innerHTML = "";
-          var hand = state.zones.hand;
-          if (!hand || hand.length === 0) {
-            var empty = document.createElement("p");
-            empty.className = "text-sm text-slate-500 self-center";
-            empty.textContent = "No cards in opening hand.";
-            openingHandEl.appendChild(empty);
-            return;
-          }
-          for (var i = 0; i < hand.length; i++) {
-            openingHandEl.appendChild(createCardNode(hand[i], "hand", true));
-          }
-        }
-
-        function renderLibraryZone(el) {
-          if (!el) return;
-          el.innerHTML = "";
-          el.title = state.phase === "play" ? "Click to draw a card." : "";
-          if (state.zones.library.length === 0) {
-            var empty = document.createElement("p");
-            empty.className = "text-xs text-slate-500 text-center mt-10";
-            empty.textContent = "Empty.";
-            el.appendChild(empty);
-            return;
-          }
-
-          var stack = document.createElement("div");
-          stack.className = "pt-library-stack";
-          for (var i = 0; i < 3; i++) {
-            var back = document.createElement("div");
-            back.className = "pt-library-stack__card";
-            stack.appendChild(back);
-          }
-          el.appendChild(stack);
-
-          var label = document.createElement("p");
-          label.className = "text-[11px] text-slate-400 text-center mt-0.5";
-          label.textContent = state.zones.library.length + " cards";
-          el.appendChild(label);
-        }
-
-        function renderStackZone(zoneName, el) {
-          if (!el) return;
-          el.innerHTML = "";
-
-          var zone = getZoneArray(zoneName);
-          if (!zone || zone.length === 0) {
-            var empty = document.createElement("p");
-            empty.className = "text-xs text-slate-500 px-2 pt-6 text-center";
-            empty.textContent = "Empty.";
-            el.appendChild(empty);
-            return;
-          }
-
-          var visible = Math.min(zone.length, 5);
-          var start = zone.length - visible;
-
-          var wrap = document.createElement("div");
-          wrap.className = "relative";
-          wrap.style.height = String(stackedCardHeight + 12) + "px";
-          wrap.style.width = String(stackedCardWidth + Math.max(0, visible - 1) * stackedOffsetX) + "px";
-          wrap.style.margin = "4px auto 0";
-
-          for (var i = 0; i < visible; i++) {
-            var card = zone[start + i];
-            var node = createCardNode(card, zoneName, false);
-            node.style.position = "absolute";
-            node.style.left = String(i * stackedOffsetX) + "px";
-            node.style.top = String(i * stackedOffsetY) + "px";
-            node.style.zIndex = String(10 + i);
-            wrap.appendChild(node);
-          }
-
-          el.appendChild(wrap);
-        }
-
-        function renderHandZone() {
-          var el = zoneEls.hand;
-          if (!el) return;
-          el.innerHTML = "";
-
-          if (state.phase !== "play") {
-            var waiting = document.createElement("p");
-            waiting.className = "text-xs text-slate-500 px-2 pt-6";
-            waiting.textContent = "Opening hand is shown in the start overlay.";
-            el.appendChild(waiting);
-            return;
-          }
-
-          var hand = state.zones.hand;
-          if (!hand || hand.length === 0) {
-            var empty = document.createElement("p");
-            empty.className = "text-xs text-slate-500 px-2 pt-6";
-            empty.textContent = "Empty hand.";
-            el.appendChild(empty);
-            return;
-          }
-
-          for (var i = 0; i < hand.length; i++) {
-            el.appendChild(createCardNode(hand[i], "hand", false));
-          }
-        }
-
-        function renderBattlefieldZone() {
-          var el = zoneEls.battlefield;
-          if (!el) return;
-          el.innerHTML = "";
-
-          var zone = state.zones.battlefield;
-          if (!zone || zone.length === 0) {
-            return;
-          }
-
-          for (var i = 0; i < zone.length; i++) {
-            var card = zone[i];
-            if (typeof card.bfX !== "number" || typeof card.bfY !== "number") {
-              setBattlefieldPosition(card, null, false);
-            }
-            var node = createCardNode(card, "battlefield", false);
-            node.style.position = "absolute";
-            node.style.left = String(card.bfX) + "px";
-            node.style.top = String(card.bfY) + "px";
-            node.style.zIndex = String(20 + i);
-            el.appendChild(node);
-          }
-        }
-
-        function bindDropZone(zoneName, el) {
-          if (!el) return;
-
-          el.addEventListener("dragover", function (e) {
-            var cardID = state.draggingCardID;
-            if (cardID == null) return;
-            var located = findCard(cardID);
-            if (!located) return;
-            if (!canDrop(located.zone, zoneName, located.card)) return;
-            e.preventDefault();
-            el.classList.add("pt-drop-zone--active");
-          });
-
-          el.addEventListener("dragleave", function () {
-            el.classList.remove("pt-drop-zone--active");
-          });
-
-          el.addEventListener("drop", function (e) {
-            e.preventDefault();
-            el.classList.remove("pt-drop-zone--active");
-
-            var cardID = state.draggingCardID;
-            if (cardID == null && e.dataTransfer) {
-              var raw = e.dataTransfer.getData("text/plain");
-              if (raw) cardID = Number(raw);
-            }
-            if (cardID == null) return;
-
-            moveCard(Number(cardID), zoneName, e);
-            state.draggingCardID = null;
-          });
-        }
-
-        function render() {
-          for (var i = 0; i < zoneOrder.length; i++) {
-            var zoneName = zoneOrder[i];
-            var zone = getZoneArray(zoneName) || [];
-            var countEl = countEls[zoneName];
-            if (countEl) countEl.textContent = String(zone.length);
-          }
-
-          if (elTurnCount) elTurnCount.textContent = String(state.turn);
-          if (elLifeTotal) elLifeTotal.textContent = String(state.life);
-
-          var pregame = state.phase !== "play";
-          var required = requiredOpeningReturns();
-          var selected = Array.isArray(state.openingSelectionIDs) ? state.openingSelectionIDs.length : 0;
-          if (openingScreen) openingScreen.classList.toggle("hidden", !pregame);
-          if (openingLabelEl) {
-            openingLabelEl.textContent = state.phase === "cleanup" ? "Choose Cards to Put Back" : "Opening Hand";
-          }
-          if (openingHintEl) {
-            openingHintEl.textContent = state.phase === "cleanup"
-              ? ("Choose " + required + " card(s) to put on the bottom of your library.")
-              : "Review this hand, then keep or take a fresh seven.";
-          }
-          if (openingProgressEl) {
-            openingProgressEl.textContent = state.phase === "cleanup"
-              ? (selected + "/" + required + " selected")
-              : ((state.zones.hand || []).length + " cards");
-          }
-          if (btnMulligan) {
-            btnMulligan.textContent = "Mulligan (" + state.mulligans + ")";
-            btnMulligan.classList.toggle("hidden", state.phase !== "opening");
-          }
-          if (btnKeep) {
-            if (state.phase === "cleanup") {
-              btnKeep.textContent = "Begin (" + selected + "/" + required + ")";
-              btnKeep.disabled = selected !== required;
-            } else {
-              btnKeep.textContent = "Keep";
-              btnKeep.disabled = state.phase !== "opening";
-            }
-          }
-
-          renderOpeningHand();
-          renderBattlefieldZone();
-          renderHandZone();
-          renderStackZone("command", zoneEls.command);
-          renderStackZone("graveyard", zoneEls.graveyard);
-          renderStackZone("exile", zoneEls.exile);
-          renderLibraryZone(zoneEls.library);
-        }
-
-        if (btnKeep) btnKeep.addEventListener("click", keepOpening);
-        if (btnMulligan) btnMulligan.addEventListener("click", mulliganOpening);
-
-        bindDropZone("command", zoneEls.command);
-        bindDropZone("hand", zoneEls.hand);
-        bindDropZone("battlefield", zoneEls.battlefield);
-        bindDropZone("graveyard", zoneEls.graveyard);
-        bindDropZone("exile", zoneEls.exile);
-
-        if (zoneEls.library) {
-          zoneEls.library.addEventListener("click", function () {
-            drawOne();
-          });
-        }
-        if (btnLibraryMenuToggle) {
-          btnLibraryMenuToggle.addEventListener("click", function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            setLibraryMenu(!libraryMenuOpen());
-          });
-        }
-        if (btnLibraryMenuShuffle) {
-          btnLibraryMenuShuffle.addEventListener("click", function () {
-            setLibraryMenu(false);
-            shuffleLibrary();
-          });
-        }
-        if (btnLibraryMenuScry1) {
-          btnLibraryMenuScry1.addEventListener("click", function () { startScry(1); });
-        }
-        if (btnLibraryMenuScry2) {
-          btnLibraryMenuScry2.addEventListener("click", function () { startScry(2); });
-        }
-        if (btnLibraryMenuScry3) {
-          btnLibraryMenuScry3.addEventListener("click", function () { startScry(3); });
-        }
-
-        // --- Coin flip ---
-        function flipCoin() {
-          var result = Math.random() < 0.5 ? "Heads" : "Tails";
-          setStatus("Coin flip: " + result + "!");
-        }
-
-        // --- Dice roller ---
-        function rollDice() {
-          var sides = 20;
-          var result = Math.floor(Math.random() * sides) + 1;
-          setStatus("d" + sides + " roll: " + result + "!");
-        }
-
-        // --- Token creation ---
-        var tokenOverlay = document.getElementById("pt-token-overlay");
-        var btnTokenClose = document.getElementById("pt-token-close");
-        var btnTokenBackdrop = document.getElementById("pt-token-backdrop");
-        var btnTokenSubmit = document.getElementById("pt-token-submit");
-        var inputTokenName = document.getElementById("pt-token-name");
-        var inputTokenPower = document.getElementById("pt-token-power");
-        var inputTokenToughness = document.getElementById("pt-token-toughness");
-        var inputTokenType = document.getElementById("pt-token-type");
-        var inputTokenQty = document.getElementById("pt-token-qty");
-
-        function setTokenOverlay(open) {
-          if (!tokenOverlay) return;
-          tokenOverlay.classList.toggle("hidden", !open);
-          if (open && inputTokenName) inputTokenName.focus();
-        }
-
-        function tokenOverlayOpen() {
-          if (!tokenOverlay) return false;
-          return !tokenOverlay.classList.contains("hidden");
-        }
-
-        function setGameMenuOverlay(open) {
-          if (!gameMenuOverlay) return;
-          if (open) setLibraryMenu(false);
-          gameMenuOverlay.classList.toggle("hidden", !open);
-          if (open && btnGameMenuClose) btnGameMenuClose.focus();
-        }
-
-        function gameMenuOverlayOpen() {
-          if (!gameMenuOverlay) return false;
-          return !gameMenuOverlay.classList.contains("hidden");
-        }
-
-        function createTokens() {
-          if (state.phase !== "play") {
-            setStatus("Keep your opening hand first.");
-            setTokenOverlay(false);
-            return;
-          }
-
-          var name = (inputTokenName ? inputTokenName.value : "Token").trim() || "Token";
-          var power = inputTokenPower ? parseInt(inputTokenPower.value, 10) || 0 : 0;
-          var toughness = inputTokenToughness ? parseInt(inputTokenToughness.value, 10) || 0 : 0;
-          var typeLine = inputTokenType ? inputTokenType.value.trim() : "";
-          var qty = inputTokenQty ? Math.max(1, Math.min(20, parseInt(inputTokenQty.value, 10) || 1)) : 1;
-
-          var label = name + " " + power + "/" + toughness;
-          if (!typeLine) typeLine = "Token Creature";
-
-          for (var i = 0; i < qty; i++) {
-            var token = createCard(label, "", "", typeLine, "", false);
-            token.isToken = true;
-            state.zones.battlefield.push(token);
-            setBattlefieldPosition(token, null, false);
-          }
-
-          setStatus("Created " + qty + "x " + label + " token" + (qty > 1 ? "s" : "") + ".");
-          setTokenOverlay(false);
-          render();
-        }
-
-        if (btnTokenClose) btnTokenClose.addEventListener("click", function () { setTokenOverlay(false); });
-        if (btnTokenBackdrop) btnTokenBackdrop.addEventListener("click", function () { setTokenOverlay(false); });
-        if (btnTokenSubmit) btnTokenSubmit.addEventListener("click", createTokens);
-        if (btnLifeDown) btnLifeDown.addEventListener("click", function () { adjustLife(-1); });
-        if (btnLifeUp) btnLifeUp.addEventListener("click", function () { adjustLife(1); });
-        if (btnEndTurn) btnEndTurn.addEventListener("click", nextTurn);
-        if (btnGameMenuToggle) btnGameMenuToggle.addEventListener("click", function () { setGameMenuOverlay(true); });
-        if (btnGameMenuRestart) btnGameMenuRestart.addEventListener("click", function () {
-          setGameMenuOverlay(false);
-          startOpening();
-        });
-        if (gameMenuReturnLink && isWorkbenchPlaytest) {
-          gameMenuReturnLink.addEventListener("click", function (e) {
-            e.preventDefault();
-            submitWorkbenchReturn();
-          });
-        }
-        if (btnGameMenuClose) btnGameMenuClose.addEventListener("click", function () { setGameMenuOverlay(false); });
-        if (btnGameMenuBackdrop) btnGameMenuBackdrop.addEventListener("click", function () { setGameMenuOverlay(false); });
-        if (isWorkbenchPlaytest) {
-          window.addEventListener("pagehide", persistWorkbenchDraftLocally);
-        }
-        if (btnScryCancel) btnScryCancel.addEventListener("click", cancelScry);
-        if (btnScryBackdrop) btnScryBackdrop.addEventListener("click", cancelScry);
-        if (btnScryFinish) btnScryFinish.addEventListener("click", finishScry);
-        if (btnCardMenuClose) btnCardMenuClose.addEventListener("click", function () { setCardMenuOverlay(false); });
-        if (btnCardMenuBackdrop) btnCardMenuBackdrop.addEventListener("click", function () { setCardMenuOverlay(false); });
-        if (btnCardMenuDetails) {
-          btnCardMenuDetails.addEventListener("click", function () {
-            setCardMenuOverlay(false);
-            setCardDetailOverlay(true);
-          });
-        }
-        cardMoveButtons.forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            var zone = String(btn.dataset.zone || "").trim();
-            var located = activeCard();
-            if (!located || !zone) return;
-            setCardMenuOverlay(false);
-            moveCard(located.card.id, zone);
-          });
-        });
-        if (btnCardDetailClose) btnCardDetailClose.addEventListener("click", function () { setCardDetailOverlay(false); });
-        if (btnCardDetailBackdrop) btnCardDetailBackdrop.addEventListener("click", function () { setCardDetailOverlay(false); });
-
-        document.addEventListener("click", function (e) {
-          if (!libraryMenuOpen()) return;
-          var target = e.target;
-          if (libraryMenu && libraryMenu.contains(target)) return;
-          if (btnLibraryMenuToggle && btnLibraryMenuToggle.contains(target)) return;
-          setLibraryMenu(false);
-        });
-
-        document.addEventListener("keydown", function (e) {
-          var key = String(e.key || "").toLowerCase();
-
-          // Close overlays on Escape
-          if (key === "escape") {
-            if (cardDetailOverlayOpen()) { setCardDetailOverlay(false); return; }
-            if (cardMenuOverlayOpen()) { setCardMenuOverlay(false); return; }
-            if (scryOverlayOpen()) { cancelScry(); return; }
-            if (gameMenuOverlayOpen()) { setGameMenuOverlay(false); return; }
-            if (tokenOverlayOpen()) { setTokenOverlay(false); return; }
-            if (libraryMenuOpen()) { setLibraryMenu(false); return; }
-            return;
-          }
-
-          // Don't fire shortcuts if typing in an input
-          if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) {
-            if (key === "enter" && tokenOverlayOpen()) { createTokens(); e.preventDefault(); }
-            return;
-          }
-
-          if (tokenOverlayOpen() || gameMenuOverlayOpen() || scryOverlayOpen() || cardMenuOverlayOpen() || cardDetailOverlayOpen() || libraryMenuOpen()) return;
-          if (key === "d") drawOne();
-          if (key === "n") nextTurn();
-          if (key === "m") mulliganOpening();
-          if (key === "k") keepOpening();
-          if (key === "f") flipCoin();
-          if (key === "r") rollDice();
-          if (key === "t") {
-            if (state.phase === "play") setTokenOverlay(true);
-          }
-        });
-
-        window.addEventListener("resize", function () {
-          if (state.phase !== "play") return;
-          var bf = state.zones.battlefield;
-          for (var i = 0; i < bf.length; i++) {
-            setBattlefieldPosition(bf[i], null, false);
-          }
-          render();
-        });
-
-        startOpening();
-      })();
+      window.ManatombPlaytestConfig = {
+        librarySeed: {{ $ctx.CardsJSON }},
+        commanderSeed: {{ $ctx.CommanderJSON }},
+        workbenchDraftSeed: {{ if $ctx.WorkbenchJSON }}{{ $ctx.WorkbenchJSON }}{{ else }}null{{ end }},
+        deckFormat: {{ toJSON $deck.Format }},
+        isWorkbenchPlaytest: {{ if $ctx.WorkbenchMode }}true{{ else }}false{{ end }}
+      };
     </script>
+    <script src="/assets/playtest.js"></script>
   </main>
 
   {{ template "layout_footer" . }}

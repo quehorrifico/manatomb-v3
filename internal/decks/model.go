@@ -42,9 +42,11 @@ type DeckCard struct {
 	ImageURI         string
 	TypeLine         string
 	OracleText       string
+	FlavorText       string
 	AllPartsJSON     string
 	CMC              float64
 	PriceUSD         string
+	Colors           string
 	ColorIdentity    string
 	Quantity         int
 	PreferredPrintID string
@@ -447,20 +449,22 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 			COALESCE(cp.image_uri, ''),
 			COALESCE(oc.type_line, ''),
 			COALESCE(oc.oracle_text, ''),
+			COALESCE(cp.flavor_text, oc.flavor_text, ''),
 			COALESCE(oc.all_parts::text, '[]'),
 			COALESCE(oc.cmc, 0),
-				COALESCE(cp.price_usd, ''),
-				COALESCE(array_to_string(oc.color_identity, ','), ''),
-				dc.qty,
-				COALESCE(dc.preferred_print_id::text, ''),
-				COALESCE(cp.scryfall_id::text, ''),
-				COALESCE(cp.set_code, ''),
-				COALESCE(cp.set_name, ''),
-				COALESCE(cp.collector_number, ''),
-				COALESCE(cp.rarity, ''),
-				COALESCE(to_char(cp.released_at, 'YYYY-MM-DD'), ''),
-				COALESCE(cp.artist, '')
-			FROM deck_cards dc
+			COALESCE(cp.price_usd, ''),
+			COALESCE(array_to_string(oc.colors, ','), ''),
+			COALESCE(array_to_string(oc.color_identity, ','), ''),
+			dc.qty,
+			COALESCE(dc.preferred_print_id::text, ''),
+			COALESCE(cp.scryfall_id::text, ''),
+			COALESCE(cp.set_code, ''),
+			COALESCE(cp.set_name, ''),
+			COALESCE(cp.collector_number, ''),
+			COALESCE(cp.rarity, ''),
+			COALESCE(to_char(cp.released_at, 'YYYY-MM-DD'), ''),
+			COALESCE(cp.artist, '')
+		FROM deck_cards dc
 		JOIN oracle_cards oc
 		  ON oc.oracle_id = dc.oracle_id
 		LEFT JOIN card_prints cp
@@ -484,9 +488,11 @@ func listDeckCardsByBoard(ctx context.Context, db *sql.DB, deckID int64, board s
 			&dc.ImageURI,
 			&dc.TypeLine,
 			&dc.OracleText,
+			&dc.FlavorText,
 			&dc.AllPartsJSON,
 			&dc.CMC,
 			&dc.PriceUSD,
+			&dc.Colors,
 			&dc.ColorIdentity,
 			&dc.Quantity,
 			&dc.PreferredPrintID,
