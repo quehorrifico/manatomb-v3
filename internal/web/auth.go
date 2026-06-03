@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -39,12 +40,22 @@ type App struct {
 type TemplateData struct {
 	CurrentUser *account.User
 	Data        any
+	Meta        *PageMeta
 	Flash       string
 	Error       string
 	WideLayout  bool
 	HomeHeader  bool
 	HideHeader  bool
 	HideFooter  bool
+}
+
+type PageMeta struct {
+	Title        string
+	Description  string
+	CanonicalURL string
+	ImageURL     string
+	ImageAlt     string
+	Type         string
 }
 
 func (a *App) withCurrentUser(next http.Handler) http.Handler {
@@ -72,6 +83,23 @@ func CurrentUser(r *http.Request) *account.User {
 
 func authNextPath(raw string) string {
 	return normalizeLocalReturnPath(raw, "/decks")
+}
+
+type loginPageData struct {
+	Email string
+	Next  string
+}
+
+type forgotPasswordPageData struct {
+	Email string
+}
+
+type resetPasswordPageData struct {
+	Token string
+}
+
+func resetPasswordURL(r *http.Request, token string) string {
+	return absoluteRequestURL(r, "/reset-password?token="+url.QueryEscape(token))
 }
 
 // ===== Handlers =====
@@ -256,10 +284,7 @@ func (a *App) HandleLoginShow(w http.ResponseWriter, r *http.Request) {
 
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
-		Data: struct {
-			Email string
-			Next  string
-		}{
+		Data: loginPageData{
 			Next: next,
 		},
 		Flash: flash,
@@ -272,10 +297,7 @@ func (a *App) HandleLoginShow(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		data := TemplateData{
-			Data: struct {
-				Email string
-				Next  string
-			}{},
+			Data:  loginPageData{},
 			Error: "Invalid form submission. Please try again.",
 		}
 		a.Renderer.Render(w, "login", data)
@@ -293,10 +315,7 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 			log.Printf("authenticate error: %v", err)
 		}
 		data := TemplateData{
-			Data: struct {
-				Email string
-				Next  string
-			}{
+			Data: loginPageData{
 				Email: email,
 				Next:  next,
 			},
@@ -310,10 +329,7 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("create session error: %v", err)
 		data := TemplateData{
-			Data: struct {
-				Email string
-				Next  string
-			}{
+			Data: loginPageData{
 				Email: email,
 				Next:  next,
 			},
@@ -334,6 +350,114 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 
 	setFlash(w, "Welcome back!")
 	http.Redirect(w, r, next, http.StatusSeeOther)
+}
+
+func (a *App) HandleForgotPasswordShow(w http.ResponseWriter, r *http.Request) {
+	flash := readFlash(w, r)
+	data := TemplateData{
+		CurrentUser: CurrentUser(r),
+		Data:        forgotPasswordPageData{},
+		Flash:       flash,
+		Error:       "",
+	}
+	a.Renderer.Render(w, "forgot_password", data)
+}
+
+func (a *App) HandleForgotPasswordPost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		data := TemplateData{
+			Data:  forgotPasswordPageData{},
+			Error: "Invalid form submission. Please try again.",
+		}
+		a.Renderer.Render(w, "forgot_password", data)
+		return
+	}
+
+	email := strings.TrimSpace(r.Form.Get("email"))
+	reset, found, err := account.CreatePasswordResetToken(r.Context(), a.DB, email, time.Hour)
+	if err != nil {
+		log.Printf("create password reset token error: %v", err)
+		data := TemplateData{
+			Data:  forgotPasswordPageData{Email: email},
+			Error: "Could not start password reset. Please try again.",
+		}
+		a.Renderer.Render(w, "forgot_password", data)
+		return
+	}
+
+	if found && reset != nil {
+		log.Printf(
+			"password reset requested: userID=%d expires=%s reset_url=%s",
+			reset.UserID,
+			reset.ExpiresAt.UTC().Format(time.RFC3339),
+			resetPasswordURL(r, reset.Token),
+		)
+	}
+
+	setFlash(w, "If an account exists for that email, a reset link has been generated. Check the server logs for the link.")
+	http.Redirect(w, r, "/forgot-password", http.StatusSeeOther)
+}
+
+func (a *App) HandleResetPasswordShow(w http.ResponseWriter, r *http.Request) {
+	token := strings.TrimSpace(r.URL.Query().Get("token"))
+	data := TemplateData{
+		CurrentUser: CurrentUser(r),
+		Data:        resetPasswordPageData{Token: token},
+		Error:       "",
+	}
+	if token == "" {
+		data.Error = "Reset link is missing a token."
+	}
+	a.Renderer.Render(w, "reset_password", data)
+}
+
+func (a *App) HandleResetPasswordPost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		data := TemplateData{
+			Data:  resetPasswordPageData{},
+			Error: "Invalid form submission. Please try again.",
+		}
+		a.Renderer.Render(w, "reset_password", data)
+		return
+	}
+
+	token := strings.TrimSpace(r.Form.Get("token"))
+	password := r.Form.Get("password")
+	confirm := r.Form.Get("password_confirm")
+	data := TemplateData{
+		CurrentUser: CurrentUser(r),
+		Data:        resetPasswordPageData{Token: token},
+	}
+	if token == "" {
+		data.Error = "Reset link is missing a token."
+		a.Renderer.Render(w, "reset_password", data)
+		return
+	}
+	if len(password) < 8 {
+		data.Error = "Password must be at least 8 characters long."
+		a.Renderer.Render(w, "reset_password", data)
+		return
+	}
+	if password != confirm {
+		data.Error = "Passwords do not match."
+		a.Renderer.Render(w, "reset_password", data)
+		return
+	}
+
+	if err := account.ResetPasswordWithToken(r.Context(), a.DB, token, password); err != nil {
+		if errors.Is(err, account.ErrInvalidResetToken) {
+			data.Error = "Reset link is invalid or expired."
+			a.Renderer.Render(w, "reset_password", data)
+			return
+		}
+		log.Printf("reset password error: %v", err)
+		data.Error = "Could not reset password. Please try again."
+		a.Renderer.Render(w, "reset_password", data)
+		return
+	}
+
+	setFlash(w, "Password updated. Please log in with your new password.")
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
 // ClearSessionCookie clears the current session in the database (if present)

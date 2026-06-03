@@ -1,7 +1,9 @@
 package web
 
 import (
+	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -82,6 +84,43 @@ func mergeLocalReturnPath(raw, fallback string, updates map[string]string) strin
 	}
 	parsed.RawQuery = query.Encode()
 	return parsed.String()
+}
+
+func absoluteRequestURL(r *http.Request, path string) string {
+	path = normalizeLocalReturnPath(path, "/")
+	return requestBaseURL(r) + path
+}
+
+func requestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r != nil && r.TLS != nil {
+		scheme = "https"
+	}
+	if r != nil {
+		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
+			scheme = strings.TrimSpace(strings.Split(forwarded, ",")[0])
+		}
+	}
+
+	host := "localhost"
+	if r != nil {
+		host = strings.TrimSpace(r.Host)
+		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
+			host = strings.TrimSpace(strings.Split(forwarded, ",")[0])
+		}
+	}
+	if host == "" {
+		host = "localhost"
+	}
+
+	return scheme + "://" + host
+}
+
+func userProfilePath(userID int64) string {
+	if userID <= 0 {
+		return "/"
+	}
+	return "/users/" + strconv.FormatInt(userID, 10)
 }
 
 func isDeckSettingsPath(path string) bool {

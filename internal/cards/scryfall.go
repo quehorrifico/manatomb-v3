@@ -48,6 +48,7 @@ type Card struct {
 	Toughness            string
 	Loyalty              string
 	Layout               string
+	LegalAnywhere        bool
 	CommanderLegal       bool
 	IsCommanderCandidate bool
 
@@ -242,6 +243,7 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 		Toughness:      toughness,
 		Loyalty:        loyalty,
 		Layout:         strings.TrimSpace(sc.Layout),
+		LegalAnywhere:  legalAnywhere(sc.Legalities),
 		CommanderLegal: commanderLegal,
 		PriceUSD:       preferredPriceUSD(sc),
 		Artist:         artist,

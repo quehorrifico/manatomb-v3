@@ -33,6 +33,7 @@ func TestBuildCardSearchFiltersAdvanced(t *testing.T) {
 	}, 1)
 
 	for _, snippet := range []string{
+		"COALESCE(oc.legal_anywhere, TRUE) = TRUE",
 		"oc.commander_legal = TRUE",
 		"oc.is_commander_candidate = TRUE",
 		"oc.oracle_text NOT ILIKE '%' || $1 || '%'",
@@ -134,6 +135,65 @@ func TestBuildCardSearchFiltersIncludesTokensWhenRequested(t *testing.T) {
 
 	if strings.Contains(sqlText, "lower(btrim(COALESCE(oc.layout, ''))) <> 'token'") {
 		t.Fatalf("buildCardSearchFilters() unexpectedly excluded tokens in %q", sqlText)
+	}
+	if !strings.Contains(sqlText, "COALESCE(oc.legal_anywhere, TRUE) = TRUE OR lower(btrim(COALESCE(oc.layout, ''))) IN ('token', 'double_faced_token')") {
+		t.Fatalf("buildCardSearchFilters() missing token-aware legality SQL in %q", sqlText)
+	}
+}
+
+func TestLegalAnywhereRequiresLegalOrRestrictedFormat(t *testing.T) {
+	t.Parallel()
+
+	if !legalAnywhere(map[string]string{"commander": "legal"}) {
+		t.Fatal("legalAnywhere() should accept legal cards")
+	}
+	if !legalAnywhere(map[string]string{"vintage": "restricted"}) {
+		t.Fatal("legalAnywhere() should accept restricted cards")
+	}
+	if legalAnywhere(map[string]string{"commander": "not_legal", "legacy": "banned"}) {
+		t.Fatal("legalAnywhere() should reject cards without a legal or restricted format")
+	}
+}
+
+func TestCardSearchLimitSupportsAllMatches(t *testing.T) {
+	t.Parallel()
+
+	limit, unlimited := cardSearchLimit(CardSearchParams{})
+	if unlimited {
+		t.Fatal("cardSearchLimit() unexpectedly marked default search unlimited")
+	}
+	if limit != 120 {
+		t.Fatalf("cardSearchLimit() default limit = %d, want 120", limit)
+	}
+
+	limit, unlimited = cardSearchLimit(CardSearchParams{Limit: 500})
+	if unlimited {
+		t.Fatal("cardSearchLimit() unexpectedly marked capped search unlimited")
+	}
+	if limit != 300 {
+		t.Fatalf("cardSearchLimit() capped limit = %d, want 300", limit)
+	}
+
+	limit, unlimited = cardSearchLimit(CardSearchParams{Limit: 120, AllMatches: true})
+	if !unlimited {
+		t.Fatal("cardSearchLimit() did not mark all-matches search unlimited")
+	}
+	if limit != 0 {
+		t.Fatalf("cardSearchLimit() unlimited limit = %d, want 0", limit)
+	}
+}
+
+func TestCardNameSearchMatchSQLIncludesContainsAndFuzzy(t *testing.T) {
+	t.Parallel()
+
+	sqlText := cardNameSearchMatchSQL()
+	for _, snippet := range []string{
+		"oc.name_search LIKE '%' || $1 || '%'",
+		"oc.name_search % $1",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("cardNameSearchMatchSQL() missing SQL snippet %q in %q", snippet, sqlText)
+		}
 	}
 }
 

@@ -34,6 +34,30 @@ func TestFormatRequiresCommander(t *testing.T) {
 	}
 }
 
+func TestNormalizePowerBracket(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]string{
+		"1":             "1 - Thematic",
+		"Thematic":      "1 - Thematic",
+		"Casual":        "1 - Thematic",
+		"2":             "2 - Core",
+		"Focused":       "2 - Core",
+		"3 - Upgraded":  "3 - Upgraded",
+		"Competitive":   "4 - Optimized",
+		"High Power":    "4 - Optimized",
+		"5":             "5 - cEDH",
+		"cedh":          "5 - cEDH",
+		"Custom Rating": "Custom Rating",
+	}
+
+	for input, want := range cases {
+		if got := NormalizePowerBracket(input); got != want {
+			t.Fatalf("NormalizePowerBracket(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestNormalizePublicSlug(t *testing.T) {
 	t.Parallel()
 

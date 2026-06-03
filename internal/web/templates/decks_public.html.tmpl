@@ -2,26 +2,21 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-5">
-    <section class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
+    <section class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div class="space-y-2">
-        <p class="mt-kicker">Public Decks</p>
-        <h1 class="mt-title">Public Decks</h1>
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
-        <a href="/decks/new" class="mt-btn mt-btn--primary mt-btn--sm">Builder</a>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Browse Decks</h1>
       </div>
     </section>
 
-    <section class="mt-panel p-5 sm:p-6 space-y-4">
-      <div class="space-y-1">
-        <p class="mt-section-label">Filters</p>
-        <p class="mt-hint">Filter by commander, format, or color.</p>
+    <section class="mt-panel p-5 sm:p-6 space-y-5">
+      <div class="space-y-2">
+        <p class="mt-kicker">Filters</p>
+        <h2 class="text-xl font-semibold tracking-tight text-slate-100">Find a Deck</h2>
       </div>
+
       <form method="GET" action="/decks/public" class="space-y-5">
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-4 md:grid-cols-2">
           <label>
             <span class="mt-field-label">Commander</span>
             <input type="text"
@@ -52,42 +47,42 @@
             </select>
           </label>
 
-          <fieldset>
+          <fieldset class="md:col-span-2">
             <legend class="mt-field-label">Color Identity</legend>
-            <div class="flex flex-wrap gap-2">
+            <div class="grid gap-2 sm:grid-cols-5">
               <label class="mt-check-pill">
                 <input type="checkbox" name="color" value="W" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "W" }}checked{{ end }}>
-                <span>W</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/W.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">White</span></span>
               </label>
               <label class="mt-check-pill">
                 <input type="checkbox" name="color" value="U" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "U" }}checked{{ end }}>
-                <span>U</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/U.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Blue</span></span>
               </label>
               <label class="mt-check-pill">
                 <input type="checkbox" name="color" value="B" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "B" }}checked{{ end }}>
-                <span>B</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/B.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Black</span></span>
               </label>
               <label class="mt-check-pill">
                 <input type="checkbox" name="color" value="R" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "R" }}checked{{ end }}>
-                <span>R</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/R.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Red</span></span>
               </label>
               <label class="mt-check-pill">
                 <input type="checkbox" name="color" value="G" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "G" }}checked{{ end }}>
-                <span>G</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/G.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Green</span></span>
               </label>
             </div>
           </fieldset>
         </div>
 
-        <div class="flex flex-wrap justify-end gap-2">
+        <div class="flex flex-wrap justify-end gap-2 border-t border-slate-800 pt-4">
           <a href="/decks/public" class="mt-btn mt-btn--secondary">Clear</a>
           <button type="submit" class="mt-btn mt-btn--primary">Apply</button>
         </div>
       </form>
     </section>
 
-    <section class="space-y-3">
-      <div class="flex items-center justify-between">
+    <section class="space-y-4">
+      <div class="flex items-center justify-between gap-3">
         <h2 class="mt-section-label">Published Decks</h2>
         <p class="text-xs text-slate-500">{{ len $ctx.Items }} result{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
       </div>
@@ -95,9 +90,10 @@
       {{ if $ctx.Items }}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {{ range $ctx.Items }}
-            <article class="mt-panel p-4 sm:p-5 space-y-4">
-              <div class="flex gap-3">
-                <div class="h-24 w-16 mt-card-media bg-slate-900 flex items-center justify-center shrink-0">
+            <article class="mt-action-card relative h-full cursor-pointer">
+              <a href="/decks/public/{{ .PublicSlug }}" class="absolute inset-0 z-0 rounded-lg" aria-label="Open {{ .Name }}"></a>
+              <div class="relative z-10 pointer-events-none flex gap-4">
+                <div class="h-32 w-[5.5rem] mt-card-media bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
                   {{ if .CommanderImageURI }}
                     <img src="{{ .CommanderImageURI }}" alt="{{ .CommanderName }}" class="w-full h-full object-cover">
                   {{ else }}
@@ -105,24 +101,36 @@
                   {{ end }}
                 </div>
 
-                <div class="min-w-0 flex-1 space-y-2">
-                  <div class="space-y-1">
+                <div class="min-w-0 flex-1 space-y-3">
+                  <div class="space-y-1.5">
                     <h3 class="text-base font-semibold text-slate-100 leading-tight">{{ .Name }}</h3>
                     {{ if .OwnerDisplayName }}
                       <p class="text-xs text-slate-400">
-                        by <a href="{{ userProfilePath .OwnerID }}" class="text-sky-300 hover:text-sky-200">{{ .OwnerDisplayName }}</a>
+                        <a href="{{ userProfilePath .OwnerID }}" class="relative z-20 pointer-events-auto text-sky-300 hover:text-sky-200">{{ .OwnerDisplayName }}</a>
                       </p>
                     {{ end }}
-                    <div class="flex flex-wrap gap-1">
-                      <span class="mt-chip">
-                        {{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}
-                      </span>
-                      {{ if .PowerBracket }}
-                        <span class="mt-chip">
-                          {{ .PowerBracket }}
-                        </span>
-                      {{ end }}
+                  </div>
+
+                  {{ if .CommanderName }}
+                    <div class="space-y-1">
+                      <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Commander</p>
+                      <p class="text-sm font-medium text-slate-100 leading-snug">{{ .CommanderName }}</p>
                     </div>
+                  {{ end }}
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    {{ if .ColorPips }}
+                      <span class="inline-flex items-center gap-1.5" aria-label="{{ .ColorIdentityName }}">
+                        {{ range .ColorPips }}
+                          <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
+                          <span class="sr-only">{{ .Label }}</span>
+                        {{ end }}
+                      </span>
+                    {{ end }}
+                    <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
+                    {{ if .PowerBracket }}
+                      <span class="mt-chip">{{ .PowerBracket }}</span>
+                    {{ end }}
                   </div>
 
                   {{ if .Tags }}
@@ -134,14 +142,11 @@
                   {{ end }}
                 </div>
               </div>
-              <div class="flex justify-end">
-                <a href="/decks/public/{{ .PublicSlug }}" class="mt-btn mt-btn--secondary mt-btn--sm">Open</a>
-              </div>
             </article>
           {{ end }}
         </div>
       {{ else }}
-        <div class="mt-panel p-5 text-center text-sm text-slate-400">No matches.</div>
+        <div class="mt-empty-state text-center">No matches.</div>
       {{ end }}
     </section>
   </main>

@@ -81,10 +81,13 @@
                        alt="{{ if $d.CommanderName }}{{ $d.CommanderName }} commander art{{ else }}Commander art{{ end }}"
                        class="block h-full w-full object-cover">
                 </button>
-                <div id="deck-top-commander-placeholder"
-                     class="mt-commander-art mt-commander-art--empty {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}hidden{{ end }}">
+                <button type="button"
+                     id="deck-top-commander-placeholder"
+                     class="mt-commander-art mt-commander-art--empty focus:outline-none focus:ring-2 focus:ring-sky-400 {{ if or (and $c $c.ImageURI) (and $c $c.Faces) }}hidden{{ end }}"
+                     aria-haspopup="menu"
+                     aria-label="Select commander from deck">
                   <span>Select</span>
-                </div>
+                </button>
                 <div id="deck-commander-menu-slot" class="mt-commander-menu-slot"></div>
                 <button type="button" id="deck-commander-name" class="hidden">
                   {{ if $c }}{{ $c.Name }}{{ else if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}No commander selected{{ end }}
@@ -581,11 +584,11 @@
       var commanderArtEl = document.getElementById('deck-top-commander-art');
       var commanderFaces = {{ if and $c (gt (len $c.Faces) 0) }}{{ toJSON $c.Faces }}{{ else }}[]{{ end }};
       var commanderFallback = {
-        name: {{ if $c }}{{ printf "%q" $c.Name }}{{ else }}""{{ end }},
-        mana_cost: {{ if $c }}{{ printf "%q" $c.ManaCost }}{{ else }}""{{ end }},
-        type_line: {{ if $c }}{{ printf "%q" $c.TypeLine }}{{ else }}""{{ end }},
-        oracle_text: {{ if $c }}{{ printf "%q" $c.OracleText }}{{ else }}""{{ end }},
-        image_uri: {{ if $c }}{{ printf "%q" $c.ImageURI }}{{ else }}""{{ end }}
+        name: {{ if $c }}{{ toJSON $c.Name }}{{ else }}""{{ end }},
+        mana_cost: {{ if $c }}{{ toJSON $c.ManaCost }}{{ else }}""{{ end }},
+        type_line: {{ if $c }}{{ toJSON $c.TypeLine }}{{ else }}""{{ end }},
+        oracle_text: {{ if $c }}{{ toJSON $c.OracleText }}{{ else }}""{{ end }},
+        image_uri: {{ if $c }}{{ toJSON $c.ImageURI }}{{ else }}""{{ end }}
       };
       var commanderRequiresSelection = {{ if $isCommanderDeck }}true{{ else }}false{{ end }};
       var currentCommanderFaces = [];
@@ -831,6 +834,13 @@
         commanderArtWrapEl.addEventListener('click', function () {
           if (commanderArtWrapEl.classList.contains('hidden')) return;
           openCommanderCardView();
+        });
+      }
+      if (commanderPlaceholderEl) {
+        commanderPlaceholderEl.addEventListener('click', function () {
+          if (typeof window.mtDeckOpenCommanderPicker === 'function') {
+            window.mtDeckOpenCommanderPicker();
+          }
         });
       }
 
@@ -1084,6 +1094,9 @@
             viewButton.addEventListener('click', (function (cardName) {
               return function (event) {
                 event.preventDefault();
+                event.stopPropagation();
+                suggestions.classList.remove('hidden');
+                addInput.setAttribute('aria-expanded', 'true');
                 if (typeof window.mtDeckOpenWorkbenchCardView !== 'function') return;
                 window.mtDeckOpenWorkbenchCardView(cardName, null, {
                   resolveExact: true,
@@ -1163,6 +1176,8 @@
         addInput.addEventListener('focus', closeDeckActionMenus);
 
         document.addEventListener('click', function (event) {
+          var modal = document.getElementById('card-detail-modal');
+          if (modal && modal.contains(event.target)) return;
           if (event.target === addInput || suggestions.contains(event.target)) return;
           closeSuggestions();
         });

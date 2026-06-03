@@ -31,12 +31,11 @@ var supportedFormats = []string{
 
 var supportedPowerBrackets = []string{
 	"",
-	"Casual",
-	"Upgraded",
-	"Focused",
-	"High Power",
-	"Competitive",
-	"cEDH",
+	"1 - Thematic",
+	"2 - Core",
+	"3 - Upgraded",
+	"4 - Optimized",
+	"5 - cEDH",
 }
 
 func SupportedFormats() []string {
@@ -49,6 +48,25 @@ func SupportedPowerBrackets() []string {
 	out := make([]string, len(supportedPowerBrackets))
 	copy(out, supportedPowerBrackets)
 	return out
+}
+
+func powerBracketFilterLabels(raw string) []string {
+	switch NormalizePowerBracket(raw) {
+	case "":
+		return nil
+	case "1 - Thematic":
+		return []string{"1 - Thematic", "1", "Bracket 1", "Power 1", "Thematic", "Casual"}
+	case "2 - Core":
+		return []string{"2 - Core", "2", "Bracket 2", "Power 2", "Core", "Focused"}
+	case "3 - Upgraded":
+		return []string{"3 - Upgraded", "3", "Bracket 3", "Power 3", "Upgraded"}
+	case "4 - Optimized":
+		return []string{"4 - Optimized", "4", "Bracket 4", "Power 4", "Optimized", "Competitive", "High Power", "High-Power", "HighPower"}
+	case "5 - cEDH":
+		return []string{"5 - cEDH", "5", "Bracket 5", "Power 5", "cEDH", "CEDH", "cedh"}
+	default:
+		return []string{NormalizePowerBracket(raw)}
+	}
 }
 
 func NormalizeFormat(raw string) string {
@@ -107,18 +125,16 @@ func NormalizePowerBracket(raw string) string {
 	switch strings.ToLower(normalizeLooseLabel(raw)) {
 	case "":
 		return ""
-	case "casual":
-		return "Casual"
-	case "upgraded":
-		return "Upgraded"
-	case "focused":
-		return "Focused"
-	case "high power", "high-power", "highpower":
-		return "High Power"
-	case "competitive":
-		return "Competitive"
-	case "cedh":
-		return "cEDH"
+	case "1", "bracket 1", "power 1", "casual", "thematic", "1 - thematic":
+		return "1 - Thematic"
+	case "2", "bracket 2", "power 2", "core", "focused", "2 - core":
+		return "2 - Core"
+	case "3", "bracket 3", "power 3", "upgraded", "3 - upgraded":
+		return "3 - Upgraded"
+	case "4", "bracket 4", "power 4", "optimized", "high power", "high-power", "highpower", "competitive", "4 - optimized":
+		return "4 - Optimized"
+	case "5", "bracket 5", "power 5", "cedh", "5 - cedh":
+		return "5 - cEDH"
 	default:
 		return normalizeLooseLabel(raw)
 	}

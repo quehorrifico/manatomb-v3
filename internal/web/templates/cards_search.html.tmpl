@@ -3,80 +3,81 @@
   {{ $ctx := .Data }}
 
   <main class="max-w-6xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div class="space-y-2">
         <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Advanced Search</h1>
-        <p class="text-sm text-slate-400">Set the filters you want, then open the results page to review matching cards.</p>
         {{ if $ctx.ShowCurrentSort }}
           <p class="text-xs text-slate-500">Current result order: <span class="font-medium text-slate-300">{{ $ctx.CurrentSortLabel }} · {{ $ctx.CurrentDirectionLabel }}</span></p>
         {{ end }}
       </div>
     </div>
 
-    <section class="mt-panel p-5 sm:p-6 space-y-6">
+    <section class="space-y-6">
       <form method="GET" action="{{ $ctx.SearchActionPath }}" class="space-y-6" data-card-search-form>
         <input type="hidden" name="view" value="1">
         <input type="hidden" name="sort" value="{{ $ctx.Sort }}">
         {{ if $ctx.SortDirectionExplicit }}
           <input type="hidden" name="sort_dir" value="{{ $ctx.SortDirection }}">
         {{ end }}
-        <section class="space-y-4">
-          <div class="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <div class="space-y-3">
-              <label class="block text-sm text-slate-200">
-                <span class="mt-field-label">Name</span>
-                <div class="relative" data-card-autocomplete-root>
+        <section class="mt-filter-group">
+          <div class="mt-filter-group__head">
+            <div class="space-y-1">
+              <p class="mt-section-label">Card Identity</p>
+              <p class="mt-hint">Name, mana cost, rules text, and type line.</p>
+            </div>
+          </div>
+          <div class="mt-filter-group__body">
+            <div class="mt-filter-grid mt-filter-grid--wide">
+              <div class="mt-filter-grid mt-filter-grid--2">
+                <label class="block text-sm text-slate-200">
+                  <span class="mt-field-label">Name</span>
+                  <div class="relative" data-card-autocomplete-root>
+                    <input type="text"
+                           name="q"
+                           value="{{ $ctx.NameQuery }}"
+                           placeholder="Thassa's Oracle"
+                           class="mt-control"
+                           autocomplete="off"
+                           aria-autocomplete="list"
+                           aria-expanded="false"
+                           aria-haspopup="listbox"
+                           data-card-autocomplete-input>
+                    <div
+                      data-card-autocomplete-menu
+                      class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                      role="listbox"></div>
+                  </div>
+                </label>
+
+                <label class="block text-sm text-slate-200">
+                  <span class="mt-field-label">Mana Cost</span>
                   <input type="text"
-                         name="q"
-                         value="{{ $ctx.NameQuery }}"
-                         placeholder="Thassa's Oracle"
-                         class="mt-control"
-                         autocomplete="off"
-                         aria-autocomplete="list"
-                         aria-expanded="false"
-                         aria-haspopup="listbox"
-                         data-card-autocomplete-input>
-                  <div
-                    data-card-autocomplete-menu
-                    class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
-                    role="listbox"></div>
-                </div>
-              </label>
+                         name="mana_cost"
+                         value="{{ $ctx.ManaCostQuery }}"
+                         placeholder="{W}{W}"
+                         class="mt-control">
+                </label>
 
-              <label class="block text-sm text-slate-200">
-                <span class="mt-field-label">Mana Cost</span>
-                <input type="text"
-                       name="mana_cost"
-                       value="{{ $ctx.ManaCostQuery }}"
-                       placeholder="{W}{W}"
-                       class="mt-control">
-              </label>
+                <label class="block text-sm text-slate-200 md:col-span-2">
+                  <span class="mt-field-label">Rules Text</span>
+                  <input type="text"
+                         name="text"
+                         value="{{ $ctx.TextQuery }}"
+                         placeholder="draw a card"
+                         class="mt-control">
+                </label>
 
-              <label class="mt-check-pill">
-                <input type="checkbox" name="name_exact" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.NameExact }}checked{{ end }}>
-                <span>Exact card name only</span>
-              </label>
-            </div>
-
-            <div class="space-y-3">
-              <span class="mt-field-label !mb-0">Rules Text</span>
-              <label class="block text-sm text-slate-200">
-                <input type="text"
-                       name="text"
-                       value="{{ $ctx.TextQuery }}"
-                       placeholder="draw a card"
-                       class="mt-control">
-              </label>
-              <p class="mt-hint">Searches the oracle text already stored in the app database.</p>
-            </div>
-
-            <div class="space-y-2" data-type-filter-root>
-              <div class="flex items-center justify-between gap-2">
-                <span class="mt-field-label !mb-0">Type Line</span>
-                <span class="text-[11px] text-slate-500">Add multiple types, then set each one to IS or NOT.</span>
+                <label class="mt-check-pill md:col-span-2">
+                  <input type="checkbox" name="name_exact" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.NameExact }}checked{{ end }}>
+                  <span>Exact card name only</span>
+                </label>
               </div>
 
-              <div class="space-y-3">
+              <div class="space-y-3" data-type-filter-root>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="mt-field-label !mb-0">Type Line</span>
+                </div>
+
                 <div class="relative">
                   <input type="text"
                          data-type-filter-input
@@ -103,108 +104,137 @@
                   <input type="checkbox" name="type_partial" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.TypePartial }}checked{{ end }}>
                   <span>Allow partial type matches</span>
                 </label>
-                <p data-type-filter-status class="mt-hint">Press Enter or choose a suggestion to add a type. You can add multiple types and toggle each one between `IS` and `NOT`.</p>
+                <p data-type-filter-status class="mt-hint">Choose a type, then toggle it between IS and NOT.</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section class="space-y-3">
-          <div class="mt-subpanel space-y-4">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div class="space-y-1">
-                <p class="mt-field-label !mb-0">Color Identity</p>
-                <p class="text-[11px] text-slate-500">Match exactly these colors, include them somewhere in the identity, or cap results to cards at most these colors.</p>
-              </div>
-              <label class="text-[11px] text-slate-400">
-                <span class="sr-only">Color identity match mode</span>
-                <select name="color_mode" class="mt-control mt-control--sm text-xs text-slate-200">
-                  <option value="exact" {{ if eq $ctx.ColorMode "exact" }}selected{{ end }}>Exactly these colors</option>
-                  <option value="includes" {{ if eq $ctx.ColorMode "includes" }}selected{{ end }}>Includes these colors</option>
-                  <option value="at_most" {{ if eq $ctx.ColorMode "at_most" }}selected{{ end }}>At most these colors</option>
-                </select>
-              </label>
+        <section class="mt-filter-group">
+          <div class="mt-filter-group__head">
+            <div class="space-y-1">
+              <p class="mt-section-label">Color Identity</p>
+              <p class="mt-hint">Choose colors and how strict the match should be.</p>
             </div>
-
-            <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <label class="w-full max-w-xs text-[11px] text-slate-400">
+              <span class="sr-only">Color identity match mode</span>
+              <select name="color_mode" class="mt-control mt-control--sm text-xs text-slate-200">
+                <option value="exact" {{ if eq $ctx.ColorMode "exact" }}selected{{ end }}>Exactly these colors</option>
+                <option value="includes" {{ if eq $ctx.ColorMode "includes" }}selected{{ end }}>Includes these colors</option>
+                <option value="at_most" {{ if eq $ctx.ColorMode "at_most" }}selected{{ end }}>At most these colors</option>
+              </select>
+            </label>
+          </div>
+          <div class="mt-filter-group__body">
+            <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
               <label class="mt-check-pill justify-between">
-                <span>White</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/W.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">White</span></span>
                 <input type="checkbox" name="color" value="W" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "W" }}checked{{ end }}>
               </label>
               <label class="mt-check-pill justify-between">
-                <span>Blue</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/U.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Blue</span></span>
                 <input type="checkbox" name="color" value="U" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "U" }}checked{{ end }}>
               </label>
               <label class="mt-check-pill justify-between">
-                <span>Black</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/B.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Black</span></span>
                 <input type="checkbox" name="color" value="B" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "B" }}checked{{ end }}>
               </label>
               <label class="mt-check-pill justify-between">
-                <span>Red</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/R.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Red</span></span>
                 <input type="checkbox" name="color" value="R" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "R" }}checked{{ end }}>
               </label>
               <label class="mt-check-pill justify-between">
-                <span>Green</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/G.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Green</span></span>
                 <input type="checkbox" name="color" value="G" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "G" }}checked{{ end }}>
               </label>
               <label class="mt-check-pill justify-between">
-                <span>Colorless</span>
+                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/C.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Colorless</span></span>
                 <input type="checkbox" name="color" value="C" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorsSelected "C" }}checked{{ end }}>
               </label>
             </div>
           </div>
         </section>
 
-        <section class="space-y-4">
-          <div class="grid gap-4 xl:grid-cols-3">
-            <label class="block text-sm text-slate-200">
-              <span class="mt-field-label">Rarity</span>
-              <select name="rarity" class="mt-control">
-                <option value="">Any rarity</option>
-                <option value="common" {{ if eq $ctx.Rarity "common" }}selected{{ end }}>Common</option>
-                <option value="uncommon" {{ if eq $ctx.Rarity "uncommon" }}selected{{ end }}>Uncommon</option>
-                <option value="rare" {{ if eq $ctx.Rarity "rare" }}selected{{ end }}>Rare</option>
-                <option value="mythic" {{ if eq $ctx.Rarity "mythic" }}selected{{ end }}>Mythic</option>
-              </select>
-            </label>
-
-            <label class="block text-sm text-slate-200">
-              <span class="mt-field-label">Set</span>
-              <div class="relative" data-set-autocomplete-root>
-                <input type="text"
-                       name="set"
-                       value="{{ $ctx.SetQuery }}"
-                       placeholder="Set name or code"
-                       autocomplete="off"
-                       aria-autocomplete="list"
-                       aria-expanded="false"
-                       aria-haspopup="listbox"
-                       data-set-autocomplete-input
-                       class="mt-control">
-                <div
-                  data-set-autocomplete-menu
-                  class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
-                  role="listbox"></div>
-              </div>
-              <p class="mt-hint">Suggestions prioritize exact set codes and set-name prefixes.</p>
-            </label>
-
-            <label class="block text-sm text-slate-200">
-              <span class="mt-field-label">Artist</span>
-              <input type="text"
-                     name="artist"
-                     value="{{ $ctx.ArtistQuery }}"
-                     placeholder="Artist name"
-                     class="mt-control">
-            </label>
+        <section class="mt-filter-group">
+          <div class="mt-filter-group__head">
+            <div class="space-y-1">
+              <p class="mt-section-label">Print Details</p>
+              <p class="mt-hint">Rarity, set, artist, legality, and token options.</p>
+            </div>
           </div>
+          <div class="mt-filter-group__body space-y-4">
+            <div class="mt-filter-grid mt-filter-grid--3">
+              <label class="block text-sm text-slate-200">
+                <span class="mt-field-label">Rarity</span>
+                <select name="rarity" class="mt-control">
+                  <option value="">Any rarity</option>
+                  <option value="common" {{ if eq $ctx.Rarity "common" }}selected{{ end }}>Common</option>
+                  <option value="uncommon" {{ if eq $ctx.Rarity "uncommon" }}selected{{ end }}>Uncommon</option>
+                  <option value="rare" {{ if eq $ctx.Rarity "rare" }}selected{{ end }}>Rare</option>
+                  <option value="mythic" {{ if eq $ctx.Rarity "mythic" }}selected{{ end }}>Mythic</option>
+                </select>
+              </label>
 
-          <details class="mt-subpanel space-y-4" data-metrics-panel {{ if or $ctx.StatValue $ctx.PriceValue }}open{{ end }}>
+              <label class="block text-sm text-slate-200">
+                <span class="mt-field-label">Set</span>
+                <div class="relative" data-set-autocomplete-root>
+                  <input type="text"
+                         name="set"
+                         value="{{ $ctx.SetQuery }}"
+                         placeholder="Set name or code"
+                         autocomplete="off"
+                         aria-autocomplete="list"
+                         aria-expanded="false"
+                         aria-haspopup="listbox"
+                         data-set-autocomplete-input
+                         class="mt-control">
+                  <div
+                    data-set-autocomplete-menu
+                    class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-30 max-h-72 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                    role="listbox"></div>
+                </div>
+              </label>
+
+              <label class="block text-sm text-slate-200">
+                <span class="mt-field-label">Artist</span>
+                <input type="text"
+                       name="artist"
+                       value="{{ $ctx.ArtistQuery }}"
+                       placeholder="Artist name"
+                       class="mt-control">
+              </label>
+            </div>
+
+            <div class="grid gap-2 lg:grid-cols-3">
+              <label class="mt-check-pill">
+                <input type="checkbox" name="commander" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderOnly }}checked{{ end }}>
+                <span>Commander candidates only</span>
+              </label>
+              <label class="mt-check-pill">
+                <input type="checkbox" name="commander_legal" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderLegal }}checked{{ end }}>
+                <span>Commander legal only</span>
+              </label>
+              <label class="mt-check-pill">
+                <input type="checkbox" name="include_tokens" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.IncludeTokens }}checked{{ end }}>
+                <span>Include tokens</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-filter-group">
+          <div class="mt-filter-group__head">
+            <div class="space-y-1">
+              <p class="mt-section-label">Stats &amp; Price</p>
+              <p class="mt-hint">Optional comparisons for mana value, power, toughness, loyalty, or price.</p>
+            </div>
+          </div>
+          <div class="mt-filter-group__body">
+            <details class="space-y-4" data-metrics-panel {{ if or $ctx.StatValue $ctx.PriceValue }}open{{ end }}>
             <summary class="cursor-pointer list-none">
               <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div class="space-y-1">
-                  <p class="mt-field-label !mb-0">Stats &amp; Price</p>
-                  <p class="text-[11px] text-slate-500">Use one comparison per stat or price filter, then clear either one without resetting the whole form.</p>
+                  <p class="text-sm font-medium text-slate-100">Comparisons</p>
                 </div>
                 <p data-metrics-summary class="text-xs text-slate-400">Add stat or price comparisons</p>
               </div>
@@ -221,7 +251,7 @@
                   </button>
                 </div>
 
-                <div class="grid gap-4 xl:grid-cols-3">
+                <div class="mt-filter-grid mt-filter-grid--3">
                   <label class="block text-sm text-slate-200">
                     <span class="mt-field-label">Stats</span>
                     <select name="stat" data-stat-select class="mt-control">
@@ -265,7 +295,7 @@
                   </button>
                 </div>
 
-                <div class="grid gap-4 md:grid-cols-2">
+                <div class="mt-filter-grid mt-filter-grid--2">
                   <label class="block text-sm text-slate-200">
                     <span class="mt-field-label">Price Comparison</span>
                     <select name="price_op" data-price-operator class="mt-control">
@@ -290,35 +320,25 @@
                 <p data-price-example class="mt-hint">Example: Price less than or equal to 25.00</p>
               </div>
             </div>
-          </details>
-
-          <div class="grid gap-2 lg:grid-cols-3">
-            <label class="mt-check-pill">
-              <input type="checkbox" name="commander" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderOnly }}checked{{ end }}>
-              <span>Commander candidates only</span>
-            </label>
-            <label class="mt-check-pill">
-              <input type="checkbox" name="commander_legal" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.CommanderLegal }}checked{{ end }}>
-              <span>Commander legal only</span>
-            </label>
-            <label class="mt-check-pill">
-              <input type="checkbox" name="include_tokens" value="1" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if $ctx.IncludeTokens }}checked{{ end }}>
-              <span>Include tokens</span>
-            </label>
+            </details>
           </div>
         </section>
 
-        <section class="mt-subpanel p-4 space-y-3" data-search-summary-root>
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Current Filter Summary</p>
-            <p data-search-summary-count class="text-xs text-slate-400">No filters selected</p>
+        <section class="mt-filter-group" data-search-summary-root>
+          <div class="mt-filter-group__head">
+            <div class="space-y-1">
+              <p class="mt-section-label">Search Summary</p>
+              <p data-search-summary-count class="text-xs text-slate-400">No filters selected</p>
+            </div>
           </div>
-          <p data-search-summary-line class="text-sm text-slate-300">Add a few filters and this bar will preview the exact search you are building.</p>
-          <div data-search-summary-chips class="flex flex-wrap gap-2"></div>
+          <div class="mt-filter-group__body space-y-3">
+            <p data-search-summary-line class="text-sm text-slate-300">Add filters and this bar will preview the search.</p>
+            <div data-search-summary-chips class="flex flex-wrap gap-2"></div>
+          </div>
         </section>
 
         <div class="flex flex-wrap justify-between gap-3 border-t border-slate-800 pt-5">
-          <p class="text-xs text-slate-500">This page only sets search filters. Submitting sends you to the results page.</p>
+          <p class="text-xs text-slate-500">Submitting opens the matching card results.</p>
           <div class="flex flex-wrap gap-2">
             <a href="{{ $ctx.ClearPath }}" class="mt-btn mt-btn--secondary">Clear</a>
             <button type="submit" class="mt-btn mt-btn--primary">View Results</button>

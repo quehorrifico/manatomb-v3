@@ -44,6 +44,7 @@ type CardSearchParams struct {
 	Sort           string
 	SortDirection  string
 	Limit          int
+	AllMatches     bool
 }
 
 type NameResolution struct {
@@ -313,6 +314,7 @@ func scanCanonicalCard(
 	colors, colorIdentity []string,
 	cmc float64,
 	layout string,
+	legalAnywhere bool,
 	commanderLegal bool,
 	isCommanderCandidate bool,
 	priceUSD, artist string,
@@ -332,6 +334,7 @@ func scanCanonicalCard(
 		ColorIdentity:        colorIdentity,
 		CMC:                  cmc,
 		Layout:               strings.TrimSpace(layout),
+		LegalAnywhere:        legalAnywhere,
 		CommanderLegal:       commanderLegal,
 		IsCommanderCandidate: isCommanderCandidate,
 		PriceUSD:             strings.TrimSpace(priceUSD),
@@ -360,6 +363,7 @@ func canonicalCardSelectSQL() string {
 			COALESCE(oc.color_identity, ARRAY[]::text[]) AS color_identity,
 			COALESCE(oc.cmc, 0) AS cmc,
 			COALESCE(oc.layout, '') AS layout,
+			COALESCE(oc.legal_anywhere, true) AS legal_anywhere,
 			COALESCE(oc.commander_legal, false) AS commander_legal,
 			COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
 			COALESCE(oc.default_price_usd, '') AS price_usd,
@@ -488,7 +492,11 @@ func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []an
 	clauses := []string{
 		"lower(btrim(COALESCE(oc.type_line, ''))) <> 'card'",
 	}
-	if !params.IncludeTokens && layout != "token" && layout != "double_faced_token" {
+	includeTokenLayouts := params.IncludeTokens || layout == "token" || layout == "double_faced_token"
+	if includeTokenLayouts {
+		clauses = append(clauses, "(COALESCE(oc.legal_anywhere, TRUE) = TRUE OR lower(btrim(COALESCE(oc.layout, ''))) IN ('token', 'double_faced_token'))")
+	} else {
+		clauses = append(clauses, "COALESCE(oc.legal_anywhere, TRUE) = TRUE")
 		clauses = append(clauses, "lower(btrim(COALESCE(oc.layout, ''))) <> 'token'")
 		clauses = append(clauses, "lower(btrim(COALESCE(oc.layout, ''))) <> 'double_faced_token'")
 	}
@@ -618,7 +626,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			rarity, releasedAt, facesJSON                                        string
 			colors, colorIdentity                                                []string
 			cmc                                                                  float64
-			commanderLegal, isCommanderCandidate                                 bool
+			legalAnywhere, commanderLegal, isCommanderCandidate                  bool
 			edhrecRank                                                           int
 		)
 		if err := rows.Scan(
@@ -633,6 +641,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			pq.Array(&colorIdentity),
 			&cmc,
 			&layout,
+			&legalAnywhere,
 			&commanderLegal,
 			&isCommanderCandidate,
 			&priceUSD,
@@ -659,6 +668,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			colorIdentity,
 			cmc,
 			layout,
+			legalAnywhere,
 			commanderLegal,
 			isCommanderCandidate,
 			priceUSD,
@@ -676,6 +686,24 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func cardSearchLimit(params CardSearchParams) (int, bool) {
+	if params.AllMatches {
+		return 0, true
+	}
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 120
+	}
+	if limit > 300 {
+		limit = 300
+	}
+	return limit, false
+}
+
+func cardNameSearchMatchSQL() string {
+	return "(oc.name_search LIKE '%' || $1 || '%' OR oc.name_search % $1)"
 }
 
 func GetCardByName(ctx context.Context, db *sql.DB, name string) (*Card, error) {
@@ -734,12 +762,10 @@ func GetCardByOracleID(ctx context.Context, db *sql.DB, oracleID string) (*Card,
 // SearchCards first returns one exact normalized-name match when present.
 // If no exact match exists, it returns fuzzy matches ordered by closeness.
 func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Card, error) {
-	limit := params.Limit
-	if limit <= 0 {
-		limit = 120
-	}
-	if limit > 300 {
-		limit = 300
+	limit, unlimited := cardSearchLimit(params)
+	scanCapacity := limit
+	if unlimited || scanCapacity < 1 {
+		scanCapacity = 64
 	}
 
 	query := strings.TrimSpace(params.Query)
@@ -748,16 +774,20 @@ func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Ca
 		filterSQL, filterArgs := buildCardSearchFilters(params, 1)
 		sqlText := canonicalCardSelectSQL() + `
 			WHERE 1=1` + filterSQL + `
-			ORDER BY ` + orderSQL + `
+			ORDER BY ` + orderSQL
+		args := filterArgs
+		if !unlimited {
+			sqlText += `
 			LIMIT $` + fmt.Sprint(len(filterArgs)+1)
-		args := append(filterArgs, limit)
+			args = append(args, limit)
+		}
 
 		rows, err := db.QueryContext(ctx, sqlText, args...)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
-		return scanCanonicalCards(rows, limit)
+		return scanCanonicalCards(rows, scanCapacity)
 	}
 
 	if params.NameExact {
@@ -812,18 +842,47 @@ func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Ca
 	filterSQL, filterArgs = buildCardSearchFilters(fuzzyParams, 2)
 	orderSQL := cardSearchOrderBySQL(params.Sort, params.SortDirection, true, true)
 	fuzzySQL := canonicalCardSelectSQL() + `
-		WHERE oc.name_search % $1` + filterSQL + `
-		ORDER BY ` + orderSQL + `
-		LIMIT $` + fmt.Sprint(len(filterArgs)+2)
+		WHERE ` + cardNameSearchMatchSQL() + filterSQL + `
+		ORDER BY ` + orderSQL
 	fuzzyArgs := append([]any{normalizedQuery}, filterArgs...)
-	fuzzyArgs = append(fuzzyArgs, limit)
+	if !unlimited {
+		fuzzySQL += `
+		LIMIT $` + fmt.Sprint(len(filterArgs)+2)
+		fuzzyArgs = append(fuzzyArgs, limit)
+	}
 
 	rows, err := db.QueryContext(ctx, fuzzySQL, fuzzyArgs...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanCanonicalCards(rows, limit)
+	return scanCanonicalCards(rows, scanCapacity)
+}
+
+// RandomCard returns one sensible random card for discovery flows.
+func RandomCard(ctx context.Context, db *sql.DB) (*Card, error) {
+	sqlText := canonicalCardSelectSQL() + `
+		WHERE lower(btrim(COALESCE(oc.type_line, ''))) <> 'card'
+		  AND lower(btrim(COALESCE(oc.layout, ''))) NOT IN ('token', 'double_faced_token')
+		  AND COALESCE(oc.legal_anywhere, TRUE) = TRUE
+		ORDER BY random()
+		LIMIT 1
+	`
+
+	rows, err := db.QueryContext(ctx, sqlText)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	found, err := scanCanonicalCards(rows, 1)
+	if err != nil {
+		return nil, err
+	}
+	if len(found) == 0 {
+		return nil, ErrCardNotFound
+	}
+	return &found[0], nil
 }
 
 // RandomTopCommanders returns a random sample of strict commander-candidate
@@ -880,6 +939,11 @@ func SearchCardNamesExactThenFuzzy(
 		limit = 100
 	}
 
+	sensibleNameSearchSQL := `
+		AND lower(btrim(COALESCE(oc.type_line, ''))) <> 'card'
+		AND lower(btrim(COALESCE(oc.layout, ''))) NOT IN ('token', 'double_faced_token')
+		AND COALESCE(oc.legal_anywhere, TRUE) = TRUE
+	`
 	exactSQL := `
 		SELECT
 			oc.oracle_id::text,
@@ -893,7 +957,7 @@ func SearchCardNamesExactThenFuzzy(
 			COALESCE(oc.is_commander_candidate, false)
 		FROM oracle_cards oc
 		WHERE oc.name_search = normalize_card_name($1)
-	`
+	` + sensibleNameSearchSQL
 	args := []any{query}
 	if commanderOnly {
 		exactSQL += ` AND oc.is_commander_candidate = TRUE`
@@ -965,8 +1029,8 @@ func SearchCardNamesExactThenFuzzy(
 			COALESCE(oc.cmc, 0),
 			COALESCE(oc.is_commander_candidate, false)
 		FROM oracle_cards oc
-		WHERE oc.name_search % $1
-	`
+		WHERE ` + cardNameSearchMatchSQL() + `
+	` + sensibleNameSearchSQL
 	fuzzyArgs := []any{normalizedQuery}
 	if commanderOnly {
 		fuzzySQL += ` AND oc.is_commander_candidate = TRUE`

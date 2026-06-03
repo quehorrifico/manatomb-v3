@@ -54,8 +54,8 @@ func (a *App) HandleDeckList(w http.ResponseWriter, r *http.Request) {
 
 		commanderName := strings.TrimSpace(d.CommanderName)
 		if commanderName != "" {
-			if c, ok := commanderCards[strings.ToLower(commanderName)]; ok && c.ImageURI != "" {
-				item.CommanderImageURI = c.ImageURI
+			if c, ok := commanderCards[strings.ToLower(commanderName)]; ok {
+				applyCommanderCardMetaToDeckItem(&item, c)
 			}
 			// If lookup misses or has no image, we just show the placeholder in the UI.
 		}

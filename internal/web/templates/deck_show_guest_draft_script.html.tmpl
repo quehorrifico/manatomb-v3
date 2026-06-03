@@ -3,7 +3,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     var isGuest = {{ if .Data.WorkbenchMode }}true{{ else if .CurrentUser }}false{{ else }}true{{ end }};
     var isSignedIn = {{ if .CurrentUser }}true{{ else }}false{{ end }};
-    var commanderName = {{ printf "%q" .Data.Deck.CommanderName }};
+    var commanderName = {{ toJSON .Data.Deck.CommanderName }};
     var previewWrap = document.getElementById('deck-card-preview');
     var previewImg = document.getElementById('deck-card-preview-img');
     var previewFallback = document.getElementById('deck-card-preview-fallback');
@@ -703,7 +703,7 @@
     var shouldResetDraft = !!(urlParams && urlParams.get('reset') === '1');
     var key = isSandboxDraft ? 'manatomb.draftDeck.sandbox' : 'manatomb.draftDeck';
     var returnKey = key + '.playtestReturn';
-    var deckFormat = {{ printf "%q" .Data.Deck.Format }};
+    var deckFormat = {{ toJSON .Data.Deck.Format }};
     var allowsCommanderCardAction = {{ if eq .Data.Deck.Format "Commander" }}true{{ else }}false{{ end }};
     var savedDeckID = savedDeckSeed && Number(savedDeckSeed.id || 0) > 0 ? Number(savedDeckSeed.id || 0) : 0;
 
@@ -3058,29 +3058,35 @@
       replaceDeckActionMenuPanel(details, panel);
     }
 
-    function renderCommanderActionMenu(actions, keepOpen) {
+    var lastCommanderActions = null;
+
+    function renderCommanderActionMenu(actions, keepOpen, showCandidates) {
       if (!commanderMenuSlot) return;
       commanderMenuSlot.innerHTML = '';
       if (!actions || typeof actions !== 'object') return;
+      lastCommanderActions = actions;
       var current = normalizeName(typeof actions.currentName === 'function' ? actions.currentName() : commanderName);
-      if (!current) return;
+      var candidates = typeof actions.candidates === 'function' ? actions.candidates() : [];
 
       var moveBoards = typeof actions.moveBoards === 'function' ? actions.moveBoards() : [];
       var moveItems = [];
-      for (var i = 0; i < moveBoards.length; i++) {
-        (function (targetBoard) {
-          targetBoard = normalizeDeckBoardMode(targetBoard);
-          moveItems.push({
-            label: targetBoard === 'main' ? 'Move to Main' : (targetBoard === 'side' ? 'Move to Side' : 'Move to Maybe'),
-            onClick: function () {
-              if (typeof actions.moveToBoard === 'function') actions.moveToBoard(targetBoard);
-            }
-          });
-        })(moveBoards[i]);
+      if (current) {
+        for (var i = 0; i < moveBoards.length; i++) {
+          (function (targetBoard) {
+            targetBoard = normalizeDeckBoardMode(targetBoard);
+            moveItems.push({
+              label: targetBoard === 'main' ? 'Move to Main' : (targetBoard === 'side' ? 'Move to Side' : 'Move to Maybe'),
+              onClick: function () {
+                if (typeof actions.moveToBoard === 'function') actions.moveToBoard(targetBoard);
+              }
+            });
+          })(moveBoards[i]);
+        }
       }
 
-      var candidates = typeof actions.candidates === 'function' ? actions.candidates() : [];
-      var details = createSimpleDeckActionMenu([
+      var actionItems = [];
+      if (current) {
+        actionItems = actionItems.concat([
         {
           label: 'View card',
           onClick: function () {
@@ -3093,18 +3099,26 @@
             if (typeof actions.changeVersion === 'function') actions.changeVersion();
           }
         }
-      ].concat(moveItems).concat([
+        ]).concat(moveItems);
+      }
+
+      actionItems = actionItems.concat([
         {
-          label: 'Change Commander',
+          label: current ? 'Change Commander' : 'Select Commander',
           disabled: !Array.isArray(candidates) || candidates.length === 0,
           keepOpen: true,
           onClick: function () {
             renderCommanderCandidatePanel(details, actions);
           }
         }
-      ]), 'mt-action-menu--commander', 'Commander actions');
+      ]);
+
+      var details = createSimpleDeckActionMenu(actionItems, 'mt-action-menu--commander', current ? 'Commander actions' : 'Select commander');
 
       commanderMenuSlot.appendChild(details);
+      if (showCandidates) {
+        renderCommanderCandidatePanel(details, actions);
+      }
       if (keepOpen) {
         details.open = true;
         window.requestAnimationFrame(function () {
@@ -3112,6 +3126,11 @@
         });
       }
     }
+
+    window.mtDeckOpenCommanderPicker = function () {
+      if (!lastCommanderActions) return;
+      renderCommanderActionMenu(lastCommanderActions, true, true);
+    };
 
     function setGuestDeckStatus(message) {
       if (!addStatus) return;

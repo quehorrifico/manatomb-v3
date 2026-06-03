@@ -942,6 +942,7 @@ func scanDeck(scan func(dest ...any) error) (*Deck, error) {
 		t := publishedAt.Time
 		d.PublishedAt = &t
 	}
+	d.PowerBracket = NormalizePowerBracket(d.PowerBracket)
 	return &d, nil
 }
 

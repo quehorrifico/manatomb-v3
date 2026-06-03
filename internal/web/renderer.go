@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -180,12 +179,7 @@ func NewRenderer() *Renderer {
 		"projectIssuesURL": func() string {
 			return projectIssuesURL
 		},
-		"userProfilePath": func(userID int64) string {
-			if userID <= 0 {
-				return "/"
-			}
-			return "/users/" + strconv.FormatInt(userID, 10)
-		},
+		"userProfilePath":    userProfilePath,
 		"publicTagChipClass": publicTagChipClass,
 		"deckTagButtonClass": deckTagButtonClass,
 		"deckTagThemeMap":    deckTagThemeMap,

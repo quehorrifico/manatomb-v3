@@ -16,7 +16,7 @@
       </h1>
     </div>
 
-    <div class="mt-panel p-5 sm:p-6 space-y-5">
+    <div class="space-y-5">
       <div class="space-y-3">
         <form action="/cards" method="GET">
           <input type="hidden" name="sort" value="relevance">
@@ -41,7 +41,10 @@
                 class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
                 role="listbox"></div>
             </div>
-            <button type="submit" class="mt-btn mt-btn--primary">Search</button>
+            <div class="grid grid-cols-2 gap-3 sm:flex sm:shrink-0">
+              <a href="/cards/random" class="mt-btn mt-btn--secondary">Random Card</a>
+              <button type="submit" class="mt-btn mt-btn--primary">Search</button>
+            </div>
           </div>
         </form>
       </div>
