@@ -61,10 +61,14 @@ func ListPublicDecks(ctx context.Context, db *sql.DB, filters PublicDeckFilters)
 		args = append(args, format)
 		argN++
 	}
-	if power := strings.TrimSpace(NormalizePowerBracket(filters.PowerBracket)); power != "" {
-		clauses = append(clauses, "d.power_bracket = $"+fmt.Sprint(argN))
-		args = append(args, power)
-		argN++
+	if powerLabels := powerBracketFilterLabels(filters.PowerBracket); len(powerLabels) > 0 {
+		placeholders := make([]string, 0, len(powerLabels))
+		for _, label := range powerLabels {
+			placeholders = append(placeholders, "$"+fmt.Sprint(argN))
+			args = append(args, label)
+			argN++
+		}
+		clauses = append(clauses, "d.power_bracket IN ("+strings.Join(placeholders, ", ")+")")
 	}
 	for _, color := range filters.ColorIdentity {
 		color = strings.ToUpper(strings.TrimSpace(color))

@@ -2,16 +2,81 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-5">
-    <section class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-      <div class="space-y-2">
-        <p class="mt-kicker">Profile</p>
-        <h1 class="mt-title">{{ $ctx.Profile.DisplayName }}</h1>
-        <p class="mt-hint">{{ len $ctx.Items }} public deck{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
-      </div>
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <section>
+      <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div class="h-28 w-28 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0">
+            {{ if $ctx.Stats.AvatarImageURI }}
+              <img src="{{ $ctx.Stats.AvatarImageURI }}" alt="{{ $ctx.Stats.AvatarAlt }}" class="h-full w-full object-cover">
+            {{ else }}
+              <span class="text-2xl font-semibold text-slate-300">MT</span>
+            {{ end }}
+          </div>
 
-      <div class="flex flex-wrap gap-2">
-        <a href="/decks/public" class="mt-btn mt-btn--secondary mt-btn--sm">Browse Decks</a>
+          <div class="space-y-3">
+            <div class="space-y-2">
+              <p class="mt-kicker">Profile</p>
+              <h1 class="mt-title">{{ $ctx.Profile.DisplayName }}</h1>
+              <p class="mt-hint">
+                Joined {{ $ctx.Stats.JoinedLabel }} · {{ len $ctx.Items }} public deck{{ if ne (len $ctx.Items) 1 }}s{{ end }}
+              </p>
+            </div>
+
+            {{ if and $ctx.Stats.CanEdit $ctx.Stats.AvatarChoices }}
+              <div class="flex flex-wrap items-center gap-2" aria-label="Profile commander art choices">
+                {{ range $ctx.Stats.AvatarChoices }}
+                  <form method="POST" action="/profile/avatar">
+                    <input type="hidden" name="commander_name" value="{{ .Name }}">
+                    <button type="submit"
+                            class="block h-10 w-10 overflow-hidden rounded-lg border object-cover transition {{ if .IsSelected }}border-sky-300 shadow-[0_0_0_2px_rgba(56,189,248,0.25)]{{ else }}border-slate-700 hover:border-slate-400{{ end }}"
+                            title="Use {{ .Name }} as profile art"
+                            aria-label="Use {{ .Name }} as profile art">
+                      <img src="{{ .ImageURI }}" alt="" class="h-full w-full object-cover">
+                    </button>
+                  </form>
+                {{ end }}
+              </div>
+            {{ end }}
+          </div>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[28rem]">
+          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Average Power</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Stats.AveragePowerBracket }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Usually Plays</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Stats.UsuallyPlays }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Likes</p>
+            {{ if $ctx.Stats.Likes }}
+              <div class="mt-2 flex flex-wrap gap-1">
+                {{ range $ctx.Stats.Likes }}
+                  <span class="{{ publicTagChipClass . }}">{{ . }}</span>
+                {{ end }}
+              </div>
+            {{ else }}
+              <p class="mt-1 text-sm font-semibold text-slate-100">Not enough data</p>
+            {{ end }}
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Favorite Colors</p>
+            <div class="mt-2 flex items-center gap-2">
+              {{ if $ctx.Stats.FavoriteColorPips }}
+                <span class="inline-flex items-center gap-1.5" aria-label="{{ $ctx.Stats.FavoriteColorCombination }}">
+                  {{ range $ctx.Stats.FavoriteColorPips }}
+                    <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
+                    <span class="sr-only">{{ .Label }}</span>
+                  {{ end }}
+                </span>
+              {{ end }}
+              <span class="text-sm font-semibold text-slate-100">{{ $ctx.Stats.FavoriteColorCombination }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -24,9 +89,10 @@
       {{ if $ctx.Items }}
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {{ range $ctx.Items }}
-            <article class="mt-panel p-4 sm:p-5 space-y-4">
-              <div class="flex gap-3">
-                <div class="h-24 w-16 mt-card-media bg-slate-900 flex items-center justify-center shrink-0">
+            <article class="mt-action-card relative h-full cursor-pointer">
+              <a href="/decks/public/{{ .PublicSlug }}" class="absolute inset-0 z-0 rounded-lg" aria-label="Open {{ .Name }}"></a>
+              <div class="relative z-10 pointer-events-none flex gap-4">
+                <div class="h-32 w-[5.5rem] mt-card-media bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
                   {{ if .CommanderImageURI }}
                     <img src="{{ .CommanderImageURI }}" alt="{{ .CommanderName }}" class="w-full h-full object-cover">
                   {{ else }}
@@ -34,15 +100,31 @@
                   {{ end }}
                 </div>
 
-                <div class="min-w-0 flex-1 space-y-2">
-                  <div class="space-y-1">
+                <div class="min-w-0 flex-1 space-y-3">
+                  <div class="space-y-1.5">
                     <h3 class="text-base font-semibold text-slate-100 leading-tight">{{ .Name }}</h3>
-                    <div class="flex flex-wrap gap-1">
-                      <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
-                      {{ if .PowerBracket }}
-                        <span class="mt-chip">{{ .PowerBracket }}</span>
-                      {{ end }}
+                  </div>
+
+                  {{ if .CommanderName }}
+                    <div class="space-y-1">
+                      <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Commander</p>
+                      <p class="text-sm font-medium text-slate-100 leading-snug">{{ .CommanderName }}</p>
                     </div>
+                  {{ end }}
+
+                  <div class="flex flex-wrap items-center gap-2">
+                    {{ if .ColorPips }}
+                      <span class="inline-flex items-center gap-1.5" aria-label="{{ .ColorIdentityName }}">
+                        {{ range .ColorPips }}
+                          <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
+                          <span class="sr-only">{{ .Label }}</span>
+                        {{ end }}
+                      </span>
+                    {{ end }}
+                    <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
+                    {{ if .PowerBracket }}
+                      <span class="mt-chip">{{ .PowerBracket }}</span>
+                    {{ end }}
                   </div>
 
                   {{ if .Tags }}
@@ -54,15 +136,11 @@
                   {{ end }}
                 </div>
               </div>
-
-              <div class="flex justify-end">
-                <a href="/decks/public/{{ .PublicSlug }}" class="mt-btn mt-btn--secondary mt-btn--sm">Open</a>
-              </div>
             </article>
           {{ end }}
         </div>
       {{ else }}
-        <div class="mt-panel p-5 text-center text-sm text-slate-400">No public decks yet.</div>
+        <div class="mt-empty-state text-center">No public decks yet.</div>
       {{ end }}
     </section>
   </main>

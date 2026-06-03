@@ -27,7 +27,7 @@ const (
 	scryfallMaxRetryDelay   = 30 * time.Second
 	defaultBulkSyncInterval = 24 * time.Hour
 	cardSyncAdvisoryLockKey = int64(91342817)
-	cardSyncDataVersion     = 1
+	cardSyncDataVersion     = 2
 )
 
 var ErrCardSyncInProgress = errors.New("card sync already running")
@@ -77,6 +77,7 @@ type oracleBulkRow struct {
 	Layout               string
 	CardFacesJSON        string
 	AllPartsJSON         string
+	LegalAnywhere        bool
 	CommanderLegal       bool
 	IsCommanderCandidate bool
 	EDHRecRank           int
@@ -149,6 +150,16 @@ func supportsPaper(games []string) bool {
 	}
 	for _, g := range games {
 		if strings.EqualFold(strings.TrimSpace(g), "paper") {
+			return true
+		}
+	}
+	return false
+}
+
+func legalAnywhere(legalities map[string]string) bool {
+	for _, status := range legalities {
+		switch strings.ToLower(strings.TrimSpace(status)) {
+		case "legal", "restricted":
 			return true
 		}
 	}
@@ -473,6 +484,7 @@ func decodeOracleRows(ctx context.Context, downloadURI string, maxRows int) ([]o
 			Layout:               card.Layout,
 			CardFacesJSON:        facesJSON,
 			AllPartsJSON:         allPartsJSON,
+			LegalAnywhere:        legalAnywhere(raw.Legalities),
 			CommanderLegal:       card.CommanderLegal,
 			IsCommanderCandidate: isCommanderCandidate(raw),
 			EDHRecRank:           card.EDHRecRank,
@@ -644,6 +656,7 @@ func applyBulkRows(
 			layout TEXT,
 			card_faces JSONB,
 			all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
+			legal_anywhere BOOLEAN,
 			commander_legal BOOLEAN,
 			is_commander_candidate BOOLEAN,
 			edhrec_rank INTEGER
@@ -694,6 +707,7 @@ func applyBulkRows(
 		"layout",
 		"card_faces",
 		"all_parts",
+		"legal_anywhere",
 		"commander_legal",
 		"is_commander_candidate",
 		"edhrec_rank",
@@ -721,6 +735,7 @@ func applyBulkRows(
 			row.Layout,
 			row.CardFacesJSON,
 			row.AllPartsJSON,
+			row.LegalAnywhere,
 			row.CommanderLegal,
 			row.IsCommanderCandidate,
 			row.EDHRecRank,
@@ -823,6 +838,7 @@ func applyBulkRows(
 			layout,
 			card_faces,
 			all_parts,
+			legal_anywhere,
 			commander_legal,
 			is_commander_candidate,
 			edhrec_rank
@@ -846,6 +862,7 @@ func applyBulkRows(
 			s.layout,
 			s.card_faces,
 			s.all_parts,
+			s.legal_anywhere,
 			s.commander_legal,
 			s.is_commander_candidate,
 			s.edhrec_rank
@@ -869,6 +886,7 @@ func applyBulkRows(
 			layout = EXCLUDED.layout,
 			card_faces = EXCLUDED.card_faces,
 			all_parts = EXCLUDED.all_parts,
+			legal_anywhere = EXCLUDED.legal_anywhere,
 			commander_legal = EXCLUDED.commander_legal,
 			is_commander_candidate = EXCLUDED.is_commander_candidate,
 			edhrec_rank = EXCLUDED.edhrec_rank

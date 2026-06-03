@@ -10,6 +10,7 @@ can be added without hunting through handler files.
 - `/healthz` -> `HandleHealthz`
 - `/privacy` -> `HandlePrivacy`
 - `/terms` -> `HandleTerms`
+- `/profile/avatar` (POST) -> choose profile commander-art avatar
 - `/signup` (GET/POST) -> `HandleSignupShow` / `HandleSignupPost`
 - `/login` (GET/POST) -> `HandleLoginShow` / `HandleLoginPost`
 - `/logout` -> `HandleLogout`

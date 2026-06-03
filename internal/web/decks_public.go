@@ -89,8 +89,8 @@ func (a *App) HandlePublicDecks(w http.ResponseWriter, r *http.Request) {
 			item.OwnerDisplayName = owner.DisplayName
 		}
 		if commanderName := strings.TrimSpace(d.CommanderName); commanderName != "" {
-			if c, ok := commanderCards[strings.ToLower(commanderName)]; ok && c.ImageURI != "" {
-				item.CommanderImageURI = c.ImageURI
+			if c, ok := commanderCards[strings.ToLower(commanderName)]; ok {
+				applyCommanderCardMetaToDeckItem(&item, c)
 			}
 		}
 		items = append(items, item)

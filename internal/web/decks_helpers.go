@@ -26,9 +26,17 @@ type deckListItem struct {
 	Format            string
 	CommanderName     string
 	CommanderImageURI string
+	ColorPips         []manaPipView
+	ColorIdentityName string
 	IsPublic          bool
 	PublicSlug        string
 	PowerBracket      string
+}
+
+type manaPipView struct {
+	Symbol   string
+	Label    string
+	ImageURI string
 }
 
 type deckNewPageData struct {
@@ -99,6 +107,150 @@ func defaultDeckPowerBracket(rawPowerBracket, format string) string {
 		return ""
 	}
 	return decks.NormalizePowerBracket(rawPowerBracket)
+}
+
+func applyCommanderCardMetaToDeckItem(item *deckListItem, card cards.DBCard) {
+	if item == nil {
+		return
+	}
+	if imageURI := strings.TrimSpace(card.ImageURI); imageURI != "" {
+		item.CommanderImageURI = imageURI
+	}
+	item.ColorPips = manaPipsForColorIdentity(card.ColorIdentity)
+	item.ColorIdentityName = colorCombinationName(card.ColorIdentity)
+}
+
+func manaPipsForColorIdentity(raw string) []manaPipView {
+	colors := normalizeColorIdentitySymbols(raw)
+	if len(colors) == 0 {
+		colors = []string{"C"}
+	}
+
+	out := make([]manaPipView, 0, len(colors))
+	for _, symbol := range colors {
+		out = append(out, manaPipView{
+			Symbol:   symbol,
+			Label:    manaColorLabel(symbol),
+			ImageURI: "https://svgs.scryfall.io/card-symbols/" + symbol + ".svg",
+		})
+	}
+	return out
+}
+
+func normalizeColorIdentitySymbols(raw string) []string {
+	seen := map[string]bool{}
+	for _, part := range strings.FieldsFunc(strings.ToUpper(strings.TrimSpace(raw)), func(r rune) bool {
+		return r == ',' || r == ' ' || r == '/' || r == ';'
+	}) {
+		switch part {
+		case "W", "U", "B", "R", "G", "C":
+			seen[part] = true
+		}
+	}
+
+	order := []string{"W", "U", "B", "R", "G"}
+	out := make([]string, 0, len(order))
+	for _, symbol := range order {
+		if seen[symbol] {
+			out = append(out, symbol)
+		}
+	}
+	if len(out) == 0 && seen["C"] {
+		return []string{"C"}
+	}
+	return out
+}
+
+func manaColorLabel(symbol string) string {
+	switch strings.ToUpper(strings.TrimSpace(symbol)) {
+	case "W":
+		return "White"
+	case "U":
+		return "Blue"
+	case "B":
+		return "Black"
+	case "R":
+		return "Red"
+	case "G":
+		return "Green"
+	default:
+		return "Colorless"
+	}
+}
+
+func colorCombinationName(raw string) string {
+	colors := normalizeColorIdentitySymbols(raw)
+	if len(colors) == 0 || (len(colors) == 1 && colors[0] == "C") {
+		return "Colorless"
+	}
+
+	key := strings.Join(colors, "")
+	switch key {
+	case "W":
+		return "Mono-white"
+	case "U":
+		return "Mono-blue"
+	case "B":
+		return "Mono-black"
+	case "R":
+		return "Mono-red"
+	case "G":
+		return "Mono-green"
+	case "WU":
+		return "Azorius"
+	case "UB":
+		return "Dimir"
+	case "BR":
+		return "Rakdos"
+	case "RG":
+		return "Gruul"
+	case "WG":
+		return "Selesnya"
+	case "WB":
+		return "Orzhov"
+	case "UR":
+		return "Izzet"
+	case "BG":
+		return "Golgari"
+	case "WR":
+		return "Boros"
+	case "UG":
+		return "Simic"
+	case "WUB":
+		return "Esper"
+	case "UBR":
+		return "Grixis"
+	case "BRG":
+		return "Jund"
+	case "WRG":
+		return "Naya"
+	case "WUG":
+		return "Bant"
+	case "WBG":
+		return "Abzan"
+	case "WUR":
+		return "Jeskai"
+	case "UBG":
+		return "Sultai"
+	case "WBR":
+		return "Mardu"
+	case "URG":
+		return "Temur"
+	case "WUBR":
+		return "Four-color (no green)"
+	case "WUBG":
+		return "Four-color (no red)"
+	case "WURG":
+		return "Four-color (no black)"
+	case "WBRG":
+		return "Four-color (no blue)"
+	case "UBRG":
+		return "Four-color (no white)"
+	case "WUBRG":
+		return "Five-color"
+	default:
+		return strings.Join(colors, "")
+	}
 }
 
 func (a *App) renderDeckNew(w http.ResponseWriter, user *account.User, flash, errMsg string, page deckNewPageData) {

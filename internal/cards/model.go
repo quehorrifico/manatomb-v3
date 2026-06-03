@@ -416,6 +416,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 			layout TEXT,
 			card_faces JSONB NOT NULL DEFAULT '[]'::jsonb,
 			all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
+			legal_anywhere BOOLEAN NOT NULL DEFAULT TRUE,
 			commander_legal BOOLEAN NOT NULL DEFAULT FALSE,
 			is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE,
 			edhrec_rank INTEGER,
@@ -442,6 +443,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS default_scryfall_uri TEXT;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS all_parts JSONB NOT NULL DEFAULT '[]'::jsonb;`,
+		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS legal_anywhere BOOLEAN NOT NULL DEFAULT TRUE;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS power_text TEXT;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS toughness_text TEXT;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS loyalty_text TEXT;`,
@@ -453,6 +455,13 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			return err
 		}
+	}
+	if _, err := db.ExecContext(ctx, `
+		UPDATE oracle_cards
+		SET legal_anywhere = FALSE
+		WHERE lower(COALESCE(default_set_code, '')) = 'unk'
+	`); err != nil {
+		return err
 	}
 
 	if _, err := db.ExecContext(ctx, `
@@ -509,6 +518,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 	indexStmts := []string{
 		`CREATE INDEX IF NOT EXISTS idx_oracle_cards_name_search ON oracle_cards (name_search);`,
 		`CREATE INDEX IF NOT EXISTS idx_oracle_cards_name_search_trgm ON oracle_cards USING GIN (name_search gin_trgm_ops);`,
+		`CREATE INDEX IF NOT EXISTS idx_oracle_cards_legal_anywhere ON oracle_cards (legal_anywhere);`,
 		`CREATE INDEX IF NOT EXISTS idx_oracle_cards_commander_legal ON oracle_cards (commander_legal);`,
 		`CREATE INDEX IF NOT EXISTS idx_oracle_cards_is_commander_candidate ON oracle_cards (is_commander_candidate);`,
 		`CREATE INDEX IF NOT EXISTS idx_oracle_cards_edhrec_rank ON oracle_cards (edhrec_rank);`,

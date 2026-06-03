@@ -4,7 +4,6 @@
 
   <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
     <div class="space-y-2">
-      <p class="mt-kicker">Decks</p>
       <h1 class="text-2xl font-semibold tracking-tight text-slate-50">My Decks</h1>
     </div>
 
@@ -12,8 +11,9 @@
       {{ if $ctx }}
         <div class="space-y-3">
           {{ range $ctx }}
-            <article class="mt-action-card">
-              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <article class="mt-action-card relative cursor-pointer">
+              <a href="/decks/{{ .ID }}" class="absolute inset-0 z-0 rounded-lg" aria-label="Open {{ .Name }}"></a>
+              <div class="relative z-10 pointer-events-none flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div class="flex items-start gap-4 min-w-0">
                   <div class="h-16 w-12 mt-card-media bg-slate-900/80 flex-shrink-0 flex items-center justify-center">
                     {{ if .CommanderImageURI }}
@@ -27,9 +27,7 @@
 
                   <div class="min-w-0 space-y-2">
                     <div class="space-y-1">
-                      <a href="/decks/{{ .ID }}" class="text-lg font-semibold text-slate-100 hover:text-sky-300 transition-colors">
-                        {{ .Name }}
-                      </a>
+                      <h3 class="text-lg font-semibold text-slate-100">{{ .Name }}</h3>
                       {{ if .Description }}
                         <p class="text-sm text-slate-400 line-clamp-2">{{ .Description }}</p>
                       {{ end }}
@@ -49,9 +47,8 @@
                 </div>
 
                 <div class="flex flex-wrap gap-2 md:justify-end">
-                  <a href="/decks/{{ .ID }}" class="mt-btn mt-btn--primary mt-btn--sm">Open</a>
                   {{ if and .IsPublic .PublicSlug }}
-                    <a href="/decks/public/{{ .PublicSlug }}" class="mt-btn mt-btn--secondary mt-btn--sm">Public</a>
+                    <a href="/decks/public/{{ .PublicSlug }}" class="relative z-20 pointer-events-auto mt-btn mt-btn--secondary mt-btn--sm">Public</a>
                   {{ end }}
                 </div>
               </div>

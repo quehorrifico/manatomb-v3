@@ -2,7 +2,11 @@ package account
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"strconv"
 	"strings"
@@ -13,6 +17,7 @@ import (
 )
 
 var ErrInvalidPassword = errors.New("invalid password")
+var ErrInvalidResetToken = errors.New("invalid password reset token")
 
 type User struct {
 	ID           int64
@@ -22,15 +27,22 @@ type User struct {
 }
 
 type PublicProfile struct {
-	ID          int64
-	DisplayName string
-	CreatedAt   time.Time
+	ID                     int64
+	DisplayName            string
+	ProfileAvatarCommander string
+	CreatedAt              time.Time
 }
 
 type Session struct {
 	ID        uuid.UUID
 	UserID    int64
 	CreatedAt time.Time
+	ExpiresAt time.Time
+}
+
+type PasswordResetToken struct {
+	Token     string
+	UserID    int64
 	ExpiresAt time.Time
 }
 
@@ -90,6 +102,136 @@ func CreateSession(ctx context.Context, db *sql.DB, userID int64, ttl time.Durat
 	return s, err
 }
 
+func newPasswordResetToken() (string, error) {
+	var b [32]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b[:]), nil
+}
+
+func passwordResetTokenHash(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+func CreatePasswordResetToken(ctx context.Context, db *sql.DB, email string, ttl time.Duration) (*PasswordResetToken, bool, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return nil, false, nil
+	}
+	if ttl <= 0 {
+		ttl = time.Hour
+	}
+
+	var userID int64
+	err := db.QueryRowContext(ctx, `
+		SELECT id
+		FROM users
+		WHERE lower(email) = lower($1)
+	`, email).Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+
+	token, err := newPasswordResetToken()
+	if err != nil {
+		return nil, false, err
+	}
+	reset := &PasswordResetToken{
+		Token:     token,
+		UserID:    userID,
+		ExpiresAt: time.Now().Add(ttl),
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE password_reset_tokens
+		SET used_at = NOW()
+		WHERE user_id = $1
+		  AND used_at IS NULL
+	`, userID); err != nil {
+		return nil, false, err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+	`, userID, passwordResetTokenHash(token), reset.ExpiresAt); err != nil {
+		return nil, false, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, false, err
+	}
+	return reset, true, nil
+}
+
+func ResetPasswordWithToken(ctx context.Context, db *sql.DB, token, newPassword string) error {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ErrInvalidResetToken
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var userID int64
+	err = tx.QueryRowContext(ctx, `
+		SELECT user_id
+		FROM password_reset_tokens
+		WHERE token_hash = $1
+		  AND used_at IS NULL
+		  AND expires_at > NOW()
+		FOR UPDATE
+	`, passwordResetTokenHash(token)).Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return ErrInvalidResetToken
+		}
+		return err
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET password_hash = $1
+		WHERE id = $2
+	`, string(newHash), userID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE password_reset_tokens
+		SET used_at = NOW()
+		WHERE token_hash = $1
+	`, passwordResetTokenHash(token)); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM sessions
+		WHERE user_id = $1
+	`, userID); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
 func GetUserBySession(ctx context.Context, db *sql.DB, sid uuid.UUID) (*User, error) {
 	var u User
 	err := db.QueryRowContext(ctx, `
@@ -111,15 +253,36 @@ func DeleteSession(ctx context.Context, db *sql.DB, sid uuid.UUID) error {
 }
 
 func EnsureUserTable(ctx context.Context, db *sql.DB) error {
-	_, err := db.ExecContext(ctx, `
+	if _, err := db.ExecContext(ctx, `
         CREATE TABLE IF NOT EXISTS users (
             id BIGSERIAL PRIMARY KEY,
             email TEXT NOT NULL UNIQUE,
             password_hash TEXT NOT NULL,
             display_name TEXT NOT NULL,
+            profile_avatar_commander TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
-    `)
+    `); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		ALTER TABLE users
+		ADD COLUMN IF NOT EXISTS profile_avatar_commander TEXT NOT NULL DEFAULT ''
+	`); err != nil {
+		return err
+	}
+	_, err := db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS password_reset_tokens (
+			id BIGSERIAL PRIMARY KEY,
+			user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			token_hash TEXT NOT NULL UNIQUE,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+			expires_at TIMESTAMPTZ NOT NULL,
+			used_at TIMESTAMPTZ
+		);
+		CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens (user_id);
+		CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token_hash ON password_reset_tokens (token_hash);
+	`)
 	return err
 }
 
@@ -142,6 +305,16 @@ func UpdateProfile(ctx context.Context, db *sql.DB, userID int64, displayName, e
 		     email = $2
 		 WHERE id = $3`,
 		displayName, email, userID,
+	)
+	return err
+}
+
+func UpdateProfileAvatarCommander(ctx context.Context, db *sql.DB, userID int64, commanderName string) error {
+	_, err := db.ExecContext(ctx,
+		`UPDATE users
+		 SET profile_avatar_commander = $1
+		 WHERE id = $2`,
+		strings.TrimSpace(commanderName), userID,
 	)
 	return err
 }
@@ -217,10 +390,10 @@ func DeleteAccount(ctx context.Context, db *sql.DB, userID int64) error {
 func GetPublicProfileByID(ctx context.Context, db *sql.DB, userID int64) (*PublicProfile, error) {
 	var profile PublicProfile
 	err := db.QueryRowContext(ctx, `
-		SELECT id, display_name, created_at
+		SELECT id, display_name, COALESCE(profile_avatar_commander, ''), created_at
 		FROM users
 		WHERE id = $1
-	`, userID).Scan(&profile.ID, &profile.DisplayName, &profile.CreatedAt)
+	`, userID).Scan(&profile.ID, &profile.DisplayName, &profile.ProfileAvatarCommander, &profile.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +425,7 @@ func ListPublicProfilesByIDs(ctx context.Context, db *sql.DB, userIDs []int64) (
 	}
 
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, display_name, created_at
+		SELECT id, display_name, COALESCE(profile_avatar_commander, ''), created_at
 		FROM users
 		WHERE id IN (`+strings.Join(placeholders, ", ")+`)
 	`, args...)
@@ -263,7 +436,7 @@ func ListPublicProfilesByIDs(ctx context.Context, db *sql.DB, userIDs []int64) (
 
 	for rows.Next() {
 		var profile PublicProfile
-		if err := rows.Scan(&profile.ID, &profile.DisplayName, &profile.CreatedAt); err != nil {
+		if err := rows.Scan(&profile.ID, &profile.DisplayName, &profile.ProfileAvatarCommander, &profile.CreatedAt); err != nil {
 			return nil, err
 		}
 		out[profile.ID] = profile

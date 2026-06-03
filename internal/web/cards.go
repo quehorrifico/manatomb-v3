@@ -1673,7 +1673,9 @@ func (a *App) HandleCardList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var results []cards.Card
-	found, err := cards.SearchCards(r.Context(), a.DB, req.searchParams(120))
+	searchParams := req.searchParams(120)
+	searchParams.AllMatches = req.HasSearched
+	found, err := cards.SearchCards(r.Context(), a.DB, searchParams)
 	if err != nil {
 		errMsg = "We couldn't search for cards right now. Please try again."
 	} else {
@@ -1782,6 +1784,25 @@ func (a *App) HandleCardSearch(w http.ResponseWriter, r *http.Request) {
 	a.Renderer.Render(w, "cards_search", data)
 }
 
+func (a *App) HandleRandomCard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	card, err := cards.RandomCard(r.Context(), a.DB)
+	if err != nil {
+		if errors.Is(err, cards.ErrCardNotFound) {
+			a.RenderNotFound(w, r)
+			return
+		}
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	http.Redirect(w, r, "/cards/view/"+url.PathEscape(card.OracleID), http.StatusSeeOther)
+}
+
 func (a *App) HandleCardShow(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1837,11 +1858,56 @@ func (a *App) HandleCardShow(w http.ResponseWriter, r *http.Request) {
 	data := TemplateData{
 		CurrentUser: user,
 		Data:        page,
+		Meta:        buildCardShareMeta(r, *card),
 		Flash:       flash,
 		WideLayout:  true,
 	}
 
 	a.Renderer.Render(w, "card_show", data)
+}
+
+func buildCardShareMeta(r *http.Request, card cards.Card) *PageMeta {
+	name := strings.TrimSpace(card.Name)
+	if name == "" {
+		name = "Card Detail"
+	}
+
+	description := compactShareText(strings.TrimSpace(card.TypeLine))
+	oracle := compactShareText(strings.TrimSpace(card.OracleText))
+	if description != "" && oracle != "" {
+		description += " - " + oracle
+	} else if oracle != "" {
+		description = oracle
+	}
+	description = truncateShareText(description, 180)
+	if description == "" {
+		description = "View card details, printings, and deck tools on Mana Tomb."
+	}
+
+	return &PageMeta{
+		Title:        name,
+		Description:  description,
+		CanonicalURL: absoluteRequestURL(r, cardDetailPath(card.OracleID)),
+		ImageURL:     strings.TrimSpace(card.ImageURI),
+		ImageAlt:     name + " card image",
+		Type:         "article",
+	}
+}
+
+func compactShareText(raw string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(raw)), " ")
+}
+
+func truncateShareText(raw string, limit int) string {
+	raw = compactShareText(raw)
+	runes := []rune(raw)
+	if limit <= 0 || len(runes) <= limit {
+		return raw
+	}
+	if limit <= 3 {
+		return string(runes[:limit])
+	}
+	return strings.TrimSpace(string(runes[:limit-3])) + "..."
 }
 
 func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,2 @@
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS profile_avatar_commander TEXT NOT NULL DEFAULT '';

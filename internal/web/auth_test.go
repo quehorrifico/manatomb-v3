@@ -1,6 +1,9 @@
 package web
 
-import "testing"
+import (
+	"net/http/httptest"
+	"testing"
+)
 
 func TestAuthNextPath(t *testing.T) {
 	t.Parallel()
@@ -26,5 +29,18 @@ func TestAuthNextPath(t *testing.T) {
 				t.Fatalf("authNextPath(%q) = %q, want %q", tc.raw, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestResetPasswordURLUsesRequestHost(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest("GET", "http://example.test/forgot-password", nil)
+	req.Host = "manatomb.test"
+
+	got := resetPasswordURL(req, "a token/with spaces")
+	want := "http://manatomb.test/reset-password?token=a+token%2Fwith+spaces"
+	if got != want {
+		t.Fatalf("resetPasswordURL() = %q, want %q", got, want)
 	}
 }

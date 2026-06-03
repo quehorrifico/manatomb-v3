@@ -85,6 +85,9 @@ func registerHomeAndAuthRoutes(mux *http.ServeMux, app *web.App) {
 	registerMethodRoutes(mux, []methodRoute{
 		{pattern: "/signup", get: app.HandleSignupShow, post: app.HandleSignupPost},
 		{pattern: "/login", get: app.HandleLoginShow, post: app.HandleLoginPost},
+		{pattern: "/forgot-password", get: app.HandleForgotPasswordShow, post: app.HandleForgotPasswordPost},
+		{pattern: "/reset-password", get: app.HandleResetPasswordShow, post: app.HandleResetPasswordPost},
+		{pattern: "/profile/avatar", post: app.HandleProfileAvatarPost},
 	})
 }
 
@@ -150,6 +153,7 @@ func registerCardAndRulesRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/cards", app.HandleCardList)
 	mux.HandleFunc("/cards/autocomplete", app.HandleCardAutocomplete)
 	mux.HandleFunc("/cards/search", app.HandleCardSearch)
+	mux.HandleFunc("/cards/random", app.HandleRandomCard)
 	mux.HandleFunc("/cards/view/", app.HandleCardShow)
 	mux.HandleFunc("/cards/resolve", app.HandleCardResolve)
 	mux.HandleFunc("/cards/versions", app.HandleCardVersions)
