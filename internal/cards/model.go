@@ -21,6 +21,7 @@ type DBCard struct {
 	FlavorText           string
 	AllPartsJSON         string
 	ImageURI             string
+	ArtCropURI           string
 	Colors               string
 	ColorIdentity        string
 	CMC                  float64
@@ -118,6 +119,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 				COALESCE(cp.flavor_text, oc.flavor_text, '') AS flavor_text,
 				COALESCE(oc.all_parts::text, '[]') AS all_parts_json,
 				COALESCE(oc.default_image_uri, '') AS image_uri,
+				COALESCE(cp.image_uris->>'art_crop', oc.default_image_uri, '') AS art_crop_uri,
 				COALESCE(oc.colors, ARRAY[]::text[]) AS colors,
 				COALESCE(oc.color_identity, ARRAY[]::text[]) AS color_identity,
 				COALESCE(oc.cmc, 0) AS cmc,
@@ -147,6 +149,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			flavor_text,
 			all_parts_json,
 			image_uri,
+			art_crop_uri,
 			colors,
 			color_identity,
 			cmc,
@@ -168,7 +171,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 	for rows.Next() {
 		var (
 			nameSearch, oracleID, name, manaCost, typeLine, oracleText, flavorText, allPartsJSON, imageURI string
-			priceUSD, artist, setCode, setName, collectorNumber                                            string
+			artCropURI, priceUSD, artist, setCode, setName, collectorNumber                                string
 			colors, colorIdentity                                                                          []string
 			cmc                                                                                            float64
 			isCommanderCandidate                                                                           bool
@@ -183,6 +186,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			&flavorText,
 			&allPartsJSON,
 			&imageURI,
+			&artCropURI,
 			pq.Array(&colors),
 			pq.Array(&colorIdentity),
 			&cmc,
@@ -208,6 +212,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			isCommanderCandidate,
 		)
 		card.FlavorText = strings.TrimSpace(flavorText)
+		card.ArtCropURI = strings.TrimSpace(artCropURI)
 		card.Colors = strings.Join(colors, ",")
 		card.PriceUSD = strings.TrimSpace(priceUSD)
 		card.Artist = strings.TrimSpace(artist)
@@ -231,7 +236,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 
 	var (
 		oracleID, rowName, manaCost, typeLine, oracleText, flavorText, allPartsJSON, imageURI string
-		priceUSD, artist, setCode, setName, collectorNumber                                   string
+		artCropURI, priceUSD, artist, setCode, setName, collectorNumber                       string
 		colors, colorIdentity                                                                 []string
 		cmc                                                                                   float64
 		isCommanderCandidate                                                                  bool
@@ -246,6 +251,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 			COALESCE(cp.flavor_text, oc.flavor_text, ''),
 			COALESCE(oc.all_parts::text, '[]'),
 			COALESCE(oc.default_image_uri, ''),
+			COALESCE(cp.image_uris->>'art_crop', oc.default_image_uri, ''),
 			COALESCE(oc.colors, ARRAY[]::text[]),
 			COALESCE(oc.color_identity, ARRAY[]::text[]),
 			COALESCE(oc.cmc, 0),
@@ -270,6 +276,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		&flavorText,
 		&allPartsJSON,
 		&imageURI,
+		&artCropURI,
 		pq.Array(&colors),
 		pq.Array(&colorIdentity),
 		&cmc,
@@ -300,6 +307,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		isCommanderCandidate,
 	)
 	card.FlavorText = strings.TrimSpace(flavorText)
+	card.ArtCropURI = strings.TrimSpace(artCropURI)
 	card.Colors = strings.Join(colors, ",")
 	card.PriceUSD = strings.TrimSpace(priceUSD)
 	card.Artist = strings.TrimSpace(artist)

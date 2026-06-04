@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -93,7 +94,13 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	currentUser := CurrentUser(r)
-	stats := buildProfileStats(*profile, publicDecks, items)
+	customAvatar, err := a.profileCustomAvatarChoice(r, *profile, items)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	stats := buildProfileStats(*profile, publicDecks, items, customAvatar)
 	stats.CanEdit = currentUser != nil && currentUser.ID == profile.ID
 
 	a.Renderer.Render(w, "profile_show", TemplateData{
@@ -146,9 +153,17 @@ func (a *App) HandleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !allowed {
-		setFlash(w, "Choose a commander from your public decks.")
-		http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
-		return
+		card, err := resolveProfileAvatarCard(r, a, commanderName)
+		if err != nil {
+			if errors.Is(err, cards.ErrCardNotFound) {
+				setFlash(w, "Choose a commander from your public decks or search for a legal card.")
+				http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+				return
+			}
+			a.RenderServerError(w, r, err)
+			return
+		}
+		commanderName = strings.TrimSpace(card.Name)
 	}
 
 	if err := account.UpdateProfileAvatarCommander(r.Context(), a.DB, user.ID, commanderName); err != nil {
@@ -161,7 +176,64 @@ func (a *App) HandleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
 }
 
-func buildProfileStats(profile account.PublicProfile, publicDecks []decks.Deck, items []deckListItem) profileStatsData {
+func (a *App) profileCustomAvatarChoice(r *http.Request, profile account.PublicProfile, items []deckListItem) (*profileAvatarChoice, error) {
+	selectedName := strings.TrimSpace(profile.ProfileAvatarCommander)
+	if selectedName == "" {
+		return nil, nil
+	}
+	for _, item := range items {
+		if strings.EqualFold(strings.TrimSpace(item.CommanderName), selectedName) {
+			return nil, nil
+		}
+	}
+
+	card, err := resolveProfileAvatarCard(r, a, selectedName)
+	if err != nil {
+		if errors.Is(err, cards.ErrCardNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	imageURI := profileAvatarCardImageURI(*card)
+	if imageURI == "" {
+		return nil, nil
+	}
+	return &profileAvatarChoice{
+		Name:       card.Name,
+		ImageURI:   imageURI,
+		IsSelected: true,
+	}, nil
+}
+
+func resolveProfileAvatarCard(r *http.Request, a *App, name string) (*cards.Card, error) {
+	found, err := cards.SearchCards(r.Context(), a.DB, cards.CardSearchParams{
+		Query: strings.TrimSpace(name),
+		Limit: 1,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(found) == 0 {
+		return nil, cards.ErrCardNotFound
+	}
+	return &found[0], nil
+}
+
+func profileAvatarCardImageURI(card cards.Card) string {
+	if imageURI := strings.TrimSpace(card.ArtCropURI); imageURI != "" {
+		return imageURI
+	}
+	return strings.TrimSpace(card.ImageURI)
+}
+
+func profileAvatarDeckImageURI(item deckListItem) string {
+	if imageURI := strings.TrimSpace(item.CommanderArtCropURI); imageURI != "" {
+		return imageURI
+	}
+	return strings.TrimSpace(item.CommanderImageURI)
+}
+
+func buildProfileStats(profile account.PublicProfile, publicDecks []decks.Deck, items []deckListItem, customAvatar *profileAvatarChoice) profileStatsData {
 	stats := profileStatsData{
 		JoinedLabel:              formatProfileJoined(profile.CreatedAt),
 		AveragePowerBracket:      averageProfilePowerBracket(publicDecks),
@@ -176,12 +248,13 @@ func buildProfileStats(profile account.PublicProfile, publicDecks []decks.Deck, 
 	selectedApplied := false
 	var selectedChoice profileAvatarChoice
 	for _, item := range items {
-		imageURI := strings.TrimSpace(item.CommanderImageURI)
+		imageURI := profileAvatarDeckImageURI(item)
 		name := strings.TrimSpace(item.CommanderName)
-		if imageURI == "" || name == "" || seenAvatar[name] {
+		avatarKey := strings.ToLower(name)
+		if imageURI == "" || name == "" || seenAvatar[avatarKey] {
 			continue
 		}
-		seenAvatar[name] = true
+		seenAvatar[avatarKey] = true
 		isSelected := selectedCommander != "" && strings.EqualFold(name, selectedCommander)
 		if isSelected {
 			stats.AvatarImageURI = imageURI
@@ -205,10 +278,17 @@ func buildProfileStats(profile account.PublicProfile, publicDecks []decks.Deck, 
 			})
 		}
 	}
+	if !selectedApplied && customAvatar != nil && strings.TrimSpace(customAvatar.ImageURI) != "" {
+		stats.AvatarImageURI = strings.TrimSpace(customAvatar.ImageURI)
+		stats.AvatarAlt = cardMetaValue(customAvatar.Name, profile.DisplayName)
+		selectedApplied = true
+		selectedChoice = *customAvatar
+		selectedChoice.IsSelected = true
+	}
 	if selectedApplied {
 		hasSelectedChoice := false
 		for i := range stats.AvatarChoices {
-			stats.AvatarChoices[i].IsSelected = strings.EqualFold(stats.AvatarChoices[i].Name, selectedCommander)
+			stats.AvatarChoices[i].IsSelected = strings.EqualFold(stats.AvatarChoices[i].Name, selectedChoice.Name)
 			if stats.AvatarChoices[i].IsSelected {
 				hasSelectedChoice = true
 			}

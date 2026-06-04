@@ -319,6 +319,82 @@ func TestCardShowTemplateDoesNotShipFlavorFetchScript(t *testing.T) {
 	}
 }
 
+func TestCardShowTemplateUsesPrintingGrid(t *testing.T) {
+	page := buildCardDetailPageData(cards.Card{
+		OracleID:   "123e4567-e89b-12d3-a456-426614174000",
+		Name:       "Grid Card",
+		TypeLine:   "Artifact",
+		OracleText: "{T}: Add {C}.",
+		CMC:        2,
+	}, []cards.Card{{
+		ID:              "223e4567-e89b-12d3-a456-426614174000",
+		OracleID:        "123e4567-e89b-12d3-a456-426614174000",
+		Name:            "Grid Card",
+		TypeLine:        "Artifact",
+		OracleText:      "{T}: Add {C}.",
+		SetName:         "Foundations",
+		SetCode:         "FDN",
+		CollectorNumber: "321",
+		ReleasedAt:      "2026-01-15",
+		ImageURI:        "https://example.test/card.jpg",
+	}})
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("could not determine current file path")
+	}
+
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(wd)
+	}()
+
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("os.Chdir(%q): %v", root, err)
+	}
+
+	rec := httptest.NewRecorder()
+	NewRenderer().Render(rec, "card_show", TemplateData{
+		Data: page,
+	})
+
+	body := rec.Body.String()
+	if !strings.Contains(body, `data-printings-grid`) {
+		t.Fatal("rendered card_show HTML did not contain printings grid")
+	}
+	if !strings.Contains(body, "Other Printings") {
+		t.Fatal("rendered card_show HTML did not label the grid as other printings")
+	}
+	if strings.Contains(body, `data-card-printing-select`) {
+		t.Fatal("rendered card_show HTML still contains old printing select")
+	}
+	if strings.Contains(body, `data-printings-list`) {
+		t.Fatal("rendered card_show HTML still contains old printing list")
+	}
+	if strings.Contains(body, "Show Above") {
+		t.Fatal("rendered card_show HTML still contains old printing row action")
+	}
+	if strings.Contains(body, "Multi-face cards can be previewed") {
+		t.Fatal("rendered card_show HTML still contains old multi-face helper text")
+	}
+	if strings.Contains(body, `data-card-current-printing`) {
+		t.Fatal("rendered card_show HTML still contains redundant current printing summary")
+	}
+	if !strings.Contains(body, "Turn Over") {
+		t.Fatal("rendered card_show HTML did not include single turn-over control logic")
+	}
+	if !strings.Contains(body, "Rotate") || !strings.Contains(body, "isSplitLayout") {
+		t.Fatal("rendered card_show HTML did not include split-card rotate control logic")
+	}
+	if !strings.Contains(body, "formatPrintingFooter") {
+		t.Fatal("rendered card_show HTML did not include printing footer logic")
+	}
+}
+
 func TestParseCardSearchRequestAdvancedFiltersMarkSearched(t *testing.T) {
 	t.Parallel()
 
@@ -537,6 +613,44 @@ func TestBuildSearchResultsIncludesDeckbuilderMetadata(t *testing.T) {
 	}
 	if !got.IsCommanderCandidate {
 		t.Fatalf("buildSearchResults().IsCommanderCandidate = false, want true")
+	}
+}
+
+func TestBuildSearchResultsMarksSplitLayouts(t *testing.T) {
+	t.Parallel()
+
+	results := buildSearchResults([]cards.Card{{
+		OracleID: "123e4567-e89b-12d3-a456-426614174000",
+		Name:     "Greenhouse // Rickety Gazebo",
+		ImageURI: "https://example.com/room.jpg",
+		Layout:   "split",
+		PriceUSD: "0.25",
+		SetCode:  "dsk",
+		Faces: []cards.CardFace{
+			{Name: "Greenhouse"},
+			{Name: "Rickety Gazebo"},
+		},
+	}})
+
+	if len(results) != 1 {
+		t.Fatalf("buildSearchResults() len = %d, want 1", len(results))
+	}
+
+	got := results[0]
+	if !got.IsSplitLayout {
+		t.Fatal("buildSearchResults().IsSplitLayout = false, want true")
+	}
+	if got.Layout != "split" {
+		t.Fatalf("buildSearchResults().Layout = %q, want split", got.Layout)
+	}
+	if got.PriceUSD != "$0.25" {
+		t.Fatalf("buildSearchResults().PriceUSD = %q, want $0.25", got.PriceUSD)
+	}
+	if got.SetCode != "DSK" {
+		t.Fatalf("buildSearchResults().SetCode = %q, want DSK", got.SetCode)
+	}
+	if got.FacesJSON == "" {
+		t.Fatal("buildSearchResults().FacesJSON is empty, want encoded split faces")
 	}
 }
 
@@ -994,6 +1108,105 @@ func TestCardsListTemplateShowsSelectedSort(t *testing.T) {
 	}
 	if !strings.Contains(body, `<noscript>`) {
 		t.Fatalf("cards_list template did not render a noscript fallback: %s", body)
+	}
+}
+
+func TestCardsListTemplateUsesDirectCardArtResults(t *testing.T) {
+	page := cardListPageData{
+		Results: []searchResult{
+			{
+				OracleID:   "123e4567-e89b-12d3-a456-426614174000",
+				DetailPath: cardDetailPath("123e4567-e89b-12d3-a456-426614174000"),
+				Name:       "Delver of Secrets",
+				ImageURI:   "https://example.com/delver.jpg",
+				SetName:    "Innistrad",
+				SetCode:    "ISD",
+				PriceUSD:   "$0.50",
+				FacesJSON:  `[{"name":"Delver of Secrets","image_uri":"https://example.com/delver.jpg"},{"name":"Insectile Aberration","image_uri":"https://example.com/insect.jpg"}]`,
+			},
+			{
+				OracleID:   "223e4567-e89b-12d3-a456-426614174000",
+				DetailPath: cardDetailPath("223e4567-e89b-12d3-a456-426614174000"),
+				Name:       "Lightning Bolt",
+				ImageURI:   "https://example.com/bolt.jpg",
+				SetName:    "Magic 2010",
+				SetCode:    "M10",
+				PriceUSD:   "$1.25",
+			},
+			{
+				OracleID:      "323e4567-e89b-12d3-a456-426614174000",
+				DetailPath:    cardDetailPath("323e4567-e89b-12d3-a456-426614174000"),
+				Name:          "Greenhouse // Rickety Gazebo",
+				ImageURI:      "https://example.com/greenhouse.jpg",
+				SetName:       "Duskmourn: House of Horror",
+				SetCode:       "DSK",
+				PriceUSD:      "$0.25",
+				Layout:        "split",
+				IsSplitLayout: true,
+				FacesJSON:     `[{"name":"Greenhouse"},{"name":"Rickety Gazebo"}]`,
+			},
+		},
+		HasSearched:           true,
+		CurrentPath:           "/cards?q=delver",
+		ClearPath:             "/cards/search",
+		EditFiltersPath:       "/cards/search?edit=1&q=delver",
+		SortOptions:           advancedCardSortOptions,
+		DirectionOptions:      advancedCardSortDirectionOptions,
+		SelectedSort:          "relevance",
+		CurrentSortLabel:      "Relevance",
+		CurrentDirectionLabel: "Descending",
+	}
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("could not determine current file path")
+	}
+
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(wd)
+	}()
+
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("os.Chdir(%q): %v", root, err)
+	}
+
+	rec := httptest.NewRecorder()
+	NewRenderer().Render(rec, "cards_list", TemplateData{
+		Data: page,
+	})
+
+	body := rec.Body.String()
+	if strings.Contains(body, `id="card-detail-modal"`) {
+		t.Fatalf("cards_list template rendered the quick-view modal: %s", body)
+	}
+	if strings.Contains(body, `data-card-detail`) {
+		t.Fatalf("cards_list template rendered quick-view hooks: %s", body)
+	}
+	if strings.Contains(body, `quick view`) {
+		t.Fatalf("cards_list template still references quick view: %s", body)
+	}
+	if !strings.Contains(body, `href="/cards/view/123e4567-e89b-12d3-a456-426614174000"`) {
+		t.Fatalf("cards_list template did not link result cards to detail pages: %s", body)
+	}
+	if !strings.Contains(body, `data-card-result-image`) {
+		t.Fatalf("cards_list template did not render card art images: %s", body)
+	}
+	if !strings.Contains(body, `Innistrad (ISD)`) || !strings.Contains(body, `$0.50`) {
+		t.Fatalf("cards_list template did not render the set and price footer: %s", body)
+	}
+	if got := strings.Count(body, `data-card-result-control="turn-over"`); got != 1 {
+		t.Fatalf("cards_list template rendered %d turn-over controls, want 1: %s", got, body)
+	}
+	if got := strings.Count(body, `data-card-result-control="rotate"`); got != 1 {
+		t.Fatalf("cards_list template rendered %d rotate controls, want 1: %s", got, body)
+	}
+	if !strings.Contains(body, `Rotate`) || !strings.Contains(body, `Turn Over`) {
+		t.Fatalf("cards_list template did not render both split and MDFC controls: %s", body)
 	}
 }
 

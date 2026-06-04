@@ -46,7 +46,7 @@
           </h2>
           <p class="text-sm text-slate-400">
             {{ if $ctx.HasSearched }}
-              Click any card image to open quick view. The modal includes printings, `Add To Deck`, and `Open Full Page`.
+              Click any card image to open the full card details.
             {{ else }}
               Refine the query on the search page, then come back here for richer result actions.
             {{ end }}
@@ -86,53 +86,53 @@
         </form>
       </div>
 
-      <div data-deck-action-status hidden class="rounded-2xl border px-4 py-3">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p data-deck-action-status-text class="text-sm font-medium"></p>
-          <a data-deck-action-status-link href="#" class="hidden text-sm font-semibold text-sky-300 transition-colors hover:text-sky-200">Open deck</a>
-        </div>
-      </div>
-
       {{ if $ctx.HasSearched }}
         {{ if $ctx.Results }}
-          <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {{ range $ctx.Results }}
               <li>
-                <article data-card-detail-root
-                         data-oracle-id="{{ .OracleID }}"
-                         data-detail-path="{{ .DetailPath }}"
-                         data-name="{{ .Name }}"
-                         data-mana-cost="{{ .ManaCost }}"
-                         data-type-line="{{ .TypeLine }}"
-                         data-image-uri="{{ .ImageURI }}"
-                         data-price="{{ .PriceUSD }}"
-                         data-artist="{{ .Artist }}"
-                         data-set-code="{{ .SetCode }}"
-                         data-set-name="{{ .SetName }}"
-                         data-released-at="{{ .ReleasedAt }}"
-                         data-faces='{{ .FacesJSON }}'>
-                  <button type="button"
-                          class="group relative block w-full overflow-hidden rounded-[1.5rem] border border-slate-800 bg-slate-950/70 shadow-lg shadow-slate-950/60 transition-transform duration-150 hover:-translate-y-1 hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950"
-                          data-card-detail
-                          aria-label="View {{ .Name }}"
-                          title="{{ .Name }}">
-                    <span class="sr-only">View {{ .Name }}</span>
-                    <div class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent px-4 py-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
-                      <p class="text-sm font-semibold text-slate-50">{{ .Name }}</p>
-                    </div>
-                    <div class="aspect-[3/4] bg-slate-950">
-                      {{ if .ImageURI }}
-                        <img src="{{ .ImageURI }}"
-                             alt="{{ .Name }}"
-                             class="h-full w-full object-cover">
-                      {{ else }}
-                        <div class="flex h-full w-full items-center justify-center px-4 text-center text-xs text-slate-400">
-                          No image available
-                        </div>
-                      {{ end }}
-                    </div>
-                  </button>
-                  <div class="hidden js-oracle-text">{{ .OracleText }}</div>
+                <article class="relative space-y-2"
+                         data-card-result-tile
+                         data-card-result-layout="{{ .Layout }}"
+                         data-card-result-faces='{{ .FacesJSON }}'
+                         data-card-result-front-image="{{ .ImageURI }}"
+                         data-card-result-front-name="{{ .Name }}">
+                  <a href="{{ .DetailPath }}"
+                     class="group relative block rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 {{ if .IsSplitLayout }}overflow-visible{{ else }}overflow-hidden{{ end }}"
+                     data-card-result-link
+                     aria-label="Open {{ .Name }}"
+                     title="{{ .Name }}">
+                    <span class="relative block aspect-[63/88] bg-slate-950 {{ if .IsSplitLayout }}overflow-visible{{ else }}overflow-hidden{{ end }}">
+                      <img {{ if .ImageURI }}src="{{ .ImageURI }}"{{ end }}
+                           alt="{{ .Name }}"
+                           class="mt-card-art-rotatable rounded-lg {{ if not .ImageURI }}hidden {{ end }}h-full w-full object-cover transition duration-150 group-hover:brightness-110"
+                           data-card-result-image>
+                      <span class="{{ if .ImageURI }}hidden {{ end }}flex h-full w-full items-center justify-center px-2 text-center text-[10px] uppercase tracking-wide text-slate-500"
+                            data-card-result-fallback>
+                        No image
+                      </span>
+                    </span>
+                    <span class="grid gap-0.5 border-t border-slate-800 bg-slate-950/95 px-2 py-2">
+                      <span class="truncate text-[11px] font-semibold text-slate-200">{{ if .SetName }}{{ .SetName }}{{ else if .SetCode }}{{ .SetCode }}{{ else }}Unknown set{{ end }}{{ if and .SetName .SetCode }} ({{ .SetCode }}){{ end }}</span>
+                      <span class="text-[10px] font-medium text-slate-500">{{ if .PriceUSD }}{{ .PriceUSD }}{{ else }}Not listed{{ end }}</span>
+                    </span>
+                  </a>
+                  {{ if .IsSplitLayout }}
+                    <button type="button"
+                            class="mt-btn mt-btn--secondary mt-btn--sm w-full justify-center text-xs"
+                            data-card-result-rotate
+                            data-card-result-control="rotate"
+                            aria-pressed="false">
+                      Rotate
+                    </button>
+                  {{ else if .FacesJSON }}
+                    <button type="button"
+                            class="mt-btn mt-btn--secondary mt-btn--sm w-full justify-center text-xs"
+                            data-card-result-control="turn-over"
+                            data-card-result-turn-over>
+                      Turn Over
+                    </button>
+                  {{ end }}
                 </article>
               </li>
             {{ end }}
@@ -152,86 +152,102 @@
       {{ end }}
     </section>
 
-    <div id="card-detail-modal" class="mt-modal hidden">
-      <div class="mt-modal-panel max-w-2xl">
-        <button type="button" class="absolute top-3 right-3 mt-btn mt-btn--secondary text-xs !px-3 !py-2" data-close-modal>
-          Close
-        </button>
-
-        <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start">
-          <div class="flex items-center justify-center">
-            <img data-field="image"
-                 alt=""
-                 class="w-full max-w-xs h-auto mt-card-media shadow-md shadow-slate-900/80">
-          </div>
-
-          <div class="space-y-3 text-sm text-slate-200">
-            <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
-
-            <div class="space-y-1" data-field="printing-group">
-              <label for="printing-select" class="mt-field-label">Version</label>
-              <select id="printing-select" data-field="printing-select"
-                      class="mt-control mt-control--sm text-xs text-slate-100">
-                <option value="">Latest printing</option>
-              </select>
-            </div>
-
-            <p class="text-xs uppercase tracking-wide text-slate-400">
-              <span data-field="type-line"></span>
-            </p>
-
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
-              <span>
-                <span class="font-medium text-slate-200">Cost:</span>
-                <span data-field="mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
-              </span>
-              <span>
-                <span class="font-medium text-slate-200">Price:</span>
-                <span data-field="price-usd">—</span>
-              </span>
-              <span>
-                <span class="font-medium text-slate-200">Artist:</span>
-                <span data-field="artist">—</span>
-              </span>
-            </div>
-
-            <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
-
-            <div class="flex flex-wrap justify-between gap-2 pt-2">
-              <div class="flex flex-wrap gap-2">
-                {{ if .CurrentUser }}
-                  <button type="button"
-                          class="mt-btn mt-btn--primary text-xs !px-3 !py-2"
-                          data-open-deck-picker
-                          data-close-modal-selector="#card-detail-modal">
-                    Add To Deck
-                  </button>
-                {{ else }}
-                  <a href="/login?next={{ urlquery $ctx.CurrentPath }}"
-                     class="mt-btn mt-btn--primary text-xs !px-3 !py-2">
-                    Add To Deck
-                  </a>
-                {{ end }}
-                <a href="#"
-                   data-field="open-page-link"
-                   class="hidden mt-btn mt-btn--secondary text-xs !px-3 !py-2">
-                  Open Full Page
-                </a>
-              </div>
-              <button type="button" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2 hidden" data-flip-card>
-                Flip Card
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {{ template "saved_deck_picker" . }}
   </main>
 
-  {{ template "card_detail_modal_script" . }}
-  {{ template "saved_deck_picker_script" . }}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      function trimValue(value) {
+        return String(value || "").trim();
+      }
+
+      function faceValue(face, key) {
+        if (!face) return "";
+        var aliases = {
+          image_uri: ["image_uri", "ImageURI", "ImageUri"],
+          name: ["name", "Name"]
+        };
+        var keys = aliases[key] || [key];
+        for (var i = 0; i < keys.length; i++) {
+          var value = trimValue(face[keys[i]]);
+          if (value) return value;
+        }
+        return "";
+      }
+
+      function setTileImage(tile, imageURI, name) {
+        var image = tile.querySelector("[data-card-result-image]");
+        var fallback = tile.querySelector("[data-card-result-fallback]");
+        imageURI = trimValue(imageURI);
+        name = trimValue(name) || trimValue(tile.getAttribute("data-card-result-front-name")) || "Card";
+
+        if (image && imageURI) {
+          image.src = imageURI;
+          image.alt = name;
+          image.classList.remove("hidden");
+          if (fallback) fallback.classList.add("hidden");
+          return;
+        }
+
+        if (image) {
+          image.src = "";
+          image.alt = "";
+          image.classList.add("hidden");
+        }
+        if (fallback) {
+          fallback.textContent = name;
+          fallback.classList.remove("hidden");
+        }
+      }
+
+      document.querySelectorAll("[data-card-result-tile]").forEach(function (tile) {
+        var rotateButton = tile.querySelector("[data-card-result-rotate]");
+        if (rotateButton) {
+          rotateButton.addEventListener("click", function () {
+            var image = tile.querySelector("[data-card-result-image]");
+            var rotated = !tile.classList.contains("is-rotated");
+            tile.classList.toggle("is-rotated", rotated);
+            tile.style.zIndex = rotated ? "40" : "";
+            if (image) image.classList.toggle("is-rotated", rotated);
+            rotateButton.setAttribute("aria-pressed", rotated ? "true" : "false");
+            rotateButton.textContent = rotated ? "Reset" : "Rotate";
+          });
+          return;
+        }
+
+        var button = tile.querySelector("[data-card-result-turn-over]");
+        if (!button) return;
+
+        var faces = [];
+        try {
+          faces = JSON.parse(tile.getAttribute("data-card-result-faces") || "[]");
+        } catch (error) {
+          faces = [];
+        }
+        if (!Array.isArray(faces) || faces.length <= 1) {
+          button.classList.add("hidden");
+          return;
+        }
+
+        var faceIndex = 0;
+        var firstNextName = faceValue(faces[1] || {}, "name");
+        button.title = firstNextName ? ("Turn over to " + firstNextName) : "Turn over card";
+        button.addEventListener("click", function () {
+          faceIndex = (faceIndex + 1) % faces.length;
+          var face = faces[faceIndex] || {};
+          var imageURI = faceValue(face, "image_uri");
+          var name = faceValue(face, "name");
+          if (faceIndex === 0) {
+            imageURI = imageURI || trimValue(tile.getAttribute("data-card-result-front-image"));
+            name = name || trimValue(tile.getAttribute("data-card-result-front-name"));
+          }
+          setTileImage(tile, imageURI, name);
+          var nextFace = faces[(faceIndex + 1) % faces.length] || {};
+          var nextName = faceValue(nextFace, "name");
+          button.title = nextName ? ("Turn over to " + nextName) : "Turn over card";
+        });
+      });
+    });
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

@@ -43,16 +43,18 @@ func TestBuildProfileStatsUsesPublicDecks(t *testing.T) {
 		},
 		[]deckListItem{
 			{
-				CommanderName:     "Raffine",
-				CommanderImageURI: "https://example.test/raffine.jpg",
-				ColorIdentityName: "Esper",
-				ColorPips:         manaPipsForColorIdentity("W,U,B"),
+				CommanderName:       "Raffine",
+				CommanderImageURI:   "https://example.test/raffine.jpg",
+				CommanderArtCropURI: "https://example.test/raffine-art.jpg",
+				ColorIdentityName:   "Esper",
+				ColorPips:           manaPipsForColorIdentity("W,U,B"),
 			},
 			{
-				CommanderName:     "Meren",
-				CommanderImageURI: "https://example.test/meren.jpg",
-				ColorIdentityName: "Golgari",
-				ColorPips:         manaPipsForColorIdentity("B,G"),
+				CommanderName:       "Meren",
+				CommanderImageURI:   "https://example.test/meren.jpg",
+				CommanderArtCropURI: "https://example.test/meren-art.jpg",
+				ColorIdentityName:   "Golgari",
+				ColorPips:           manaPipsForColorIdentity("B,G"),
 			},
 			{
 				CommanderName:     "Zur",
@@ -61,6 +63,7 @@ func TestBuildProfileStatsUsesPublicDecks(t *testing.T) {
 				ColorPips:         manaPipsForColorIdentity("W,U,B"),
 			},
 		},
+		nil,
 	)
 
 	if stats.JoinedLabel != "Mar 2025" {
@@ -78,7 +81,7 @@ func TestBuildProfileStatsUsesPublicDecks(t *testing.T) {
 	if len(stats.Likes) == 0 || stats.Likes[0] != "Ramp" {
 		t.Fatalf("Likes = %#v, want Ramp first", stats.Likes)
 	}
-	if stats.AvatarImageURI != "https://example.test/meren.jpg" {
+	if stats.AvatarImageURI != "https://example.test/meren-art.jpg" {
 		t.Fatalf("AvatarImageURI = %q", stats.AvatarImageURI)
 	}
 	if len(stats.AvatarChoices) != 3 {
@@ -86,5 +89,40 @@ func TestBuildProfileStatsUsesPublicDecks(t *testing.T) {
 	}
 	if !stats.AvatarChoices[1].IsSelected {
 		t.Fatalf("expected Meren avatar choice to be selected, got %#v", stats.AvatarChoices)
+	}
+}
+
+func TestBuildProfileStatsUsesCustomAvatarChoice(t *testing.T) {
+	t.Parallel()
+
+	stats := buildProfileStats(
+		account.PublicProfile{
+			DisplayName:            "Deck Brewer",
+			ProfileAvatarCommander: "Serra Angel",
+			CreatedAt:              time.Date(2025, time.March, 14, 0, 0, 0, 0, time.UTC),
+		},
+		nil,
+		[]deckListItem{
+			{
+				CommanderName:       "Raffine",
+				CommanderArtCropURI: "https://example.test/raffine-art.jpg",
+				ColorIdentityName:   "Esper",
+				ColorPips:           manaPipsForColorIdentity("W,U,B"),
+			},
+		},
+		&profileAvatarChoice{
+			Name:     "Serra Angel",
+			ImageURI: "https://example.test/serra-art.jpg",
+		},
+	)
+
+	if stats.AvatarImageURI != "https://example.test/serra-art.jpg" {
+		t.Fatalf("AvatarImageURI = %q", stats.AvatarImageURI)
+	}
+	if len(stats.AvatarChoices) == 0 || stats.AvatarChoices[0].Name != "Serra Angel" {
+		t.Fatalf("AvatarChoices = %#v, want custom choice first", stats.AvatarChoices)
+	}
+	if !stats.AvatarChoices[0].IsSelected {
+		t.Fatalf("custom avatar should be selected: %#v", stats.AvatarChoices)
 	}
 }
