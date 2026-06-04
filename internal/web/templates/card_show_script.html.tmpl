@@ -15,9 +15,6 @@
       var renderCardTextMarkup = cardUI.renderCardTextMarkup || function (text) {
         return trimValue(text);
       };
-      var formatPriceDisplay = cardUI.formatPriceDisplay || function (value, emptyText) {
-        return trimValue(value) || emptyText || "—";
-      };
       var formatPrintingLabel = cardUI.formatPrintingLabel || function (printing, index) {
         return "Printing " + String((Number(index) || 0) + 1);
       };
@@ -28,27 +25,49 @@
       var baseCard = {{ toJSON $ctx.Card }};
       var printings = {{ toJSON $ctx.Printings }};
 
+      var heroShell = document.querySelector("[data-card-hero-shell]");
       var heroImage = document.querySelector("[data-card-hero-image]");
       var heroFallback = document.querySelector("[data-card-hero-fallback]");
       var faceTabs = document.querySelector("[data-card-face-tabs]");
-      var faceHint = document.querySelector("[data-card-face-hint]");
       var nameEl = document.querySelector("[data-card-name]");
       var manaEl = document.querySelector("[data-card-mana]");
       var typeEl = document.querySelector("[data-card-type]");
       var oracleEl = document.querySelector("[data-card-oracle]");
       var flavorGroup = document.querySelector("[data-card-flavor-group]");
       var flavorEl = document.querySelector("[data-card-flavor]");
-      var printingSelect = document.querySelector("[data-card-printing-select]");
       var scryfallLink = document.querySelector("[data-card-scryfall-link]");
-      var printingsList = document.querySelector("[data-printings-list]");
+      var printingsGrid = document.querySelector("[data-printings-grid]");
       var printingsEmpty = document.querySelector("[data-printings-empty]");
       var printingsCount = document.querySelector("[data-printings-count]");
       var printingsSort = document.querySelector("[data-printings-sort]");
       var printingsEnglishOnly = document.querySelector("[data-printings-english-only]");
 
+      var detailEls = {
+        manaValue: document.querySelector("[data-card-mana-value]"),
+        colors: document.querySelector("[data-card-colors]"),
+        colorIdentity: document.querySelector("[data-card-color-identity]"),
+        commander: document.querySelector("[data-card-commander]"),
+        power: document.querySelector("[data-card-power]"),
+        toughness: document.querySelector("[data-card-toughness]"),
+        loyalty: document.querySelector("[data-card-loyalty]"),
+        price: document.querySelector("[data-card-price]"),
+        artist: document.querySelector("[data-card-artist]"),
+        set: document.querySelector("[data-card-set]"),
+        setCode: document.querySelector("[data-card-set-code]"),
+        collector: document.querySelector("[data-card-collector]"),
+        rarity: document.querySelector("[data-card-rarity]"),
+        released: document.querySelector("[data-card-released]"),
+        lang: document.querySelector("[data-card-lang]"),
+        layout: document.querySelector("[data-card-layout]"),
+        edhrec: document.querySelector("[data-card-edhrec]"),
+        oracleID: document.querySelector("[data-card-oracle-id]"),
+        scryfallID: document.querySelector("[data-card-scryfall-id]")
+      };
+
       var state = {
         printingIndex: 0,
-        faceIndex: 0
+        faceIndex: 0,
+        heroRotated: false
       };
 
       function currentPrinting() {
@@ -63,12 +82,45 @@
       }
 
       function currentFace(printing) {
+        if (isSplitLayout(currentLayout(printing))) {
+          return null;
+        }
         var faces = currentFaces(printing);
         if (!faces.length) return null;
         if (state.faceIndex < 0 || state.faceIndex >= faces.length) {
           state.faceIndex = 0;
         }
         return faces[state.faceIndex];
+      }
+
+      function isSplitLayout(layout) {
+        return trimValue(layout).toLowerCase() === "split";
+      }
+
+      function currentLayout(printing) {
+        return trimValue(printing && printing.Layout) || trimValue(baseCard.Layout);
+      }
+
+      function setText(el, value, fallback) {
+        if (!el) return;
+        el.textContent = trimValue(value) || fallback || "N/A";
+      }
+
+      function formatPrintingFooter(printing) {
+        if (!printing) {
+          return { set: "Unknown set", price: "Not listed" };
+        }
+        var setName = trimValue(printing.SetName);
+        var setCode = trimValue(printing.SetCode).toUpperCase();
+        var price = trimValue(printing.PriceUSD);
+        var setLabel = setName || setCode || "Unknown set";
+        if (setName && setCode) {
+          setLabel += " (" + setCode + ")";
+        }
+        return {
+          set: setLabel,
+          price: price || "Not listed"
+        };
       }
 
       function setHeroImage(src, alt) {
@@ -88,40 +140,76 @@
           heroFallback.classList.remove("hidden");
           heroFallback.textContent = alt;
         }
+        applyHeroRotation();
+      }
+
+      function applyHeroRotation() {
+        if (heroImage) {
+          heroImage.classList.toggle("is-rotated", state.heroRotated);
+        }
+        if (heroShell) {
+          heroShell.style.overflow = state.heroRotated ? "visible" : "";
+          heroShell.style.zIndex = state.heroRotated ? "40" : "";
+        }
+      }
+
+      function setHeroRotated(rotated) {
+        state.heroRotated = !!rotated;
+        applyHeroRotation();
       }
 
       function renderFaceTabs(printing) {
-        if (!faceTabs || !faceHint) return;
+        if (!faceTabs) return;
+
+        faceTabs.innerHTML = "";
+        if (isSplitLayout(currentLayout(printing))) {
+          faceTabs.classList.remove("hidden");
+
+          var rotateButton = document.createElement("button");
+          rotateButton.type = "button";
+          rotateButton.className = "mt-btn mt-btn--secondary mt-btn--sm";
+          rotateButton.textContent = state.heroRotated ? "Reset" : "Rotate";
+          rotateButton.title = state.heroRotated ? "Reset card orientation" : "Rotate card art";
+          rotateButton.setAttribute("aria-pressed", state.heroRotated ? "true" : "false");
+          rotateButton.addEventListener("click", function () {
+            setHeroRotated(!state.heroRotated);
+            rotateButton.textContent = state.heroRotated ? "Reset" : "Rotate";
+            rotateButton.title = state.heroRotated ? "Reset card orientation" : "Rotate card art";
+            rotateButton.setAttribute("aria-pressed", state.heroRotated ? "true" : "false");
+          });
+          faceTabs.appendChild(rotateButton);
+          return;
+        }
 
         var faces = currentFaces(printing);
-        faceTabs.innerHTML = "";
         if (faces.length <= 1) {
           faceTabs.classList.add("hidden");
-          faceHint.classList.add("hidden");
           return;
         }
 
         faceTabs.classList.remove("hidden");
-        faceHint.classList.remove("hidden");
 
-        faces.forEach(function (face, index) {
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = index === state.faceIndex
-            ? "rounded-md border border-slate-600 bg-slate-800/80 px-2.5 py-1 text-xs font-semibold text-slate-100"
-            : "rounded-md border border-slate-800 bg-slate-950/70 px-2.5 py-1 text-xs font-semibold text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-100";
-          button.textContent = trimValue(face.Name) || ("Face " + String(index + 1));
-          button.addEventListener("click", function () {
-            state.faceIndex = index;
-            renderHero();
-          });
-          faceTabs.appendChild(button);
+        var nextIndex = (state.faceIndex + 1) % faces.length;
+        var nextName = trimValue(faces[nextIndex] && faces[nextIndex].Name);
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "mt-btn mt-btn--secondary mt-btn--sm";
+        button.textContent = "Turn Over";
+        button.title = nextName ? ("Turn over to " + nextName) : "Turn over card";
+        button.addEventListener("click", function () {
+          state.faceIndex = nextIndex;
+          renderHero();
         });
+        faceTabs.appendChild(button);
       }
 
       function renderHero() {
         var printing = currentPrinting();
         if (!printing) return;
+
+        if (!isSplitLayout(currentLayout(printing)) && state.heroRotated) {
+          setHeroRotated(false);
+        }
 
         var face = currentFace(printing);
         var heroName = trimValue(face && face.Name) || trimValue(printing.Name) || trimValue(baseCard.Name) || "Card";
@@ -138,17 +226,30 @@
         if (manaEl) manaEl.innerHTML = renderManaSymbols(heroMana);
         if (typeEl) typeEl.textContent = heroType;
         if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(heroOracle, "No oracle text.");
-        if (flavorGroup) {
-          flavorGroup.hidden = !heroFlavor;
-        }
-        if (flavorEl) {
-          flavorEl.innerHTML = renderCardTextMarkup(heroFlavor, "");
-        }
+        if (flavorGroup) flavorGroup.hidden = !heroFlavor;
+        if (flavorEl) flavorEl.innerHTML = renderCardTextMarkup(heroFlavor, "");
         setHeroImage(heroImageURI, heroName);
 
-        if (printingSelect) {
-          printingSelect.value = String(state.printingIndex);
-        }
+        setText(detailEls.manaValue, printing.ManaValue || baseCard.ManaValue, "N/A");
+        setText(detailEls.colors, trimValue(face && face.Colors) || printing.Colors || baseCard.Colors, "Colorless");
+        setText(detailEls.colorIdentity, trimValue(face && face.ColorIdentity) || printing.ColorIdentity || baseCard.ColorIdentity, "Colorless");
+        setText(detailEls.commander, printing.CommanderStatus || baseCard.CommanderStatus, "N/A");
+        setText(detailEls.power, trimValue(face && face.Power) || printing.Power || baseCard.Power, "N/A");
+        setText(detailEls.toughness, trimValue(face && face.Toughness) || printing.Toughness || baseCard.Toughness, "N/A");
+        setText(detailEls.loyalty, trimValue(face && face.Loyalty) || printing.Loyalty || baseCard.Loyalty, "N/A");
+        setText(detailEls.price, printing.PriceUSD || baseCard.PriceUSD, "Not listed");
+        setText(detailEls.artist, trimValue(face && face.Artist) || printing.Artist || baseCard.Artist, "Unknown");
+        setText(detailEls.set, printing.SetName || baseCard.SetName, "Unknown set");
+        setText(detailEls.setCode, printing.SetCode || baseCard.SetCode, "N/A");
+        setText(detailEls.collector, printing.CollectorNumber || baseCard.CollectorNumber, "N/A");
+        setText(detailEls.rarity, printing.Rarity || baseCard.Rarity, "N/A");
+        setText(detailEls.released, printing.ReleasedAt || baseCard.ReleasedAt, "Unknown");
+        setText(detailEls.lang, printing.Lang || baseCard.Lang, "EN");
+        setText(detailEls.layout, printing.Layout || baseCard.Layout, "Unknown");
+        setText(detailEls.edhrec, printing.EDHRecRank || baseCard.EDHRecRank, "Unranked");
+        setText(detailEls.oracleID, printing.OracleID || baseCard.OracleID, "N/A");
+        setText(detailEls.scryfallID, printing.ScryfallID || baseCard.ScryfallID, "N/A");
+
         if (scryfallLink) {
           var href = trimValue(printing.ScryfallURI);
           scryfallLink.classList.toggle("hidden", !href);
@@ -176,11 +277,11 @@
         return 0;
       }
 
-      function renderPrintingsList() {
-        if (!printingsList) return;
-
+      function sortedPrintingItems() {
         var items = printings.map(function (printing, index) {
           return { printing: printing, index: index };
+        }).filter(function (item) {
+          return item.index !== state.printingIndex;
         });
 
         if (printingsEnglishOnly && printingsEnglishOnly.checked) {
@@ -216,6 +317,13 @@
           return releaseSortValue(b.printing).localeCompare(releaseSortValue(a.printing));
         });
 
+        return items;
+      }
+
+      function renderPrintingsGrid() {
+        if (!printingsGrid) return;
+
+        var items = sortedPrintingItems();
         if (printingsCount) {
           printingsCount.textContent = "(" + String(items.length) + ")";
         }
@@ -223,89 +331,58 @@
           printingsEmpty.hidden = items.length !== 0;
         }
 
-        printingsList.innerHTML = "";
+        printingsGrid.innerHTML = "";
         items.forEach(function (item) {
           var printing = item.printing || {};
-          var article = document.createElement("article");
-          article.className = item.index === state.printingIndex
-            ? "border-l-2 border-l-slate-300 bg-slate-900/40 px-4 py-4"
-            : "border-l-2 border-l-transparent px-4 py-4";
+          var label = formatPrintingLabel(printing, item.index);
+          var imageURI = trimValue(printing.ImageURI);
+          var footer = formatPrintingFooter(printing);
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "group block overflow-hidden rounded-lg border border-slate-800 bg-slate-950 text-left transition hover:border-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300";
+          button.setAttribute("data-printing-activate", String(item.index));
+          button.setAttribute("data-printing-scryfall-id", trimValue(printing.ScryfallID));
+          button.setAttribute("aria-label", "Show " + label);
+          button.title = label;
 
-          var imageHTML = trimValue(printing.ImageURI)
-            ? '<img src="' + escapeHTML(printing.ImageURI) + '" alt="' + escapeHTML(trimValue(printing.SetName) || trimValue(baseCard.Name)) + '" class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">'
-            : '<div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback text-[10px]">No image</div>';
+          var mediaHTML = "";
+          if (imageURI) {
+            mediaHTML = '<img src="' + escapeHTML(imageURI) + '" alt="" class="h-full w-full object-cover">';
+          } else {
+            mediaHTML = '<span class="flex h-full w-full items-center justify-center px-2 text-center text-[10px] uppercase tracking-wide text-slate-500">No image</span>';
+          }
+          button.innerHTML =
+            '<span class="block aspect-[63/88] overflow-hidden bg-slate-950">' + mediaHTML + '</span>' +
+            '<span class="grid gap-0.5 border-t border-slate-800 bg-slate-950/95 px-2 py-2">' +
+              '<span class="truncate text-[11px] font-semibold text-slate-200">' + escapeHTML(footer.set) + '</span>' +
+              '<span class="text-[10px] font-medium text-slate-500">' + escapeHTML(footer.price) + '</span>' +
+            '</span>';
 
-          article.innerHTML =
-            '<div class="flex gap-4 items-start">' +
-              '<div class="w-16 shrink-0">' + imageHTML + '</div>' +
-              '<div class="flex-1 space-y-3 min-w-0">' +
-                '<div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">' +
-                  '<div class="space-y-1">' +
-                    '<p class="text-sm font-semibold text-slate-100">' + escapeHTML(trimValue(printing.SetName) || "Unknown set") +
-                      (trimValue(printing.SetCode) ? ' <span class="text-xs uppercase text-slate-500">(' + escapeHTML(trimValue(printing.SetCode)) + ')</span>' : '') +
-                    '</p>' +
-                    '<p class="text-xs text-slate-500">' +
-                      '#' + escapeHTML(trimValue(printing.CollectorNumber) || "N/A") +
-                      ' · <span class="uppercase">' + escapeHTML(trimValue(printing.Rarity) || "N/A") + '</span>' +
-                      ' · ' + escapeHTML(trimValue(printing.ReleasedAt) || "Unknown") +
-                    '</p>' +
-                  '</div>' +
-                  '<div class="flex flex-wrap gap-2">' +
-                    '<button type="button" class="mt-btn mt-btn--secondary mt-btn--xs" data-printing-activate="' + String(item.index) + '">' +
-                      (item.index === state.printingIndex ? "Selected" : "Show Above") +
-                    '</button>' +
-                    (trimValue(printing.ScryfallURI)
-                      ? '<a href="' + escapeHTML(trimValue(printing.ScryfallURI)) + '" target="_blank" rel="noopener noreferrer" class="mt-btn mt-btn--secondary mt-btn--xs">Scryfall</a>'
-                      : "") +
-                  '</div>' +
-                '</div>' +
-                '<dl class="grid gap-x-6 gap-y-2 sm:grid-cols-3">' +
-                  '<div class="flex items-start justify-between gap-3"><dt class="text-xs text-slate-500">Price</dt><dd class="text-sm font-semibold text-slate-100">' + escapeHTML(formatPriceDisplay(printing.PriceUSD, "Not listed")) + '</dd></div>' +
-                  '<div class="flex items-start justify-between gap-3"><dt class="text-xs text-slate-500">Artist</dt><dd class="text-sm font-semibold text-slate-100 text-right">' + escapeHTML(trimValue(printing.Artist) || "Unknown") + '</dd></div>' +
-                  '<div class="flex items-start justify-between gap-3"><dt class="text-xs text-slate-500">Language</dt><dd class="text-sm font-semibold text-slate-100">' + escapeHTML(trimValue(printing.Lang) || "EN") + '</dd></div>' +
-                '</dl>' +
-              '</div>' +
-            '</div>';
-
-          printingsList.appendChild(article);
-        });
-
-        Array.from(printingsList.querySelectorAll("[data-printing-activate]")).forEach(function (button) {
           button.addEventListener("click", function () {
             var nextIndex = Number(button.getAttribute("data-printing-activate"));
             if (!Number.isFinite(nextIndex) || nextIndex < 0 || nextIndex >= printings.length) return;
             state.printingIndex = nextIndex;
             state.faceIndex = 0;
+            setHeroRotated(false);
             renderHero();
-            renderPrintingsList();
+            renderPrintingsGrid();
             window.scrollTo({ top: 0, behavior: "smooth" });
           });
-        });
-      }
 
-      if (printingSelect) {
-        printingSelect.addEventListener("change", function () {
-          var nextIndex = Number(printingSelect.value || "0");
-          if (!Number.isFinite(nextIndex) || nextIndex < 0 || nextIndex >= printings.length) {
-            nextIndex = 0;
-          }
-          state.printingIndex = nextIndex;
-          state.faceIndex = 0;
-          renderHero();
-          renderPrintingsList();
+          printingsGrid.appendChild(button);
         });
       }
 
       if (printingsSort) {
-        printingsSort.addEventListener("change", renderPrintingsList);
+        printingsSort.addEventListener("change", renderPrintingsGrid);
       }
       if (printingsEnglishOnly) {
-        printingsEnglishOnly.addEventListener("change", renderPrintingsList);
+        printingsEnglishOnly.addEventListener("change", renderPrintingsGrid);
       }
 
       state.printingIndex = initialPrintingIndex();
       renderHero();
-      renderPrintingsList();
+      renderPrintingsGrid();
     });
   </script>
 {{ end }}

@@ -10,6 +10,7 @@ type CardFace struct {
 	OracleText string   `json:"oracle_text"`
 	FlavorText string   `json:"flavor_text,omitempty"`
 	ImageURI   string   `json:"image_uri"`
+	ArtCropURI string   `json:"art_crop_uri,omitempty"`
 	Artist     string   `json:"artist"`
 	Power      string   `json:"power,omitempty"`
 	Toughness  string   `json:"toughness,omitempty"`
@@ -39,6 +40,7 @@ type Card struct {
 	OracleText string
 	FlavorText string
 	ImageURI   string
+	ArtCropURI string
 	ReleasedAt string
 
 	Colors               []string
@@ -140,6 +142,16 @@ func preferredImageURI(imageURIs map[string]string) string {
 	return ""
 }
 
+func preferredArtCropURI(imageURIs map[string]string) string {
+	if imageURIs == nil {
+		return ""
+	}
+	if v := strings.TrimSpace(imageURIs["art_crop"]); v != "" {
+		return v
+	}
+	return preferredImageURI(imageURIs)
+}
+
 func preferredPriceUSD(sc scryfallCard) string {
 	if v := strings.TrimSpace(sc.Prices.USD); v != "" {
 		return v
@@ -165,6 +177,7 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 	loyalty := strings.TrimSpace(sc.Loyalty)
 
 	img := preferredImageURI(sc.ImageURIs)
+	artCrop := preferredArtCropURI(sc.ImageURIs)
 	if len(sc.CardFaces) > 0 {
 		face := sc.CardFaces[0]
 		if v := strings.TrimSpace(face.ManaCost); v != "" {
@@ -200,6 +213,9 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 		if faceImage := preferredImageURI(face.ImageURIs); faceImage != "" {
 			img = faceImage
 		}
+		if faceArtCrop := preferredArtCropURI(face.ImageURIs); faceArtCrop != "" {
+			artCrop = faceArtCrop
+		}
 	}
 
 	commanderLegal := false
@@ -216,6 +232,7 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 			OracleText: strings.TrimSpace(face.OracleText),
 			FlavorText: strings.TrimSpace(face.FlavorText),
 			ImageURI:   preferredImageURI(face.ImageURIs),
+			ArtCropURI: preferredArtCropURI(face.ImageURIs),
 			Artist:     strings.TrimSpace(face.Artist),
 			Power:      strings.TrimSpace(face.Power),
 			Toughness:  strings.TrimSpace(face.Toughness),
@@ -235,6 +252,7 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 		OracleText:     oracleText,
 		FlavorText:     flavorText,
 		ImageURI:       img,
+		ArtCropURI:     artCrop,
 		ReleasedAt:     strings.TrimSpace(sc.ReleasedAt),
 		Colors:         colors,
 		ColorIdentity:  colorID,

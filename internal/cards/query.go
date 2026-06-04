@@ -310,16 +310,17 @@ func decodeCardFacesJSON(raw string) []CardFace {
 }
 
 func scanCanonicalCard(
-	oracleID, name, manaCost, typeLine, oracleText, flavorText, imageURI string,
+	oracleID, name, manaCost, typeLine, oracleText, flavorText, imageURI, artCropURI string,
 	colors, colorIdentity []string,
 	cmc float64,
+	power, toughness, loyalty string,
 	layout string,
 	legalAnywhere bool,
 	commanderLegal bool,
 	isCommanderCandidate bool,
 	priceUSD, artist string,
 	edhrecRank int,
-	scryfallURI, setCode, setName, rarity, releasedAt, facesJSON string,
+	scryfallURI, setCode, setName, collectorNumber, rarity, releasedAt, lang, facesJSON string,
 ) Card {
 	return Card{
 		ID:                   strings.TrimSpace(oracleID),
@@ -330,9 +331,13 @@ func scanCanonicalCard(
 		OracleText:           strings.TrimSpace(oracleText),
 		FlavorText:           strings.TrimSpace(flavorText),
 		ImageURI:             strings.TrimSpace(imageURI),
+		ArtCropURI:           strings.TrimSpace(artCropURI),
 		Colors:               colors,
 		ColorIdentity:        colorIdentity,
 		CMC:                  cmc,
+		Power:                strings.TrimSpace(power),
+		Toughness:            strings.TrimSpace(toughness),
+		Loyalty:              strings.TrimSpace(loyalty),
 		Layout:               strings.TrimSpace(layout),
 		LegalAnywhere:        legalAnywhere,
 		CommanderLegal:       commanderLegal,
@@ -343,8 +348,10 @@ func scanCanonicalCard(
 		ScryfallURI:          strings.TrimSpace(scryfallURI),
 		SetCode:              strings.TrimSpace(setCode),
 		SetName:              strings.TrimSpace(setName),
+		CollectorNumber:      strings.TrimSpace(collectorNumber),
 		Rarity:               strings.TrimSpace(rarity),
 		ReleasedAt:           strings.TrimSpace(releasedAt),
+		Lang:                 strings.TrimSpace(lang),
 		Faces:                decodeCardFacesJSON(facesJSON),
 	}
 }
@@ -359,9 +366,13 @@ func canonicalCardSelectSQL() string {
 			COALESCE(oc.oracle_text, '') AS oracle_text,
 			COALESCE(oc.flavor_text, '') AS flavor_text,
 			COALESCE(oc.default_image_uri, '') AS image_uri,
+			COALESCE(cp.image_uris->>'art_crop', oc.default_image_uri, '') AS art_crop_uri,
 			COALESCE(oc.colors, ARRAY[]::text[]) AS colors,
 			COALESCE(oc.color_identity, ARRAY[]::text[]) AS color_identity,
 			COALESCE(oc.cmc, 0) AS cmc,
+			COALESCE(oc.power_text, '') AS power_text,
+			COALESCE(oc.toughness_text, '') AS toughness_text,
+			COALESCE(oc.loyalty_text, '') AS loyalty_text,
 			COALESCE(oc.layout, '') AS layout,
 			COALESCE(oc.legal_anywhere, true) AS legal_anywhere,
 			COALESCE(oc.commander_legal, false) AS commander_legal,
@@ -372,8 +383,10 @@ func canonicalCardSelectSQL() string {
 			COALESCE(oc.default_scryfall_uri, '') AS scryfall_uri,
 			COALESCE(oc.default_set_code, '') AS set_code,
 			COALESCE(oc.default_set_name, '') AS set_name,
+			COALESCE(cp.collector_number, '') AS collector_number,
 			COALESCE(cp.rarity, '') AS rarity,
 			COALESCE(to_char(oc.default_released_at, 'YYYY-MM-DD'), '') AS released_at,
+			COALESCE(cp.lang, 'en') AS lang,
 			COALESCE(oc.card_faces::text, '')
 		FROM oracle_cards oc
 		LEFT JOIN card_prints cp ON cp.scryfall_id = oc.default_print_id
@@ -622,8 +635,9 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 	for rows.Next() {
 		var (
 			oracleID, name, manaCost, typeLine, oracleText, flavorText, imageURI string
+			artCropURI, power, toughness, loyalty                                string
 			layout, priceUSD, artist, scryfallURI, setCode, setName              string
-			rarity, releasedAt, facesJSON                                        string
+			collectorNumber, rarity, releasedAt, lang, facesJSON                 string
 			colors, colorIdentity                                                []string
 			cmc                                                                  float64
 			legalAnywhere, commanderLegal, isCommanderCandidate                  bool
@@ -637,9 +651,13 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			&oracleText,
 			&flavorText,
 			&imageURI,
+			&artCropURI,
 			pq.Array(&colors),
 			pq.Array(&colorIdentity),
 			&cmc,
+			&power,
+			&toughness,
+			&loyalty,
 			&layout,
 			&legalAnywhere,
 			&commanderLegal,
@@ -650,8 +668,10 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			&scryfallURI,
 			&setCode,
 			&setName,
+			&collectorNumber,
 			&rarity,
 			&releasedAt,
+			&lang,
 			&facesJSON,
 		); err != nil {
 			return nil, err
@@ -664,9 +684,13 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			oracleText,
 			flavorText,
 			imageURI,
+			artCropURI,
 			colors,
 			colorIdentity,
 			cmc,
+			power,
+			toughness,
+			loyalty,
 			layout,
 			legalAnywhere,
 			commanderLegal,
@@ -677,8 +701,10 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			scryfallURI,
 			setCode,
 			setName,
+			collectorNumber,
 			rarity,
 			releasedAt,
+			lang,
 			facesJSON,
 		))
 	}
@@ -1162,11 +1188,17 @@ func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string
 			COALESCE(oc.oracle_text, '') AS oracle_text,
 			COALESCE(cp.flavor_text, COALESCE(oc.flavor_text, '')) AS flavor_text,
 			COALESCE(cp.image_uri, '') AS image_uri,
+			COALESCE(cp.image_uris->>'art_crop', cp.image_uri, '') AS art_crop_uri,
 			COALESCE(oc.colors, ARRAY[]::text[]) AS colors,
 			COALESCE(oc.color_identity, ARRAY[]::text[]) AS color_identity,
 			COALESCE(oc.cmc, 0) AS cmc,
+			COALESCE(oc.power_text, '') AS power_text,
+			COALESCE(oc.toughness_text, '') AS toughness_text,
+			COALESCE(oc.loyalty_text, '') AS loyalty_text,
 			COALESCE(oc.layout, '') AS layout,
+			COALESCE(oc.legal_anywhere, true) AS legal_anywhere,
 			COALESCE(oc.commander_legal, false) AS commander_legal,
+			COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
 			COALESCE(cp.price_usd, '') AS price_usd,
 			COALESCE(cp.artist, '') AS artist,
 			COALESCE(oc.edhrec_rank, 0) AS edhrec_rank,
@@ -1197,11 +1229,12 @@ func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string
 	for rows.Next() {
 		var (
 			id, rowOracleID, lang, name, manaCost, typeLine, oracleText, flavorText, imageURI string
+			artCropURI, power, toughness, loyalty                                             string
 			layout, priceUSD, artist, scryfallURI, setCode, setName                           string
 			collectorNumber, rarity, releasedAt, facesJSON                                    string
 			colors, colorIdentity                                                             []string
 			cmc                                                                               float64
-			commanderLegal                                                                    bool
+			legalAnywhere, commanderLegal, isCommanderCandidate                               bool
 			edhrecRank                                                                        int
 		)
 		if err := rows.Scan(
@@ -1214,11 +1247,17 @@ func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string
 			&oracleText,
 			&flavorText,
 			&imageURI,
+			&artCropURI,
 			pq.Array(&colors),
 			pq.Array(&colorIdentity),
 			&cmc,
+			&power,
+			&toughness,
+			&loyalty,
 			&layout,
+			&legalAnywhere,
 			&commanderLegal,
+			&isCommanderCandidate,
 			&priceUSD,
 			&artist,
 			&edhrecRank,
@@ -1234,30 +1273,36 @@ func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string
 		}
 
 		out = append(out, Card{
-			ID:              id,
-			OracleID:        rowOracleID,
-			Lang:            lang,
-			Name:            name,
-			ManaCost:        manaCost,
-			TypeLine:        typeLine,
-			OracleText:      oracleText,
-			FlavorText:      flavorText,
-			ImageURI:        imageURI,
-			Colors:          colors,
-			ColorIdentity:   colorIdentity,
-			CMC:             cmc,
-			Layout:          layout,
-			CommanderLegal:  commanderLegal,
-			PriceUSD:        priceUSD,
-			Artist:          artist,
-			EDHRecRank:      edhrecRank,
-			ScryfallURI:     scryfallURI,
-			SetCode:         setCode,
-			SetName:         setName,
-			CollectorNumber: collectorNumber,
-			Rarity:          rarity,
-			ReleasedAt:      releasedAt,
-			Faces:           decodeCardFacesJSON(facesJSON),
+			ID:                   id,
+			OracleID:             rowOracleID,
+			Lang:                 lang,
+			Name:                 name,
+			ManaCost:             manaCost,
+			TypeLine:             typeLine,
+			OracleText:           oracleText,
+			FlavorText:           flavorText,
+			ImageURI:             imageURI,
+			ArtCropURI:           artCropURI,
+			Colors:               colors,
+			ColorIdentity:        colorIdentity,
+			CMC:                  cmc,
+			Power:                power,
+			Toughness:            toughness,
+			Loyalty:              loyalty,
+			Layout:               layout,
+			LegalAnywhere:        legalAnywhere,
+			CommanderLegal:       commanderLegal,
+			IsCommanderCandidate: isCommanderCandidate,
+			PriceUSD:             priceUSD,
+			Artist:               artist,
+			EDHRecRank:           edhrecRank,
+			ScryfallURI:          scryfallURI,
+			SetCode:              setCode,
+			SetName:              setName,
+			CollectorNumber:      collectorNumber,
+			Rarity:               rarity,
+			ReleasedAt:           releasedAt,
+			Faces:                decodeCardFacesJSON(facesJSON),
 		})
 	}
 	if err := rows.Err(); err != nil {

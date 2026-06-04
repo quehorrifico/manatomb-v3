@@ -23,7 +23,7 @@
               </p>
             </div>
 
-            {{ if and $ctx.Stats.CanEdit $ctx.Stats.AvatarChoices }}
+            {{ if $ctx.Stats.CanEdit }}
               <div class="flex flex-wrap items-center gap-2" aria-label="Profile commander art choices">
                 {{ range $ctx.Stats.AvatarChoices }}
                   <form method="POST" action="/profile/avatar">
@@ -36,6 +36,23 @@
                     </button>
                   </form>
                 {{ end }}
+                <button type="button"
+                        data-profile-avatar-add
+                        class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950/80 text-lg font-semibold text-slate-300 transition hover:border-slate-400 hover:text-slate-50"
+                        title="Search for card art"
+                        aria-label="Search for card art">
+                  +
+                </button>
+                <form method="POST" action="/profile/avatar" data-profile-avatar-search hidden class="flex min-w-[14rem] flex-1 flex-wrap items-center gap-2">
+                  <label class="sr-only" for="profile-avatar-card">Card name</label>
+                  <input id="profile-avatar-card"
+                         name="commander_name"
+                         type="search"
+                         autocomplete="off"
+                         placeholder="Search card art"
+                         class="mt-control mt-control--sm min-w-[12rem] flex-1">
+                  <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Use Art</button>
+                </form>
               </div>
             {{ end }}
           </div>
@@ -144,6 +161,21 @@
       {{ end }}
     </section>
   </main>
+
+  {{ if $ctx.Stats.CanEdit }}
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var addButton = document.querySelector("[data-profile-avatar-add]");
+        var searchForm = document.querySelector("[data-profile-avatar-search]");
+        if (!addButton || !searchForm) return;
+        addButton.addEventListener("click", function () {
+          searchForm.hidden = false;
+          var input = searchForm.querySelector("input[name='commander_name']");
+          if (input) input.focus();
+        });
+      });
+    </script>
+  {{ end }}
 
   {{ template "layout_footer" . }}
 {{ end }}

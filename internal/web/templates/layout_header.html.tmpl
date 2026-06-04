@@ -89,6 +89,11 @@
       color: var(--mt-accent-strong);
     }
 
+    .mt-site-header {
+      position: relative;
+      z-index: 220;
+    }
+
     .mt-btn {
       display: inline-flex;
       align-items: center;
@@ -197,6 +202,19 @@
     .mt-header-search-submit,
     .mt-header-search-submit:hover {
       transform: translateY(-50%);
+    }
+
+    .mt-card-art-rotatable {
+      position: relative;
+      z-index: 1;
+      transform-origin: center center;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .mt-card-art-rotatable.is-rotated {
+      z-index: 40;
+      transform: rotate(90deg);
+      box-shadow: 0 18px 45px rgba(2, 6, 23, 0.62);
     }
 
     .mt-panel {
@@ -397,7 +415,7 @@
     }
 
     .mt-autocomplete-menu {
-      z-index: 160;
+      z-index: 260;
       max-height: min(22rem, 62vh);
       overflow-y: auto;
       overscroll-behavior: contain;
@@ -1707,7 +1725,7 @@
 <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
   <div class="min-h-screen flex flex-col">
     {{ if not .HideHeader }}
-      <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur">
+      <header class="mt-site-header border-b border-slate-800 bg-slate-900/80 backdrop-blur">
         <div class="{{ if .HomeHeader }}max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4{{ else }}max-w-5xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4{{ end }}">
           <a href="/" class="flex items-center gap-2">
             <div class="h-7 w-7 rounded-full border border-sky-400/60 bg-sky-500/10 flex items-center justify-center text-sky-300 font-bold text-xs">

@@ -34,12 +34,14 @@ type searchResult struct {
 	SetName              string
 	Rarity               string
 	ReleasedAt           string
+	Layout               string
 	ColorIdentity        string
 	ManaValue            string
 	IsCommanderCandidate bool
+	IsSplitLayout        bool
 
 	// FacesJSON is a JSON-encoded []cards.CardFace (from cards.Card.Faces).
-	// It is used by the frontend to support MDFC "flip" behavior in the detail modals.
+	// It supports MDFC "turn over" behavior in result tiles and detail modals.
 	FacesJSON string
 }
 
@@ -172,18 +174,25 @@ type cardDetailFaceData struct {
 	OracleText    string
 	FlavorText    string
 	ImageURI      string
+	ArtCropURI    string
 	Artist        string
+	Power         string
+	Toughness     string
+	Loyalty       string
 	Colors        string
 	ColorIdentity string
 }
 
 type cardDetailPrintingData struct {
+	ScryfallID      string
+	OracleID        string
 	Name            string
 	ManaCost        string
 	TypeLine        string
 	OracleText      string
 	FlavorText      string
 	ImageURI        string
+	ArtCropURI      string
 	SetName         string
 	SetCode         string
 	CollectorNumber string
@@ -194,10 +203,20 @@ type cardDetailPrintingData struct {
 	PriceSort       float64
 	Lang            string
 	ScryfallURI     string
+	Layout          string
+	Colors          string
+	ColorIdentity   string
+	ManaValue       string
+	Power           string
+	Toughness       string
+	Loyalty         string
+	EDHRecRank      string
+	CommanderStatus string
 	Faces           []cardDetailFaceData
 }
 
 type cardDetailData struct {
+	ScryfallID      string
 	OracleID        string
 	Name            string
 	ManaCost        string
@@ -205,16 +224,22 @@ type cardDetailData struct {
 	OracleText      string
 	FlavorText      string
 	ImageURI        string
+	ArtCropURI      string
 	PriceUSD        string
 	Artist          string
 	SetCode         string
 	SetName         string
+	CollectorNumber string
 	Rarity          string
 	ReleasedAt      string
+	Lang            string
 	Layout          string
 	Colors          string
 	ColorIdentity   string
 	ManaValue       string
+	Power           string
+	Toughness       string
+	Loyalty         string
 	EDHRecRank      string
 	CommanderStatus string
 	ScryfallURI     string
@@ -295,6 +320,7 @@ type cardResolveResponse struct {
 	IsCommanderCandidate bool              `json:"is_commander_candidate"`
 	Faces                []cards.CardFace  `json:"faces,omitempty"`
 	ImageURIs            map[string]string `json:"image_uris,omitempty"`
+	ArtCropURI           string            `json:"art_crop_uri,omitempty"`
 	Prices               struct {
 		USD string `json:"usd,omitempty"`
 	} `json:"prices,omitempty"`
@@ -309,6 +335,7 @@ type cardVersionResponse struct {
 	TypeLine        string           `json:"type_line,omitempty"`
 	OracleText      string           `json:"oracle_text,omitempty"`
 	ImageURI        string           `json:"image_uri,omitempty"`
+	ArtCropURI      string           `json:"art_crop_uri,omitempty"`
 	PriceUSD        string           `json:"price_usd,omitempty"`
 	Artist          string           `json:"artist,omitempty"`
 	SetCode         string           `json:"set_code,omitempty"`
@@ -354,15 +381,17 @@ func buildSearchResults(cardsIn []cards.Card) []searchResult {
 			TypeLine:             c.TypeLine,
 			OracleText:           c.OracleText,
 			ImageURI:             c.ImageURI,
-			PriceUSD:             c.PriceUSD,
+			PriceUSD:             formatCardPrice(c.PriceUSD),
 			Artist:               c.Artist,
-			SetCode:              c.SetCode,
+			SetCode:              strings.ToUpper(strings.TrimSpace(c.SetCode)),
 			SetName:              c.SetName,
 			Rarity:               c.Rarity,
 			ReleasedAt:           c.ReleasedAt,
+			Layout:               strings.TrimSpace(c.Layout),
 			ColorIdentity:        formatCardColorNames(c.ColorIdentity),
 			ManaValue:            formatCardManaValue(c.CMC),
 			IsCommanderCandidate: c.IsCommanderCandidate,
+			IsSplitLayout:        isSplitCardLayout(c.Layout),
 			FacesJSON:            facesJSON,
 		})
 	}
@@ -376,6 +405,10 @@ func cardDetailPath(oracleID string) string {
 		return "/cards"
 	}
 	return "/cards/view/" + url.PathEscape(oracleID)
+}
+
+func isSplitCardLayout(layout string) bool {
+	return strings.EqualFold(strings.TrimSpace(layout), "split")
 }
 
 func singleCardResultPath(results []cards.Card) string {
@@ -483,6 +516,14 @@ func formatCommanderStatus(card cards.Card) string {
 	}
 }
 
+func formatCardStatText(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "N/A"
+	}
+	return value
+}
+
 func firstNonEmptyCardFlavor(values ...string) string {
 	for _, value := range values {
 		trimmed := strings.TrimSpace(value)
@@ -520,6 +561,7 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 	}
 
 	cardImageURI := strings.TrimSpace(card.ImageURI)
+	cardArtCropURI := strings.TrimSpace(card.ArtCropURI)
 	cardArtist := strings.TrimSpace(card.Artist)
 	cardFlavorText := strings.TrimSpace(card.FlavorText)
 	if cardFlavorText == "" {
@@ -529,8 +571,12 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 	faces := make([]cardDetailFaceData, 0, len(card.Faces))
 	for _, face := range card.Faces {
 		faceImageURI := strings.TrimSpace(face.ImageURI)
+		faceArtCropURI := strings.TrimSpace(face.ArtCropURI)
 		if cardImageURI == "" && faceImageURI != "" {
 			cardImageURI = faceImageURI
+		}
+		if cardArtCropURI == "" && faceArtCropURI != "" {
+			cardArtCropURI = faceArtCropURI
 		}
 		if cardArtist == "" && strings.TrimSpace(face.Artist) != "" {
 			cardArtist = strings.TrimSpace(face.Artist)
@@ -543,7 +589,11 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 			OracleText:    cardMetaValue(face.OracleText, "No oracle text."),
 			FlavorText:    strings.TrimSpace(face.FlavorText),
 			ImageURI:      faceImageURI,
+			ArtCropURI:    faceArtCropURI,
 			Artist:        cardMetaValue(face.Artist, "Unknown"),
+			Power:         formatCardStatText(face.Power),
+			Toughness:     formatCardStatText(face.Toughness),
+			Loyalty:       formatCardStatText(face.Loyalty),
 			Colors:        formatCardColorNames(face.Colors),
 			ColorIdentity: formatCardColorNames(face.ColorID),
 		})
@@ -552,8 +602,15 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 	printingItems := make([]cardDetailPrintingData, 0, len(printings))
 	for _, printing := range printings {
 		imageURI := strings.TrimSpace(printing.ImageURI)
+		artCropURI := strings.TrimSpace(printing.ArtCropURI)
 		if imageURI == "" && len(printing.Faces) > 0 {
 			imageURI = strings.TrimSpace(printing.Faces[0].ImageURI)
+		}
+		if artCropURI == "" && len(printing.Faces) > 0 {
+			artCropURI = strings.TrimSpace(printing.Faces[0].ArtCropURI)
+		}
+		if artCropURI == "" {
+			artCropURI = imageURI
 		}
 
 		printingFaces := make([]cardDetailFaceData, 0, len(printing.Faces))
@@ -565,7 +622,11 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 				OracleText:    cardMetaValue(face.OracleText, "No oracle text."),
 				FlavorText:    strings.TrimSpace(face.FlavorText),
 				ImageURI:      strings.TrimSpace(face.ImageURI),
+				ArtCropURI:    strings.TrimSpace(face.ArtCropURI),
 				Artist:        cardMetaValue(face.Artist, printing.Artist),
+				Power:         formatCardStatText(face.Power),
+				Toughness:     formatCardStatText(face.Toughness),
+				Loyalty:       formatCardStatText(face.Loyalty),
 				Colors:        formatCardColorNames(face.Colors),
 				ColorIdentity: formatCardColorNames(face.ColorID),
 			})
@@ -579,12 +640,15 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 		)
 
 		printingItems = append(printingItems, cardDetailPrintingData{
+			ScryfallID:      strings.TrimSpace(printing.ID),
+			OracleID:        strings.TrimSpace(printing.OracleID),
 			Name:            cardMetaValue(printing.Name, card.Name),
 			ManaCost:        strings.TrimSpace(printing.ManaCost),
 			TypeLine:        cardMetaValue(printing.TypeLine, card.TypeLine),
 			OracleText:      cardMetaValue(printing.OracleText, "No oracle text."),
 			FlavorText:      printingFlavorText,
 			ImageURI:        imageURI,
+			ArtCropURI:      artCropURI,
 			SetName:         cardMetaValue(printing.SetName, "Unknown set"),
 			SetCode:         strings.ToUpper(strings.TrimSpace(printing.SetCode)),
 			CollectorNumber: cardMetaValue(printing.CollectorNumber, "N/A"),
@@ -595,12 +659,22 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 			PriceSort:       cardPriceSortValue(printing.PriceUSD),
 			Lang:            cardMetaValue(strings.ToUpper(strings.TrimSpace(printing.Lang)), "EN"),
 			ScryfallURI:     strings.TrimSpace(printing.ScryfallURI),
+			Layout:          cardMetaValue(printing.Layout, "Unknown"),
+			Colors:          formatCardColorNames(printing.Colors),
+			ColorIdentity:   formatCardColorNames(printing.ColorIdentity),
+			ManaValue:       formatCardManaValue(printing.CMC),
+			Power:           formatCardStatText(printing.Power),
+			Toughness:       formatCardStatText(printing.Toughness),
+			Loyalty:         formatCardStatText(printing.Loyalty),
+			EDHRecRank:      formatCardEDHRecRank(printing.EDHRecRank),
+			CommanderStatus: formatCommanderStatus(printing),
 			Faces:           printingFaces,
 		})
 	}
 
 	return cardDetailPageData{
 		Card: cardDetailData{
+			ScryfallID:      strings.TrimSpace(card.ID),
 			OracleID:        card.OracleID,
 			Name:            cardMetaValue(card.Name, "Unknown card"),
 			ManaCost:        strings.TrimSpace(card.ManaCost),
@@ -608,16 +682,22 @@ func buildCardDetailPageData(card cards.Card, printings []cards.Card) cardDetail
 			OracleText:      cardMetaValue(card.OracleText, "No oracle text."),
 			FlavorText:      cardFlavorText,
 			ImageURI:        cardImageURI,
+			ArtCropURI:      cardArtCropURI,
 			PriceUSD:        formatCardPrice(card.PriceUSD),
 			Artist:          cardMetaValue(cardArtist, "Unknown"),
 			SetCode:         strings.ToUpper(strings.TrimSpace(card.SetCode)),
 			SetName:         cardMetaValue(card.SetName, "Unknown set"),
+			CollectorNumber: cardMetaValue(card.CollectorNumber, "N/A"),
 			Rarity:          cardMetaValue(card.Rarity, "N/A"),
 			ReleasedAt:      cardMetaValue(card.ReleasedAt, "Unknown"),
+			Lang:            cardMetaValue(strings.ToUpper(strings.TrimSpace(card.Lang)), "EN"),
 			Layout:          cardMetaValue(card.Layout, "Unknown"),
 			Colors:          formatCardColorNames(card.Colors),
 			ColorIdentity:   formatCardColorNames(card.ColorIdentity),
 			ManaValue:       formatCardManaValue(card.CMC),
+			Power:           formatCardStatText(card.Power),
+			Toughness:       formatCardStatText(card.Toughness),
+			Loyalty:         formatCardStatText(card.Loyalty),
 			EDHRecRank:      formatCardEDHRecRank(card.EDHRecRank),
 			CommanderStatus: formatCommanderStatus(card),
 			ScryfallURI:     strings.TrimSpace(card.ScryfallURI),
@@ -1832,7 +1912,7 @@ func (a *App) HandleCardShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	printings, err := cards.ListCardVersionsByOracleID(r.Context(), a.DB, oracleID, 120)
+	printings, err := cards.ListCardVersionsByOracleID(r.Context(), a.DB, oracleID, 500)
 	if err != nil {
 		if !errors.Is(err, cards.ErrCardNotFound) {
 			a.RenderServerError(w, r, err)
@@ -1955,11 +2035,16 @@ func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {
 	if len(card.Faces) > 0 {
 		resp.Faces = card.Faces
 	}
-	if card.ImageURI != "" {
-		resp.ImageURIs = map[string]string{
-			"normal": card.ImageURI,
+	if card.ImageURI != "" || card.ArtCropURI != "" {
+		resp.ImageURIs = map[string]string{}
+		if card.ImageURI != "" {
+			resp.ImageURIs["normal"] = card.ImageURI
+		}
+		if card.ArtCropURI != "" {
+			resp.ImageURIs["art_crop"] = card.ArtCropURI
 		}
 	}
+	resp.ArtCropURI = card.ArtCropURI
 	resp.Prices.USD = card.PriceUSD
 
 	w.Header().Set("Content-Type", "application/json")
@@ -2056,6 +2141,7 @@ func (a *App) HandleCardVersions(w http.ResponseWriter, r *http.Request) {
 			TypeLine:        c.TypeLine,
 			OracleText:      c.OracleText,
 			ImageURI:        c.ImageURI,
+			ArtCropURI:      c.ArtCropURI,
 			PriceUSD:        c.PriceUSD,
 			Artist:          c.Artist,
 			SetCode:         c.SetCode,

@@ -17,20 +17,21 @@ import (
 // deckListItem is a lightweight view model for rendering the "My Decks" page.
 // It includes the core deck fields plus an optional CommanderImageURI for UI use.
 type deckListItem struct {
-	ID                int64
-	OwnerID           int64
-	OwnerDisplayName  string
-	Name              string
-	Description       string
-	Tags              string
-	Format            string
-	CommanderName     string
-	CommanderImageURI string
-	ColorPips         []manaPipView
-	ColorIdentityName string
-	IsPublic          bool
-	PublicSlug        string
-	PowerBracket      string
+	ID                  int64
+	OwnerID             int64
+	OwnerDisplayName    string
+	Name                string
+	Description         string
+	Tags                string
+	Format              string
+	CommanderName       string
+	CommanderImageURI   string
+	CommanderArtCropURI string
+	ColorPips           []manaPipView
+	ColorIdentityName   string
+	IsPublic            bool
+	PublicSlug          string
+	PowerBracket        string
 }
 
 type manaPipView struct {
@@ -115,6 +116,9 @@ func applyCommanderCardMetaToDeckItem(item *deckListItem, card cards.DBCard) {
 	}
 	if imageURI := strings.TrimSpace(card.ImageURI); imageURI != "" {
 		item.CommanderImageURI = imageURI
+	}
+	if artCropURI := strings.TrimSpace(card.ArtCropURI); artCropURI != "" {
+		item.CommanderArtCropURI = artCropURI
 	}
 	item.ColorPips = manaPipsForColorIdentity(card.ColorIdentity)
 	item.ColorIdentityName = colorCombinationName(card.ColorIdentity)
