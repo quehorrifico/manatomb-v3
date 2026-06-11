@@ -61,6 +61,18 @@
 
               <div class="flex flex-wrap gap-2 md:justify-end">
                 {{ if .CurrentUser }}
+                  <form method="POST" action="/cards/favorites/printing" data-card-favorite-form>
+                    <input type="hidden" name="scryfall_id" value="" data-card-favorite-scryfall-id>
+                    <input type="hidden" name="action" value="favorite" data-card-favorite-action>
+                    <input type="hidden" name="return_to" value="{{ $ctx.CurrentPath }}" data-card-favorite-return-to>
+                    <button type="submit"
+                            class="mt-heart-button"
+                            title="Love this card version"
+                            aria-label="Love this card version"
+                            data-card-favorite-button>
+                      <span class="mt-heart-button__symbol" data-card-favorite-symbol aria-hidden="true">♡</span>
+                    </button>
+                  </form>
                   <button type="button"
                           class="mt-btn mt-btn--primary mt-btn--sm"
                           data-open-deck-picker
@@ -68,7 +80,14 @@
                     Add To Deck
                   </button>
                 {{ else }}
-                  <a href="/login?next={{ urlquery $ctx.CurrentPath }}" class="mt-btn mt-btn--primary mt-btn--sm">
+                  <a href="/login?next={{ urlquery $ctx.CurrentPath }}"
+                     class="mt-heart-button"
+                     title="Log in to love this card version"
+                     aria-label="Log in to love this card version"
+                     data-card-favorite-login-link>
+                    <span class="mt-heart-button__symbol" aria-hidden="true">♡</span>
+                  </a>
+                  <a href="/login?next={{ urlquery $ctx.CurrentPath }}" class="mt-btn mt-btn--primary mt-btn--sm" data-card-add-login-link>
                     Add To Deck
                   </a>
                 {{ end }}

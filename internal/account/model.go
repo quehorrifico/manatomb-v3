@@ -43,6 +43,7 @@ type Session struct {
 type PasswordResetToken struct {
 	Token     string
 	UserID    int64
+	Email     string
 	ExpiresAt time.Time
 }
 
@@ -125,11 +126,12 @@ func CreatePasswordResetToken(ctx context.Context, db *sql.DB, email string, ttl
 	}
 
 	var userID int64
+	var canonicalEmail string
 	err := db.QueryRowContext(ctx, `
-		SELECT id
+		SELECT id, email
 		FROM users
 		WHERE lower(email) = lower($1)
-	`, email).Scan(&userID)
+	`, email).Scan(&userID, &canonicalEmail)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, false, nil
@@ -144,6 +146,7 @@ func CreatePasswordResetToken(ctx context.Context, db *sql.DB, email string, ttl
 	reset := &PasswordResetToken{
 		Token:     token,
 		UserID:    userID,
+		Email:     canonicalEmail,
 		ExpiresAt: time.Now().Add(ttl),
 	}
 

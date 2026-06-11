@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
 	"manatomb/app/internal/account"
@@ -35,6 +36,13 @@ type App struct {
 	DB                  *sql.DB
 	Renderer            *Renderer
 	SessionCookieSecure bool
+	PublicBaseURL       string
+	PasswordResetMailer PasswordResetMailer
+	TrustedProxyHops    int
+	rateLimitsOnce      sync.Once
+	rateLimits          *appRateLimiters
+	packCatalogMu       sync.Mutex
+	packCatalog         *packOpeningCatalogSnapshot
 }
 
 type TemplateData struct {
@@ -98,8 +106,8 @@ type resetPasswordPageData struct {
 	Token string
 }
 
-func resetPasswordURL(r *http.Request, token string) string {
-	return absoluteRequestURL(r, "/reset-password?token="+url.QueryEscape(token))
+func resetPasswordURL(publicBaseURL, token string) string {
+	return strings.TrimRight(publicBaseURL, "/") + "/reset-password?token=" + url.QueryEscape(token)
 }
 
 // ===== Handlers =====
@@ -374,6 +382,13 @@ func (a *App) HandleForgotPasswordPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	email := strings.TrimSpace(r.Form.Get("email"))
+	if a.PasswordResetMailer == nil {
+		log.Printf("password reset delivery unavailable: SMTP is not configured")
+		setFlash(w, "If an account exists for that email, a password reset link will be sent shortly.")
+		http.Redirect(w, r, "/forgot-password", http.StatusSeeOther)
+		return
+	}
+
 	reset, found, err := account.CreatePasswordResetToken(r.Context(), a.DB, email, time.Hour)
 	if err != nil {
 		log.Printf("create password reset token error: %v", err)
@@ -386,15 +401,16 @@ func (a *App) HandleForgotPasswordPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if found && reset != nil {
-		log.Printf(
-			"password reset requested: userID=%d expires=%s reset_url=%s",
-			reset.UserID,
-			reset.ExpiresAt.UTC().Format(time.RFC3339),
-			resetPasswordURL(r, reset.Token),
-		)
+		if err := a.PasswordResetMailer.SendPasswordReset(
+			r.Context(),
+			reset.Email,
+			resetPasswordURL(a.PublicBaseURL, reset.Token),
+		); err != nil {
+			log.Printf("password reset email delivery failed: userID=%d error=%v", reset.UserID, err)
+		}
 	}
 
-	setFlash(w, "If an account exists for that email, a reset link has been generated. Check the server logs for the link.")
+	setFlash(w, "If an account exists for that email, a password reset link will be sent shortly.")
 	http.Redirect(w, r, "/forgot-password", http.StatusSeeOther)
 }
 

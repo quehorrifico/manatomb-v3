@@ -478,6 +478,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 			oracle_id UUID NOT NULL REFERENCES oracle_cards(oracle_id) ON DELETE CASCADE,
 			name TEXT NOT NULL,
 			set_code TEXT NOT NULL,
+			set_type TEXT NOT NULL DEFAULT '',
 			collector_number TEXT NOT NULL,
 			lang TEXT NOT NULL DEFAULT 'en',
 			released_at DATE,
@@ -485,8 +486,19 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 			image_uris JSONB NOT NULL DEFAULT '{}'::jsonb,
 			image_uri TEXT,
 			card_faces_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+			finishes_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+			frame_effects_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+			promo_types_json JSONB NOT NULL DEFAULT '[]'::jsonb,
 			set_name TEXT,
 			rarity TEXT,
+			border_color TEXT,
+			frame TEXT,
+			security_stamp TEXT,
+			full_art BOOLEAN NOT NULL DEFAULT FALSE,
+			textless BOOLEAN NOT NULL DEFAULT FALSE,
+			booster BOOLEAN NOT NULL DEFAULT FALSE,
+			digital BOOLEAN NOT NULL DEFAULT FALSE,
+			variation BOOLEAN NOT NULL DEFAULT FALSE,
 			artist TEXT,
 			price_usd TEXT,
 			scryfall_uri TEXT
@@ -499,6 +511,25 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 	}
 	if _, err := db.ExecContext(ctx, `ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS flavor_text TEXT`); err != nil {
 		return err
+	}
+	alterPrintStmts := []string{
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS set_type TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS finishes_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS frame_effects_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS promo_types_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS border_color TEXT`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS frame TEXT`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS security_stamp TEXT`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS full_art BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS textless BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS booster BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS digital BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS variation BOOLEAN NOT NULL DEFAULT FALSE`,
+	}
+	for _, stmt := range alterPrintStmts {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			return err
+		}
 	}
 	if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS idx_card_prints_set_collector_lang`); err != nil {
 		return err

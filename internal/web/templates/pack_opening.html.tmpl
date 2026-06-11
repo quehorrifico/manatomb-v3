@@ -1,0 +1,1319 @@
+{{ define "pack_opening" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <style>
+    .mt-pack-picker {
+      display: grid;
+      gap: 0.9rem;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    @media (min-width: 768px) {
+      .mt-pack-picker {
+        grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(11rem, 0.58fr) minmax(9rem, 0.42fr);
+        align-items: end;
+      }
+    }
+
+    .mt-pack-stage {
+      perspective: 1300px;
+    }
+
+    .mt-pack-table {
+      position: relative;
+      display: grid;
+      min-height: clamp(34rem, 72vh, 40rem);
+      place-items: center;
+      overflow: hidden;
+      padding: 5.5rem 1rem 2rem;
+      border-radius: 1.35rem;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background:
+        radial-gradient(circle at 50% 18%, rgba(194, 164, 76, 0.2), transparent 38%),
+        radial-gradient(circle at 78% 82%, rgba(168, 176, 183, 0.12), transparent 32%),
+        linear-gradient(180deg, rgba(31, 35, 40, 0.94), rgba(10, 13, 18, 0.98));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 26px 80px rgba(2, 6, 23, 0.32);
+    }
+
+    .mt-pack-table::before {
+      content: "";
+      position: absolute;
+      inset: auto 8% 2.8rem;
+      height: 9rem;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at center, rgba(2, 6, 23, 0.44), transparent 67%);
+      filter: blur(10px);
+      pointer-events: none;
+    }
+
+    .mt-pack-table.is-complete {
+      display: none;
+    }
+
+    .mt-pack-stage-copy {
+      position: absolute;
+      top: 1.1rem;
+      left: 1.1rem;
+      right: 1.1rem;
+      z-index: 9;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      align-items: start;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .mt-pack-stage-copy > * {
+      pointer-events: auto;
+    }
+
+    .mt-pack-picker-action {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .mt-pack-center {
+      position: relative;
+      z-index: 4;
+      display: flex;
+      width: min(90vw, 23rem);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .mt-pack-visual-shell {
+      display: grid;
+      width: min(72vw, 17.5rem);
+      min-height: 25.5rem;
+      place-items: center;
+      isolation: isolate;
+    }
+
+    .mt-pack-wrapper,
+    .mt-pack-card-stack {
+      grid-area: 1 / 1;
+    }
+
+    .mt-pack-wrapper {
+      --pack-hue: 204;
+      --pack-tilt-x: 0deg;
+      --pack-tilt-y: 0deg;
+      --tear-progress: 0%;
+      --tear-offset: 0px;
+      --tear-angle: 0deg;
+      --tear-scale: 0;
+      position: relative;
+      z-index: 5;
+      width: min(72vw, 17.5rem);
+      aspect-ratio: 0.68;
+      transform-style: preserve-3d;
+      transform: rotateX(var(--pack-tilt-x)) rotateY(var(--pack-tilt-y));
+      transition: transform 180ms ease, filter 260ms ease;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .mt-pack-wrapper:active {
+      cursor: grabbing;
+    }
+
+    .mt-pack-wrapper.is-opened {
+      pointer-events: none;
+      filter: drop-shadow(0 18px 42px rgba(2, 6, 23, 0.22));
+    }
+
+    .mt-pack-foil {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 1.25rem;
+      border: 0;
+      background: transparent;
+      box-shadow: 0 30px 76px rgba(2, 6, 23, 0.62);
+      transition: box-shadow 420ms ease;
+    }
+
+    .mt-pack-foil::before,
+    .mt-pack-foil::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 4;
+      height: 2rem;
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0 3px, rgba(15, 23, 42, 0.1) 3px 7px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(15, 23, 42, 0.42));
+      opacity: 0.74;
+      transition: opacity 260ms ease, transform 360ms ease;
+    }
+
+    .mt-pack-foil::before {
+      top: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .mt-pack-foil::after {
+      bottom: 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .mt-pack-wrapper.is-opened .mt-pack-foil {
+      box-shadow: none;
+    }
+
+    .mt-pack-foil-panel {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(130deg, transparent 0 18%, rgba(255, 255, 255, 0.28) 23%, transparent 31% 100%),
+        repeating-linear-gradient(118deg, rgba(230, 215, 181, 0.055) 0 1px, transparent 1px 14px),
+        radial-gradient(circle at 22% 16%, hsla(var(--pack-hue), 72%, 62%, 0.34), transparent 34%),
+        radial-gradient(circle at 80% 78%, rgba(194, 164, 76, 0.34), transparent 36%),
+        linear-gradient(160deg, #262b31 0%, #11151a 48%, #272117 100%);
+      background-position: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      transition: transform 520ms cubic-bezier(0.2, 0.78, 0.18, 1), opacity 420ms ease, filter 420ms ease;
+      pointer-events: none;
+    }
+
+    .mt-pack-foil-panel--right {
+      clip-path: polygon(47% 0, 100% 0, 100% 100%, 42% 100%, 53% 72%, 45% 43%, 53% 18%);
+      transform: translateX(var(--tear-offset)) rotate(var(--tear-angle));
+    }
+
+    .mt-pack-foil-panel--left {
+      clip-path: polygon(0 0, 53% 0, 47% 18%, 55% 43%, 47% 72%, 58% 100%, 0 100%);
+      transform: translateX(calc(var(--tear-offset) * -1)) rotate(calc(var(--tear-angle) * -1));
+    }
+
+    .mt-pack-wrapper.is-tearing .mt-pack-foil-panel {
+      filter: saturate(1.15) contrast(1.05);
+    }
+
+    .mt-pack-wrapper.is-opened .mt-pack-foil-panel--left {
+      transform: translate(-132%, -8%) rotate(-18deg);
+      opacity: 0;
+    }
+
+    .mt-pack-wrapper.is-opened .mt-pack-foil-panel--right {
+      transform: translate(132%, 8%) rotate(18deg);
+      opacity: 0;
+    }
+
+    .mt-pack-wrapper.is-opened .mt-pack-foil::before {
+      opacity: 0;
+      transform: translateY(-1rem);
+    }
+
+    .mt-pack-wrapper.is-opened .mt-pack-foil::after {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+
+    .mt-pack-tear-seam {
+      position: absolute;
+      top: 1.45rem;
+      bottom: 1.45rem;
+      left: 50%;
+      z-index: 6;
+      width: 1.1rem;
+      transform: translateX(-50%) scaleY(var(--tear-scale));
+      transform-origin: center;
+      opacity: calc(var(--tear-scale) * 0.9);
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(230, 215, 181, 0.92), rgba(255, 255, 255, 0)),
+        repeating-linear-gradient(180deg, transparent 0 8px, rgba(2, 6, 23, 0.58) 8px 13px, transparent 13px 21px);
+      clip-path: polygon(45% 0, 72% 8%, 42% 16%, 66% 25%, 36% 34%, 64% 45%, 38% 55%, 68% 66%, 44% 76%, 72% 87%, 48% 100%, 25% 100%, 52% 88%, 28% 78%, 56% 67%, 30% 56%, 62% 44%, 34% 35%, 60% 24%, 32% 15%, 58% 7%, 36% 0);
+      filter: drop-shadow(0 0 10px rgba(230, 215, 181, 0.45));
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+    }
+
+    .mt-pack-wrapper.is-opened .mt-pack-tear-seam,
+    .mt-pack-wrapper.is-opened .mt-pack-brand,
+    .mt-pack-wrapper.is-opened .mt-pack-generic-mark,
+    .mt-pack-wrapper.is-opened .mt-pack-generic-copy,
+    .mt-pack-wrapper.is-opened .mt-pack-drag-meter {
+      opacity: 0;
+      transform: translateY(0.65rem) scale(0.96);
+    }
+
+    .mt-pack-generic-mark {
+      position: absolute;
+      top: 27%;
+      left: 50%;
+      z-index: 3;
+      display: grid;
+      width: 7.5rem;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(194, 164, 76, 0.5);
+      transform: translateX(-50%) rotate(45deg);
+      background: rgba(10, 13, 18, 0.42);
+      box-shadow: inset 0 0 0 8px rgba(194, 164, 76, 0.06), 0 16px 34px rgba(2, 6, 23, 0.32);
+      color: #e6d7b5;
+      font-size: 2.2rem;
+      font-weight: 900;
+      transition: opacity 240ms ease, transform 280ms ease;
+    }
+
+    .mt-pack-generic-mark span {
+      transform: rotate(-45deg);
+    }
+
+    .mt-pack-generic-copy {
+      position: absolute;
+      top: 3.1rem;
+      left: 1.1rem;
+      right: 1.1rem;
+      z-index: 3;
+      text-align: center;
+      transition: opacity 240ms ease, transform 280ms ease;
+    }
+
+    .mt-pack-generic-copy strong {
+      display: block;
+      color: #e6d7b5;
+      font-size: 0.88rem;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .mt-pack-generic-copy span {
+      display: block;
+      margin-top: 0.28rem;
+      color: rgba(168, 176, 183, 0.9);
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .mt-pack-brand {
+      position: absolute;
+      inset: auto 0.8rem 3.95rem auto;
+      z-index: 3;
+      max-width: 72%;
+      min-height: 0;
+      border-radius: 0.72rem;
+      border: 1px solid rgba(230, 215, 181, 0.2);
+      background: rgba(2, 6, 23, 0.58);
+      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.24);
+      display: grid;
+      place-items: end;
+      padding: 0.5rem 0.6rem;
+      text-align: right;
+      backdrop-filter: blur(10px);
+      transition: opacity 240ms ease, transform 280ms ease;
+    }
+
+    .mt-pack-title {
+      font-size: clamp(0.74rem, 2.8vw, 0.96rem);
+      line-height: 1;
+      font-weight: 900;
+      color: rgb(248, 250, 252);
+      text-transform: uppercase;
+    }
+
+    .mt-pack-type {
+      margin-top: 0.42rem;
+      display: inline-flex;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
+      padding: 0.22rem 0.5rem;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgb(226, 232, 240);
+    }
+
+    .mt-pack-drag-meter {
+      position: absolute;
+      left: 1.15rem;
+      right: 1.15rem;
+      bottom: 1.15rem;
+      z-index: 5;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 9999px;
+      background: rgba(2, 6, 23, 0.62);
+      color: rgb(248, 250, 252);
+      padding: 0.58rem 0.72rem;
+      box-shadow: 0 14px 26px rgba(2, 6, 23, 0.3);
+      transition: opacity 240ms ease, transform 280ms ease;
+    }
+
+    .mt-pack-drag-meter span {
+      display: block;
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .mt-pack-drag-meter::before {
+      content: none;
+    }
+
+    .mt-pack-card-stack {
+      position: relative;
+      width: min(72vw, 17.5rem);
+      aspect-ratio: 63 / 88;
+      opacity: 0;
+      transform: translateY(1.2rem) scale(0.96);
+      transition: opacity 300ms ease, transform 360ms cubic-bezier(0.2, 0.78, 0.18, 1);
+    }
+
+    .mt-pack-card-stack.is-ready {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .mt-pack-card-stack.hidden,
+    .mt-pack-current-card-meta.hidden,
+    .mt-pack-pulls-empty.hidden {
+      display: none;
+    }
+
+    .mt-pack-card {
+      position: absolute;
+      inset: 0;
+      border-radius: 1rem;
+      overflow: hidden;
+      background: rgb(2, 6, 23);
+      box-shadow: 0 28px 58px rgba(2, 6, 23, 0.58);
+      transform-origin: center;
+      touch-action: none;
+      transition: transform 260ms cubic-bezier(0.22, 0.7, 0.26, 1), opacity 220ms ease, filter 220ms ease;
+      cursor: grab;
+      will-change: transform;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .mt-pack-card:active {
+      cursor: grabbing;
+    }
+
+    .mt-pack-card.is-dragging {
+      transition: none;
+    }
+
+    .mt-pack-card.is-cleared {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(var(--clear-x, 124%), var(--clear-y, 0)) rotate(var(--clear-rot, 13deg)) scale(0.94) !important;
+      filter: blur(2px);
+    }
+
+    .mt-pack-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .mt-pack-empty-card {
+      display: grid;
+      height: 100%;
+      place-items: center;
+      padding: 1rem;
+      text-align: center;
+      color: rgb(148, 163, 184);
+      font-size: 0.82rem;
+    }
+
+    .mt-pack-current-card-meta {
+      position: relative;
+      z-index: 8;
+      display: grid;
+      width: min(96vw, 38rem);
+      gap: 0.55rem;
+    }
+
+    .mt-pack-current-price {
+      display: flex;
+      width: min(100%, 38rem);
+      min-width: 0;
+      align-items: center;
+      justify-content: center;
+      gap: 0.54rem;
+      justify-self: center;
+      border: 1px solid rgba(230, 215, 181, 0.28);
+      border-radius: 9999px;
+      background: rgba(2, 6, 23, 0.72);
+      padding: 0.58rem 1rem;
+      color: rgb(248, 250, 252);
+      box-shadow: 0 18px 36px rgba(2, 6, 23, 0.28);
+      backdrop-filter: blur(12px);
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    [data-pack-current-name] {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-left: 0 !important;
+    }
+
+    [data-pack-current-rarity],
+    [data-pack-current-price] {
+      flex: 0 0 auto;
+    }
+
+    .mt-pack-card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.55rem;
+    }
+
+    .mt-pack-results {
+      animation: mt-pack-results-in 460ms cubic-bezier(0.2, 0.78, 0.18, 1) both;
+    }
+
+    .mt-pack-results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(8.25rem, 1fr));
+      gap: 0.9rem;
+    }
+
+    .mt-pack-result-card {
+      display: block;
+      overflow: hidden;
+      border-radius: 0.8rem;
+      background: rgba(2, 6, 23, 0.64);
+      box-shadow: 0 18px 34px rgba(2, 6, 23, 0.22);
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .mt-pack-result-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 22px 44px rgba(2, 6, 23, 0.34);
+    }
+
+    .mt-pack-result-card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 63 / 88;
+      object-fit: cover;
+    }
+
+    .mt-pack-result-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.55rem 0.62rem;
+      color: rgb(226, 232, 240);
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .mt-pack-rarity-common { color: rgb(203, 213, 225); }
+    .mt-pack-rarity-uncommon { color: rgb(125, 211, 252); }
+    .mt-pack-rarity-rare { color: rgb(251, 191, 36); }
+    .mt-pack-rarity-mythic { color: rgb(251, 146, 60); }
+
+    @keyframes mt-pack-results-in {
+      from {
+        opacity: 0;
+        transform: translateY(1rem);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+
+  <main class="mx-auto max-w-7xl px-4 py-8 space-y-7" data-pack-root>
+    <section class="space-y-4">
+      <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div class="space-y-2">
+          <p class="mt-kicker">Pack Simulator</p>
+          <h1 class="mt-title">Pack Crack</h1>
+          <p class="max-w-2xl text-sm leading-6 text-slate-400">Choose a set first. Mana Tomb will prepare the wrapper, then you can tear it open and slide through every pull.</p>
+        </div>
+      </div>
+
+      {{ if .Flash }}
+        <div class="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">{{ .Flash }}</div>
+      {{ end }}
+
+      <form class="rounded-xl border border-slate-800 bg-slate-950/35 p-4" data-pack-form>
+        <div class="mt-pack-picker">
+          <label class="block">
+            <span class="mt-field-label">Type a Set</span>
+            <input type="search" class="mt-control" placeholder="Start typing a set name or code" list="pack-set-options" autocomplete="off" data-pack-set-input>
+            <datalist id="pack-set-options">
+              {{ range $ctx.Sets }}
+                <option value="{{ .Label }}"></option>
+              {{ end }}
+            </datalist>
+          </label>
+
+          <label class="block">
+            <span class="mt-field-label">Or Choose a Set</span>
+            <select name="set_code" class="mt-control" data-pack-set-select>
+              <option value="">Select a set...</option>
+              {{ range $ctx.Sets }}
+                <option value="{{ .Code }}">{{ .Label }}</option>
+              {{ end }}
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="mt-field-label">Pack Type</span>
+            <select name="pack_type" class="mt-control" data-pack-type-select>
+              {{ range $ctx.PackTypes }}
+                <option value="{{ .ID }}">{{ .Name }}</option>
+              {{ end }}
+            </select>
+          </label>
+
+          <div class="mt-pack-picker-action">
+            <span class="mt-field-label" aria-hidden="true">&nbsp;</span>
+            <button type="submit" class="mt-btn mt-btn--secondary w-full" data-pack-generate disabled>Prepare Pack</button>
+          </div>
+        </div>
+        <div class="mt-3">
+          <p class="text-sm text-slate-500" data-pack-picker-hint>Select a set to populate the pack.</p>
+          <p class="mt-1 text-xs text-slate-600" data-pack-accuracy></p>
+        </div>
+      </form>
+    </section>
+
+    <section class="mt-pack-stage space-y-5">
+      <div class="mt-pack-table" data-pack-table>
+        <div class="mt-pack-stage-copy">
+          <div class="max-w-xl space-y-1">
+            <h2 class="text-xl font-semibold text-slate-50" data-pack-heading>Choose a pack to begin</h2>
+            <p class="text-sm text-slate-400" data-pack-subheading>Use the set picker above. The wrapper will appear here when the pack is ready.</p>
+          </div>
+        </div>
+
+        <div class="mt-pack-center">
+          <div class="mt-pack-visual-shell">
+            <div class="mt-pack-wrapper" data-pack-wrapper aria-label="Drag across the pack wrapper to open it">
+              <div class="mt-pack-foil">
+                <div class="mt-pack-foil-panel mt-pack-foil-panel--left"></div>
+                <div class="mt-pack-foil-panel mt-pack-foil-panel--right"></div>
+                <div class="mt-pack-tear-seam" aria-hidden="true"></div>
+                <div class="mt-pack-generic-copy" aria-hidden="true">
+                  <strong>Mana Tomb</strong>
+                  <span>Curated Card Archive</span>
+                </div>
+                <div class="mt-pack-generic-mark" aria-hidden="true"><span>MT</span></div>
+                <div class="mt-pack-brand">
+                  <div>
+                    <p class="text-xs font-black uppercase tracking-[0.28em] text-[#E6D7B5]">Mana Tomb</p>
+                    <p class="mt-pack-title" data-pack-wrapper-set>Pack Crack</p>
+                    <p class="mt-pack-type" data-pack-wrapper-type>Booster</p>
+                  </div>
+                </div>
+                <div class="mt-pack-drag-meter" aria-hidden="true">
+                  <span data-pack-drag-label>Pick a set first</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-pack-card-stack hidden" data-pack-card-stack></div>
+          </div>
+
+          <div class="mt-pack-current-card-meta hidden" data-pack-current-meta>
+            <div class="mt-pack-current-price">
+              <span class="text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-400" data-pack-current-rarity>--</span>
+              <span class="ml-2 font-semibold text-slate-50" data-pack-current-name>No card revealed</span>
+              <span class="mx-2 text-slate-500">/</span>
+              <span class="font-semibold" data-pack-current-price>--</span>
+            </div>
+            <div class="mt-pack-card-actions">
+              <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm" data-pack-next disabled>Next Card</button>
+              <a href="/cards" class="mt-btn mt-btn--secondary mt-btn--sm hidden" data-pack-card-link>View Card Details</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="mt-pack-results rounded-xl border border-slate-800 bg-slate-950/35 p-4" data-pack-complete>
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div class="space-y-1">
+            <h2 class="text-2xl font-semibold text-slate-50">Your pulls</h2>
+            <p class="text-sm text-slate-400"><span class="font-semibold text-slate-100" data-pack-final-value>$0.00</span> so far</p>
+          </div>
+        </div>
+        <p class="mt-pack-pulls-empty mt-5 text-sm text-slate-500" data-pack-pulls-empty>No cards revealed yet.</p>
+        <div class="mt-pack-results-grid mt-5" data-pack-results-grid></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var root = document.querySelector("[data-pack-root]");
+      if (!root) return;
+
+      var sets = {{ toJSON $ctx.Sets }};
+      var packTypeOptions = {{ toJSON $ctx.PackTypeOptions }};
+      var form = root.querySelector("[data-pack-form]");
+      var setInput = root.querySelector("[data-pack-set-input]");
+      var setSelect = root.querySelector("[data-pack-set-select]");
+      var packTypeSelect = root.querySelector("[data-pack-type-select]");
+      var generateButton = root.querySelector("[data-pack-generate]");
+      var pickerHint = root.querySelector("[data-pack-picker-hint]");
+      var accuracy = root.querySelector("[data-pack-accuracy]");
+      var table = root.querySelector("[data-pack-table]");
+      var wrapper = root.querySelector("[data-pack-wrapper]");
+      var dragLabel = root.querySelector("[data-pack-drag-label]");
+      var stack = root.querySelector("[data-pack-card-stack]");
+      var nextButton = root.querySelector("[data-pack-next]");
+      var heading = root.querySelector("[data-pack-heading]");
+      var subheading = root.querySelector("[data-pack-subheading]");
+      var wrapperSet = root.querySelector("[data-pack-wrapper-set]");
+      var wrapperType = root.querySelector("[data-pack-wrapper-type]");
+      var currentMeta = root.querySelector("[data-pack-current-meta]");
+      var currentName = root.querySelector("[data-pack-current-name]");
+      var currentRarity = root.querySelector("[data-pack-current-rarity]");
+      var currentPrice = root.querySelector("[data-pack-current-price]");
+      var currentLink = root.querySelector("[data-pack-card-link]");
+      var finalValue = root.querySelector("[data-pack-final-value]");
+      var resultsGrid = root.querySelector("[data-pack-results-grid]");
+      var pullsEmpty = root.querySelector("[data-pack-pulls-empty]");
+      var autoLoadTimer = null;
+      var activeCardDrag = null;
+      var state = {
+        cards: [],
+        revealedCards: [],
+        set: null,
+        packType: null,
+        opened: false,
+        complete: false,
+        currentIndex: 0,
+        pullValue: 0,
+        loading: false
+      };
+
+      function setField(object, field) {
+        return object && (object[field] || object[field.toLowerCase()]) || "";
+      }
+
+      function hashHue(value) {
+        var hash = 0;
+        value = String(value || "");
+        for (var i = 0; i < value.length; i++) {
+          hash = ((hash << 5) - hash) + value.charCodeAt(i);
+          hash |= 0;
+        }
+        return 185 + Math.abs(hash % 120);
+      }
+
+      function selectedSet() {
+        var code = String(setSelect.value || "").trim().toLowerCase();
+        if (!code) return null;
+        return sets.find(function (set) {
+          return String(setField(set, "Code")).toLowerCase() === code;
+        }) || null;
+      }
+
+      function resolveTypedSet(value) {
+        var query = String(value || "").toLowerCase().trim();
+        if (!query) return null;
+        var exact = sets.find(function (set) {
+          var code = String(setField(set, "Code")).toLowerCase();
+          var label = String(setField(set, "Label")).toLowerCase();
+          var name = String(setField(set, "Name")).toLowerCase();
+          return query === code || query === label || query === name;
+        });
+        if (exact) return exact;
+        if (query.length < 3) return null;
+        var matches = sets.filter(function (set) {
+          var code = String(setField(set, "Code")).toLowerCase();
+          var label = String(setField(set, "Label")).toLowerCase();
+          var name = String(setField(set, "Name")).toLowerCase();
+          return code.indexOf(query) !== -1 || label.indexOf(query) !== -1 || name.indexOf(query) !== -1;
+        });
+        return matches.length === 1 ? matches[0] : null;
+      }
+
+      function packTypeLabel() {
+        var selected = packTypeSelect.options[packTypeSelect.selectedIndex];
+        return selected ? selected.textContent.trim() : "Booster";
+      }
+
+      function packTypeOptionsForSet(set) {
+        var code = set ? String(setField(set, "Code")).toLowerCase() : "";
+        return code && Array.isArray(packTypeOptions[code]) ? packTypeOptions[code] : [];
+      }
+
+      function syncPackTypeOptions(set) {
+        var options = packTypeOptionsForSet(set);
+        var previous = packTypeSelect.value;
+        packTypeSelect.innerHTML = "";
+        options.forEach(function (packType) {
+          var option = document.createElement("option");
+          option.value = setField(packType, "ID");
+          option.textContent = setField(packType, "Name") || option.value;
+          packTypeSelect.appendChild(option);
+        });
+        if (options.length) {
+          var hasPrevious = options.some(function (packType) {
+            return setField(packType, "ID") === previous;
+          });
+          packTypeSelect.value = hasPrevious ? previous : setField(options[0], "ID");
+          packTypeSelect.disabled = false;
+        } else {
+          var option = document.createElement("option");
+          option.value = "";
+          option.textContent = "No sourced packs";
+          packTypeSelect.appendChild(option);
+          packTypeSelect.disabled = true;
+        }
+        updatePackAccuracy(set);
+      }
+
+      function updatePackAccuracy(set) {
+        if (!accuracy) return;
+        var options = packTypeOptionsForSet(set);
+        var selected = options.find(function (packType) {
+          return setField(packType, "ID") === packTypeSelect.value;
+        });
+        if (!selected) {
+          accuracy.textContent = "";
+          return;
+        }
+        var exact = Boolean(setField(selected, "exact_odds"));
+        accuracy.textContent = exact
+          ? "Sourced configuration based on the published booster breakdown."
+          : "Approximate configuration generated from available set data; treatment-specific odds are not exact.";
+      }
+
+      function setWrapperText(setName, packName, setCode) {
+        if (wrapperSet) wrapperSet.textContent = setName || "Pack Crack";
+        if (wrapperType) wrapperType.textContent = packName || "Booster";
+        if (wrapper) {
+          wrapper.style.setProperty("--pack-hue", String(hashHue(setCode || setName || "")));
+        }
+      }
+
+      function formatRarity(value) {
+        value = String(value || "").trim();
+        return value ? value.charAt(0).toUpperCase() + value.slice(1) : "--";
+      }
+
+      function priceNumber(value) {
+        var price = Number.parseFloat(String(value || "").replace(/[^0-9.]/g, ""));
+        return Number.isFinite(price) ? price : 0;
+      }
+
+      function priceText(value) {
+        var price = priceNumber(value);
+        if (!price) return "--";
+        return "$" + price.toFixed(2);
+      }
+
+      function moneyText(value) {
+        var price = Number(value || 0);
+        if (!Number.isFinite(price)) price = 0;
+        return "$" + price.toFixed(2);
+      }
+
+      function rarityClass(value) {
+        value = String(value || "").toLowerCase();
+        if (value === "mythic") return "mt-pack-rarity-mythic";
+        if (value === "rare") return "mt-pack-rarity-rare";
+        if (value === "uncommon") return "mt-pack-rarity-uncommon";
+        return "mt-pack-rarity-common";
+      }
+
+      function setPickerHint(message, tone) {
+        if (!pickerHint) return;
+        pickerHint.textContent = message;
+        pickerHint.className = tone === "error" ? "text-sm text-amber-200" : "text-sm text-slate-500";
+      }
+
+      function updateStats() {
+        finalValue.textContent = moneyText(state.pullValue);
+        if (pullsEmpty) pullsEmpty.classList.toggle("hidden", state.revealedCards.length > 0);
+      }
+
+      function updateCurrentMeta() {
+        var card = state.cards[state.currentIndex];
+        updateStats();
+        if (!card || !state.opened || state.complete) {
+          currentName.textContent = state.complete ? "Pack complete" : "No card revealed";
+          currentRarity.textContent = "--";
+          currentRarity.className = "text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-400";
+          currentPrice.textContent = "--";
+          currentLink.classList.add("hidden");
+          nextButton.disabled = true;
+          currentMeta.classList.add("hidden");
+          return;
+        }
+        currentMeta.classList.remove("hidden");
+        currentName.textContent = card.name || "Unknown card";
+        currentRarity.textContent = formatRarity(card.rarity);
+        currentRarity.className = "text-[0.68rem] font-black uppercase tracking-[0.12em] " + rarityClass(card.rarity);
+        currentPrice.textContent = priceText(card.price_usd);
+        currentLink.href = card.detail_path || "/cards";
+        currentLink.classList.remove("hidden");
+        nextButton.disabled = false;
+      }
+
+      function resetWrapperVisuals() {
+        wrapper.classList.remove("is-opened", "is-tearing");
+        wrapper.style.setProperty("--tear-progress", "0%");
+        wrapper.style.setProperty("--tear-offset", "0px");
+        wrapper.style.setProperty("--tear-angle", "0deg");
+        wrapper.style.setProperty("--tear-scale", "0");
+        wrapper.style.setProperty("--pack-tilt-y", "0deg");
+        wrapper.style.setProperty("--pack-tilt-x", "0deg");
+        if (dragLabel) dragLabel.textContent = state.cards.length ? "Drag across wrapper" : "Pick a set first";
+      }
+
+      function addOpenedThumb(card) {
+        if (!resultsGrid || !card) return;
+        resultsGrid.appendChild(resultCard(card));
+      }
+
+      function resultCard(card) {
+        var link = document.createElement("a");
+        link.href = card.detail_path || "/cards";
+        link.className = "mt-pack-result-card";
+        if (card.image_uri) {
+          var img = document.createElement("img");
+          img.src = card.image_uri;
+          img.alt = card.name || "Pulled card";
+          link.appendChild(img);
+        } else {
+          var fallback = document.createElement("div");
+          fallback.className = "mt-pack-empty-card aspect-[63/88]";
+          fallback.textContent = card.name || "Card image unavailable";
+          link.appendChild(fallback);
+        }
+        var meta = document.createElement("div");
+        meta.className = "mt-pack-result-meta";
+        var rarity = document.createElement("span");
+        rarity.className = rarityClass(card.rarity);
+        rarity.textContent = formatRarity(card.rarity);
+        var price = document.createElement("span");
+        price.textContent = priceText(card.price_usd);
+        meta.appendChild(rarity);
+        meta.appendChild(price);
+        link.appendChild(meta);
+        return link;
+      }
+
+      function cardRestingTransform(index) {
+        var visibleOffset = Math.max(0, index - state.currentIndex);
+        return "translateY(" + Math.min(visibleOffset * 3, 20) + "px) scale(" + Math.max(0.9, 1 - visibleOffset * 0.012) + ")";
+      }
+
+      function refreshStackPositions() {
+        state.cards.forEach(function (_, index) {
+          var el = stack.querySelector('[data-card-index="' + index + '"]');
+          if (!el || el.classList.contains("is-cleared")) return;
+          var resting = cardRestingTransform(index);
+          el.dataset.restingTransform = resting;
+          el.style.transform = resting;
+          el.style.zIndex = String(state.cards.length - Math.max(0, index - state.currentIndex));
+        });
+      }
+
+      function renderCardStack() {
+        stack.innerHTML = "";
+        state.cards.forEach(function (card, index) {
+          var el = document.createElement("article");
+          el.className = "mt-pack-card";
+          el.dataset.cardIndex = String(index);
+          el.style.zIndex = String(state.cards.length - index);
+          el.dataset.restingTransform = cardRestingTransform(index);
+          el.style.transform = el.dataset.restingTransform;
+          if (card.image_uri) {
+            var img = document.createElement("img");
+            img.src = card.image_uri;
+            img.alt = card.name || "Pack card";
+            img.draggable = false;
+            el.appendChild(img);
+          } else {
+            var fallback = document.createElement("div");
+            fallback.className = "mt-pack-empty-card";
+            fallback.textContent = card.name || "Card image unavailable";
+            el.appendChild(fallback);
+          }
+          attachCardDrag(el);
+          stack.appendChild(el);
+        });
+        updateCurrentMeta();
+      }
+
+      function resetPackState(keepCards) {
+        state.revealedCards = [];
+        state.pullValue = 0;
+        state.opened = false;
+        state.complete = false;
+        state.currentIndex = 0;
+        resultsGrid.innerHTML = "";
+        table.classList.remove("is-complete");
+        currentMeta.classList.add("hidden");
+        stack.classList.add("hidden");
+        stack.classList.remove("is-ready");
+        resetWrapperVisuals();
+        if (!keepCards) state.cards = [];
+        updateStats();
+      }
+
+      function scrollToPack() {
+        window.setTimeout(function () {
+          table.scrollIntoView({ behavior: "auto", block: "start" });
+        }, 0);
+      }
+
+      function setPackLoaded(payload) {
+        state.cards = Array.isArray(payload.cards) ? payload.cards : [];
+        state.set = payload.set || null;
+        state.packType = payload.pack_type || null;
+        resetPackState(true);
+        generateButton.disabled = false;
+        var setName = setField(state.set, "Name") || "Pack";
+        var setCode = setField(state.set, "Code");
+        var packName = setField(state.packType, "Name") || packTypeLabel();
+        heading.textContent = setName + " " + packName;
+        subheading.textContent = state.cards.length + " cards are ready. Drag across the wrapper to open it.";
+        setPickerHint("Pack prepared. Tear it open when ready.", "ok");
+        setWrapperText(setName, packName, setCode);
+        if (dragLabel) dragLabel.textContent = "Drag across wrapper";
+        renderCardStack();
+      }
+
+      async function loadPack() {
+        var set = selectedSet();
+        if (!set || !packTypeSelect.value || state.loading) {
+          generateButton.disabled = !set || !packTypeSelect.value;
+          return;
+        }
+        state.loading = true;
+        generateButton.disabled = true;
+        generateButton.textContent = "Preparing...";
+        setPickerHint("Preparing pack...", "ok");
+        try {
+          var body = new URLSearchParams(new FormData(form));
+          var response = await fetch("/games/pack-opening", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: body.toString()
+          });
+          var payload = await response.json();
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.message || "Pack could not be generated.");
+          }
+          setPackLoaded(payload);
+        } catch (error) {
+          resetPackState(false);
+          heading.textContent = "Could not prepare pack";
+          subheading.textContent = error && error.message ? error.message : "Try another set or pack type.";
+          setPickerHint(subheading.textContent, "error");
+          setWrapperText("Pack Crack", packTypeLabel(), "mt");
+        } finally {
+          state.loading = false;
+          generateButton.textContent = "Prepare Pack";
+          generateButton.disabled = !selectedSet() || !packTypeSelect.value;
+        }
+      }
+
+      function scheduleLoad() {
+        window.clearTimeout(autoLoadTimer);
+        var set = selectedSet();
+        syncPackTypeOptions(set);
+        generateButton.disabled = !set || !packTypeSelect.value;
+        if (!set) {
+          setPickerHint("Select a set to populate the pack.", "ok");
+          return;
+        }
+        setPickerHint("Set selected. Choose a pack type, then prepare the pack.", "ok");
+      }
+
+      function openPack() {
+        if (!state.cards.length || state.opened || state.complete) return;
+        state.opened = true;
+        wrapper.classList.remove("is-tearing");
+        wrapper.style.setProperty("--tear-offset", "52px");
+        wrapper.style.setProperty("--tear-angle", "6deg");
+        wrapper.style.setProperty("--tear-scale", "1");
+        wrapper.classList.add("is-opened");
+        subheading.textContent = "Slide the current card away with arrow keys or by dragging it off the stack.";
+        if (dragLabel) dragLabel.textContent = "Wrapper opened";
+        window.setTimeout(function () {
+          stack.classList.remove("hidden");
+          window.requestAnimationFrame(function () {
+            stack.classList.add("is-ready");
+          });
+          updateCurrentMeta();
+        }, 160);
+      }
+
+      function completePack() {
+        state.complete = true;
+        currentMeta.classList.add("hidden");
+        nextButton.disabled = true;
+        currentLink.classList.add("hidden");
+        table.classList.add("is-complete");
+        heading.textContent = "Pack complete";
+        subheading.textContent = "Review every card you pulled below, or prepare another pack from the picker.";
+        updateStats();
+      }
+
+      function clearCurrentCard(direction) {
+        var card = state.cards[state.currentIndex];
+        if (!card || !state.opened || state.complete) return;
+        var el = stack.querySelector('[data-card-index="' + state.currentIndex + '"]');
+        direction = direction || { x: 126, y: 0, rot: 13 };
+        if (el) {
+          el.style.setProperty("--clear-x", String(direction.x) + "%");
+          el.style.setProperty("--clear-y", String(direction.y) + "%");
+          el.style.setProperty("--clear-rot", String(direction.rot) + "deg");
+          el.classList.add("is-cleared");
+        }
+        state.revealedCards.push(card);
+        state.pullValue += priceNumber(card.price_usd);
+        addOpenedThumb(card);
+        state.currentIndex += 1;
+        activeCardDrag = null;
+        refreshStackPositions();
+        updateCurrentMeta();
+        if (state.currentIndex >= state.cards.length) {
+          window.setTimeout(completePack, 260);
+        }
+      }
+
+      function attachCardDrag(el) {
+        el.addEventListener("pointerdown", function (event) {
+          if (!state.opened || state.complete || Number(el.dataset.cardIndex) !== state.currentIndex) return;
+          event.preventDefault();
+          if (activeCardDrag && activeCardDrag.el) {
+            activeCardDrag.el.classList.remove("is-dragging");
+          }
+          activeCardDrag = {
+            el: el,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            lastX: event.clientX,
+            lastY: event.clientY
+          };
+          el.classList.add("is-dragging");
+          if (el.setPointerCapture) {
+            try {
+              el.setPointerCapture(event.pointerId);
+            } catch (_) {}
+          }
+        });
+      }
+
+      function moveActiveCardDrag(event) {
+        if (!activeCardDrag || event.pointerId !== activeCardDrag.pointerId) return;
+        event.preventDefault();
+        activeCardDrag.lastX = event.clientX;
+        activeCardDrag.lastY = event.clientY;
+        var dx = event.clientX - activeCardDrag.startX;
+        var dy = event.clientY - activeCardDrag.startY;
+        activeCardDrag.el.style.transform = "translate(" + dx + "px, " + dy + "px) rotate(" + (dx / 18) + "deg)";
+      }
+
+      function finishActiveCardDrag(event) {
+        if (!activeCardDrag || event.pointerId !== activeCardDrag.pointerId) return;
+        event.preventDefault();
+        var drag = activeCardDrag;
+        activeCardDrag = null;
+        drag.el.classList.remove("is-dragging");
+        if (drag.el.releasePointerCapture) {
+          try {
+            drag.el.releasePointerCapture(event.pointerId);
+          } catch (_) {}
+        }
+        var dx = event.clientX - drag.startX;
+        var dy = event.clientY - drag.startY;
+        if (Math.abs(dx) > 74 || Math.abs(dy) > 92) {
+          clearCurrentCard({
+            x: Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? -126 : 126) : 0,
+            y: Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? -126 : 126) : 0,
+            rot: dx < 0 ? -14 : 14
+          });
+        } else {
+          drag.el.style.transform = drag.el.dataset.restingTransform || "";
+        }
+      }
+
+      function cancelActiveCardDrag(event) {
+        if (!activeCardDrag || event.pointerId !== activeCardDrag.pointerId) return;
+        activeCardDrag.el.classList.remove("is-dragging");
+        activeCardDrag.el.style.transform = activeCardDrag.el.dataset.restingTransform || "";
+        activeCardDrag = null;
+      }
+
+      function attachWrapperGesture() {
+        var startX = 0;
+        var startY = 0;
+        var lastX = 0;
+        var lastY = 0;
+        var distance = 0;
+        var dragging = false;
+        wrapper.addEventListener("pointerdown", function (event) {
+          if (!state.cards.length || state.opened || state.complete) return;
+          dragging = true;
+          startX = event.clientX;
+          startY = event.clientY;
+          lastX = startX;
+          lastY = startY;
+          distance = 0;
+          wrapper.classList.add("is-tearing");
+          wrapper.style.setProperty("--tear-offset", "0px");
+          wrapper.style.setProperty("--tear-angle", "0deg");
+          wrapper.style.setProperty("--tear-scale", "0.08");
+          wrapper.setPointerCapture(event.pointerId);
+          if (dragLabel) dragLabel.textContent = "Keep tearing";
+        });
+        wrapper.addEventListener("pointermove", function (event) {
+          if (state.opened || state.complete) return;
+          var rect = wrapper.getBoundingClientRect();
+          var x = ((event.clientX - rect.left) / rect.width) - 0.5;
+          var y = ((event.clientY - rect.top) / rect.height) - 0.5;
+          wrapper.style.setProperty("--pack-tilt-y", (x * 18).toFixed(2) + "deg");
+          wrapper.style.setProperty("--pack-tilt-x", (-y * 14).toFixed(2) + "deg");
+          if (!dragging) return;
+          var segment = Math.hypot(event.clientX - lastX, event.clientY - lastY);
+          distance += segment;
+          lastX = event.clientX;
+          lastY = event.clientY;
+          var progress = Math.min(1, distance / 250);
+          wrapper.style.setProperty("--tear-progress", String(Math.round(progress * 100)) + "%");
+          wrapper.style.setProperty("--tear-offset", String(Math.round(progress * 46)) + "px");
+          wrapper.style.setProperty("--tear-angle", String((progress * 5).toFixed(2)) + "deg");
+          wrapper.style.setProperty("--tear-scale", String(Math.max(0.08, progress).toFixed(3)));
+          if (distance > 250 || Math.hypot(event.clientX - startX, event.clientY - startY) > 170) {
+            dragging = false;
+            openPack();
+          }
+        });
+        wrapper.addEventListener("pointerup", function () {
+          if (!dragging) return;
+          dragging = false;
+          if (!state.opened) {
+            wrapper.classList.remove("is-tearing");
+            wrapper.style.setProperty("--tear-progress", "0%");
+            wrapper.style.setProperty("--tear-offset", "0px");
+            wrapper.style.setProperty("--tear-angle", "0deg");
+            wrapper.style.setProperty("--tear-scale", "0");
+            if (dragLabel) dragLabel.textContent = "Drag across wrapper";
+          }
+        });
+        wrapper.addEventListener("pointercancel", function () {
+          dragging = false;
+          if (!state.opened) {
+            wrapper.classList.remove("is-tearing");
+            wrapper.style.setProperty("--tear-progress", "0%");
+            wrapper.style.setProperty("--tear-offset", "0px");
+            wrapper.style.setProperty("--tear-angle", "0deg");
+            wrapper.style.setProperty("--tear-scale", "0");
+            if (dragLabel) dragLabel.textContent = "Drag across wrapper";
+          }
+        });
+        wrapper.addEventListener("pointerleave", function () {
+          if (dragging || state.opened) return;
+          wrapper.style.setProperty("--pack-tilt-y", "0deg");
+          wrapper.style.setProperty("--pack-tilt-x", "0deg");
+        });
+      }
+
+      function handleSetInput() {
+        var set = resolveTypedSet(setInput.value);
+        if (!set) {
+          setSelect.value = "";
+          syncPackTypeOptions(null);
+          generateButton.disabled = true;
+          if (String(setInput.value || "").trim()) {
+            setPickerHint("Keep typing or choose a set from the dropdown.", "ok");
+          } else {
+            setPickerHint("Select a set to populate the pack.", "ok");
+          }
+          return;
+        }
+        setSelect.value = String(setField(set, "Code")).toLowerCase();
+        scheduleLoad();
+      }
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var set = selectedSet();
+        if (!set) {
+          set = resolveTypedSet(setInput.value);
+          if (set) {
+            setSelect.value = String(setField(set, "Code")).toLowerCase();
+          }
+        }
+        scrollToPack();
+        loadPack();
+      });
+      setInput.addEventListener("input", handleSetInput);
+      setSelect.addEventListener("change", function () {
+        var set = selectedSet();
+        setInput.value = set ? setField(set, "Label") : "";
+        scheduleLoad();
+      });
+      packTypeSelect.addEventListener("change", function () {
+        updatePackAccuracy(selectedSet());
+      });
+      nextButton.addEventListener("click", function () {
+        clearCurrentCard({ x: 126, y: 0, rot: 13 });
+      });
+      document.addEventListener("pointermove", moveActiveCardDrag);
+      document.addEventListener("pointerup", finishActiveCardDrag);
+      document.addEventListener("pointercancel", cancelActiveCardDrag);
+      document.addEventListener("keydown", function (event) {
+        var tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : "";
+        if (tag === "input" || tag === "select" || tag === "textarea" || event.target && event.target.isContentEditable) return;
+        if (!state.opened || state.complete) return;
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          clearCurrentCard({ x: -126, y: 0, rot: -14 });
+        } else if (event.key === "ArrowRight") {
+          event.preventDefault();
+          clearCurrentCard({ x: 126, y: 0, rot: 14 });
+        } else if (event.key === "ArrowUp") {
+          event.preventDefault();
+          clearCurrentCard({ x: 0, y: -126, rot: -6 });
+        } else if (event.key === "ArrowDown") {
+          event.preventDefault();
+          clearCurrentCard({ x: 0, y: 126, rot: 6 });
+        }
+      });
+
+      attachWrapperGesture();
+      syncPackTypeOptions(selectedSet());
+      setWrapperText("Pack Crack", packTypeLabel(), "mt");
+      resetWrapperVisuals();
+      updateStats();
+    });
+  </script>
+
+  {{ template "layout_footer" . }}
+{{ end }}

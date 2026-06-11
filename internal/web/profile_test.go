@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
@@ -23,6 +24,37 @@ func TestColorCombinationName(t *testing.T) {
 		if got := colorCombinationName(input); got != want {
 			t.Fatalf("colorCombinationName(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+func TestBuildProfilePaginationPreservesOtherSections(t *testing.T) {
+	t.Parallel()
+
+	values := url.Values{
+		"favorites_view":  {"columns"},
+		"guess_page":      {"3"},
+		"favorites_page":  {"2"},
+		"tombscript_page": {"4"},
+	}
+	got := buildProfilePagination(values, 42, "favorites_page", 2, 70, 24)
+
+	if got.Page != 2 || got.TotalPages != 3 || got.Total != 70 {
+		t.Fatalf("pagination = %#v", got)
+	}
+	if got.PrevURL != "/users/42?favorites_view=columns&guess_page=3&tombscript_page=4" {
+		t.Fatalf("PrevURL = %q", got.PrevURL)
+	}
+	if got.NextURL != "/users/42?favorites_page=3&favorites_view=columns&guess_page=3&tombscript_page=4" {
+		t.Fatalf("NextURL = %q", got.NextURL)
+	}
+}
+
+func TestBuildProfilePaginationClampsPastLastPage(t *testing.T) {
+	t.Parallel()
+
+	got := buildProfilePagination(url.Values{}, 7, "favorites_page", 99, 1, 24)
+	if got.Page != 1 || got.TotalPages != 1 || got.PrevURL != "" || got.NextURL != "" {
+		t.Fatalf("pagination = %#v", got)
 	}
 }
 

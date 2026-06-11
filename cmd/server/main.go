@@ -45,6 +45,10 @@ func ensureTables(ctx context.Context, database *sql.DB) error {
 		return fmt.Errorf("ensure quick build tables: %w", err)
 	}
 
+	if err := web.EnsureFeatureTables(ctx, database); err != nil {
+		return fmt.Errorf("ensure feature tables: %w", err)
+	}
+
 	return nil
 }
 
@@ -88,6 +92,10 @@ func registerHomeAndAuthRoutes(mux *http.ServeMux, app *web.App) {
 		{pattern: "/forgot-password", get: app.HandleForgotPasswordShow, post: app.HandleForgotPasswordPost},
 		{pattern: "/reset-password", get: app.HandleResetPasswordShow, post: app.HandleResetPasswordPost},
 		{pattern: "/profile/avatar", post: app.HandleProfileAvatarPost},
+		{pattern: "/cards/favorites/printing", post: app.HandleCardPrintingFavoritePost},
+		{pattern: "/games/guess-card", get: app.HandleGuessCardShow, post: app.HandleGuessCardPost},
+		{pattern: "/games/spellify", get: app.HandleSpellifyShow, post: app.HandleSpellifyPost},
+		{pattern: "/games/pack-opening", get: app.HandlePackOpeningShow, post: app.HandlePackOpeningPost},
 	})
 }
 
@@ -176,6 +184,7 @@ func wrapMiddleware(app *web.App, handler http.Handler) http.Handler {
 	// Middleware order matters; last wrapper here is the outermost handler.
 	handler = app.WithNotFoundMiddleware(handler)
 	handler = app.WithUserMiddleware(handler)
+	handler = app.WithRateLimitMiddleware(handler)
 	handler = app.WithRecoveryMiddleware(handler)
 	return handler
 }
@@ -220,6 +229,15 @@ func run(opts runOptions) error {
 		DB:                  database,
 		Renderer:            web.NewRenderer(),
 		SessionCookieSecure: cfg.SessionCookieSecure,
+		PublicBaseURL:       cfg.PublicBaseURL,
+		TrustedProxyHops:    cfg.TrustedProxyHops,
+		PasswordResetMailer: web.NewSMTPPasswordResetMailer(web.SMTPConfig{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			Username: cfg.SMTPUsername,
+			Password: cfg.SMTPPassword,
+			From:     cfg.SMTPFrom,
+		}),
 	}
 
 	mux := http.NewServeMux()
@@ -228,7 +246,15 @@ func run(opts runOptions) error {
 	handler := wrapMiddleware(app, mux)
 	addr := ":" + cfg.Port
 	log.Printf("Listening on %s...", addr)
-	return http.ListenAndServe(addr, handler)
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	return server.ListenAndServe()
 }
 
 func main() {

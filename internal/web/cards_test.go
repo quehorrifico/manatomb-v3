@@ -24,6 +24,16 @@ func TestCardDetailPath(t *testing.T) {
 	}
 }
 
+func TestCardPrintingDetailPath(t *testing.T) {
+	t.Parallel()
+
+	got := cardPrintingDetailPath("123e4567-e89b-12d3-a456-426614174000", "223e4567-e89b-12d3-a456-426614174000")
+	want := "/cards/view/123e4567-e89b-12d3-a456-426614174000?printing=223e4567-e89b-12d3-a456-426614174000"
+	if got != want {
+		t.Fatalf("cardPrintingDetailPath() = %q, want %q", got, want)
+	}
+}
+
 func TestSingleCardResultPath(t *testing.T) {
 	t.Parallel()
 

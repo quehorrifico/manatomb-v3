@@ -204,6 +204,100 @@
       transform: translateY(-50%);
     }
 
+    @keyframes mtHeartPop {
+      0% { transform: scale(1); }
+      38% { transform: scale(1.38); }
+      64% { transform: scale(0.92); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes mtHeartBurstLeft {
+      0% { opacity: 0; transform: translate(-50%, -50%) rotate(-38deg) scale(0.45); }
+      34% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-1.02rem, -1.02rem) rotate(-38deg) scale(1); }
+    }
+
+    @keyframes mtHeartBurstRight {
+      0% { opacity: 0; transform: translate(-50%, -50%) rotate(38deg) scale(0.45); }
+      34% { opacity: 1; }
+      100% { opacity: 0; transform: translate(0.64rem, -1.02rem) rotate(38deg) scale(1); }
+    }
+
+    .mt-heart-button {
+      position: relative;
+      display: inline-grid;
+      width: 2.25rem;
+      height: 2.25rem;
+      place-items: center;
+      border: 1px solid rgba(51, 65, 85, 0.9);
+      border-radius: 9999px;
+      background: rgba(15, 23, 42, 0.92);
+      color: rgb(226 232 240);
+      transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+    }
+
+    .mt-heart-button:hover {
+      border-color: rgba(251, 113, 133, 0.72);
+      background: rgba(76, 5, 25, 0.36);
+      color: rgb(253 164 175);
+    }
+
+    .mt-heart-button:focus-visible {
+      outline: 2px solid rgb(251 113 133);
+      outline-offset: 2px;
+    }
+
+    .mt-heart-button.is-loved {
+      border-color: rgba(251, 113, 133, 0.68);
+      background: rgba(159, 18, 57, 0.2);
+      color: rgb(251 113 133);
+    }
+
+    .mt-heart-button__symbol {
+      position: relative;
+      display: grid;
+      width: 1.34rem;
+      height: 1.34rem;
+      place-items: center;
+      font-size: 1.24rem;
+      line-height: 1;
+      pointer-events: none;
+      transform-origin: center;
+    }
+
+    .mt-heart-button__symbol::before,
+    .mt-heart-button__symbol::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0.42rem;
+      height: 0.42rem;
+      border-top: 2px solid currentColor;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mt-heart-button__symbol::before {
+      border-left: 2px solid currentColor;
+    }
+
+    .mt-heart-button__symbol::after {
+      border-right: 2px solid currentColor;
+    }
+
+    .mt-heart-button.is-popping .mt-heart-button__symbol {
+      animation: mtHeartPop 430ms cubic-bezier(0.2, 0.88, 0.3, 1.25);
+    }
+
+    .mt-heart-button.is-popping .mt-heart-button__symbol::before {
+      animation: mtHeartBurstLeft 430ms ease-out;
+    }
+
+    .mt-heart-button.is-popping .mt-heart-button__symbol::after {
+      animation: mtHeartBurstRight 430ms ease-out;
+    }
+
     .mt-card-art-rotatable {
       position: relative;
       z-index: 1;

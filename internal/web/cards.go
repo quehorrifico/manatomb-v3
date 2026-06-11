@@ -212,6 +212,7 @@ type cardDetailPrintingData struct {
 	Loyalty         string
 	EDHRecRank      string
 	CommanderStatus string
+	IsFavorited     bool
 	Faces           []cardDetailFaceData
 }
 
@@ -405,6 +406,15 @@ func cardDetailPath(oracleID string) string {
 		return "/cards"
 	}
 	return "/cards/view/" + url.PathEscape(oracleID)
+}
+
+func cardPrintingDetailPath(oracleID string, scryfallID string) string {
+	path := cardDetailPath(oracleID)
+	scryfallID = strings.TrimSpace(scryfallID)
+	if scryfallID == "" || path == "/cards" {
+		return path
+	}
+	return path + "?printing=" + url.QueryEscape(scryfallID)
 }
 
 func isSplitCardLayout(layout string) bool {
@@ -1934,6 +1944,14 @@ func (a *App) HandleCardShow(w http.ResponseWriter, r *http.Request) {
 	page := buildCardDetailPageData(*card, printings)
 	page.SavedDecks = savedDecks
 	page.CurrentPath = r.URL.RequestURI()
+	if user != nil {
+		favoriteIDs, err := favoritePrintingIDsForOracle(r.Context(), a.DB, user.ID, oracleID)
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
+		applyPrintingFavoriteStatus(&page, favoriteIDs)
+	}
 
 	data := TemplateData{
 		CurrentUser: user,
