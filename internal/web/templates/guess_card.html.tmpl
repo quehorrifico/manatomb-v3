@@ -1,0 +1,281 @@
+{{ define "guess_card" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <section class="grid gap-6 lg:grid-cols-[minmax(16rem,22rem)_1fr] lg:items-start">
+      <div class="space-y-4">
+        <div class="relative mx-auto max-w-[18rem]">
+          <div class="absolute inset-x-8 -bottom-5 h-10 rounded-full bg-slate-950/70 blur-xl"></div>
+          {{ if $ctx.Completed }}
+            <a href="{{ $ctx.TargetDetailPath }}"
+               class="group relative block overflow-hidden rounded-2xl bg-slate-950 shadow-2xl shadow-slate-950/60 ring-1 {{ if $ctx.Won }}ring-amber-300/50{{ else }}ring-slate-700{{ end }}">
+              {{ if $ctx.TargetImageURI }}
+                <img src="{{ $ctx.TargetImageURI }}" alt="{{ $ctx.TargetName }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
+              {{ else }}
+                <span class="flex aspect-[63/88] w-full items-center justify-center px-4 text-center text-sm text-slate-400">{{ $ctx.TargetName }}</span>
+              {{ end }}
+            </a>
+          {{ else }}
+            <button type="button"
+                    data-guess-card-back
+                    class="relative block aspect-[63/88] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-2xl shadow-slate-950/60 ring-1 ring-slate-700 transition duration-300 hover:-translate-y-1 hover:rotate-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-200"
+                    aria-label="Inspect hidden card">
+              <img src="https://cards.scryfall.io/back.png" alt="Magic card back" class="h-full w-full object-cover">
+            </button>
+          {{ end }}
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Status</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Status }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Asked</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.QuestionCount }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+            <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Award</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.AwardStatus }}</p>
+          </div>
+        </div>
+
+        {{ if $ctx.CanGuess }}
+          <section class="space-y-3">
+            <h2 class="mt-section-label">Submit a Guess</h2>
+            <form method="POST" action="/games/guess-card" class="space-y-3">
+              <input type="hidden" name="action" value="guess">
+              <div class="relative" data-card-autocomplete-root>
+                <label class="sr-only" for="guess-card-final">Card name</label>
+                <input id="guess-card-final"
+                       name="guess"
+                       type="search"
+                       autocomplete="off"
+                       placeholder="Exact card name"
+                       class="mt-control w-full"
+                       aria-autocomplete="list"
+                       aria-expanded="false"
+                       aria-haspopup="listbox"
+                       data-card-autocomplete-input>
+                <div data-card-autocomplete-menu
+                     class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                     role="listbox"></div>
+              </div>
+              <button type="submit" class="mt-btn mt-btn--primary w-full">Submit Guess</button>
+            </form>
+            <form method="POST" action="/games/guess-card">
+              <input type="hidden" name="action" value="give_up">
+              <button type="submit" class="mt-btn mt-btn--secondary w-full">Give Up</button>
+            </form>
+          </section>
+        {{ end }}
+      </div>
+
+      <div class="space-y-5">
+        <div class="space-y-2">
+          <p class="mt-kicker">{{ $ctx.GameModeLabel }}</p>
+          <h1 class="mt-title">Guess the Card, Win the Card</h1>
+          {{ if $ctx.Completed }}
+            <p class="mt-hint">
+              {{ if $ctx.Won }}
+                You found {{ $ctx.TargetName }}. {{ if not $ctx.HasAccount }}Sign in before playing a future daily card to earn profile awards.{{ else if $ctx.IsDaily }}Card awards are saved when you solve the daily card in fewer than {{ $ctx.AwardGuessLimit }} guesses.{{ else }}Practice games do not award cards.{{ end }}
+              {{ else }}
+                The answer was {{ $ctx.TargetName }}.
+              {{ end }}
+            </p>
+          {{ else }}
+            <p class="mt-hint">
+              {{ if $ctx.IsDaily }}
+                Ask yes/no clues, then submit exact card names. {{ if $ctx.HasAccount }}Solve the daily card in fewer than {{ $ctx.AwardGuessLimit }} guesses to add it to Cards Guessed Correctly.{{ else }}Guest progress is saved on this device; sign in before a future daily card to earn profile awards.{{ end }}
+              {{ else }}
+                Practice game. Only the daily card is eligible for profile awards.
+              {{ end }}
+            </p>
+          {{ end }}
+        </div>
+
+        {{ if .Flash }}
+          <div class="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{{ .Flash }}</div>
+        {{ end }}
+
+        {{ if $ctx.History }}
+          <section class="space-y-2">
+            <h2 class="mt-section-label">Asked Questions</h2>
+            <div class="grid gap-2 sm:grid-cols-2">
+              {{ range $ctx.History }}
+                <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+                  <span class="text-sm text-slate-200">{{ .Question }}</span>
+                  <span class="shrink-0 rounded-full px-2 py-1 text-xs font-semibold {{ if .Yes }}bg-emerald-400/12 text-emerald-200 ring-1 ring-emerald-300/25{{ else }}bg-rose-400/12 text-rose-200 ring-1 ring-rose-300/25{{ end }}">{{ .Answer }}</span>
+                </div>
+              {{ end }}
+            </div>
+          </section>
+        {{ end }}
+
+        {{ if $ctx.CanAsk }}
+          <section class="space-y-2">
+            <h2 class="mt-section-label">Clues</h2>
+            {{ if $ctx.Clues }}
+              <div class="grid gap-2 sm:grid-cols-2">
+                {{ range $ctx.Clues }}
+                  <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+                    <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{{ .Label }}</p>
+                    <p class="mt-1 text-sm leading-relaxed text-slate-100">{{ if .ValueHTML }}{{ .ValueHTML }}{{ else }}{{ .Value }}{{ end }}</p>
+                  </div>
+                {{ end }}
+              </div>
+            {{ else }}
+              <div class="rounded-lg border border-dashed border-slate-800 bg-slate-950/30 px-3 py-3 text-sm text-slate-500">
+                Ask a question to reveal the first clue.
+              </div>
+            {{ end }}
+          </section>
+
+          <section class="space-y-3" data-guess-question-root>
+            <h2 class="mt-section-label">Ask a Question</h2>
+            <form method="POST" action="/games/guess-card" class="relative">
+              <input type="hidden" name="action" value="question">
+              <input type="hidden" name="question_id" value="" data-guess-question-id>
+              <label class="sr-only" for="guess-card-question">Question</label>
+              <input id="guess-card-question"
+                     name="question"
+                     type="search"
+                     autocomplete="off"
+                     placeholder="Type a yes/no question"
+                     class="mt-control w-full"
+                     data-guess-question-input>
+              <div data-guess-question-menu
+                   class="mt-autocomplete-menu absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"></div>
+            </form>
+          </section>
+        {{ end }}
+
+        {{ if not $ctx.CanGuess }}
+          <div class="flex flex-wrap gap-3">
+            <form method="POST" action="/games/guess-card">
+              <input type="hidden" name="action" value="new">
+              <button type="submit" class="mt-btn mt-btn--primary">Play Again</button>
+            </form>
+            <p class="max-w-sm text-xs leading-5 text-slate-500">Play again? Only daily cards are eligible for profile awards; replays are practice games.</p>
+            {{ if .CurrentUser }}
+              <a href="/users/{{ .CurrentUser.ID }}" class="mt-btn mt-btn--secondary">View Profile</a>
+            {{ else }}
+              <a href="/login?next=/games/guess-card" class="mt-btn mt-btn--secondary">Sign In to Earn Awards</a>
+            {{ end }}
+          </div>
+        {{ end }}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var cardBack = document.querySelector("[data-guess-card-back]");
+      if (cardBack) {
+        cardBack.addEventListener("click", function () {
+          cardBack.classList.toggle("rotate-2");
+          cardBack.classList.toggle("scale-[1.02]");
+        });
+      }
+
+      var questionRoot = document.querySelector("[data-guess-question-root]");
+      if (!questionRoot) return;
+
+      var questions = {{ toJSON $ctx.AvailableQuestions }};
+      var input = questionRoot.querySelector("[data-guess-question-input]");
+      var menu = questionRoot.querySelector("[data-guess-question-menu]");
+      var questionID = questionRoot.querySelector("[data-guess-question-id]");
+      var form = questionRoot.querySelector("form");
+      if (!input || !menu || !questionID || !form || !Array.isArray(questions)) return;
+
+      function normalizeQuestion(value) {
+        return String(value || "")
+          .toLowerCase()
+          .replace(/non[\s-]+permanent/g, "nonpermanent")
+          .replace(/mono[\s-]+colored/g, "monocolored")
+          .replace(/[^a-z0-9]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function questionMatches(question, query) {
+        var text = normalizeQuestion(question && question.Text);
+        if (!query) return true;
+        if (text.indexOf(query) !== -1) return true;
+        var stopWords = {
+          a: true, an: true, and: true, card: true, does: true,
+          do: true, have: true, has: true, is: true, it: true,
+          its: true, the: true, this: true, with: true
+        };
+        var terms = query.split(" ").filter(function (term) {
+          return term && !stopWords[term];
+        });
+        if (!terms.length) return true;
+        return terms.every(function (term) {
+          return term && text.indexOf(term) !== -1;
+        });
+      }
+
+      function buttonHTML(question) {
+        return '' +
+          '<button type="button" data-question-id="' + question.ID + '" class="block w-full px-3 py-2 text-left text-sm font-medium text-slate-200 transition hover:bg-amber-300/10 hover:text-amber-100 focus-visible:outline-none focus-visible:bg-amber-300/10">' +
+            question.Text +
+          '</button>';
+      }
+
+      function renderQuestionSuggestions() {
+        var query = normalizeQuestion(input.value);
+        var matches = questions.filter(function (question) {
+          return questionMatches(question, query);
+        });
+
+        if (!query) {
+          matches = questions;
+        }
+
+        if (!matches.length) {
+          var emptyText = questions.length ? "Try rephrasing your question" : "All questions have been asked";
+          menu.innerHTML = '<div class="px-3 py-2 text-sm font-medium text-slate-500">' + emptyText + '</div>';
+          questionID.value = "";
+        } else {
+          menu.innerHTML = matches.map(buttonHTML).join("");
+          questionID.value = "";
+        }
+        menu.classList.remove("hidden");
+      }
+
+      input.addEventListener("input", renderQuestionSuggestions);
+      input.addEventListener("focus", renderQuestionSuggestions);
+      input.addEventListener("keydown", function (event) {
+        if (event.key !== "Enter") return;
+        var first = menu.querySelector("[data-question-id]");
+        if (!first) {
+          event.preventDefault();
+          renderQuestionSuggestions();
+          return;
+        }
+        event.preventDefault();
+        questionID.value = first.getAttribute("data-question-id") || "";
+        input.value = first.textContent || input.value;
+        form.submit();
+      });
+
+      menu.addEventListener("click", function (event) {
+        var button = event.target.closest("[data-question-id]");
+        if (!button) return;
+        questionID.value = button.getAttribute("data-question-id") || "";
+        input.value = button.textContent || input.value;
+        form.submit();
+      });
+
+      document.addEventListener("click", function (event) {
+        if (!questionRoot.contains(event.target)) {
+          menu.classList.add("hidden");
+        }
+      });
+    });
+  </script>
+
+  {{ template "layout_footer" . }}
+{{ end }}

@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,13 @@ type Config struct {
 	Port                string
 	SessionSecret       string
 	SessionCookieSecure bool
+	PublicBaseURL       string
+	SMTPHost            string
+	SMTPPort            string
+	SMTPUsername        string
+	SMTPPassword        string
+	SMTPFrom            string
+	TrustedProxyHops    int
 	CardSyncOn          bool
 	CardSyncOnStart     bool
 	CardSyncMaxRows     int
@@ -25,9 +33,32 @@ func Load() *Config {
 		Port:                getEnv("PORT", "8080"),
 		SessionSecret:       mustEnv("SESSION_SECRET"),
 		SessionCookieSecure: getEnvBool("SESSION_COOKIE_SECURE", false),
+		PublicBaseURL:       strings.TrimRight(getEnv("PUBLIC_BASE_URL", ""), "/"),
+		SMTPHost:            getEnv("SMTP_HOST", ""),
+		SMTPPort:            getEnv("SMTP_PORT", "587"),
+		SMTPUsername:        getEnv("SMTP_USERNAME", ""),
+		SMTPPassword:        getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:            getEnv("SMTP_FROM", ""),
+		TrustedProxyHops:    getEnvInt("TRUSTED_PROXY_HOPS", 0),
 		CardSyncOn:          getEnvBool("CARD_SYNC_ENABLED", true),
 		CardSyncOnStart:     getEnvBool("CARD_SYNC_ON_START", false),
 		CardSyncMaxRows:     getEnvInt("CARD_SYNC_MAX_ROWS", 0),
+	}
+	if cfg.PublicBaseURL == "" {
+		cfg.PublicBaseURL = "http://localhost:" + cfg.Port
+	}
+	publicURL, err := url.Parse(cfg.PublicBaseURL)
+	if err != nil ||
+		publicURL.Host == "" ||
+		(publicURL.Scheme != "http" && publicURL.Scheme != "https") ||
+		(publicURL.Path != "" && publicURL.Path != "/") ||
+		publicURL.RawQuery != "" ||
+		publicURL.Fragment != "" ||
+		publicURL.User != nil {
+		log.Fatalf("PUBLIC_BASE_URL must be an absolute http or https origin without a path, query, or credentials")
+	}
+	if publicURL.Scheme == "https" {
+		cfg.SessionCookieSecure = true
 	}
 	return cfg
 }

@@ -98,6 +98,194 @@
     </section>
 
     <section class="space-y-3">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div class="space-y-1">
+          <h2 class="mt-section-label">Favorite Printings</h2>
+          <p class="text-xs text-slate-500">{{ $ctx.FavoritePagination.Total }} saved art favorite{{ if ne $ctx.FavoritePagination.Total 1 }}s{{ end }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=grid" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "grid" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Grid</a>
+          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=stacks" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "stacks" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Stacks</a>
+          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=text" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "text" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Text</a>
+          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=columns" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "columns" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Columns</a>
+        </div>
+      </div>
+
+      {{ if $ctx.FavoritePrintings }}
+        {{ if eq $ctx.FavoriteView "stacks" }}
+          <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/35 p-5">
+            <div class="flex min-w-max items-end pl-12">
+              {{ range $ctx.FavoritePrintings }}
+                <a href="{{ .DetailPath }}"
+                   class="-ml-10 block w-32 shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-xl shadow-slate-950/35 transition hover:z-10 hover:-translate-y-2 hover:border-sky-300"
+                   title="{{ .Name }} · {{ .SetLabel }}">
+                  {{ if .ImageURI }}
+                    <img src="{{ .ImageURI }}" alt="{{ .Name }}" class="aspect-[63/88] w-full object-cover">
+                  {{ else }}
+                    <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">No image</span>
+                  {{ end }}
+                </a>
+              {{ end }}
+            </div>
+          </div>
+        {{ else if eq $ctx.FavoriteView "text" }}
+          <div class="rounded-xl border border-slate-800 bg-slate-950/35 divide-y divide-slate-800">
+            {{ range $ctx.FavoritePrintings }}
+              <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <a href="{{ .DetailPath }}" class="font-medium text-slate-100 transition hover:text-sky-200">{{ .Name }}</a>
+                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                  <span>{{ .SetLabel }}</span>
+                  <span>{{ .PriceUSD }}</span>
+                  {{ if $ctx.Stats.CanEdit }}
+                    <form method="POST" action="/cards/favorites/printing">
+                      <input type="hidden" name="scryfall_id" value="{{ .ScryfallID }}">
+                      <input type="hidden" name="action" value="unfavorite">
+                      <input type="hidden" name="return_to" value="{{ $ctx.FavoriteReturnTo }}">
+                      <button type="submit" class="text-slate-400 transition hover:text-rose-200">Remove</button>
+                    </form>
+                  {{ end }}
+                </div>
+              </div>
+            {{ end }}
+          </div>
+        {{ else if eq $ctx.FavoriteView "columns" }}
+          <div class="grid gap-3 md:grid-cols-2">
+            {{ range $ctx.FavoritePrintings }}
+              <article class="flex gap-3 rounded-xl border border-slate-800 bg-slate-950/35 p-3">
+                <a href="{{ .DetailPath }}" class="h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-950">
+                  {{ if .ImageURI }}
+                    <img src="{{ .ImageURI }}" alt="{{ .Name }}" class="h-full w-full object-cover">
+                  {{ else }}
+                    <span class="flex h-full w-full items-center justify-center text-[10px] text-slate-500">No image</span>
+                  {{ end }}
+                </a>
+                <div class="min-w-0 flex-1 space-y-2">
+                  <a href="{{ .DetailPath }}" class="block truncate text-sm font-semibold text-slate-100 transition hover:text-sky-200">{{ .Name }}</a>
+                  <div class="grid gap-1 text-xs text-slate-500">
+                    <span>{{ .SetLabel }}</span>
+                    <span>{{ .Rarity }} · {{ .PriceUSD }}</span>
+                    <span>Artist: {{ .Artist }}</span>
+                  </div>
+                  {{ if $ctx.Stats.CanEdit }}
+                    <form method="POST" action="/cards/favorites/printing">
+                      <input type="hidden" name="scryfall_id" value="{{ .ScryfallID }}">
+                      <input type="hidden" name="action" value="unfavorite">
+                      <input type="hidden" name="return_to" value="{{ $ctx.FavoriteReturnTo }}">
+                      <button type="submit" class="mt-btn mt-btn--secondary mt-btn--xs">Remove</button>
+                    </form>
+                  {{ end }}
+                </div>
+              </article>
+            {{ end }}
+          </div>
+        {{ else }}
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {{ range $ctx.FavoritePrintings }}
+              <article class="space-y-2">
+                <a href="{{ .DetailPath }}" class="group block overflow-hidden rounded-lg bg-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+                  {{ if .ImageURI }}
+                    <img src="{{ .ImageURI }}" alt="{{ .Name }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
+                  {{ else }}
+                    <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">No image</span>
+                  {{ end }}
+                  <span class="grid gap-0.5 border-t border-slate-800 bg-slate-950/95 px-2 py-2">
+                    <span class="truncate text-[11px] font-semibold text-slate-200">{{ .SetLabel }}</span>
+                    <span class="text-[10px] font-medium text-slate-500">{{ .PriceUSD }}</span>
+                  </span>
+                </a>
+                {{ if $ctx.Stats.CanEdit }}
+                  <form method="POST" action="/cards/favorites/printing">
+                    <input type="hidden" name="scryfall_id" value="{{ .ScryfallID }}">
+                    <input type="hidden" name="action" value="unfavorite">
+                    <input type="hidden" name="return_to" value="{{ $ctx.FavoriteReturnTo }}">
+                    <button type="submit" class="mt-btn mt-btn--secondary mt-btn--xs w-full justify-center">Remove</button>
+                  </form>
+                {{ end }}
+              </article>
+            {{ end }}
+          </div>
+        {{ end }}
+      {{ else }}
+        <div class="mt-empty-state text-center">No favorite printings yet.</div>
+      {{ end }}
+      {{ if gt $ctx.FavoritePagination.TotalPages 1 }}
+        <nav class="flex items-center justify-center gap-3 text-sm text-slate-400" aria-label="Favorite printings pages">
+          {{ if $ctx.FavoritePagination.PrevURL }}<a href="{{ $ctx.FavoritePagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
+          <span>Page {{ $ctx.FavoritePagination.Page }} of {{ $ctx.FavoritePagination.TotalPages }}</span>
+          {{ if $ctx.FavoritePagination.NextURL }}<a href="{{ $ctx.FavoritePagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
+        </nav>
+      {{ end }}
+    </section>
+
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="mt-section-label">Cards Guessed Correctly</h2>
+        <p class="text-xs text-slate-500">{{ $ctx.GuessPagination.Total }} daily card{{ if ne $ctx.GuessPagination.Total 1 }}s{{ end }}</p>
+      </div>
+
+      {{ if $ctx.GuessAwards }}
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
+          {{ range $ctx.GuessAwards }}
+            <a href="{{ .DetailPath }}" class="group block overflow-hidden rounded-lg border border-amber-500/30 bg-slate-950 shadow-lg shadow-amber-950/10 transition hover:border-amber-300/70">
+              {{ if .ImageURI }}
+                <img src="{{ .ImageURI }}" alt="{{ .CardName }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
+              {{ else }}
+                <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">Won card</span>
+              {{ end }}
+              <span class="grid gap-0.5 border-t border-amber-500/20 bg-slate-950/95 px-2 py-2">
+                <span class="truncate text-[11px] font-semibold text-amber-100">{{ .CardName }}</span>
+                <span class="text-[10px] font-medium text-amber-300/70">{{ .GuessCount }} card guesses</span>
+              </span>
+            </a>
+          {{ end }}
+        </div>
+      {{ else }}
+        <div class="mt-empty-state text-center">No daily cards guessed correctly yet.</div>
+      {{ end }}
+      {{ if gt $ctx.GuessPagination.TotalPages 1 }}
+        <nav class="flex items-center justify-center gap-3 text-sm text-slate-400" aria-label="Cards guessed correctly pages">
+          {{ if $ctx.GuessPagination.PrevURL }}<a href="{{ $ctx.GuessPagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
+          <span>Page {{ $ctx.GuessPagination.Page }} of {{ $ctx.GuessPagination.TotalPages }}</span>
+          {{ if $ctx.GuessPagination.NextURL }}<a href="{{ $ctx.GuessPagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
+        </nav>
+      {{ end }}
+    </section>
+
+    <section class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="mt-section-label">Tombscript Cards Won</h2>
+        <p class="text-xs text-slate-500">{{ $ctx.SpellifyPagination.Total }} daily card{{ if ne $ctx.SpellifyPagination.Total 1 }}s{{ end }}</p>
+      </div>
+
+      {{ if $ctx.SpellifyAwards }}
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
+          {{ range $ctx.SpellifyAwards }}
+            <a href="{{ .DetailPath }}" class="group block overflow-hidden rounded-lg border border-[#C2A44C]/30 bg-slate-950 shadow-lg shadow-slate-950/20 transition hover:border-[#E6D7B5]/70">
+              {{ if .ImageURI }}
+                <img src="{{ .ImageURI }}" alt="{{ .CardName }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
+              {{ else }}
+                <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">Won card</span>
+              {{ end }}
+              <span class="grid gap-0.5 border-t border-[#C2A44C]/20 bg-slate-950/95 px-2 py-2">
+                <span class="truncate text-[11px] font-semibold text-[#E6D7B5]">{{ .CardName }}</span>
+                <span class="text-[10px] font-medium text-[#C2A44C]/80">{{ .GuessCount }} reveal guesses</span>
+              </span>
+            </a>
+          {{ end }}
+        </div>
+      {{ else }}
+        <div class="mt-empty-state text-center">No daily Tombscript cards won yet.</div>
+      {{ end }}
+      {{ if gt $ctx.SpellifyPagination.TotalPages 1 }}
+        <nav class="flex items-center justify-center gap-3 text-sm text-slate-400" aria-label="Tombscript cards pages">
+          {{ if $ctx.SpellifyPagination.PrevURL }}<a href="{{ $ctx.SpellifyPagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
+          <span>Page {{ $ctx.SpellifyPagination.Page }} of {{ $ctx.SpellifyPagination.TotalPages }}</span>
+          {{ if $ctx.SpellifyPagination.NextURL }}<a href="{{ $ctx.SpellifyPagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
+        </nav>
+      {{ end }}
+    </section>
+
+    <section class="space-y-3">
       <div class="flex items-center justify-between gap-3">
         <h2 class="mt-section-label">Public Decks</h2>
         <p class="text-xs text-slate-500">{{ len $ctx.Items }} result{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>

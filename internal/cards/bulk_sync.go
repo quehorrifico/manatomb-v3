@@ -27,7 +27,7 @@ const (
 	scryfallMaxRetryDelay   = 30 * time.Second
 	defaultBulkSyncInterval = 24 * time.Hour
 	cardSyncAdvisoryLockKey = int64(91342817)
-	cardSyncDataVersion     = 2
+	cardSyncDataVersion     = 3
 )
 
 var ErrCardSyncInProgress = errors.New("card sync already running")
@@ -84,22 +84,34 @@ type oracleBulkRow struct {
 }
 
 type printBulkRow struct {
-	ScryfallID      string
-	OracleID        string
-	Name            string
-	SetCode         string
-	CollectorNumber string
-	Lang            string
-	ReleasedAt      sql.NullTime
-	FlavorText      string
-	ImageURIsJSON   string
-	ImageURI        string
-	CardFacesJSON   string
-	SetName         string
-	Rarity          string
-	Artist          string
-	PriceUSD        string
-	ScryfallURI     string
+	ScryfallID       string
+	OracleID         string
+	Name             string
+	SetCode          string
+	SetType          string
+	CollectorNumber  string
+	Lang             string
+	ReleasedAt       sql.NullTime
+	FlavorText       string
+	ImageURIsJSON    string
+	ImageURI         string
+	CardFacesJSON    string
+	FinishesJSON     string
+	FrameEffectsJSON string
+	PromoTypesJSON   string
+	SetName          string
+	Rarity           string
+	BorderColor      string
+	Frame            string
+	SecurityStamp    string
+	FullArt          bool
+	Textless         bool
+	Booster          bool
+	Digital          bool
+	Variation        bool
+	Artist           string
+	PriceUSD         string
+	ScryfallURI      string
 }
 
 func normalizeCardBulkSyncOptions(options CardBulkSyncOptions) CardBulkSyncOptions {
@@ -130,6 +142,17 @@ func nonNilStrings(values []string) []string {
 		return []string{}
 	}
 	return values
+}
+
+func stringSliceJSON(values []string) string {
+	if len(values) == 0 {
+		return "[]"
+	}
+	b, err := json.Marshal(nonNilStrings(values))
+	if err != nil {
+		return "[]"
+	}
+	return string(b)
 }
 
 func parseNumericCardStat(raw string) sql.NullFloat64 {
@@ -538,27 +561,42 @@ func decodePrintRows(ctx context.Context, downloadURI string, maxRows int) ([]pr
 				cardFacesJSON = string(b)
 			}
 		}
+		finishesJSON := stringSliceJSON(raw.Finishes)
+		frameEffectsJSON := stringSliceJSON(raw.FrameEffects)
+		promoTypesJSON := stringSliceJSON(raw.PromoTypes)
 
 		rows = append(rows, printBulkRow{
 			ScryfallID:      card.ID,
 			OracleID:        card.OracleID,
 			Name:            card.Name,
 			SetCode:         strings.ToLower(strings.TrimSpace(card.SetCode)),
+			SetType:         strings.ToLower(strings.TrimSpace(raw.SetType)),
 			CollectorNumber: strings.TrimSpace(raw.CollectorNumber),
 			Lang:            "en",
 			ReleasedAt: sql.NullTime{
 				Time:  releasedAt,
 				Valid: hasRelease,
 			},
-			FlavorText:    card.FlavorText,
-			ImageURIsJSON: imageURIsJSON,
-			ImageURI:      card.ImageURI,
-			CardFacesJSON: cardFacesJSON,
-			SetName:       card.SetName,
-			Rarity:        strings.TrimSpace(raw.Rarity),
-			Artist:        card.Artist,
-			PriceUSD:      card.PriceUSD,
-			ScryfallURI:   card.ScryfallURI,
+			FlavorText:       card.FlavorText,
+			ImageURIsJSON:    imageURIsJSON,
+			ImageURI:         card.ImageURI,
+			CardFacesJSON:    cardFacesJSON,
+			FinishesJSON:     finishesJSON,
+			FrameEffectsJSON: frameEffectsJSON,
+			PromoTypesJSON:   promoTypesJSON,
+			SetName:          card.SetName,
+			Rarity:           strings.TrimSpace(raw.Rarity),
+			BorderColor:      strings.TrimSpace(raw.BorderColor),
+			Frame:            strings.TrimSpace(raw.Frame),
+			SecurityStamp:    strings.TrimSpace(raw.SecurityStamp),
+			FullArt:          raw.FullArt,
+			Textless:         raw.Textless,
+			Booster:          raw.Booster,
+			Digital:          raw.Digital,
+			Variation:        raw.Variation,
+			Artist:           card.Artist,
+			PriceUSD:         card.PriceUSD,
+			ScryfallURI:      card.ScryfallURI,
 		})
 
 		if maxRows > 0 && len(rows) >= maxRows {
@@ -625,6 +663,7 @@ func applyBulkRows(
 	oracleRows []oracleBulkRow,
 	printRows []printBulkRow,
 	sourceUpdatedAt time.Time,
+	deleteStale bool,
 ) error {
 	logger := log.Default()
 	applyStart := time.Now()
@@ -670,6 +709,7 @@ func applyBulkRows(
 			oracle_id UUID NOT NULL,
 			name TEXT NOT NULL,
 			set_code TEXT NOT NULL,
+			set_type TEXT NOT NULL,
 			collector_number TEXT NOT NULL,
 			lang TEXT NOT NULL,
 			released_at DATE,
@@ -677,8 +717,19 @@ func applyBulkRows(
 			image_uris JSONB,
 			image_uri TEXT,
 			card_faces_json JSONB,
+			finishes_json JSONB,
+			frame_effects_json JSONB,
+			promo_types_json JSONB,
 			set_name TEXT,
 			rarity TEXT,
+			border_color TEXT,
+			frame TEXT,
+			security_stamp TEXT,
+			full_art BOOLEAN,
+			textless BOOLEAN,
+			booster BOOLEAN,
+			digital BOOLEAN,
+			variation BOOLEAN,
 			artist TEXT,
 			price_usd TEXT,
 			scryfall_uri TEXT
@@ -758,6 +809,7 @@ func applyBulkRows(
 		"oracle_id",
 		"name",
 		"set_code",
+		"set_type",
 		"collector_number",
 		"lang",
 		"released_at",
@@ -765,8 +817,19 @@ func applyBulkRows(
 		"image_uris",
 		"image_uri",
 		"card_faces_json",
+		"finishes_json",
+		"frame_effects_json",
+		"promo_types_json",
 		"set_name",
 		"rarity",
+		"border_color",
+		"frame",
+		"security_stamp",
+		"full_art",
+		"textless",
+		"booster",
+		"digital",
+		"variation",
 		"artist",
 		"price_usd",
 		"scryfall_uri",
@@ -780,6 +843,7 @@ func applyBulkRows(
 			row.OracleID,
 			row.Name,
 			row.SetCode,
+			row.SetType,
 			row.CollectorNumber,
 			row.Lang,
 			row.ReleasedAt,
@@ -787,8 +851,19 @@ func applyBulkRows(
 			row.ImageURIsJSON,
 			row.ImageURI,
 			row.CardFacesJSON,
+			row.FinishesJSON,
+			row.FrameEffectsJSON,
+			row.PromoTypesJSON,
 			row.SetName,
 			row.Rarity,
+			row.BorderColor,
+			row.Frame,
+			row.SecurityStamp,
+			row.FullArt,
+			row.Textless,
+			row.Booster,
+			row.Digital,
+			row.Variation,
 			row.Artist,
 			row.PriceUSD,
 			row.ScryfallURI,
@@ -903,6 +978,7 @@ func applyBulkRows(
 			oracle_id,
 			name,
 			set_code,
+			set_type,
 			collector_number,
 			lang,
 			released_at,
@@ -910,8 +986,19 @@ func applyBulkRows(
 			image_uris,
 			image_uri,
 			card_faces_json,
+			finishes_json,
+			frame_effects_json,
+			promo_types_json,
 			set_name,
 			rarity,
+			border_color,
+			frame,
+			security_stamp,
+			full_art,
+			textless,
+			booster,
+			digital,
+			variation,
 			artist,
 			price_usd,
 			scryfall_uri
@@ -921,6 +1008,7 @@ func applyBulkRows(
 			s.oracle_id,
 			s.name,
 			s.set_code,
+			s.set_type,
 			s.collector_number,
 			s.lang,
 			s.released_at,
@@ -928,8 +1016,19 @@ func applyBulkRows(
 			s.image_uris,
 			s.image_uri,
 			s.card_faces_json,
+			s.finishes_json,
+			s.frame_effects_json,
+			s.promo_types_json,
 			s.set_name,
 			s.rarity,
+			s.border_color,
+			s.frame,
+			s.security_stamp,
+			s.full_art,
+			s.textless,
+			s.booster,
+			s.digital,
+			s.variation,
 			s.artist,
 			s.price_usd,
 			s.scryfall_uri
@@ -939,6 +1038,7 @@ func applyBulkRows(
 			oracle_id = EXCLUDED.oracle_id,
 			name = EXCLUDED.name,
 			set_code = EXCLUDED.set_code,
+			set_type = EXCLUDED.set_type,
 			collector_number = EXCLUDED.collector_number,
 			lang = EXCLUDED.lang,
 			released_at = EXCLUDED.released_at,
@@ -946,8 +1046,19 @@ func applyBulkRows(
 			image_uris = EXCLUDED.image_uris,
 			image_uri = EXCLUDED.image_uri,
 			card_faces_json = EXCLUDED.card_faces_json,
+			finishes_json = EXCLUDED.finishes_json,
+			frame_effects_json = EXCLUDED.frame_effects_json,
+			promo_types_json = EXCLUDED.promo_types_json,
 			set_name = EXCLUDED.set_name,
 			rarity = EXCLUDED.rarity,
+			border_color = EXCLUDED.border_color,
+			frame = EXCLUDED.frame,
+			security_stamp = EXCLUDED.security_stamp,
+			full_art = EXCLUDED.full_art,
+			textless = EXCLUDED.textless,
+			booster = EXCLUDED.booster,
+			digital = EXCLUDED.digital,
+			variation = EXCLUDED.variation,
 			artist = EXCLUDED.artist,
 			price_usd = EXCLUDED.price_usd,
 			scryfall_uri = EXCLUDED.scryfall_uri
@@ -958,8 +1069,9 @@ func applyBulkRows(
 	printUpserted, _ := printUpsertRes.RowsAffected()
 	logger.Printf("cards sync phase: upserted printings=%d", printUpserted)
 
-	// Stale printings are removed unless explicitly selected as preferred prints.
-	printDeleteRes, err := tx.ExecContext(ctx, `
+	if deleteStale {
+		// Stale printings are removed unless explicitly selected as preferred prints.
+		printDeleteRes, err := tx.ExecContext(ctx, `
 		DELETE FROM card_prints cp
 		WHERE NOT EXISTS (
 			SELECT 1
@@ -972,14 +1084,14 @@ func applyBulkRows(
 			WHERE dc.preferred_print_id = cp.scryfall_id
 		)
 	`)
-	if err != nil {
-		return err
-	}
-	printDeleted, _ := printDeleteRes.RowsAffected()
-	logger.Printf("cards sync phase: deleted stale printings=%d", printDeleted)
+		if err != nil {
+			return err
+		}
+		printDeleted, _ := printDeleteRes.RowsAffected()
+		logger.Printf("cards sync phase: deleted stale printings=%d", printDeleted)
 
-	// Stale canonical cards are removed unless still referenced by decks.
-	oracleDeleteRes, err := tx.ExecContext(ctx, `
+		// Stale canonical cards are removed unless still referenced by decks.
+		oracleDeleteRes, err := tx.ExecContext(ctx, `
 		DELETE FROM oracle_cards oc
 		WHERE NOT EXISTS (
 			SELECT 1
@@ -992,11 +1104,14 @@ func applyBulkRows(
 			WHERE dc.oracle_id = oc.oracle_id
 		)
 	`)
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+		oracleDeleted, _ := oracleDeleteRes.RowsAffected()
+		logger.Printf("cards sync phase: deleted stale oracle cards=%d", oracleDeleted)
+	} else {
+		logger.Printf("cards sync phase: limited mode preserves rows outside the sampled data")
 	}
-	oracleDeleted, _ := oracleDeleteRes.RowsAffected()
-	logger.Printf("cards sync phase: deleted stale oracle cards=%d", oracleDeleted)
 
 	// Cache the newest English printing for each canonical oracle card.
 	if _, err := tx.ExecContext(ctx, `
@@ -1063,12 +1178,12 @@ func applyBulkRows(
 			SET
 				last_attempt_at = NOW(),
 				last_success_at = NOW(),
-				source_updated_at = $1,
+				source_updated_at = CASE WHEN $3 THEN $1 ELSE source_updated_at END,
 				last_error = '',
 				card_count = (SELECT COUNT(*) FROM oracle_cards),
-				data_version = $2
+				data_version = CASE WHEN $3 THEN $2 ELSE data_version END
 			WHERE id = 1
-		`, sourceUpdatedAt, cardSyncDataVersion); err != nil {
+		`, sourceUpdatedAt, cardSyncDataVersion, deleteStale); err != nil {
 		return err
 	}
 
@@ -1166,7 +1281,7 @@ func SyncCardsFromScryfallBulk(ctx context.Context, db *sql.DB, options CardBulk
 		}
 		printRows = filteredPrints
 
-		if err := applyBulkRows(ctx, db, oracleRows, printRows, sourceUpdatedAt); err != nil {
+		if err := applyBulkRows(ctx, db, oracleRows, printRows, sourceUpdatedAt, options.MaxRows == 0); err != nil {
 			return err
 		}
 

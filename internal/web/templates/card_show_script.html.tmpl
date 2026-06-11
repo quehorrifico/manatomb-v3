@@ -36,6 +36,14 @@
       var flavorGroup = document.querySelector("[data-card-flavor-group]");
       var flavorEl = document.querySelector("[data-card-flavor]");
       var scryfallLink = document.querySelector("[data-card-scryfall-link]");
+      var favoriteForm = document.querySelector("[data-card-favorite-form]");
+      var favoriteScryfallID = document.querySelector("[data-card-favorite-scryfall-id]");
+      var favoriteAction = document.querySelector("[data-card-favorite-action]");
+      var favoriteReturnTo = document.querySelector("[data-card-favorite-return-to]");
+      var favoriteButton = document.querySelector("[data-card-favorite-button]");
+      var favoriteSymbol = document.querySelector("[data-card-favorite-symbol]");
+      var favoriteLoginLink = document.querySelector("[data-card-favorite-login-link]");
+      var addLoginLink = document.querySelector("[data-card-add-login-link]");
       var printingsGrid = document.querySelector("[data-printings-grid]");
       var printingsEmpty = document.querySelector("[data-printings-empty]");
       var printingsCount = document.querySelector("[data-printings-count]");
@@ -158,6 +166,87 @@
         applyHeroRotation();
       }
 
+      function pathForPrinting(printing) {
+        var scryfallID = trimValue(printing && printing.ScryfallID);
+        var url = new URL(window.location.href);
+        if (scryfallID) {
+          url.searchParams.set("printing", scryfallID);
+        } else {
+          url.searchParams.delete("printing");
+        }
+        return url.pathname + url.search + url.hash;
+      }
+
+      function updatePrintingURL(printing, replace) {
+        if (!window.history || typeof window.history.pushState !== "function") return;
+
+        var nextPath = pathForPrinting(printing);
+        var currentPath = window.location.pathname + window.location.search + window.location.hash;
+        if (nextPath === currentPath) return;
+
+        if (replace) {
+          window.history.replaceState({ printing: trimValue(printing && printing.ScryfallID) }, "", nextPath);
+        } else {
+          window.history.pushState({ printing: trimValue(printing && printing.ScryfallID) }, "", nextPath);
+        }
+      }
+
+      function loginPathForPrinting(printing) {
+        return "/login?next=" + encodeURIComponent(pathForPrinting(printing));
+      }
+
+      function updateFavoriteForm(printing) {
+        if (!favoriteForm || !favoriteScryfallID || !favoriteAction || !favoriteButton) return;
+
+        var scryfallID = trimValue(printing && printing.ScryfallID);
+        var favorited = !!(printing && printing.IsFavorited);
+        favoriteForm.classList.toggle("hidden", !scryfallID);
+        favoriteScryfallID.value = scryfallID;
+        if (favoriteReturnTo) {
+          favoriteReturnTo.value = pathForPrinting(printing);
+        }
+        favoriteAction.value = favorited ? "unfavorite" : "favorite";
+        favoriteButton.disabled = !scryfallID;
+        favoriteButton.classList.toggle("is-loved", favorited);
+        favoriteButton.title = favorited ? "Remove this loved card version" : "Love this card version";
+        favoriteButton.setAttribute("aria-label", favoriteButton.title);
+        if (favoriteSymbol) {
+          favoriteSymbol.textContent = favorited ? "♥" : "♡";
+        }
+      }
+
+      function updateLoginLinks(printing) {
+        var loginPath = loginPathForPrinting(printing);
+        if (favoriteLoginLink) {
+          favoriteLoginLink.href = loginPath;
+        }
+        if (addLoginLink) {
+          addLoginLink.href = loginPath;
+        }
+      }
+
+      document.addEventListener("submit", function (event) {
+        var form = event.target && event.target.closest("[data-card-favorite-form]");
+        if (!form || form.getAttribute("data-heart-submit-ready") === "true") return;
+
+        var actionInput = form.querySelector('input[name="action"]');
+        if (!actionInput || trimValue(actionInput.value).toLowerCase() !== "favorite") return;
+
+        var button = form.querySelector("[data-card-favorite-button]");
+        var symbol = button ? button.querySelector(".mt-heart-button__symbol") : null;
+        if (!button || button.disabled) return;
+
+        event.preventDefault();
+        button.classList.add("is-loved", "is-popping");
+        if (symbol) {
+          symbol.textContent = "♥";
+        }
+        window.setTimeout(function () {
+          form.setAttribute("data-heart-submit-ready", "true");
+          form.submit();
+        }, 360);
+      });
+
       function renderFaceTabs(printing) {
         if (!faceTabs) return;
 
@@ -256,11 +345,22 @@
           scryfallLink.href = href || "#";
         }
 
+        updateFavoriteForm(printing);
+        updateLoginLinks(printing);
         renderFaceTabs(printing);
       }
 
       function initialPrintingIndex() {
         if (!Array.isArray(printings) || !printings.length) return 0;
+        var requestedPrintingID = trimValue(new URLSearchParams(window.location.search).get("printing"));
+        if (requestedPrintingID) {
+          for (var requestedIndex = 0; requestedIndex < printings.length; requestedIndex++) {
+            if (trimValue(printings[requestedIndex] && printings[requestedIndex].ScryfallID) === requestedPrintingID) {
+              return requestedIndex;
+            }
+          }
+        }
+
         var targetSetCode = trimValue(baseCard.SetCode).toUpperCase();
         var targetRelease = trimValue(baseCard.ReleasedAt);
 
@@ -337,9 +437,11 @@
           var label = formatPrintingLabel(printing, item.index);
           var imageURI = trimValue(printing.ImageURI);
           var footer = formatPrintingFooter(printing);
+          var article = document.createElement("article");
+          article.className = "min-w-0";
           var button = document.createElement("button");
           button.type = "button";
-          button.className = "group block overflow-hidden rounded-lg border border-slate-800 bg-slate-950 text-left transition hover:border-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300";
+          button.className = "group block w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-950 text-left transition hover:border-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300";
           button.setAttribute("data-printing-activate", String(item.index));
           button.setAttribute("data-printing-scryfall-id", trimValue(printing.ScryfallID));
           button.setAttribute("aria-label", "Show " + label);
@@ -364,12 +466,14 @@
             state.printingIndex = nextIndex;
             state.faceIndex = 0;
             setHeroRotated(false);
+            updatePrintingURL(printings[state.printingIndex], false);
             renderHero();
             renderPrintingsGrid();
             window.scrollTo({ top: 0, behavior: "smooth" });
           });
 
-          printingsGrid.appendChild(button);
+          article.appendChild(button);
+          printingsGrid.appendChild(article);
         });
       }
 
@@ -379,6 +483,13 @@
       if (printingsEnglishOnly) {
         printingsEnglishOnly.addEventListener("change", renderPrintingsGrid);
       }
+      window.addEventListener("popstate", function () {
+        state.printingIndex = initialPrintingIndex();
+        state.faceIndex = 0;
+        setHeroRotated(false);
+        renderHero();
+        renderPrintingsGrid();
+      });
 
       state.printingIndex = initialPrintingIndex();
       renderHero();

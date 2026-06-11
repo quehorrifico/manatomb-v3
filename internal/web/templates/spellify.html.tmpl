@@ -1,0 +1,362 @@
+{{ define "spellify" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8" data-tombscript-root>
+    <section class="grid gap-8 lg:grid-cols-[minmax(15rem,20rem)_1fr] lg:items-start">
+      <aside class="space-y-4">
+        <div class="relative mx-auto max-w-[17rem]">
+          <div class="absolute inset-x-8 -bottom-5 h-10 rounded-full bg-slate-950/70 blur-xl"></div>
+          {{ if $ctx.Completed }}
+            <a href="{{ $ctx.TargetDetailPath }}"
+               class="group relative block overflow-hidden rounded-2xl bg-slate-950 shadow-2xl shadow-slate-950/60 ring-1 {{ if $ctx.Won }}ring-amber-300/50{{ else }}ring-slate-700{{ end }}">
+              {{ if $ctx.TargetImageURI }}
+                <img src="{{ $ctx.TargetImageURI }}" alt="{{ $ctx.TargetName }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
+              {{ else }}
+                <span class="flex aspect-[63/88] w-full items-center justify-center px-4 text-center text-sm text-slate-400">{{ $ctx.TargetName }}</span>
+              {{ end }}
+            </a>
+          {{ else }}
+            <button type="button"
+                    data-tombscript-card-back
+                    class="relative block aspect-[63/88] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-2xl shadow-slate-950/60 ring-1 ring-slate-700 transition duration-300 hover:-translate-y-1 hover:rotate-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-200"
+                    aria-label="Inspect hidden Tombscript card">
+              <img src="https://cards.scryfall.io/back.png" alt="Magic card back" class="h-full w-full object-cover">
+            </button>
+          {{ end }}
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+            <p class="text-[10px] font-semibold uppercase text-slate-500">Status</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100" data-tombscript-status>{{ $ctx.Status }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+            <p class="text-[10px] font-semibold uppercase text-slate-500">Guesses</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100" data-tombscript-count>{{ $ctx.GuessCount }}</p>
+          </div>
+          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
+            <p class="text-[10px] font-semibold uppercase text-slate-500">Award</p>
+            <p class="mt-1 text-sm font-semibold text-slate-100" data-tombscript-left>{{ $ctx.AwardStatus }}</p>
+          </div>
+        </div>
+
+        {{ if $ctx.CanGuess }}
+          <section class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/35 p-4">
+            <div class="space-y-1">
+              <h2 class="mt-section-label">Reveal</h2>
+              <p class="text-xs leading-5 text-slate-500">Type a letter or number, or use the field below on mobile.</p>
+            </div>
+            <form method="POST" action="/games/spellify" class="flex gap-2" data-tombscript-char-form>
+              <input type="hidden" name="action" value="char">
+              <label class="sr-only" for="tombscript-char">Character</label>
+              <input id="tombscript-char"
+                     name="char"
+                     type="text"
+                     maxlength="8"
+                     placeholder="G or {G}"
+                     class="mt-control min-w-0 flex-1"
+                     data-tombscript-char-input
+                     {{ if not $ctx.CanRevealChar }}disabled{{ end }}>
+              <button type="submit"
+                      class="mt-btn mt-btn--primary shrink-0"
+                      data-tombscript-char-button
+                      {{ if not $ctx.CanRevealChar }}disabled{{ end }}>Reveal</button>
+            </form>
+          </section>
+        {{ end }}
+      </aside>
+
+      <section class="space-y-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div class="space-y-2">
+            <p class="mt-kicker">{{ $ctx.GameModeLabel }}</p>
+            <h1 class="mt-title">Tombscript</h1>
+            <p class="max-w-2xl text-sm leading-6 text-slate-400">
+              Decode a hidden Commander staple by revealing characters in its name, rules text, and flavor text. {{ if $ctx.HasAccount }}Solve the daily card in fewer than {{ $ctx.AwardGuessLimit }} reveal guesses to add it to Tombscript Cards Won.{{ else }}Guest progress is saved on this device; sign in before a future daily card to earn profile awards.{{ end }}
+            </p>
+          </div>
+          {{ if $ctx.CanGuess }}
+            <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm shrink-0" data-tombscript-help>How It Works</button>
+          {{ end }}
+        </div>
+
+        {{ if .Flash }}
+          <div class="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{{ .Flash }}</div>
+        {{ end }}
+
+        <div class="hidden rounded-lg border px-4 py-3 text-sm" data-tombscript-message></div>
+
+        <section class="space-y-5 rounded-xl border border-slate-800 bg-slate-950/35 p-5 sm:p-6">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="mt-section-label">Card Name</h2>
+              {{ if $ctx.CanGuess }}
+                <span class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-200" data-tombscript-armed-label>Keyboard Ready</span>
+              {{ end }}
+            </div>
+            <p class="sr-only" data-tombscript-name-raw>{{ $ctx.MaskedName }}</p>
+            <div class="flex min-h-[3.4rem] flex-wrap items-center gap-x-2 gap-y-2 font-mono text-3xl text-slate-100 sm:text-4xl" data-tombscript-name>{{ $ctx.MaskedName }}</div>
+          </div>
+
+          <div class="grid gap-4 border-t border-slate-800 pt-5 xl:grid-cols-2">
+            <div class="space-y-2">
+              <h2 class="mt-section-label">Rules Text</h2>
+              <p class="min-h-[8rem] whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950/40 p-3 font-mono text-sm leading-7 text-slate-200" data-tombscript-rules>{{ $ctx.MaskedRulesText }}</p>
+            </div>
+            <div class="space-y-2">
+              <h2 class="mt-section-label">Flavor Text</h2>
+              <p class="min-h-[8rem] whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950/40 p-3 font-mono text-sm italic leading-7 text-slate-300" data-tombscript-flavor>{{ $ctx.MaskedFlavorText }}</p>
+            </div>
+          </div>
+
+          {{ if and $ctx.Completed $ctx.TargetDescription }}
+            <div class="border-t border-slate-800 pt-4">
+              <p class="text-sm text-slate-400">{{ $ctx.TargetDescription }}</p>
+            </div>
+          {{ end }}
+        </section>
+
+        {{ if $ctx.CanGuess }}
+          <section class="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/25 p-4 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div class="space-y-3">
+              <h2 class="mt-section-label">Submit a Guess</h2>
+              <form method="POST" action="/games/spellify" class="space-y-3">
+                <input type="hidden" name="action" value="guess">
+                <div class="relative" data-card-autocomplete-root>
+                  <label class="sr-only" for="tombscript-final">Card name</label>
+                  <input id="tombscript-final"
+                         name="guess"
+                         type="search"
+                         autocomplete="off"
+                         placeholder="Exact card name"
+                         class="mt-control w-full"
+                         aria-autocomplete="list"
+                         aria-expanded="false"
+                         aria-haspopup="listbox"
+                         data-card-autocomplete-input
+                         data-card-autocomplete-limit="12">
+                  <div data-card-autocomplete-menu
+                       class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                       role="listbox"></div>
+                </div>
+                <button type="submit" class="mt-btn mt-btn--primary w-full sm:w-auto">Submit Guess</button>
+              </form>
+            </div>
+            <form id="tombscript-give-up" method="POST" action="/games/spellify">
+              <input type="hidden" name="action" value="give_up">
+              <button type="submit" class="mt-btn mt-btn--secondary w-full">Give Up</button>
+            </form>
+          </section>
+        {{ else }}
+          <div class="flex flex-wrap gap-3">
+            <form method="POST" action="/games/spellify">
+              <input type="hidden" name="action" value="new">
+              <button type="submit" class="mt-btn mt-btn--primary">Play Again</button>
+            </form>
+            <a href="{{ $ctx.TargetDetailPath }}" class="mt-btn mt-btn--secondary">View Card</a>
+            {{ if not .CurrentUser }}<a href="/login?next=/games/spellify" class="mt-btn mt-btn--secondary">Sign In to Earn Awards</a>{{ end }}
+          </div>
+        {{ end }}
+      </section>
+    </section>
+
+    {{ if $ctx.CanGuess }}
+      <div class="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/82 px-4 py-6 backdrop-blur-sm" data-tombscript-intro>
+        <section role="dialog" aria-modal="true" aria-labelledby="tombscript-intro-title" class="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl shadow-slate-950/70 sm:p-6">
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <p class="mt-kicker">Mana Tomb Word Game</p>
+              <h2 id="tombscript-intro-title" class="text-2xl font-semibold text-slate-50">Start Tombscript</h2>
+              <p class="text-sm leading-6 text-slate-400">You have {{ $ctx.RemainingGuesses }} reveal guesses. {{ if $ctx.HasAccount }}The daily award is earned in fewer than {{ $ctx.AwardGuessLimit }} reveal guesses; practice rounds never award cards.{{ else }}You can play as a guest; sign in before a future daily card to earn profile awards.{{ end }}</p>
+            </div>
+            <div class="grid gap-2 text-sm text-slate-300">
+              <p class="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2">The card name, rules text, and flavor text update immediately.</p>
+              <p class="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2">When you know the answer, submit the exact card name.</p>
+            </div>
+            <button type="button" class="mt-btn mt-btn--primary w-full" data-tombscript-intro-close>Start Typing</button>
+          </div>
+        </section>
+      </div>
+    {{ end }}
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var root = document.querySelector("[data-tombscript-root]");
+      if (!root) return;
+
+      var state = {{ toJSON $ctx }};
+      var keyboardArmed = !state.CanGuess;
+      var pending = false;
+      var nameNode = root.querySelector("[data-tombscript-name]");
+      var nameRawNode = root.querySelector("[data-tombscript-name-raw]");
+      var rulesNode = root.querySelector("[data-tombscript-rules]");
+      var flavorNode = root.querySelector("[data-tombscript-flavor]");
+      var statusNode = root.querySelector("[data-tombscript-status]");
+      var countNode = root.querySelector("[data-tombscript-count]");
+      var leftNode = root.querySelector("[data-tombscript-left]");
+      var messageNode = root.querySelector("[data-tombscript-message]");
+      var charForm = root.querySelector("[data-tombscript-char-form]");
+      var charInput = root.querySelector("[data-tombscript-char-input]");
+      var charButton = root.querySelector("[data-tombscript-char-button]");
+      var intro = root.querySelector("[data-tombscript-intro]");
+      var introClose = root.querySelector("[data-tombscript-intro-close]");
+      var helpButton = root.querySelector("[data-tombscript-help]");
+      var cardBack = root.querySelector("[data-tombscript-card-back]");
+
+      function renderName(value) {
+        if (!nameNode) return;
+        nameNode.innerHTML = "";
+        Array.from(String(value || "")).forEach(function (char) {
+          var glyph = document.createElement("span");
+          if (char === " ") {
+            glyph.className = "inline-block w-4 sm:w-5";
+            glyph.innerHTML = "&nbsp;";
+          } else {
+            glyph.className = "inline-flex min-w-5 justify-center sm:min-w-6";
+            glyph.textContent = char;
+          }
+          nameNode.appendChild(glyph);
+        });
+        if (nameRawNode) {
+          nameRawNode.textContent = value || "";
+        }
+      }
+
+      function showMessage(message, ok) {
+        if (!messageNode) return;
+        messageNode.textContent = message || "";
+        messageNode.className = "rounded-lg border px-4 py-3 text-sm " + (ok ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100" : "border-amber-400/30 bg-amber-400/10 text-amber-100");
+        messageNode.classList.toggle("hidden", !message);
+      }
+
+      function setControlsEnabled(enabled) {
+        if (charInput) charInput.disabled = !enabled;
+        if (charButton) charButton.disabled = !enabled;
+      }
+
+      function updateState(nextState) {
+        if (!nextState) return;
+        state = nextState;
+        renderName(state.MaskedName);
+        if (rulesNode) rulesNode.textContent = state.MaskedRulesText || "";
+        if (flavorNode) flavorNode.textContent = state.MaskedFlavorText || "";
+        if (statusNode) statusNode.textContent = state.Status || "";
+        if (countNode) countNode.textContent = String(state.GuessCount || 0);
+        if (leftNode) leftNode.textContent = String(state.AwardStatus || "Practice");
+        setControlsEnabled(Boolean(state.CanRevealChar) && !pending);
+      }
+
+      function normalizeChar(value) {
+        value = String(value || "").trim().toLowerCase();
+        if (value.charAt(0) === "{") value = value.slice(1);
+        if (value.charAt(value.length - 1) === "}") value = value.slice(0, -1);
+        value = value.trim();
+        if (!value) return "";
+        var char = Array.from(value)[0] || "";
+        return /^[a-z0-9]$/i.test(char) ? char.toLowerCase() : "";
+      }
+
+      async function submitChar(value) {
+        var guessChar = normalizeChar(value);
+        if (!guessChar) {
+          showMessage("Use one letter, number, or mana symbol.", false);
+          return;
+        }
+        if (!state.CanRevealChar || pending) {
+          showMessage("No reveal guesses left. Submit a card name or give up.", false);
+          return;
+        }
+
+        pending = true;
+        setControlsEnabled(false);
+        try {
+          var body = new URLSearchParams();
+          body.set("action", "char");
+          body.set("char", guessChar);
+          var response = await fetch("/games/spellify", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/x-www-form-urlencoded",
+              "X-Requested-With": "fetch"
+            },
+            body: body.toString()
+          });
+          var payload = await response.json();
+          if (payload && payload.Data) {
+            updateState(payload.Data);
+          }
+          showMessage((payload && payload.Message) || "Guess recorded.", Boolean(payload && payload.OK));
+        } catch (error) {
+          showMessage("Could not record that guess. Try again.", false);
+        } finally {
+          pending = false;
+          setControlsEnabled(Boolean(state.CanRevealChar));
+          if (charInput) charInput.value = "";
+        }
+      }
+
+      function closeIntro() {
+        if (intro) intro.classList.add("hidden");
+        keyboardArmed = true;
+        if (document.activeElement && document.activeElement.blur) {
+          document.activeElement.blur();
+        }
+      }
+
+      renderName(state.MaskedName);
+      setControlsEnabled(Boolean(state.CanRevealChar));
+
+      if (cardBack) {
+        cardBack.addEventListener("click", function () {
+          cardBack.classList.toggle("rotate-2");
+          cardBack.classList.toggle("scale-[1.02]");
+        });
+      }
+
+      if (introClose) {
+        introClose.addEventListener("click", closeIntro);
+        introClose.focus();
+      }
+      if (helpButton && intro) {
+        helpButton.addEventListener("click", function () {
+          intro.classList.remove("hidden");
+          keyboardArmed = false;
+          if (introClose) introClose.focus();
+        });
+      }
+      if (charForm) {
+        charForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          submitChar(charInput ? charInput.value : "");
+        });
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (!state.CanGuess) return;
+        if (intro && !intro.classList.contains("hidden")) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeIntro();
+          }
+          return;
+        }
+        if (!keyboardArmed || event.metaKey || event.ctrlKey || event.altKey) return;
+        var target = event.target;
+        var tagName = target && target.tagName ? target.tagName.toLowerCase() : "";
+        if (tagName === "input" || tagName === "textarea" || tagName === "select" || (target && target.isContentEditable)) {
+          return;
+        }
+        if (event.key && event.key.length === 1 && /^[a-z0-9]$/i.test(event.key)) {
+          event.preventDefault();
+          submitChar(event.key);
+        }
+      });
+    });
+  </script>
+
+  {{ template "layout_footer" . }}
+{{ end }}

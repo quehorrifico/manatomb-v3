@@ -59,14 +59,40 @@
 
       {{ if .CurrentUser }}
         {{ $recent := $ctx.RecentDecks }}
-        <div class="pt-1 space-y-3">
-          <p class="mt-section-label text-center">Recent Decks</p>
-          <div class="flex flex-wrap justify-center gap-2">
-            {{ range $recent }}
-              <a href="/decks/{{ .ID }}" class="mt-btn mt-btn--secondary mt-btn--xs">{{ .Name }}</a>
-            {{ else }}
-              <p class="text-xs text-slate-500">No decks.</p>
-            {{ end }}
+        <div class="grid gap-5 pt-1">
+          <div class="space-y-3">
+            <p class="mt-section-label text-center">Recent Decks</p>
+            <div class="flex flex-wrap justify-center gap-2">
+              {{ range $recent }}
+                <a href="/decks/{{ .ID }}" class="mt-btn mt-btn--secondary mt-btn--xs">{{ .Name }}</a>
+              {{ else }}
+                <p class="text-xs text-slate-500">No decks.</p>
+              {{ end }}
+            </div>
+          </div>
+
+          <div class="mx-auto grid max-w-3xl gap-3 px-2 py-2">
+            <div class="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div class="space-y-1">
+                <p class="text-sm font-semibold text-slate-100">Guess the Card, Win the Card</p>
+                <p class="text-xs text-slate-500">Solve the daily card in fewer than 10 guesses to add it to your profile.</p>
+              </div>
+              <a href="/games/guess-card" class="mt-btn mt-btn--primary mt-btn--sm shrink-0">Play</a>
+            </div>
+            <div class="flex flex-col items-center gap-3 border-t border-slate-800/80 pt-3 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div class="space-y-1">
+                <p class="text-sm font-semibold text-slate-100">Tombscript</p>
+                <p class="text-xs text-slate-500">Decode the daily card in fewer than 7 reveals to add it to your profile.</p>
+              </div>
+              <a href="/games/spellify" class="mt-btn mt-btn--secondary mt-btn--sm shrink-0">Play</a>
+            </div>
+            <div class="flex flex-col items-center gap-3 border-t border-slate-800/80 pt-3 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div class="space-y-1">
+                <p class="text-sm font-semibold text-slate-100">Pack Crack</p>
+                <p class="text-xs text-slate-500">Pick a set, open a simulated pack, and reveal each pull by hand.</p>
+              </div>
+              <a href="/games/pack-opening" class="mt-btn mt-btn--secondary mt-btn--sm shrink-0">Open</a>
+            </div>
           </div>
         </div>
       {{ end }}

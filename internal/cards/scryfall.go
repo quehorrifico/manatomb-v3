@@ -82,9 +82,20 @@ type scryfallCard struct {
 	ReleasedAt string            `json:"released_at"`
 	SetType    string            `json:"set_type"`
 	Games      []string          `json:"games"`
+	Finishes   []string          `json:"finishes"`
 
-	CollectorNumber string `json:"collector_number"`
-	Rarity          string `json:"rarity"`
+	CollectorNumber string   `json:"collector_number"`
+	Rarity          string   `json:"rarity"`
+	BorderColor     string   `json:"border_color"`
+	Frame           string   `json:"frame"`
+	SecurityStamp   string   `json:"security_stamp"`
+	FullArt         bool     `json:"full_art"`
+	Textless        bool     `json:"textless"`
+	Booster         bool     `json:"booster"`
+	Digital         bool     `json:"digital"`
+	Variation       bool     `json:"variation"`
+	FrameEffects    []string `json:"frame_effects"`
+	PromoTypes      []string `json:"promo_types"`
 
 	CardFaces []struct {
 		Name       string            `json:"name"`
