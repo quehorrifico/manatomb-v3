@@ -190,8 +190,55 @@ func NewRenderer() *Renderer {
 	return &Renderer{tmpl: tmpl}
 }
 
+func defaultActiveNav(name string, data TemplateData) string {
+	switch name {
+	case "decks_new", "decks_new_commander", "decks_workbench_import_seed":
+		return "builder"
+	case "deck_show":
+		if page, ok := data.Data.(deckPageData); ok && page.WorkbenchMode {
+			return "builder"
+		}
+		return "my-decks"
+	case "deck_playtest":
+		if data.CurrentUser == nil {
+			return "builder"
+		}
+		return "my-decks"
+	case "decks_list":
+		return "my-decks"
+	case "decks_public", "decks_public_show":
+		return "public-decks"
+	case "cards_list", "cards_search", "card_show", "commanders_search":
+		return "cards"
+	case "profile_show":
+		return "profile"
+	case "settings":
+		return "settings"
+	case "login":
+		return "login"
+	default:
+		return ""
+	}
+}
+
+func applyDefaultActiveNav(name string, data any) any {
+	switch page := data.(type) {
+	case TemplateData:
+		if page.ActiveNav == "" {
+			page.ActiveNav = defaultActiveNav(name, page)
+		}
+		return page
+	case *TemplateData:
+		if page != nil && page.ActiveNav == "" {
+			page.ActiveNav = defaultActiveNav(name, *page)
+		}
+	}
+	return data
+}
+
 func (r *Renderer) Render(w http.ResponseWriter, name string, data any) {
 	var buf bytes.Buffer
+	data = applyDefaultActiveNav(name, data)
 
 	// Render into a buffer first so we don't write partial HTML and then
 	// attempt to write an error response.

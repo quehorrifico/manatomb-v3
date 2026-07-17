@@ -432,66 +432,7 @@
     </section>
   </main>
 
-  <div id="card-detail-modal" class="mt-modal hidden">
-    <div class="mt-modal-panel max-w-2xl">
-      <button type="button" class="absolute top-3 right-3 mt-btn mt-btn--secondary text-xs !px-3 !py-2" data-close-modal>
-        Close
-      </button>
-
-      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start">
-        <div class="flex items-center justify-center">
-          <img data-field="image"
-               alt=""
-               class="w-full max-w-xs h-auto mt-card-media shadow-md shadow-slate-900/80">
-        </div>
-
-        <div class="space-y-3 text-sm text-slate-200">
-          <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
-
-          <div class="space-y-1" data-field="printing-group">
-            <label for="printing-select" class="mt-field-label">Version</label>
-            <select id="printing-select" data-field="printing-select"
-                    class="mt-control mt-control--sm text-xs text-slate-100">
-              <option value="">Latest printing</option>
-            </select>
-            <p data-field="printing-meta" class="hidden text-[11px] uppercase tracking-wide text-slate-500"></p>
-          </div>
-
-          <p class="text-xs uppercase tracking-wide text-slate-400">
-            <span data-field="type-line"></span>
-          </p>
-
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
-            <span>
-              <span class="font-medium text-slate-200">Cost:</span>
-              <span data-field="mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
-            </span>
-            <span>
-              <span class="font-medium text-slate-200">Price:</span>
-              <span data-field="price-usd">—</span>
-            </span>
-            <span>
-              <span class="font-medium text-slate-200">Artist:</span>
-              <span data-field="artist">—</span>
-            </span>
-          </div>
-
-          <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
-
-          <div class="flex flex-wrap justify-between gap-2 pt-2">
-            <a href="#"
-               data-field="open-page-link"
-               class="hidden mt-btn mt-btn--secondary text-xs !px-3 !py-2">
-              Open Full Page
-            </a>
-            <button type="button" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2 hidden" data-flip-card>
-              Flip Card
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  {{ template "card_detail_modal" . }}
 
   <div id="deck-card-preview"
        class="pointer-events-none fixed left-0 top-0 z-[150] hidden w-56 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/80">
@@ -556,6 +497,7 @@
     {{ toJSON $ctx.WorkspaceState }}
   </script>
 
+  <script src="/assets/deck_browser.js"></script>
   {{ template "card_detail_modal_script" . }}
   {{ template "deck_show_guest_draft_script" . }}
 

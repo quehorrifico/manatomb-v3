@@ -3,8 +3,14 @@
   {{ $ctx := .Data }}
 
   <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
-    <div class="space-y-2">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h1 class="text-2xl font-semibold tracking-tight text-slate-50">My Decks</h1>
+      <a href="/decks/new" class="mt-btn mt-btn--primary w-full sm:w-auto">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        Build New Deck
+      </a>
     </div>
 
     <section class="mt-panel p-4 sm:p-6">
@@ -59,8 +65,7 @@
         <div class="text-center space-y-4 py-6">
           <p class="text-sm text-slate-400">No decks.</p>
           <div class="flex flex-wrap justify-center gap-2">
-            <a href="/decks/new" class="mt-btn mt-btn--primary">Builder</a>
-            <a href="/decks/public" class="mt-btn mt-btn--secondary">Public</a>
+            <a href="/decks/public" class="mt-btn mt-btn--secondary">Browse Public Decks</a>
           </div>
         </div>
       {{ end }}
