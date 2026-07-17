@@ -3,6 +3,8 @@
   document.addEventListener('DOMContentLoaded', function () {
     var isGuest = {{ if .Data.WorkbenchMode }}true{{ else if .CurrentUser }}false{{ else }}true{{ end }};
     var isSignedIn = {{ if .CurrentUser }}true{{ else }}false{{ end }};
+    var deckBrowser = window.ManatombDeckBrowser;
+    if (!deckBrowser) return;
     var commanderName = {{ toJSON .Data.Deck.CommanderName }};
     var previewWrap = document.getElementById('deck-card-preview');
     var previewImg = document.getElementById('deck-card-preview-img');
@@ -994,47 +996,15 @@
     }
 
     function normalizeDeckGroupMode(value) {
-      switch (String(value || '').toLowerCase()) {
-        case 'category':
-        case 'categories':
-          return 'category';
-        case 'alphabet':
-          return 'alphabet';
-        case 'type':
-          return 'type';
-        case 'mv':
-          return 'mv';
-        case 'price':
-          return 'price';
-        default:
-          return 'none';
-      }
+      return deckBrowser.normalizeGroup(value, 'none');
     }
 
     function normalizeDeckSortMode(value) {
-      switch (String(value || '').toLowerCase()) {
-        case 'mv':
-          return 'mv';
-        case 'type':
-          return 'type';
-        case 'price':
-          return 'price';
-        default:
-          return 'alphabet';
-      }
+      return deckBrowser.normalizeSort(value);
     }
 
     function normalizeDeckViewMode(value) {
-      switch (String(value || '').toLowerCase()) {
-        case 'text':
-          return 'text';
-        case 'grid':
-          return 'grid';
-        case 'table':
-          return 'table';
-        default:
-          return 'stacks';
-      }
+      return deckBrowser.normalizeView(value, false);
     }
 
     function loadDeckGroupMode() {
@@ -1100,321 +1070,81 @@
       return deckViewMode;
     }
 
+    function deckBrowserCard(cardMeta, cardName) {
+      cardMeta = cardMeta || {};
+      return deckBrowser.normalizeCard({
+        id: cardMeta.oracleID || cardMeta.oracleId || cardMeta.id,
+        name: cardName || cardMeta.name,
+        manaCost: cardMeta.manaCost,
+        image: cardMeta.imageURI,
+        typeLine: cardMeta.typeLine,
+        oracleText: cardMeta.oracleText,
+        cmc: cardMeta.cmc,
+        price: cardMeta.priceUSD,
+        preferredPrintID: cardMeta.preferredPrintID,
+        printID: cardMeta.printID || cardMeta.scryfallID,
+        setCode: cardMeta.setCode,
+        setName: cardMeta.setName,
+        collectorNumber: cardMeta.collectorNumber,
+        rarity: cardMeta.rarity,
+        releasedAt: cardMeta.releasedAt,
+        artist: cardMeta.artist
+      });
+    }
+
     function primaryTypeGroup(typeLine) {
-      var text = normalizeName(typeLine).toLowerCase();
-      if (!text) return 'Other';
-      if (text.indexOf('land') >= 0) return 'Lands';
-      if (text.indexOf('creature') >= 0) return 'Creatures';
-      if (text.indexOf('artifact') >= 0) return 'Artifacts';
-      if (text.indexOf('enchantment') >= 0) return 'Enchantments';
-      if (text.indexOf('planeswalker') >= 0) return 'Planeswalkers';
-      if (text.indexOf('battle') >= 0) return 'Battles';
-      if (text.indexOf('instant') >= 0) return 'Instants';
-      if (text.indexOf('sorcery') >= 0) return 'Sorceries';
-      return 'Other';
+      return deckBrowser.primaryType(typeLine);
     }
 
     function manaValueGroup(cardMeta) {
-      var typeLine = normalizeName(cardMeta && cardMeta.typeLine ? cardMeta.typeLine : '');
-      if (primaryTypeGroup(typeLine) === 'Lands') return 'Lands';
-      var raw = Number(cardMeta && cardMeta.cmc != null ? cardMeta.cmc : 0);
-      if (!Number.isFinite(raw)) return 'Unknown';
-      if (raw >= 7) return '7+';
-      if (raw <= 0) return '0';
-      return String(Math.floor(raw));
+      return deckBrowser.manaValueGroup(deckBrowserCard(cardMeta));
     }
 
     function alphabetGroup(cardName) {
-      var normalized = normalizeName(cardName);
-      if (!normalized) return '#';
-      var first = normalized.charAt(0).toUpperCase();
-      return /^[A-Z]$/.test(first) ? first : '#';
+      return deckBrowser.alphabetGroup(cardName);
     }
 
     function priceValue(cardMeta) {
-      var raw = normalizeName(cardMeta && cardMeta.priceUSD ? cardMeta.priceUSD : '');
-      if (!raw) return null;
-      var parsed = Number(String(raw).replace(/[^0-9.]/g, ''));
-      if (!Number.isFinite(parsed)) return null;
-      return parsed;
+      return deckBrowser.priceValue(deckBrowserCard(cardMeta));
     }
 
     function priceGroup(cardMeta) {
-      var value = priceValue(cardMeta);
-      if (value === null) return 'Unknown';
-      if (value === 0) return 'Free';
-      if (value < 1) return 'Under $1';
-      if (value < 5) return '$1-$4.99';
-      if (value < 10) return '$5-$9.99';
-      return '$10+';
-    }
-
-    var deckCategoryDefinitions = [
-      { key: 'ramp', label: 'Ramp' },
-      { key: 'draw', label: 'Draw' },
-      { key: 'tutor', label: 'Tutors' },
-      { key: 'removal', label: 'Removal' },
-      { key: 'board_wipe', label: 'Board Wipes' },
-      { key: 'counterspell', label: 'Countermagic' },
-      { key: 'protection', label: 'Protection' },
-      { key: 'blink', label: 'Blink' },
-      { key: 'recursion', label: 'Recursion' },
-      { key: 'tokens', label: 'Tokens' },
-      { key: 'sacrifice', label: 'Sacrifice' },
-      { key: 'graveyard', label: 'Graveyard' },
-      { key: 'stax', label: 'Stax' },
-      { key: 'combo', label: 'Combo' },
-      { key: 'threat', label: 'Threats' },
-      { key: 'utility', label: 'Utility' },
-      { key: 'lands', label: 'Lands' },
-    ];
-    var deckCategoryOrder = deckCategoryDefinitions.map(function (category) { return category.label; });
-    var deckCategoryPriority = ['lands'].concat(deckCategoryDefinitions
-      .map(function (category) { return category.key; })
-      .filter(function (key) { return key !== 'lands'; }));
-    var deckCategoryLabels = {};
-    for (var deckCategoryIndex = 0; deckCategoryIndex < deckCategoryDefinitions.length; deckCategoryIndex++) {
-      deckCategoryLabels[deckCategoryDefinitions[deckCategoryIndex].key] = deckCategoryDefinitions[deckCategoryIndex].label;
-    }
-
-    function deckCategoryLabel(key) {
-      return deckCategoryLabels[key] || 'Utility';
-    }
-
-    function hasAnyText(text, needles) {
-      text = String(text || '');
-      needles = Array.isArray(needles) ? needles : [];
-      for (var i = 0; i < needles.length; i++) {
-        if (text.indexOf(needles[i]) >= 0) return true;
-      }
-      return false;
-    }
-
-    function isTutorMeta(oracle) {
-      oracle = String(oracle || '');
-      return oracle.indexOf('search your library for') >= 0 && oracle.indexOf('card') >= 0;
-    }
-
-    function isCardDrawMeta(oracle) {
-      return String(oracle || '').indexOf('draw ') >= 0;
-    }
-
-    function isRampMeta(typeLine, oracle) {
-      typeLine = String(typeLine || '');
-      oracle = String(oracle || '');
-      if (typeLine.indexOf('land') >= 0) return false;
-      return oracle.indexOf('add {') >= 0 || (oracle.indexOf('search your library for') >= 0 && oracle.indexOf('land') >= 0) || oracle.indexOf('treasure token') >= 0;
-    }
-
-    function hasProtectionMeta(oracle) {
-      return hasAnyText(oracle, ['hexproof', 'indestructible', 'protection from', 'ward {', "can't be countered"]);
-    }
-
-    function cardComboCategorySignal(cardName, typeLine, oracle) {
-      var key = normalizeName(cardName).toLowerCase().replace(/’/g, "'");
-      var comboNames = [
-        'aetherflux reservoir',
-        'basalt monolith',
-        'brain freeze',
-        'demonic consultation',
-        'devoted druid',
-        'dramatic reversal',
-        'dualcaster mage',
-        'food chain',
-        'goblin bombardment',
-        'heliod, sun-crowned',
-        'isochron scepter',
-        'karmic guide',
-        'kiki-jiki, mirror breaker',
-        "lion's eye diamond",
-        'mikaeus, the unhallowed',
-        'power artifact',
-        'reveillark',
-        'rings of brighthearth',
-        "sensei's divining top",
-        'splinter twin',
-        'tainted pact',
-        "thassa's oracle",
-        'triskelion',
-        'twinflame',
-        'underworld breach',
-        'vizier of remedies',
-        'walking ballista',
-        'zealous conscripts',
-      ];
-      if (comboNames.indexOf(key) >= 0) return true;
-      if (oracle.indexOf('win the game') >= 0 || oracle.indexOf('infinite') >= 0) return true;
-      return typeLine.indexOf('artifact') >= 0 && oracle.indexOf('untap') >= 0 && oracle.indexOf('add {') >= 0;
-    }
-
-    function deckCardCategoryKeys(cardMeta, cardName) {
-      cardMeta = cardMeta || {};
-      var typeLine = normalizeName(cardMeta.typeLine || '').toLowerCase();
-      var oracle = normalizeName(cardMeta.oracleText || '').toLowerCase();
-      var cmc = Number(cardMeta.cmc != null ? cardMeta.cmc : 0);
-      if (!Number.isFinite(cmc)) cmc = 0;
-      var out = [];
-      function add(key, ok) {
-        if (!ok || out.indexOf(key) >= 0) return;
-        out.push(key);
-      }
-
-      var isLand = typeLine.indexOf('land') >= 0;
-      add('lands', isLand);
-      add('ramp', !isLand && isRampMeta(typeLine, oracle));
-      add('draw', isCardDrawMeta(oracle) || hasAnyText(oracle, ['investigate', 'connive', 'impulse draw']));
-      add('tutor', isTutorMeta(oracle));
-      add('counterspell', oracle.indexOf('counter target') >= 0);
-      add('removal', hasAnyText(oracle, [
-        'destroy target',
-        'exile target',
-        'return target',
-        'target creature gets -',
-        "target permanent's owner puts it",
-        'fight target',
-        'deals damage to target creature',
-        'deals damage to any target',
-      ]));
-      add('board_wipe', hasAnyText(oracle, ['destroy all', 'exile all', 'each creature', 'all creatures get -']));
-      add('protection', hasProtectionMeta(oracle) || hasAnyText(oracle, ['phase out', 'prevent all damage', 'gain hexproof', 'gain indestructible']));
-      add('blink', hasAnyText(oracle, ['exile target creature you control, then return', 'exile another target', 'exile up to one target', 'exile any number of target', 'return it to the battlefield', 'return them to the battlefield', 'return those cards to the battlefield', 'flicker']));
-      add('recursion', hasAnyText(oracle, ['return target card from your graveyard', 'return target creature card from your graveyard', 'return a card from your graveyard', 'from your graveyard to the battlefield', 'reanimate']));
-      add('tokens', hasAnyText(oracle, ['create a', 'create two', 'create three', 'create x', 'token']));
-      add('sacrifice', hasAnyText(oracle, ['sacrifice another', 'sacrifice a creature:', 'sacrifice a permanent:', 'whenever you sacrifice']));
-      add('graveyard', hasAnyText(oracle, ['mill ', 'surveil', 'delirium', 'escape', 'flashback', 'threshold']));
-      add('stax', hasAnyText(oracle, ["can't cast", "can't attack", "don't untap", 'skip', 'spells cost', "players can't", "each opponent can't", 'enters the battlefield tapped']));
-      add('combo', cardComboCategorySignal(cardName, typeLine, oracle));
-
-      if (out.length === 0) {
-        out.push(typeLine.indexOf('creature') >= 0 || cmc >= 5 ? 'threat' : 'utility');
-      }
-      return out;
+      return deckBrowser.priceGroup(deckBrowserCard(cardMeta));
     }
 
     function primaryDeckCardCategory(cardMeta, cardName) {
-      var categories = deckCardCategoryKeys(cardMeta, cardName);
-      for (var i = 0; i < deckCategoryPriority.length; i++) {
-        if (categories.indexOf(deckCategoryPriority[i]) >= 0) return deckCategoryLabel(deckCategoryPriority[i]);
-      }
-      return 'Utility';
+      return deckBrowser.primaryCategory(deckBrowserCard(cardMeta, cardName));
     }
 
     function displayPrice(cardMeta) {
-      var value = priceValue(cardMeta);
-      if (value === null) return '—';
-      if (value === 0) return '$0.00';
-      return '$' + value.toFixed(2);
+      return deckBrowser.displayPrice(deckBrowserCard(cardMeta));
     }
 
     function displayManaValue(cardMeta) {
-      if (primaryTypeGroup(cardMeta && cardMeta.typeLine ? cardMeta.typeLine : '') === 'Lands') {
-        return 'Land';
-      }
-      var raw = Number(cardMeta && cardMeta.cmc != null ? cardMeta.cmc : 0);
-      if (!Number.isFinite(raw)) return '—';
-      if (Math.round(raw) === raw) return String(raw);
-      return String(raw.toFixed(1)).replace(/\.0$/, '');
+      return deckBrowser.displayManaValue(deckBrowserCard(cardMeta));
     }
 
     function displayManaValueSummary(cardMeta) {
-      var value = displayManaValue(cardMeta);
-      if (value === 'Land' || value === '—') return value;
-      return value + ' MV';
+      return deckBrowser.displayManaSummary(deckBrowserCard(cardMeta));
     }
 
     function typeSortRank(typeLine) {
-      var groups = ['Lands', 'Creatures', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Battles', 'Instants', 'Sorceries', 'Other'];
-      var group = primaryTypeGroup(typeLine);
-      var index = groups.indexOf(group);
-      return index >= 0 ? index : groups.length;
+      return deckBrowser.typeRank(deckBrowser.normalizeCard({ typeLine: typeLine }));
     }
 
     function compareDeckRows(a, b) {
-      var left = a || {};
-      var right = b || {};
-      var mode = normalizeDeckSortMode(deckSortMode);
-      var leftName = normalizeName(left.cardName || '');
-      var rightName = normalizeName(right.cardName || '');
-      var leftMeta = left.cardMeta || {};
-      var rightMeta = right.cardMeta || {};
-
-      if (mode === 'mv') {
-        var leftMV = Number(leftMeta.cmc != null ? leftMeta.cmc : 0);
-        var rightMV = Number(rightMeta.cmc != null ? rightMeta.cmc : 0);
-        if (!Number.isFinite(leftMV)) leftMV = 0;
-        if (!Number.isFinite(rightMV)) rightMV = 0;
-        if (leftMV !== rightMV) return leftMV - rightMV;
-      } else if (mode === 'type') {
-        var leftTypeRank = typeSortRank(leftMeta.typeLine || '');
-        var rightTypeRank = typeSortRank(rightMeta.typeLine || '');
-        if (leftTypeRank !== rightTypeRank) return leftTypeRank - rightTypeRank;
-      } else if (mode === 'price') {
-        var leftPrice = priceValue(leftMeta);
-        var rightPrice = priceValue(rightMeta);
-        if (leftPrice === null && rightPrice !== null) return 1;
-        if (leftPrice !== null && rightPrice === null) return -1;
-        if (leftPrice !== null && rightPrice !== null && leftPrice !== rightPrice) return leftPrice - rightPrice;
-      }
-
-      return leftName.localeCompare(rightName);
+      return deckBrowser.compareCards(
+        deckBrowser.adaptEditorRow(a),
+        deckBrowser.adaptEditorRow(b),
+        deckSortMode
+      );
     }
 
     function groupedDeckSections(rows) {
-      var mode = normalizeDeckGroupMode(deckGroupMode);
-      if (mode === 'none') {
-        var singleRows = rows.slice();
-        singleRows.sort(compareDeckRows);
-        return [{ name: '', rows: singleRows }];
-      }
-
-      var order;
-      if (mode === 'type') {
-        order = ['Creatures', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Battles', 'Instants', 'Sorceries', 'Other', 'Lands'];
-      } else if (mode === 'mv') {
-        order = ['0', '1', '2', '3', '4', '5', '6', '7+', 'Unknown', 'Lands'];
-      } else if (mode === 'category') {
-        order = deckCategoryOrder.slice();
-      } else if (mode === 'alphabet') {
-        order = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-        order.push('#');
-      } else {
-        order = ['Free', 'Under $1', '$1-$4.99', '$5-$9.99', '$10+', 'Unknown'];
-      }
-      var buckets = {};
-
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var groupName;
-        if (mode === 'type') {
-          groupName = primaryTypeGroup(row.cardMeta && row.cardMeta.typeLine ? row.cardMeta.typeLine : '');
-        } else if (mode === 'mv') {
-          groupName = manaValueGroup(row.cardMeta || {});
-        } else if (mode === 'category') {
-          groupName = primaryDeckCardCategory(row.cardMeta || {}, row.cardName || '');
-        } else if (mode === 'alphabet') {
-          groupName = alphabetGroup(row.cardName || '');
-        } else {
-          groupName = priceGroup(row.cardMeta || {});
-        }
-        if (!buckets[groupName]) buckets[groupName] = [];
-        buckets[groupName].push(row);
-      }
-
-      var sections = [];
-      for (var j = 0; j < order.length; j++) {
-        var name = order[j];
-        if (!buckets[name] || buckets[name].length === 0) continue;
-        buckets[name].sort(compareDeckRows);
-        sections.push({ name: name, rows: buckets[name] });
-        delete buckets[name];
-      }
-
-      var leftovers = Object.keys(buckets).sort(function (a, b) { return a.localeCompare(b); });
-      for (var k = 0; k < leftovers.length; k++) {
-        buckets[leftovers[k]].sort(compareDeckRows);
-        sections.push({ name: leftovers[k], rows: buckets[leftovers[k]] });
-      }
-      return sections;
+      return deckBrowser.groupRows(rows, {
+        group: deckGroupMode,
+        sort: deckSortMode
+      });
     }
 
     function sectionCardTotal(section) {
@@ -1431,33 +1161,8 @@
       return deckFilterQuery;
     }
 
-    function deckRowFilterText(row) {
-      row = row || {};
-      var cardMeta = row.cardMeta || {};
-      return [
-        row.cardName || '',
-        cardMeta.name || '',
-        cardMeta.typeLine || '',
-        cardMeta.oracleText || '',
-        cardMeta.manaCost || '',
-        displayManaValue(cardMeta),
-        displayPrice(cardMeta)
-      ].join(' ').toLowerCase();
-    }
-
     function filterDeckRows(rows) {
-      rows = Array.isArray(rows) ? rows : [];
-      var query = deckFilterQuery || '';
-      if (!query) return rows;
-      var terms = query.split(/\s+/).filter(Boolean);
-      if (terms.length === 0) return rows;
-      return rows.filter(function (row) {
-        var haystack = deckRowFilterText(row);
-        for (var i = 0; i < terms.length; i++) {
-          if (haystack.indexOf(terms[i]) === -1) return false;
-        }
-        return true;
-      });
+      return deckBrowser.filterRows(rows, deckFilterQuery);
     }
 
     function appendDeckGroupHeader(name, qty) {

@@ -51,8 +51,8 @@ type TemplateData struct {
 	Meta        *PageMeta
 	Flash       string
 	Error       string
+	ActiveNav   string
 	WideLayout  bool
-	HomeHeader  bool
 	HideHeader  bool
 	HideFooter  bool
 }
@@ -122,7 +122,6 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 			CurrentUser: nil,
 			Data:        nil, // no extra data needed
 			Flash:       flash,
-			HomeHeader:  true,
 		}
 		a.Renderer.Render(w, "home", data)
 		return
@@ -149,8 +148,7 @@ func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
 		Data: homeData{
 			RecentDecks: userDecks,
 		},
-		Flash:      flash,
-		HomeHeader: true,
+		Flash: flash,
 	}
 
 	a.Renderer.Render(w, "home", data)

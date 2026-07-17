@@ -58,6 +58,43 @@ func TestBuildProfilePaginationClampsPastLastPage(t *testing.T) {
 	}
 }
 
+func TestNormalizeProfileTab(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		values url.Values
+		want   string
+	}{
+		{name: "default", values: url.Values{}, want: "decks"},
+		{name: "favorites", values: url.Values{"tab": {"favorites"}}, want: "favorites"},
+		{name: "achievements", values: url.Values{"tab": {"achievements"}}, want: "achievements"},
+		{name: "legacy favorite view", values: url.Values{"favorites_view": {"stacks"}}, want: "favorites"},
+		{name: "legacy award page", values: url.Values{"guess_page": {"2"}}, want: "achievements"},
+		{name: "unknown", values: url.Values{"tab": {"activity"}}, want: "decks"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := normalizeProfileTab(tt.values); got != tt.want {
+				t.Fatalf("normalizeProfileTab(%v) = %q, want %q", tt.values, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeProfileFavoriteViewSupportsTable(t *testing.T) {
+	t.Parallel()
+
+	if got := normalizeProfileFavoriteView("table"); got != "table" {
+		t.Fatalf("normalizeProfileFavoriteView(table) = %q", got)
+	}
+	if got := normalizeProfileFavoriteView("columns"); got != "table" {
+		t.Fatalf("legacy columns view = %q, want table", got)
+	}
+}
+
 func TestBuildProfileStatsUsesPublicDecks(t *testing.T) {
 	t.Parallel()
 

@@ -2,368 +2,398 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
-    <section>
-      <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div class="h-28 w-28 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0">
-            {{ if $ctx.Stats.AvatarImageURI }}
-              <img src="{{ $ctx.Stats.AvatarImageURI }}" alt="{{ $ctx.Stats.AvatarAlt }}" class="h-full w-full object-cover">
-            {{ else }}
-              <span class="text-2xl font-semibold text-slate-300">MT</span>
-            {{ end }}
-          </div>
+  <link rel="stylesheet" href="/assets/profile.css">
 
-          <div class="space-y-3">
-            <div class="space-y-2">
-              <p class="mt-kicker">Profile</p>
-              <h1 class="mt-title">{{ $ctx.Profile.DisplayName }}</h1>
-              <p class="mt-hint">
-                Joined {{ $ctx.Stats.JoinedLabel }} · {{ len $ctx.Items }} public deck{{ if ne (len $ctx.Items) 1 }}s{{ end }}
-              </p>
-            </div>
-
-            {{ if $ctx.Stats.CanEdit }}
-              <div class="flex flex-wrap items-center gap-2" aria-label="Profile commander art choices">
-                {{ range $ctx.Stats.AvatarChoices }}
-                  <form method="POST" action="/profile/avatar">
-                    <input type="hidden" name="commander_name" value="{{ .Name }}">
-                    <button type="submit"
-                            class="block h-10 w-10 overflow-hidden rounded-lg border object-cover transition {{ if .IsSelected }}border-sky-300 shadow-[0_0_0_2px_rgba(56,189,248,0.25)]{{ else }}border-slate-700 hover:border-slate-400{{ end }}"
-                            title="Use {{ .Name }} as profile art"
-                            aria-label="Use {{ .Name }} as profile art">
-                      <img src="{{ .ImageURI }}" alt="" class="h-full w-full object-cover">
-                    </button>
-                  </form>
-                {{ end }}
-                <button type="button"
-                        data-profile-avatar-add
-                        class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950/80 text-lg font-semibold text-slate-300 transition hover:border-slate-400 hover:text-slate-50"
-                        title="Search for card art"
-                        aria-label="Search for card art">
-                  +
-                </button>
-                <form method="POST" action="/profile/avatar" data-profile-avatar-search hidden class="flex min-w-[14rem] flex-1 flex-wrap items-center gap-2">
-                  <label class="sr-only" for="profile-avatar-card">Card name</label>
-                  <input id="profile-avatar-card"
-                         name="commander_name"
-                         type="search"
-                         autocomplete="off"
-                         placeholder="Search card art"
-                         class="mt-control mt-control--sm min-w-[12rem] flex-1">
-                  <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Use Art</button>
-                </form>
-              </div>
-            {{ end }}
-          </div>
+  <main class="mt-profile-page max-w-7xl mx-auto px-4 py-6 sm:py-8">
+    <section class="mt-profile-hero">
+      {{ if $ctx.Stats.AvatarImageURI }}
+        <img src="{{ $ctx.Stats.AvatarImageURI }}" alt="" class="mt-profile-hero__art" aria-hidden="true">
+      {{ end }}
+      <div class="mt-profile-hero__shade" aria-hidden="true"></div>
+      <div class="mt-profile-hero__content">
+        <div class="mt-profile-avatar">
+          {{ if $ctx.Stats.AvatarImageURI }}
+            <img src="{{ $ctx.Stats.AvatarImageURI }}" alt="{{ $ctx.Stats.AvatarAlt }}">
+          {{ else }}
+            <span>MT</span>
+          {{ end }}
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2 lg:min-w-[28rem]">
-          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Average Power</p>
-            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Stats.AveragePowerBracket }}</p>
-          </div>
-          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Usually Plays</p>
-            <p class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Stats.UsuallyPlays }}</p>
-          </div>
-          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Likes</p>
-            {{ if $ctx.Stats.Likes }}
-              <div class="mt-2 flex flex-wrap gap-1">
-                {{ range $ctx.Stats.Likes }}
-                  <span class="{{ publicTagChipClass . }}">{{ . }}</span>
-                {{ end }}
-              </div>
-            {{ else }}
-              <p class="mt-1 text-sm font-semibold text-slate-100">Not enough data</p>
-            {{ end }}
-          </div>
-          <div class="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Favorite Colors</p>
-            <div class="mt-2 flex items-center gap-2">
-              {{ if $ctx.Stats.FavoriteColorPips }}
-                <span class="inline-flex items-center gap-1.5" aria-label="{{ $ctx.Stats.FavoriteColorCombination }}">
-                  {{ range $ctx.Stats.FavoriteColorPips }}
-                    <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
-                    <span class="sr-only">{{ .Label }}</span>
-                  {{ end }}
-                </span>
-              {{ end }}
-              <span class="text-sm font-semibold text-slate-100">{{ $ctx.Stats.FavoriteColorCombination }}</span>
-            </div>
-          </div>
+        <div class="mt-profile-identity">
+          <p class="mt-kicker">Player Profile</p>
+          <h1>{{ $ctx.Profile.DisplayName }}</h1>
+          <p>Joined {{ $ctx.Stats.JoinedLabel }} · {{ len $ctx.Items }} public deck{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
+        </div>
+
+        <div class="mt-profile-actions">
+          <button type="button" id="profile-share" class="mt-btn mt-btn--secondary mt-btn--sm">Share Profile</button>
+          {{ if $ctx.Stats.CanEdit }}
+            <button type="button" class="mt-btn mt-btn--primary mt-btn--sm" data-profile-customize-open>Customize</button>
+          {{ end }}
+          <p id="profile-action-status" class="mt-profile-action-status" aria-live="polite"></p>
         </div>
       </div>
     </section>
 
-    <section class="space-y-3">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div class="space-y-1">
-          <h2 class="mt-section-label">Favorite Printings</h2>
-          <p class="text-xs text-slate-500">{{ $ctx.FavoritePagination.Total }} saved art favorite{{ if ne $ctx.FavoritePagination.Total 1 }}s{{ end }}</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=grid" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "grid" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Grid</a>
-          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=stacks" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "stacks" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Stacks</a>
-          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=text" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "text" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Text</a>
-          <a href="/users/{{ $ctx.Profile.ID }}?favorites_view=columns" class="mt-btn mt-btn--xs {{ if eq $ctx.FavoriteView "columns" }}mt-btn--primary{{ else }}mt-btn--secondary{{ end }}">Columns</a>
-        </div>
+    <dl class="mt-profile-stats" aria-label="Profile totals">
+      <div>
+        <dt>Public Decks</dt>
+        <dd>{{ len $ctx.Items }}</dd>
       </div>
-
-      {{ if $ctx.FavoritePrintings }}
-        {{ if eq $ctx.FavoriteView "stacks" }}
-          <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/35 p-5">
-            <div class="flex min-w-max items-end pl-12">
-              {{ range $ctx.FavoritePrintings }}
-                <a href="{{ .DetailPath }}"
-                   class="-ml-10 block w-32 shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-xl shadow-slate-950/35 transition hover:z-10 hover:-translate-y-2 hover:border-sky-300"
-                   title="{{ .Name }} · {{ .SetLabel }}">
-                  {{ if .ImageURI }}
-                    <img src="{{ .ImageURI }}" alt="{{ .Name }}" class="aspect-[63/88] w-full object-cover">
-                  {{ else }}
-                    <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">No image</span>
-                  {{ end }}
-                </a>
+      <div>
+        <dt>Favorite Printings</dt>
+        <dd>{{ $ctx.FavoritePagination.Total }}</dd>
+      </div>
+      <div>
+        <dt>Cards Won</dt>
+        <dd>{{ $ctx.AwardTotal }}</dd>
+      </div>
+      <div>
+        <dt>Favorite Colors</dt>
+        <dd class="mt-profile-color-stat">
+          {{ if $ctx.Stats.FavoriteColorPips }}
+            <span class="inline-flex items-center gap-1" aria-label="{{ $ctx.Stats.FavoriteColorCombination }}">
+              {{ range $ctx.Stats.FavoriteColorPips }}
+                <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
+                <span class="sr-only">{{ .Label }}</span>
               {{ end }}
-            </div>
+            </span>
+          {{ end }}
+          <span>{{ $ctx.Stats.FavoriteColorCombination }}</span>
+        </dd>
+      </div>
+    </dl>
+
+    <section class="mt-profile-playstyle" aria-label="Playstyle">
+      <div>
+        <span>Usually Plays</span>
+        <strong>{{ $ctx.Stats.UsuallyPlays }}</strong>
+      </div>
+      <div>
+        <span>Published Deck Average</span>
+        <strong>{{ $ctx.Stats.AveragePowerBracket }}</strong>
+      </div>
+      <div class="mt-profile-playstyle__tags">
+        <span>Playstyle</span>
+        {{ if $ctx.Stats.Likes }}
+          <div>
+            {{ range $ctx.Stats.Likes }}
+              <span class="{{ publicTagChipClass . }}">{{ . }}</span>
+            {{ end }}
           </div>
-        {{ else if eq $ctx.FavoriteView "text" }}
-          <div class="rounded-xl border border-slate-800 bg-slate-950/35 divide-y divide-slate-800">
-            {{ range $ctx.FavoritePrintings }}
-              <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <a href="{{ .DetailPath }}" class="font-medium text-slate-100 transition hover:text-sky-200">{{ .Name }}</a>
-                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span>{{ .SetLabel }}</span>
-                  <span>{{ .PriceUSD }}</span>
-                  {{ if $ctx.Stats.CanEdit }}
-                    <form method="POST" action="/cards/favorites/printing">
-                      <input type="hidden" name="scryfall_id" value="{{ .ScryfallID }}">
-                      <input type="hidden" name="action" value="unfavorite">
-                      <input type="hidden" name="return_to" value="{{ $ctx.FavoriteReturnTo }}">
-                      <button type="submit" class="text-slate-400 transition hover:text-rose-200">Remove</button>
-                    </form>
-                  {{ end }}
-                </div>
+        {{ else }}
+          <strong>Not enough data</strong>
+        {{ end }}
+      </div>
+    </section>
+
+    <nav class="mt-profile-tabs" aria-label="Profile sections">
+      <a href="/users/{{ $ctx.Profile.ID }}"
+         class="mt-profile-tab {{ if eq $ctx.ActiveTab "decks" }}mt-profile-tab--active{{ end }}"
+         {{ if eq $ctx.ActiveTab "decks" }}aria-current="page"{{ end }}>
+        Decks <span>{{ len $ctx.Items }}</span>
+      </a>
+      <a href="/users/{{ $ctx.Profile.ID }}?tab=favorites"
+         class="mt-profile-tab {{ if eq $ctx.ActiveTab "favorites" }}mt-profile-tab--active{{ end }}"
+         {{ if eq $ctx.ActiveTab "favorites" }}aria-current="page"{{ end }}>
+        Favorites <span>{{ $ctx.FavoritePagination.Total }}</span>
+      </a>
+      <a href="/users/{{ $ctx.Profile.ID }}?tab=achievements"
+         class="mt-profile-tab {{ if eq $ctx.ActiveTab "achievements" }}mt-profile-tab--active{{ end }}"
+         {{ if eq $ctx.ActiveTab "achievements" }}aria-current="page"{{ end }}>
+        Achievements <span>{{ $ctx.AwardTotal }}</span>
+      </a>
+    </nav>
+
+    <div class="mt-profile-content">
+      {{ if eq $ctx.ActiveTab "decks" }}
+        <section aria-labelledby="profile-decks-title">
+          <div class="mt-profile-section-head">
+            <div>
+              <p class="mt-kicker">Published Collection</p>
+              <h2 id="profile-decks-title">Public Decks</h2>
+              <p id="profile-deck-summary">{{ len $ctx.Items }} deck{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
+            </div>
+            {{ if $ctx.Items }}
+              <div class="mt-profile-deck-controls">
+                <label>
+                  <span>Filter</span>
+                  <input id="profile-deck-filter" type="search" class="mt-control mt-control--sm" placeholder="Deck, commander, tag" autocomplete="off">
+                </label>
+                <label>
+                  <span>Sort</span>
+                  <select id="profile-deck-sort" class="mt-control mt-control--sm">
+                    <option value="recent">Recently Published</option>
+                    <option value="name">Deck Name</option>
+                    <option value="format">Format</option>
+                    <option value="power">Power</option>
+                  </select>
+                </label>
               </div>
             {{ end }}
           </div>
-        {{ else if eq $ctx.FavoriteView "columns" }}
-          <div class="grid gap-3 md:grid-cols-2">
-            {{ range $ctx.FavoritePrintings }}
-              <article class="flex gap-3 rounded-xl border border-slate-800 bg-slate-950/35 p-3">
-                <a href="{{ .DetailPath }}" class="h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-950">
-                  {{ if .ImageURI }}
-                    <img src="{{ .ImageURI }}" alt="{{ .Name }}" class="h-full w-full object-cover">
-                  {{ else }}
-                    <span class="flex h-full w-full items-center justify-center text-[10px] text-slate-500">No image</span>
-                  {{ end }}
-                </a>
-                <div class="min-w-0 flex-1 space-y-2">
-                  <a href="{{ .DetailPath }}" class="block truncate text-sm font-semibold text-slate-100 transition hover:text-sky-200">{{ .Name }}</a>
-                  <div class="grid gap-1 text-xs text-slate-500">
-                    <span>{{ .SetLabel }}</span>
-                    <span>{{ .Rarity }} · {{ .PriceUSD }}</span>
-                    <span>Artist: {{ .Artist }}</span>
+
+          {{ if $ctx.Items }}
+            <div id="profile-deck-list" class="mt-profile-deck-grid">
+              {{ range $index, $item := $ctx.Items }}
+                <article class="mt-profile-deck"
+                         data-profile-deck
+                         data-order="{{ $index }}"
+                         data-name="{{ $item.Name }}"
+                         data-format="{{ $item.Format }}"
+                         data-power="{{ $item.PowerBracket }}"
+                         data-search="{{ $item.Name }} {{ $item.CommanderName }} {{ $item.Format }} {{ $item.Tags }} {{ $item.Description }}">
+                  <a href="/decks/public/{{ $item.PublicSlug }}" class="mt-profile-deck__link" aria-label="Open {{ $item.Name }}"></a>
+                  <div class="mt-profile-deck__media">
+                    {{ if $item.CommanderArtCropURI }}
+                      <img class="mt-profile-deck__image mt-profile-deck__image--art" src="{{ $item.CommanderArtCropURI }}" alt="{{ $item.CommanderName }}" loading="lazy">
+                    {{ else if $item.CommanderImageURI }}
+                      <img class="mt-profile-deck__image mt-profile-deck__image--card" src="{{ $item.CommanderImageURI }}" alt="{{ $item.CommanderName }}" loading="lazy">
+                    {{ else }}
+                      <span>{{ if $item.CommanderName }}Commander{{ else }}Deck{{ end }}</span>
+                    {{ end }}
+                  </div>
+                  <div class="mt-profile-deck__body">
+                    <div>
+                      <h3>{{ $item.Name }}</h3>
+                      {{ if $item.CommanderName }}<p>{{ $item.CommanderName }}</p>{{ end }}
+                    </div>
+                    {{ if $item.Description }}
+                      <p class="mt-profile-deck__description">{{ $item.Description }}</p>
+                    {{ end }}
+                    <div class="mt-profile-deck__meta">
+                      {{ if $item.ColorPips }}
+                        <span class="inline-flex items-center gap-1" aria-label="{{ $item.ColorIdentityName }}">
+                          {{ range $item.ColorPips }}
+                            <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
+                            <span class="sr-only">{{ .Label }}</span>
+                          {{ end }}
+                        </span>
+                      {{ end }}
+                      <span class="mt-chip">{{ if $item.Format }}{{ $item.Format }}{{ else }}Commander{{ end }}</span>
+                      {{ if $item.PowerBracket }}<span class="mt-chip">{{ $item.PowerBracket }}</span>{{ end }}
+                    </div>
+                    {{ if $item.Tags }}
+                      <div class="mt-profile-deck__tags">
+                        {{ range splitTags $item.Tags }}<span class="{{ publicTagChipClass . }}">{{ . }}</span>{{ end }}
+                      </div>
+                    {{ end }}
+                  </div>
+                </article>
+              {{ end }}
+            </div>
+            <div id="profile-deck-empty" class="mt-empty-state text-center hidden">No decks match this filter.</div>
+          {{ else }}
+            <div class="mt-empty-state text-center">No public decks yet.</div>
+          {{ end }}
+        </section>
+      {{ else if eq $ctx.ActiveTab "favorites" }}
+        <section aria-labelledby="profile-favorites-title">
+          <div class="mt-profile-section-head">
+            <div>
+              <p class="mt-kicker">Card Collection</p>
+              <h2 id="profile-favorites-title">Favorite Printings</h2>
+              <p>{{ $ctx.FavoritePagination.Total }} saved art favorite{{ if ne $ctx.FavoritePagination.Total 1 }}s{{ end }}</p>
+            </div>
+            <div class="mt-profile-view-options" aria-label="Favorite printing view">
+              <a href="/users/{{ $ctx.Profile.ID }}?tab=favorites&amp;favorites_view=grid"
+                 class="{{ if eq $ctx.FavoriteView "grid" }}mt-profile-view-option--active{{ end }}"
+                 {{ if eq $ctx.FavoriteView "grid" }}aria-current="page"{{ end }}>Grid</a>
+              <a href="/users/{{ $ctx.Profile.ID }}?tab=favorites&amp;favorites_view=stacks"
+                 class="{{ if eq $ctx.FavoriteView "stacks" }}mt-profile-view-option--active{{ end }}"
+                 {{ if eq $ctx.FavoriteView "stacks" }}aria-current="page"{{ end }}>Stacks</a>
+              <a href="/users/{{ $ctx.Profile.ID }}?tab=favorites&amp;favorites_view=text"
+                 class="{{ if eq $ctx.FavoriteView "text" }}mt-profile-view-option--active{{ end }}"
+                 {{ if eq $ctx.FavoriteView "text" }}aria-current="page"{{ end }}>Text</a>
+              <a href="/users/{{ $ctx.Profile.ID }}?tab=favorites&amp;favorites_view=table"
+                 class="{{ if eq $ctx.FavoriteView "table" }}mt-profile-view-option--active{{ end }}"
+                 {{ if eq $ctx.FavoriteView "table" }}aria-current="page"{{ end }}>Table</a>
+            </div>
+          </div>
+
+          {{ if $ctx.FavoritePrintings }}
+            <div class="mt-profile-favorites mt-profile-favorites--{{ $ctx.FavoriteView }}">
+              {{ range $ctx.FavoritePrintings }}
+                <article class="mt-profile-favorite"
+                         data-card-detail-root
+                         data-oracle-id="{{ .OracleID }}"
+                         data-scryfall-id="{{ .ScryfallID }}"
+                         data-detail-path="{{ .DetailPath }}"
+                         data-name="{{ .Name }}"
+                         data-image-uri="{{ .ImageURI }}"
+                         data-price="{{ .PriceUSD }}"
+                         data-artist="{{ .Artist }}"
+                         data-set-code="{{ .SetCode }}"
+                         data-set-name="{{ .SetName }}"
+                         data-released-at="{{ .ReleasedAt }}">
+                  <button type="button" class="mt-profile-favorite__media" data-card-detail aria-label="View details for {{ .Name }}">
+                    {{ if .ImageURI }}
+                      <img src="{{ .ImageURI }}" alt="{{ .Name }}" loading="lazy">
+                    {{ else }}
+                      <span>No image</span>
+                    {{ end }}
+                  </button>
+                  <div class="mt-profile-favorite__body">
+                    <button type="button" class="mt-profile-favorite__name" data-card-detail>{{ .Name }}</button>
+                    <p>{{ .SetLabel }}{{ if .CollectorNumber }} #{{ .CollectorNumber }}{{ end }}</p>
+                    <div class="mt-profile-favorite__details">
+                      <span>{{ .Rarity }}</span>
+                      <span>{{ .PriceUSD }}</span>
+                      <span>Artist: {{ .Artist }}</span>
+                    </div>
                   </div>
                   {{ if $ctx.Stats.CanEdit }}
-                    <form method="POST" action="/cards/favorites/printing">
+                    <form method="POST" action="/cards/favorites/printing" class="mt-profile-favorite__action">
                       <input type="hidden" name="scryfall_id" value="{{ .ScryfallID }}">
                       <input type="hidden" name="action" value="unfavorite">
                       <input type="hidden" name="return_to" value="{{ $ctx.FavoriteReturnTo }}">
                       <button type="submit" class="mt-btn mt-btn--secondary mt-btn--xs">Remove</button>
                     </form>
                   {{ end }}
-                </div>
-              </article>
-            {{ end }}
-          </div>
-        {{ else }}
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {{ range $ctx.FavoritePrintings }}
-              <article class="space-y-2">
-                <a href="{{ .DetailPath }}" class="group block overflow-hidden rounded-lg bg-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
-                  {{ if .ImageURI }}
-                    <img src="{{ .ImageURI }}" alt="{{ .Name }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
-                  {{ else }}
-                    <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">No image</span>
-                  {{ end }}
-                  <span class="grid gap-0.5 border-t border-slate-800 bg-slate-950/95 px-2 py-2">
-                    <span class="truncate text-[11px] font-semibold text-slate-200">{{ .SetLabel }}</span>
-                    <span class="text-[10px] font-medium text-slate-500">{{ .PriceUSD }}</span>
-                  </span>
-                </a>
-                {{ if $ctx.Stats.CanEdit }}
-                  <form method="POST" action="/cards/favorites/printing">
-                    <input type="hidden" name="scryfall_id" value="{{ .ScryfallID }}">
-                    <input type="hidden" name="action" value="unfavorite">
-                    <input type="hidden" name="return_to" value="{{ $ctx.FavoriteReturnTo }}">
-                    <button type="submit" class="mt-btn mt-btn--secondary mt-btn--xs w-full justify-center">Remove</button>
-                  </form>
-                {{ end }}
-              </article>
-            {{ end }}
-          </div>
-        {{ end }}
-      {{ else }}
-        <div class="mt-empty-state text-center">No favorite printings yet.</div>
-      {{ end }}
-      {{ if gt $ctx.FavoritePagination.TotalPages 1 }}
-        <nav class="flex items-center justify-center gap-3 text-sm text-slate-400" aria-label="Favorite printings pages">
-          {{ if $ctx.FavoritePagination.PrevURL }}<a href="{{ $ctx.FavoritePagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
-          <span>Page {{ $ctx.FavoritePagination.Page }} of {{ $ctx.FavoritePagination.TotalPages }}</span>
-          {{ if $ctx.FavoritePagination.NextURL }}<a href="{{ $ctx.FavoritePagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
-        </nav>
-      {{ end }}
-    </section>
-
-    <section class="space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="mt-section-label">Cards Guessed Correctly</h2>
-        <p class="text-xs text-slate-500">{{ $ctx.GuessPagination.Total }} daily card{{ if ne $ctx.GuessPagination.Total 1 }}s{{ end }}</p>
-      </div>
-
-      {{ if $ctx.GuessAwards }}
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
-          {{ range $ctx.GuessAwards }}
-            <a href="{{ .DetailPath }}" class="group block overflow-hidden rounded-lg border border-amber-500/30 bg-slate-950 shadow-lg shadow-amber-950/10 transition hover:border-amber-300/70">
-              {{ if .ImageURI }}
-                <img src="{{ .ImageURI }}" alt="{{ .CardName }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
-              {{ else }}
-                <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">Won card</span>
+                </article>
               {{ end }}
-              <span class="grid gap-0.5 border-t border-amber-500/20 bg-slate-950/95 px-2 py-2">
-                <span class="truncate text-[11px] font-semibold text-amber-100">{{ .CardName }}</span>
-                <span class="text-[10px] font-medium text-amber-300/70">{{ .GuessCount }} card guesses</span>
-              </span>
-            </a>
+            </div>
+          {{ else }}
+            <div class="mt-empty-state text-center">No favorite printings yet.</div>
           {{ end }}
-        </div>
-      {{ else }}
-        <div class="mt-empty-state text-center">No daily cards guessed correctly yet.</div>
-      {{ end }}
-      {{ if gt $ctx.GuessPagination.TotalPages 1 }}
-        <nav class="flex items-center justify-center gap-3 text-sm text-slate-400" aria-label="Cards guessed correctly pages">
-          {{ if $ctx.GuessPagination.PrevURL }}<a href="{{ $ctx.GuessPagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
-          <span>Page {{ $ctx.GuessPagination.Page }} of {{ $ctx.GuessPagination.TotalPages }}</span>
-          {{ if $ctx.GuessPagination.NextURL }}<a href="{{ $ctx.GuessPagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
-        </nav>
-      {{ end }}
-    </section>
 
-    <section class="space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="mt-section-label">Tombscript Cards Won</h2>
-        <p class="text-xs text-slate-500">{{ $ctx.SpellifyPagination.Total }} daily card{{ if ne $ctx.SpellifyPagination.Total 1 }}s{{ end }}</p>
-      </div>
-
-      {{ if $ctx.SpellifyAwards }}
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">
-          {{ range $ctx.SpellifyAwards }}
-            <a href="{{ .DetailPath }}" class="group block overflow-hidden rounded-lg border border-[#C2A44C]/30 bg-slate-950 shadow-lg shadow-slate-950/20 transition hover:border-[#E6D7B5]/70">
-              {{ if .ImageURI }}
-                <img src="{{ .ImageURI }}" alt="{{ .CardName }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
-              {{ else }}
-                <span class="flex aspect-[63/88] w-full items-center justify-center px-2 text-center text-xs text-slate-500">Won card</span>
-              {{ end }}
-              <span class="grid gap-0.5 border-t border-[#C2A44C]/20 bg-slate-950/95 px-2 py-2">
-                <span class="truncate text-[11px] font-semibold text-[#E6D7B5]">{{ .CardName }}</span>
-                <span class="text-[10px] font-medium text-[#C2A44C]/80">{{ .GuessCount }} reveal guesses</span>
-              </span>
-            </a>
+          {{ if gt $ctx.FavoritePagination.TotalPages 1 }}
+            <nav class="mt-profile-pagination" aria-label="Favorite printings pages">
+              {{ if $ctx.FavoritePagination.PrevURL }}<a href="{{ $ctx.FavoritePagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
+              <span>Page {{ $ctx.FavoritePagination.Page }} of {{ $ctx.FavoritePagination.TotalPages }}</span>
+              {{ if $ctx.FavoritePagination.NextURL }}<a href="{{ $ctx.FavoritePagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
+            </nav>
           {{ end }}
-        </div>
+        </section>
       {{ else }}
-        <div class="mt-empty-state text-center">No daily Tombscript cards won yet.</div>
-      {{ end }}
-      {{ if gt $ctx.SpellifyPagination.TotalPages 1 }}
-        <nav class="flex items-center justify-center gap-3 text-sm text-slate-400" aria-label="Tombscript cards pages">
-          {{ if $ctx.SpellifyPagination.PrevURL }}<a href="{{ $ctx.SpellifyPagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
-          <span>Page {{ $ctx.SpellifyPagination.Page }} of {{ $ctx.SpellifyPagination.TotalPages }}</span>
-          {{ if $ctx.SpellifyPagination.NextURL }}<a href="{{ $ctx.SpellifyPagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
-        </nav>
-      {{ end }}
-    </section>
+        <section aria-labelledby="profile-achievements-title">
+          <div class="mt-profile-section-head">
+            <div>
+              <p class="mt-kicker">Trophy Case</p>
+              <h2 id="profile-achievements-title">Achievements</h2>
+              <p>{{ $ctx.AwardTotal }} daily card{{ if ne $ctx.AwardTotal 1 }}s{{ end }} won across Mana Tomb games</p>
+            </div>
+          </div>
 
-    <section class="space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="mt-section-label">Public Decks</h2>
-        <p class="text-xs text-slate-500">{{ len $ctx.Items }} result{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
-      </div>
-
-      {{ if $ctx.Items }}
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {{ range $ctx.Items }}
-            <article class="mt-action-card relative h-full cursor-pointer">
-              <a href="/decks/public/{{ .PublicSlug }}" class="absolute inset-0 z-0 rounded-lg" aria-label="Open {{ .Name }}"></a>
-              <div class="relative z-10 pointer-events-none flex gap-4">
-                <div class="h-32 w-[5.5rem] mt-card-media bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
-                  {{ if .CommanderImageURI }}
-                    <img src="{{ .CommanderImageURI }}" alt="{{ .CommanderName }}" class="w-full h-full object-cover">
-                  {{ else }}
-                    <span class="text-[10px] uppercase tracking-wide text-slate-500">{{ if .CommanderName }}Commander{{ else }}Deck{{ end }}</span>
-                  {{ end }}
+          <div class="mt-profile-award-groups">
+            <section class="mt-profile-award-group" aria-labelledby="guess-awards-title">
+              <div class="mt-profile-award-group__head">
+                <div>
+                  <h3 id="guess-awards-title">Cards Guessed Correctly</h3>
+                  <p>Daily Guess the Card wins</p>
                 </div>
-
-                <div class="min-w-0 flex-1 space-y-3">
-                  <div class="space-y-1.5">
-                    <h3 class="text-base font-semibold text-slate-100 leading-tight">{{ .Name }}</h3>
-                  </div>
-
-                  {{ if .CommanderName }}
-                    <div class="space-y-1">
-                      <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Commander</p>
-                      <p class="text-sm font-medium text-slate-100 leading-snug">{{ .CommanderName }}</p>
-                    </div>
-                  {{ end }}
-
-                  <div class="flex flex-wrap items-center gap-2">
-                    {{ if .ColorPips }}
-                      <span class="inline-flex items-center gap-1.5" aria-label="{{ .ColorIdentityName }}">
-                        {{ range .ColorPips }}
-                          <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
-                          <span class="sr-only">{{ .Label }}</span>
-                        {{ end }}
-                      </span>
-                    {{ end }}
-                    <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
-                    {{ if .PowerBracket }}
-                      <span class="mt-chip">{{ .PowerBracket }}</span>
-                    {{ end }}
-                  </div>
-
-                  {{ if .Tags }}
-                    <div class="flex flex-wrap gap-1 pt-1">
-                      {{ range splitTags .Tags }}
-                        <span class="{{ publicTagChipClass . }}">{{ . }}</span>
-                      {{ end }}
-                    </div>
-                  {{ end }}
-                </div>
+                <strong>{{ $ctx.GuessPagination.Total }}</strong>
               </div>
-            </article>
-          {{ end }}
-        </div>
-      {{ else }}
-        <div class="mt-empty-state text-center">No public decks yet.</div>
+              {{ if $ctx.GuessAwards }}
+                <div class="mt-profile-award-grid">
+                  {{ range $ctx.GuessAwards }}
+                    <article data-card-detail-root
+                             data-oracle-id="{{ .OracleID }}"
+                             data-detail-path="{{ .DetailPath }}"
+                             data-name="{{ .CardName }}"
+                             data-image-uri="{{ .ImageURI }}">
+                      <button type="button" data-card-detail aria-label="View details for {{ .CardName }}">
+                        {{ if .ImageURI }}<img src="{{ .ImageURI }}" alt="{{ .CardName }}" loading="lazy">{{ else }}<span>Won card</span>{{ end }}
+                      </button>
+                      <div><strong>{{ .CardName }}</strong><span>{{ .GuessCount }} guesses</span></div>
+                    </article>
+                  {{ end }}
+                </div>
+              {{ else }}
+                <p class="mt-profile-award-empty">No daily Guess the Card wins yet.</p>
+              {{ end }}
+              {{ if gt $ctx.GuessPagination.TotalPages 1 }}
+                <nav class="mt-profile-pagination" aria-label="Cards guessed correctly pages">
+                  {{ if $ctx.GuessPagination.PrevURL }}<a href="{{ $ctx.GuessPagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
+                  <span>Page {{ $ctx.GuessPagination.Page }} of {{ $ctx.GuessPagination.TotalPages }}</span>
+                  {{ if $ctx.GuessPagination.NextURL }}<a href="{{ $ctx.GuessPagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
+                </nav>
+              {{ end }}
+            </section>
+
+            <section class="mt-profile-award-group" aria-labelledby="tombscript-awards-title">
+              <div class="mt-profile-award-group__head">
+                <div>
+                  <h3 id="tombscript-awards-title">Tombscript Cards Won</h3>
+                  <p>Daily Tombscript wins</p>
+                </div>
+                <strong>{{ $ctx.SpellifyPagination.Total }}</strong>
+              </div>
+              {{ if $ctx.SpellifyAwards }}
+                <div class="mt-profile-award-grid mt-profile-award-grid--tombscript">
+                  {{ range $ctx.SpellifyAwards }}
+                    <article data-card-detail-root
+                             data-oracle-id="{{ .OracleID }}"
+                             data-detail-path="{{ .DetailPath }}"
+                             data-name="{{ .CardName }}"
+                             data-image-uri="{{ .ImageURI }}">
+                      <button type="button" data-card-detail aria-label="View details for {{ .CardName }}">
+                        {{ if .ImageURI }}<img src="{{ .ImageURI }}" alt="{{ .CardName }}" loading="lazy">{{ else }}<span>Won card</span>{{ end }}
+                      </button>
+                      <div><strong>{{ .CardName }}</strong><span>{{ .GuessCount }} reveal guesses</span></div>
+                    </article>
+                  {{ end }}
+                </div>
+              {{ else }}
+                <p class="mt-profile-award-empty">No daily Tombscript wins yet.</p>
+              {{ end }}
+              {{ if gt $ctx.SpellifyPagination.TotalPages 1 }}
+                <nav class="mt-profile-pagination" aria-label="Tombscript cards pages">
+                  {{ if $ctx.SpellifyPagination.PrevURL }}<a href="{{ $ctx.SpellifyPagination.PrevURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Previous</a>{{ end }}
+                  <span>Page {{ $ctx.SpellifyPagination.Page }} of {{ $ctx.SpellifyPagination.TotalPages }}</span>
+                  {{ if $ctx.SpellifyPagination.NextURL }}<a href="{{ $ctx.SpellifyPagination.NextURL }}" class="mt-btn mt-btn--secondary mt-btn--xs">Next</a>{{ end }}
+                </nav>
+              {{ end }}
+            </section>
+          </div>
+        </section>
       {{ end }}
-    </section>
+    </div>
   </main>
 
   {{ if $ctx.Stats.CanEdit }}
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        var addButton = document.querySelector("[data-profile-avatar-add]");
-        var searchForm = document.querySelector("[data-profile-avatar-search]");
-        if (!addButton || !searchForm) return;
-        addButton.addEventListener("click", function () {
-          searchForm.hidden = false;
-          var input = searchForm.querySelector("input[name='commander_name']");
-          if (input) input.focus();
-        });
-      });
-    </script>
+    <div id="profile-customize-modal" class="mt-modal hidden" role="dialog" aria-modal="true" aria-labelledby="profile-customize-title">
+      <div class="mt-modal-panel mt-profile-customize-panel">
+        <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm mt-profile-customize-close" data-profile-customize-close>Close</button>
+        <p class="mt-kicker">Profile Art</p>
+        <h2 id="profile-customize-title">Customize Profile</h2>
+        <p class="mt-profile-customize-copy">Choose art from one of your commanders or search for any card.</p>
+
+        {{ if $ctx.Stats.AvatarChoices }}
+          <div class="mt-profile-avatar-choices">
+            {{ range $ctx.Stats.AvatarChoices }}
+              <form method="POST" action="/profile/avatar">
+                <input type="hidden" name="commander_name" value="{{ .Name }}">
+                <button type="submit" class="{{ if .IsSelected }}mt-profile-avatar-choice--selected{{ end }}" aria-label="Use {{ .Name }} as profile art">
+                  <img src="{{ .ImageURI }}" alt="">
+                  <span>{{ .Name }}</span>
+                </button>
+              </form>
+            {{ end }}
+          </div>
+        {{ end }}
+
+        <form method="POST" action="/profile/avatar" class="mt-profile-avatar-search">
+          <label for="profile-avatar-card">Search card art</label>
+          <div>
+            <input id="profile-avatar-card" name="commander_name" type="search" autocomplete="off" placeholder="Card name" class="mt-control">
+            <button type="submit" class="mt-btn mt-btn--primary">Use Art</button>
+          </div>
+        </form>
+
+        <div class="mt-profile-customize-footer">
+          <form method="POST" action="/profile/avatar">
+            <input type="hidden" name="commander_name" value="">
+            <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Reset Art</button>
+          </form>
+          <a href="/settings" class="mt-btn mt-btn--secondary mt-btn--sm">Account Settings</a>
+        </div>
+      </div>
+    </div>
   {{ end }}
 
+  {{ template "card_detail_modal" . }}
+  {{ template "card_detail_modal_script" . }}
+  <script src="/assets/profile.js"></script>
   {{ template "layout_footer" . }}
 {{ end }}

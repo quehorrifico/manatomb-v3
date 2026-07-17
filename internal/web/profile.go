@@ -19,6 +19,8 @@ type profilePageData struct {
 	Profile            account.PublicProfile
 	Items              []deckListItem
 	Stats              profileStatsData
+	ActiveTab          string
+	AwardTotal         int
 	FavoritePrintings  []profileFavoritePrintingView
 	FavoriteView       string
 	GuessAwards        []profileGuessAwardView
@@ -61,11 +63,14 @@ type profileFavoritePrintingView struct {
 	OracleID        string
 	Name            string
 	ImageURI        string
+	SetName         string
+	SetCode         string
 	SetLabel        string
 	CollectorNumber string
 	Rarity          string
 	PriceUSD        string
 	Artist          string
+	ReleasedAt      string
 	DetailPath      string
 	FavoritedLabel  string
 }
@@ -152,6 +157,7 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 	stats := buildProfileStats(*profile, publicDecks, items, customAvatar)
 	stats.CanEdit = currentUser != nil && currentUser.ID == profile.ID
 	const profilePageSize = 24
+	activeTab := normalizeProfileTab(r.URL.Query())
 	favoriteTotal, err := countFavoritePrintings(r.Context(), a.DB, profile.ID)
 	if err != nil {
 		a.RenderServerError(w, r, err)
@@ -172,20 +178,27 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 	guessPagination := buildProfilePagination(r.URL.Query(), profile.ID, "guess_page", queryPage(r, "guess_page"), guessTotal, profilePageSize)
 	spellifyPagination := buildProfilePagination(r.URL.Query(), profile.ID, "tombscript_page", queryPage(r, "tombscript_page"), spellifyTotal, profilePageSize)
 
-	favoritePrintings, err := listFavoritePrintingsPage(r.Context(), a.DB, profile.ID, profilePageSize, (favoritePagination.Page-1)*profilePageSize)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
+	var favoritePrintings []favoritePrintingData
+	var awards []guessCardAward
+	var spellifyAwards []spellifyAward
+	if activeTab == "favorites" {
+		favoritePrintings, err = listFavoritePrintingsPage(r.Context(), a.DB, profile.ID, profilePageSize, (favoritePagination.Page-1)*profilePageSize)
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
 	}
-	awards, err := listGuessCardAwardsPage(r.Context(), a.DB, profile.ID, profilePageSize, (guessPagination.Page-1)*profilePageSize)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
-	spellifyAwards, err := listSpellifyAwardsPage(r.Context(), a.DB, profile.ID, profilePageSize, (spellifyPagination.Page-1)*profilePageSize)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
+	if activeTab == "achievements" {
+		awards, err = listGuessCardAwardsPage(r.Context(), a.DB, profile.ID, profilePageSize, (guessPagination.Page-1)*profilePageSize)
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
+		spellifyAwards, err = listSpellifyAwardsPage(r.Context(), a.DB, profile.ID, profilePageSize, (spellifyPagination.Page-1)*profilePageSize)
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
 	}
 
 	a.Renderer.Render(w, "profile_show", TemplateData{
@@ -194,6 +207,8 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 			Profile:            *profile,
 			Items:              items,
 			Stats:              stats,
+			ActiveTab:          activeTab,
+			AwardTotal:         guessTotal + spellifyTotal,
 			FavoritePrintings:  buildProfileFavoritePrintingViews(favoritePrintings),
 			FavoriteView:       normalizeProfileFavoriteView(r.URL.Query().Get("favorites_view")),
 			GuessAwards:        buildProfileGuessAwardViews(awards),
@@ -213,6 +228,24 @@ func queryPage(r *http.Request, key string) int {
 		return 1
 	}
 	return page
+}
+
+func normalizeProfileTab(values url.Values) string {
+	switch strings.ToLower(strings.TrimSpace(values.Get("tab"))) {
+	case "favorites":
+		return "favorites"
+	case "achievements":
+		return "achievements"
+	case "decks":
+		return "decks"
+	}
+	if values.Has("favorites_view") || values.Has("favorites_page") {
+		return "favorites"
+	}
+	if values.Has("guess_page") || values.Has("tombscript_page") {
+		return "achievements"
+	}
+	return "decks"
 }
 
 func buildProfilePagination(values url.Values, userID int64, key string, page, total, pageSize int) profilePagination {
@@ -274,8 +307,10 @@ func buildProfileSpellifyAwardViews(items []spellifyAward) []profileSpellifyAwar
 
 func normalizeProfileFavoriteView(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "stacks", "text", "columns":
+	case "stacks", "text", "table":
 		return strings.ToLower(strings.TrimSpace(raw))
+	case "columns":
+		return "table"
 	default:
 		return "grid"
 	}
@@ -293,11 +328,14 @@ func buildProfileFavoritePrintingViews(items []favoritePrintingData) []profileFa
 			OracleID:        item.OracleID,
 			Name:            item.Name,
 			ImageURI:        imageURI,
+			SetName:         item.SetName,
+			SetCode:         strings.ToUpper(strings.TrimSpace(item.SetCode)),
 			SetLabel:        profilePrintingSetLabel(item),
 			CollectorNumber: item.CollectorNumber,
 			Rarity:          cardMetaValue(item.Rarity, "Unknown"),
 			PriceUSD:        formatCardPrice(item.PriceUSD),
 			Artist:          cardMetaValue(item.Artist, "Unknown"),
+			ReleasedAt:      item.ReleasedAt,
 			DetailPath:      cardPrintingDetailPath(item.OracleID, item.ScryfallID),
 			FavoritedLabel:  formatProfileJoined(item.CreatedAt),
 		})

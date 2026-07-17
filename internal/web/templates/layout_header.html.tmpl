@@ -80,13 +80,180 @@
     }
 
     .mt-nav-link {
+      position: relative;
+      display: inline-flex;
+      min-height: 2.1rem;
+      align-items: center;
+      padding: 0.48rem 0.2rem 0.58rem;
       color: rgb(203 213 225);
-      font-size: 0.86rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1.15;
+      white-space: nowrap;
       transition: color 140ms ease;
     }
 
     .mt-nav-link:hover {
       color: var(--mt-accent-strong);
+    }
+
+    .mt-nav-link:focus-visible {
+      outline: 2px solid var(--mt-accent-strong);
+      outline-offset: 2px;
+    }
+
+    .mt-nav-link[aria-current="page"] {
+      color: rgb(240 249 255);
+    }
+
+    .mt-nav-link[aria-current="page"]::after {
+      position: absolute;
+      right: 0.2rem;
+      bottom: 0.12rem;
+      left: 0.2rem;
+      height: 2px;
+      border-radius: 9999px;
+      background: var(--mt-accent-strong);
+      content: "";
+    }
+
+    .mt-site-nav {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 1rem;
+    }
+
+    .mt-site-nav__primary {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 0.9rem;
+    }
+
+    .mt-site-nav__account {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+    }
+
+    .mt-site-nav__primary + .mt-site-nav__account {
+      border-left: 1px solid rgba(51, 65, 85, 0.8);
+      padding-left: 0.75rem;
+    }
+
+    .mt-site-menu-toggle {
+      display: none;
+      width: 2.35rem;
+      height: 2.35rem;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(71, 85, 105, 0.92);
+      border-radius: 0.58rem;
+      background: rgba(15, 23, 42, 0.9);
+      color: rgb(226 232 240);
+    }
+
+    .mt-site-menu-toggle:hover {
+      border-color: rgba(56, 189, 248, 0.55);
+      color: rgb(186 230 253);
+    }
+
+    .mt-site-menu-toggle:focus-visible {
+      outline: 2px solid var(--mt-accent-strong);
+      outline-offset: 2px;
+    }
+
+    .mt-site-menu-toggle svg {
+      width: 1.15rem;
+      height: 1.15rem;
+    }
+
+    .mt-site-menu-toggle [data-menu-icon="close"],
+    .mt-site-menu-toggle[aria-expanded="true"] [data-menu-icon="open"] {
+      display: none;
+    }
+
+    .mt-site-menu-toggle[aria-expanded="true"] [data-menu-icon="close"] {
+      display: block;
+    }
+
+    @media (max-width: 1023px) {
+      .mt-site-nav {
+        width: 100%;
+        align-items: flex-start;
+      }
+
+      .mt-site-nav__primary {
+        flex: 1;
+        flex-wrap: wrap;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .mt-site-header__inner {
+        position: relative;
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .mt-site-menu-toggle {
+        position: absolute;
+        top: 0.75rem;
+        right: 1rem;
+        z-index: 2;
+        display: inline-flex;
+      }
+
+      .mt-site-nav {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        border-top: 1px solid rgba(51, 65, 85, 0.78);
+        padding-top: 0.35rem;
+      }
+
+      .mt-site-nav[data-open="true"] {
+        display: flex;
+      }
+
+      .mt-site-nav__primary {
+        width: 100%;
+        flex: none;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+      }
+
+      .mt-site-nav__primary + .mt-site-nav__account {
+        width: 100%;
+        border-left: 0;
+        padding: 0.7rem 0 0.25rem;
+      }
+
+      .mt-nav-link {
+        width: 100%;
+        min-height: 2.75rem;
+        border-bottom: 1px solid rgba(30, 41, 59, 0.88);
+        padding: 0.75rem 0.5rem 0.75rem 1rem;
+        font-size: 0.84rem;
+      }
+
+      .mt-nav-link[aria-current="page"]::after {
+        top: 0.68rem;
+        right: auto;
+        bottom: 0.68rem;
+        left: 0;
+        width: 2px;
+        height: auto;
+      }
+
+      .mt-site-nav__account .mt-btn {
+        width: 100%;
+      }
     }
 
     .mt-site-header {
@@ -974,6 +1141,84 @@
       box-shadow: 0 24px 50px rgba(2, 6, 23, 0.45);
     }
 
+    #card-detail-modal {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #card-detail-modal .mt-modal-panel {
+      max-height: calc(100vh - 2rem);
+      max-height: calc(100dvh - 2rem);
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-gutter: stable;
+    }
+
+    #card-detail-modal [data-close-modal] {
+      z-index: 2;
+    }
+
+    #card-detail-modal [data-field="name"] {
+      padding-right: 4.75rem;
+      overflow-wrap: anywhere;
+    }
+
+    #card-detail-modal [data-field="type-line"],
+    #card-detail-modal [data-field="oracle-text"],
+    #card-detail-modal [data-field="printing-meta"] {
+      overflow-wrap: anywhere;
+    }
+
+    #card-detail-modal [data-field="printing-select"] {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    @media (max-width: 767px) {
+      #card-detail-modal {
+        align-items: flex-start;
+        padding: max(0.5rem, env(safe-area-inset-top)) 0.5rem max(0.5rem, env(safe-area-inset-bottom));
+      }
+
+      #card-detail-modal .mt-modal-panel {
+        max-height: calc(100vh - 1rem);
+        max-height: calc(100dvh - max(0.5rem, env(safe-area-inset-top)) - max(0.5rem, env(safe-area-inset-bottom)));
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+      }
+
+      #card-detail-modal [data-close-modal] {
+        position: sticky;
+        top: 0;
+        right: auto;
+        display: flex;
+        margin: 0 0 0.5rem auto;
+      }
+
+      #card-detail-modal [data-field="image"] {
+        width: auto;
+        max-width: min(76vw, 18rem);
+        max-height: 42dvh;
+        object-fit: contain;
+      }
+
+      #card-detail-modal [data-field="name"] {
+        padding-right: 0;
+        font-size: 1rem;
+        line-height: 1.35;
+      }
+    }
+
+    @media (max-width: 420px) {
+      #card-detail-modal [data-field="open-page-link"],
+      #card-detail-modal [data-flip-card] {
+        flex: 1 1 100%;
+        justify-content: center;
+      }
+    }
+
     .mt-preview-panel {
       border: 1px solid rgba(51, 65, 85, 0.92);
       border-radius: 1rem;
@@ -1820,66 +2065,119 @@
   <div class="min-h-screen flex flex-col">
     {{ if not .HideHeader }}
       <header class="mt-site-header border-b border-slate-800 bg-slate-900/80 backdrop-blur">
-        <div class="{{ if .HomeHeader }}max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4{{ else }}max-w-5xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4{{ end }}">
-          <a href="/" class="flex items-center gap-2">
+        <div class="mt-site-header__inner max-w-7xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <a href="/" class="flex shrink-0 items-center gap-2">
             <div class="h-7 w-7 rounded-full border border-sky-400/60 bg-sky-500/10 flex items-center justify-center text-sky-300 font-bold text-xs">
               MT
             </div>
             <span class="text-base font-semibold tracking-wide">Mana Tomb</span>
           </a>
 
-          {{ if not .HomeHeader }}
-            <form action="/cards" method="GET" class="flex-1 min-w-0">
-              <input type="hidden" name="sort" value="relevance">
-              <input type="hidden" name="sort_dir" value="desc">
-              <label for="site-card-search" class="sr-only">Search cards</label>
-              <div class="relative" data-card-autocomplete-root>
-                <input
-                  id="site-card-search"
-                  name="q"
-                  type="text"
-                  placeholder="Search cards"
-                  class="mt-control mt-control--sm w-full !pr-24"
-                  autocomplete="off"
-                  aria-autocomplete="list"
-                  aria-expanded="false"
-                  aria-haspopup="listbox"
-                  data-card-autocomplete-input
-                />
-                <div
-                  data-card-autocomplete-menu
-                  class="mt-autocomplete-menu hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
-                  role="listbox"></div>
-                <button
-                  type="submit"
-                  class="mt-header-search-submit absolute right-1 top-1/2 mt-btn mt-btn--primary mt-btn--xs"
-                >
-                  Search
-                </button>
-              </div>
-            </form>
-          {{ end }}
+          <form action="/cards" method="GET" class="flex-1 min-w-0">
+            <input type="hidden" name="sort" value="relevance">
+            <input type="hidden" name="sort_dir" value="desc">
+            <label for="site-card-search" class="sr-only">Search cards</label>
+            <div class="relative" data-card-autocomplete-root>
+              <input
+                id="site-card-search"
+                name="q"
+                type="text"
+                placeholder="Search cards"
+                class="mt-control mt-control--sm w-full !pr-24"
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-haspopup="listbox"
+                data-card-autocomplete-input
+              />
+              <div
+                data-card-autocomplete-menu
+                class="mt-autocomplete-menu hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                role="listbox"></div>
+              <button
+                type="submit"
+                class="mt-header-search-submit absolute right-1 top-1/2 mt-btn mt-btn--primary mt-btn--xs"
+              >
+                Search
+              </button>
+            </div>
+          </form>
 
-          <nav class="flex items-center flex-wrap justify-end gap-3 text-sm">
-            {{ if or (not .HomeHeader) .CurrentUser }}
-              <a href="/decks/new" class="mt-nav-link">Builder</a>
-              <a href="/cards/search" class="mt-nav-link">Advanced Search</a>
-              <a href="/decks/public" class="mt-nav-link">Browse Decks</a>
+          <button type="button"
+                  class="mt-site-menu-toggle"
+                  aria-label="Open navigation"
+                  aria-controls="site-primary-navigation"
+                  aria-expanded="false"
+                  data-site-menu-toggle>
+            <svg data-menu-icon="open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+            <svg data-menu-icon="close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+
+          <nav id="site-primary-navigation" class="mt-site-nav" aria-label="Primary navigation" data-open="false" data-site-nav>
+            <div class="mt-site-nav__primary">
+              <a href="/decks/new" class="mt-nav-link"{{ if eq .ActiveNav "builder" }} aria-current="page"{{ end }}>Builder</a>
+              <a href="/cards/search" class="mt-nav-link"{{ if eq .ActiveNav "cards" }} aria-current="page"{{ end }}>Advanced Search</a>
+              <a href="/decks/public" class="mt-nav-link"{{ if eq .ActiveNav "public-decks" }} aria-current="page"{{ end }}>Browse Decks</a>
               {{ if .CurrentUser }}
-                <a href="/decks" class="mt-nav-link">My Decks</a>
-                <a href="{{ userProfilePath .CurrentUser.ID }}" class="mt-nav-link">Profile</a>
+                <a href="/decks" class="mt-nav-link"{{ if eq .ActiveNav "my-decks" }} aria-current="page"{{ end }}>My Decks</a>
+                <a href="{{ userProfilePath .CurrentUser.ID }}" class="mt-nav-link"{{ if eq .ActiveNav "profile" }} aria-current="page"{{ end }}>Profile</a>
               {{ end }}
-            {{ end }}
-            {{ if .CurrentUser }}
-              <a href="/settings" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">
-                Settings
-              </a>
-            {{ else }}
-              <a href="/login" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">
-                Log In
-              </a>
-            {{ end }}
+            </div>
+            <div class="mt-site-nav__account">
+              {{ if .CurrentUser }}
+                <a href="/settings" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2"{{ if eq .ActiveNav "settings" }} aria-current="page"{{ end }}>
+                  Settings
+                </a>
+              {{ else }}
+                <a href="/login" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2"{{ if eq .ActiveNav "login" }} aria-current="page"{{ end }}>
+                  Log In
+                </a>
+              {{ end }}
+            </div>
           </nav>
+
+          <script>
+            (function () {
+              var header = document.querySelector(".mt-site-header");
+              var menuToggle = header ? header.querySelector("[data-site-menu-toggle]") : null;
+              var siteNav = header ? header.querySelector("[data-site-nav]") : null;
+
+              function setMenuOpen(open) {
+                if (!menuToggle || !siteNav) return;
+                menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+                menuToggle.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
+                siteNav.setAttribute("data-open", open ? "true" : "false");
+              }
+
+              if (menuToggle && siteNav) {
+                menuToggle.addEventListener("click", function () {
+                  setMenuOpen(menuToggle.getAttribute("aria-expanded") !== "true");
+                });
+
+                siteNav.addEventListener("click", function (event) {
+                  if (event.target.closest("a")) setMenuOpen(false);
+                });
+
+                document.addEventListener("keydown", function (event) {
+                  if (event.key !== "Escape" || menuToggle.getAttribute("aria-expanded") !== "true") return;
+                  setMenuOpen(false);
+                  menuToggle.focus();
+                });
+
+                var mobileMenuQuery = window.matchMedia("(max-width: 767px)");
+                var handleMenuBreakpoint = function (event) {
+                  if (!event.matches) setMenuOpen(false);
+                };
+                if (mobileMenuQuery.addEventListener) mobileMenuQuery.addEventListener("change", handleMenuBreakpoint);
+                else mobileMenuQuery.addListener(handleMenuBreakpoint);
+              }
+
+            })();
+          </script>
         </div>
       </header>
     {{ end }}
