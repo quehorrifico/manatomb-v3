@@ -1,0 +1,11 @@
+{
+  "name": "manatomb-web-assets",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss --config tailwind.config.cjs --input internal/web/tailwind.input.css --output internal/web/assets/tailwind.css --minify",
+    "watch:css": "tailwindcss --config tailwind.config.cjs --input internal/web/tailwind.input.css --output internal/web/assets/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

@@ -2,31 +2,37 @@
   {{ template "layout_header" . }}
   {{ $d := .Data }}
 
-  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="space-y-2">
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Deck Builder</h1>
-      </div>
-    </div>
+  <div class="mt-builder-page">
+    {{ if eq $d.Mode "sandbox" }}
+      <header class="mt-builder-page__heading">
+        <p class="mt-kicker">Deck builder</p>
+        <h1>Blank deck</h1>
+      </header>
 
-    <section class="mt-panel p-5 sm:p-6">
-      {{ if eq $d.Mode "sandbox" }}
+      <section class="mt-panel p-5 sm:p-6">
         <div class="space-y-5">
           <div class="space-y-2">
             <p class="mt-kicker">Sandbox</p>
-            <h2 class="text-xl font-semibold tracking-tight text-slate-100">Sandbox Deck</h2>
+            <h2 class="mt-builder-page__section-title">Sandbox Deck</h2>
           </div>
 
           <div class="flex justify-end">
             <a href="/decks/new/sandbox" class="mt-btn mt-btn--primary">Start Deck</a>
           </div>
         </div>
+      </section>
 
-      {{ else if eq $d.Mode "import" }}
+    {{ else if eq $d.Mode "import" }}
+      <header class="mt-builder-page__heading">
+        <p class="mt-kicker">Deck builder</p>
+        <h1>Import a decklist</h1>
+      </header>
+
+      <section class="mt-panel p-5 sm:p-6">
         <div class="space-y-5">
           <div class="space-y-2">
             <p class="mt-kicker">Import</p>
-            <h2 class="text-xl font-semibold tracking-tight text-slate-100">Import Deck</h2>
+            <h2 class="mt-builder-page__section-title">Import Deck</h2>
             <p class="mt-hint">Paste a decklist. Commander imports are detected automatically.</p>
           </div>
 
@@ -47,15 +53,15 @@
         </div>
         {{ if gt (len $d.ImportUnmatched) 0 }}
           <div id="import-unmatched-modal" class="mt-modal">
-            <div class="mt-modal-panel max-w-xl border-rose-500/60 bg-slate-900">
+            <div class="mt-modal-panel mt-builder-unmatched-panel">
               <div class="flex items-center justify-between gap-3 mb-3">
-                <h4 class="text-sm font-semibold text-rose-200">Unmatched cards</h4>
+                <h4 class="mt-builder-unmatched-panel__title">Unmatched cards</h4>
                 <button type="button" data-dismiss-import-unmatched class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">Dismiss</button>
               </div>
-              <div class="max-h-56 overflow-y-auto rounded-md border border-rose-500/30 bg-slate-950/70 p-2">
+              <div class="mt-builder-unmatched-panel__list">
                 <ul class="space-y-1">
                   {{ range $name := $d.ImportUnmatched }}
-                    <li class="text-sm text-rose-200">{{ $name }}</li>
+                    <li>{{ $name }}</li>
                   {{ end }}
                 </ul>
               </div>
@@ -72,29 +78,157 @@
             })();
           </script>
         {{ end }}
+      </section>
 
-      {{ else }}
-        <div class="space-y-4">
-          <div class="grid gap-4 md:grid-cols-3">
-            <a href="/decks/new/commander/" class="mt-action-card">
-              <p class="text-lg font-semibold text-slate-100">Commander Deck</p>
-              <p class="mt-hint mt-2">Build around a commander.</p>
-            </a>
+    {{ else }}
+      <div class="mt-builder-start" data-builder-start>
+        <header class="mt-builder-start__heading">
+          <h1>How do you want to start?</h1>
+          {{ if .CurrentUser }}
+            <p>Choose a starting point, then shape and save the deck from one shared workspace.</p>
+          {{ else }}
+            <p>Build and playtest without an account. Your draft stays saved on this device until you sign in. Support for more formats coming soon.</p>
+          {{ end }}
+        </header>
 
-            <a href="/decks/new/sandbox" class="mt-action-card">
-              <p class="text-lg font-semibold text-slate-100">Sandbox</p>
-              <p class="mt-hint mt-2">Start from scratch.</p>
-            </a>
-
-            <a href="/decks/import" class="mt-action-card">
-              <p class="text-lg font-semibold text-slate-100">Import</p>
-              <p class="mt-hint mt-2">Paste a decklist.</p>
-            </a>
-          </div>
+        <div class="mt-builder-resume-block" data-builder-resume-block hidden>
+          <a href="/decks/new/workbench"
+             class="mt-builder-resume"
+             data-builder-resume
+             data-builder-resume-link
+             aria-labelledby="builder-resume-title"
+             aria-describedby="builder-resume-format builder-resume-warning">
+            <h2 id="builder-resume-title" data-builder-resume-title>Resume your draft</h2>
+            <p id="builder-resume-format" class="mt-builder-resume__format" data-builder-resume-format>Format</p>
+            <p id="builder-resume-warning" class="mt-builder-resume__warning">Starting another deck will replace this device draft.</p>
+          </a>
         </div>
-      {{ end }}
-    </section>
-  </main>
+
+        <section class="mt-builder-start__choices" aria-label="Start a new deck">
+          <a href="/decks/new/commander/" class="mt-builder-start__choice">
+            <h2 class="mt-builder-start__choice-title">Commander</h2>
+            <span class="mt-builder-start__choice-copy">100 card, singleton, multiplayer format where you build around your chosen "Commander" and use only cards in its color identity</span>
+          </a>
+
+          <a href="/decks/new/workbench?format=Standard&amp;reset=1" class="mt-builder-start__choice">
+            <h2 class="mt-builder-start__choice-title">Standard</h2>
+            <span class="mt-builder-start__choice-copy">60 card, rotating format using cards from recent sets</span>
+          </a>
+
+          <a href="/decks/new/sandbox" class="mt-builder-start__choice">
+            <h2 class="mt-builder-start__choice-title">Sandbox</h2>
+            <span class="mt-builder-start__choice-copy">No format restrictions</span>
+          </a>
+        </section>
+
+        <div class="mt-builder-start__import-section">
+          <a href="/decks/import"
+             class="mt-builder-start__import"
+             aria-labelledby="builder-import-title"
+             aria-describedby="builder-import-copy">
+            <h2 id="builder-import-title">Already have a decklist?</h2>
+            <p id="builder-import-copy">Upload or paste an existing deck list and continue working on it.</p>
+          </a>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          var resumeBlock = document.querySelector("[data-builder-resume-block]");
+          var resume = document.querySelector("[data-builder-resume]");
+          if (!resumeBlock || !resume) return;
+
+          function cardMapHasCards(cardMap) {
+            if (!cardMap || typeof cardMap !== "object" || Array.isArray(cardMap)) return false;
+            return Object.keys(cardMap).some(function (name) {
+              var quantity = Number(cardMap[name]);
+              return String(name).trim() !== "" &&
+                Number.isFinite(quantity) &&
+                quantity > 0;
+            });
+          }
+
+          function draftHasCards(draft) {
+            if (!draft || typeof draft !== "object" || Array.isArray(draft)) return false;
+            if (typeof draft.commanderName === "string" && draft.commanderName.trim()) return true;
+            return cardMapHasCards(draft.cards) ||
+              cardMapHasCards(draft.sideboardCards) ||
+              cardMapHasCards(draft.maybeCards);
+          }
+
+          var candidates = [];
+          [
+            { key: "manatomb.draftDeck", sandbox: false },
+            { key: "manatomb.draftDeck.sandbox", sandbox: true }
+          ].forEach(function (candidate) {
+            try {
+              var raw = localStorage.getItem(candidate.key);
+              if (!raw) return;
+              var draft = JSON.parse(raw);
+              if (!draft || typeof draft !== "object") return;
+              if (!draftHasCards(draft)) return;
+              candidate.draft = draft;
+              candidate.updatedAt = Date.parse(String(draft.updatedAt || "")) || 0;
+              candidates.push(candidate);
+            } catch (error) {
+              // An unavailable or malformed local draft should not block this page.
+            }
+          });
+
+          if (!candidates.length) return;
+          candidates.sort(function (left, right) {
+            return right.updatedAt - left.updatedAt;
+          });
+
+          var selected = candidates[0];
+          var draft = selected.draft;
+          var draftName = String(draft.name || "").trim();
+          var commanderName = String(draft.commanderName || "").trim();
+          var commanderPrintID = String(draft.commanderPrintID || "").trim();
+          var requestedFormat = String(draft.format || "").trim();
+          var supportedFormats = {{ toJSON (supportedFormats) }};
+          var format = "";
+          if (selected.sandbox) {
+            format = "Sandbox";
+          } else {
+            for (var i = 0; i < supportedFormats.length; i++) {
+              if (String(supportedFormats[i]).toLowerCase() === requestedFormat.toLowerCase()) {
+                format = supportedFormats[i];
+                break;
+              }
+            }
+          }
+          if (!format) {
+            format = selected.sandbox ? "Sandbox" : (commanderName ? "Commander" : "Sandbox");
+          }
+          var title = resume.querySelector("[data-builder-resume-title]");
+          var formatLine = resume.querySelector("[data-builder-resume-format]");
+          var link = resume.matches("[data-builder-resume-link]")
+            ? resume
+            : resume.querySelector("[data-builder-resume-link]");
+          var params = new URLSearchParams();
+
+          params.set("format", format);
+          if (selected.sandbox) params.set("sandbox", "1");
+          if (format === "Commander" && commanderName) {
+            params.set("commander_name", commanderName);
+            if (commanderPrintID) params.set("commander_print_id", commanderPrintID);
+          }
+
+          if (title) {
+            title.textContent = draftName
+              ? "Resume " + draftName
+              : (format === "Commander" && commanderName
+                ? "Resume " + commanderName
+                : "Resume your " + format.toLowerCase() + " draft");
+          }
+          if (formatLine) formatLine.textContent = "Format: " + format;
+          if (link) link.href = "/decks/new/workbench?" + params.toString();
+          resumeBlock.hidden = false;
+        })();
+      </script>
+    {{ end }}
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

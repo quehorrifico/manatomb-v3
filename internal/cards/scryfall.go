@@ -26,9 +26,9 @@ type RelatedPart struct {
 	URI       string `json:"uri"`
 }
 
-// Card is the normalized view returned by search/resolve APIs.
-// For canonical search rows, ID matches OracleID. For print rows, ID may be a
-// Scryfall printing id.
+// Card is the normalized view returned by search/resolve APIs. ID is the
+// Scryfall printing ID represented by the row; OracleID identifies the card
+// across all of its printings.
 type Card struct {
 	ID       string
 	OracleID string
@@ -52,6 +52,7 @@ type Card struct {
 	Layout               string
 	LegalAnywhere        bool
 	CommanderLegal       bool
+	Legalities           map[string]string
 	IsCommanderCandidate bool
 
 	PriceUSD   string
@@ -173,6 +174,19 @@ func preferredPriceUSD(sc scryfallCard) string {
 	return strings.TrimSpace(sc.Prices.USDEtched)
 }
 
+func normalizeLegalities(values map[string]string) map[string]string {
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		key = strings.ToLower(strings.TrimSpace(key))
+		value = strings.ToLower(strings.TrimSpace(value))
+		if key == "" || value == "" {
+			continue
+		}
+		out[key] = value
+	}
+	return out
+}
+
 // normalizeScryfallCard flattens a raw Scryfall card into one Card row.
 func normalizeScryfallCard(sc scryfallCard) Card {
 	name := strings.TrimSpace(sc.Name)
@@ -274,6 +288,7 @@ func normalizeScryfallCard(sc scryfallCard) Card {
 		Layout:         strings.TrimSpace(sc.Layout),
 		LegalAnywhere:  legalAnywhere(sc.Legalities),
 		CommanderLegal: commanderLegal,
+		Legalities:     normalizeLegalities(sc.Legalities),
 		PriceUSD:       preferredPriceUSD(sc),
 		Artist:         artist,
 		EDHRecRank:     sc.EDHRecRank,

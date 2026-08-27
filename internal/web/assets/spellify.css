@@ -1,0 +1,749 @@
+body[data-page="spellify"] .mt-page-shell {
+  max-width: none;
+  padding: 0;
+}
+
+body[data-page="spellify"] *,
+body[data-page="spellify"] *::before,
+body[data-page="spellify"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+body[data-page="spellify"] .mt-btn:hover {
+  transform: none;
+}
+
+.mt-tombscript {
+  width: min(calc(100% - clamp(2rem, 5vw, 5rem)), 88rem);
+  margin-inline: auto;
+  padding: clamp(1.2rem, 3vw, 2.2rem) 0 clamp(3rem, 7vw, 5rem);
+  color: var(--mt-text-soft);
+  font-family: var(--mt-font-sans);
+}
+
+.mt-tombscript .hidden,
+.mt-tombscript-help.hidden,
+.mt-tombscript-guess-modal.hidden {
+  display: none;
+}
+
+.mt-tombscript__top {
+  display: grid;
+  grid-template-columns: minmax(5rem, 1fr) auto minmax(5rem, 1fr);
+  align-items: end;
+  gap: 1rem;
+}
+
+.mt-tombscript__heading {
+  grid-column: 2;
+  text-align: center;
+}
+
+.mt-tombscript__heading h1 {
+  margin: 0.25rem 0 0;
+  color: var(--mt-text);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 760;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.mt-tombscript__help-button {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.mt-tombscript__status {
+  margin: 0.85rem auto 0;
+  color: var(--mt-text-muted);
+  font-size: 0.72rem;
+  font-weight: 740;
+  letter-spacing: 0.07em;
+  line-height: 1.35;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.mt-tombscript__eyebrow,
+.mt-tombscript__text-clues h2 {
+  color: var(--mt-text-muted);
+  font-size: 0.66rem;
+  font-weight: 740;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.mt-tombscript__status strong {
+  margin-left: 0.25rem;
+  color: var(--mt-text);
+  font-size: 0.82rem;
+  font-weight: 720;
+  letter-spacing: 0;
+}
+
+.mt-tombscript__game {
+  display: grid;
+  grid-template-columns: minmax(11rem, 14.5rem) minmax(0, 1fr);
+  width: min(100%, 76rem);
+  margin: clamp(1.4rem, 3vw, 2.2rem) auto 0;
+  align-items: start;
+  gap: clamp(2rem, 5vw, 4.5rem);
+}
+
+.mt-tombscript__card {
+  width: min(100%, 14.5rem);
+  margin: 0;
+}
+
+.mt-tombscript__card-link,
+.mt-tombscript__card-back,
+.mt-tombscript__card-fallback {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 4.8% / 3.5%;
+  background: var(--mt-surface);
+  box-shadow: var(--mt-shadow-card);
+}
+
+.mt-tombscript__card-link:hover {
+  border-color: var(--mt-border-strong);
+}
+
+.mt-tombscript__card-link:focus-visible {
+  border-color: var(--mt-focus-border);
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 3px;
+}
+
+.mt-tombscript__card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mt-tombscript__card-fallback {
+  padding: 1rem;
+  color: var(--mt-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.mt-tombscript__puzzle,
+.mt-tombscript__name,
+.mt-tombscript__reveal {
+  min-width: 0;
+}
+
+.mt-tombscript__eyebrow {
+  margin: 0;
+}
+
+.mt-tombscript__name-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  min-width: 0;
+  align-items: center;
+  gap: clamp(0.75rem, 3vw, 1.75rem);
+  margin-top: 0.45rem;
+}
+
+.mt-tombscript__mana-cost {
+  display: flex;
+  min-height: 2rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.24rem;
+  color: var(--mt-text-muted);
+  font-family: var(--mt-font-mono);
+  font-size: 1rem;
+}
+
+.mt-tombscript__mana-cost img,
+.mt-tombscript__masked-symbol {
+  display: inline-block;
+  width: clamp(1.6rem, 3vw, 1.9rem);
+  height: clamp(1.6rem, 3vw, 1.9rem);
+  vertical-align: -0.35rem;
+}
+
+.mt-tombscript__masked-symbol {
+  border: 1px solid var(--mt-border-control);
+  border-radius: 50%;
+  background: var(--mt-surface-raised);
+}
+
+.mt-tombscript__name-row > p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--mt-text);
+  font-family: var(--mt-font-mono);
+  font-size: clamp(1.65rem, 4vw, 2.7rem);
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  white-space: pre-wrap;
+}
+
+.mt-tombscript__text-clues {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1.25rem, 4vw, 3rem);
+  margin-top: clamp(1.4rem, 3vw, 2rem);
+}
+
+.mt-tombscript__text-clues > section {
+  min-width: 0;
+}
+
+.mt-tombscript__text-clues > section + section {
+  border-left: 1px solid var(--mt-border-subtle);
+  padding-left: clamp(1.25rem, 4vw, 3rem);
+}
+
+.mt-tombscript__text-clues h2 {
+  margin: 0;
+}
+
+.mt-tombscript__text-clues p {
+  min-height: 6.5rem;
+  margin: 0.45rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--mt-text-soft);
+  font-family: var(--mt-font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.025em;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.mt-tombscript__text-clues img {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+}
+
+.mt-tombscript__text-clues .mt-tombscript__flavor {
+  color: var(--mt-text-muted);
+  font-style: italic;
+}
+
+.mt-tombscript__actions {
+  margin-top: clamp(1.5rem, 3vw, 2.1rem);
+  border-top: 1px solid var(--mt-border-subtle);
+  padding-top: clamp(1.25rem, 3vw, 1.8rem);
+}
+
+.mt-tombscript__keyboard {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.mt-tombscript__key-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.34rem;
+}
+
+.mt-tombscript__key-row button,
+.mt-tombscript__symbol-row button {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 2.75rem;
+  place-items: center;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 0.45rem;
+  background: var(--mt-surface);
+  padding: 0.35rem 0.2rem;
+  color: var(--mt-text-soft);
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.mt-tombscript__key-row button {
+  flex: 1 1 0;
+}
+
+.mt-tombscript__key-row button:hover:not(:disabled),
+.mt-tombscript__symbol-row button:hover:not(:disabled) {
+  border-color: var(--mt-border-strong);
+  background: var(--mt-accent-soft);
+  color: var(--mt-text);
+}
+
+.mt-tombscript__key-row button:focus-visible,
+.mt-tombscript__symbol-row button:focus-visible {
+  border-color: var(--mt-focus-border);
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-tombscript__key-row button.is-hit,
+.mt-tombscript__symbol-row button.is-hit {
+  border-color: var(--mt-positive-border);
+  background: var(--mt-positive-soft);
+  color: var(--mt-positive);
+}
+
+.mt-tombscript__key-row button.is-miss,
+.mt-tombscript__symbol-row button.is-miss {
+  border-color: var(--mt-negative-border);
+  background: var(--mt-negative-soft);
+  color: var(--mt-negative);
+}
+
+.mt-tombscript__key-row button.is-hit::after,
+.mt-tombscript__symbol-row button.is-hit::after,
+.mt-tombscript__key-row button.is-miss::after,
+.mt-tombscript__symbol-row button.is-miss::after {
+  position: absolute;
+  top: -0.22rem;
+  right: -0.18rem;
+  display: grid;
+  width: 0.85rem;
+  height: 0.85rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mt-surface);
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.mt-tombscript__key-row button.is-hit::after,
+.mt-tombscript__symbol-row button.is-hit::after {
+  content: "✓";
+  color: var(--mt-positive);
+}
+
+.mt-tombscript__key-row button.is-miss::after,
+.mt-tombscript__symbol-row button.is-miss::after {
+  content: "−";
+  color: var(--mt-negative);
+}
+
+.mt-tombscript__key-row button:disabled,
+.mt-tombscript__symbol-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.82;
+}
+
+.mt-tombscript__symbol-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.34rem;
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--mt-border-subtle);
+  padding-top: 0.7rem;
+}
+
+.mt-tombscript__symbol-row button {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 2.75rem;
+}
+
+.mt-tombscript__symbol-row img {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.mt-tombscript__decision {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-top: 1.2rem;
+}
+
+.mt-tombscript__give-up button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--mt-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
+.mt-tombscript__give-up button:hover {
+  color: var(--mt-text);
+}
+
+.mt-tombscript__give-up button:focus-visible {
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 3px;
+}
+
+.mt-tombscript__result {
+  margin-top: clamp(1.5rem, 3vw, 2rem);
+  border-top: 1px solid var(--mt-border-subtle);
+  padding-top: 1.25rem;
+}
+
+.mt-tombscript__result h2 {
+  margin: 0.3rem 0 0;
+  color: var(--mt-text);
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+  font-weight: 730;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.mt-tombscript__result > p:not(.mt-tombscript__eyebrow) {
+  margin: 0.45rem 0 0;
+  color: var(--mt-text-muted);
+  font-size: 0.82rem;
+}
+
+.mt-tombscript__result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.1rem;
+}
+
+.mt-tombscript-help,
+.mt-tombscript-guess-modal {
+  align-items: center;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--mt-bg) 90%, transparent);
+  padding: 1rem;
+}
+
+.mt-tombscript-help__panel,
+.mt-tombscript-guess-modal__panel {
+  position: relative;
+  width: min(100%, 34rem);
+  max-width: 34rem;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 0.9rem;
+  background: var(--mt-surface);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  box-shadow: var(--mt-shadow-popover);
+  color: var(--mt-text-soft);
+}
+
+.mt-tombscript-help__panel:focus,
+.mt-tombscript-guess-modal__panel:focus {
+  outline: 0;
+}
+
+.mt-tombscript-modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 50%;
+  background: var(--mt-surface);
+  padding: 0;
+  color: var(--mt-text-muted);
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.mt-tombscript-modal-close:hover {
+  border-color: var(--mt-border-strong);
+  color: var(--mt-text);
+}
+
+.mt-tombscript-modal-close:focus-visible {
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-tombscript-help__panel h2,
+.mt-tombscript-guess-modal__panel h2 {
+  margin: 0;
+  padding-right: 2.8rem;
+  color: var(--mt-text);
+  font-size: clamp(1.45rem, 4vw, 2rem);
+  font-weight: 740;
+  letter-spacing: -0.035em;
+}
+
+.mt-tombscript-help__content {
+  margin-top: 1rem;
+}
+
+.mt-tombscript-help__content ol {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--mt-text-soft);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.mt-tombscript-help__pool {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--mt-border-subtle);
+  padding-top: 1rem;
+}
+
+.mt-tombscript-help__pool h3 {
+  margin: 0;
+  color: var(--mt-text);
+  font-size: 0.88rem;
+  font-weight: 720;
+}
+
+.mt-tombscript-help__pool p,
+.mt-tombscript-help__note {
+  margin: 0.4rem 0 0;
+  color: var(--mt-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.mt-tombscript-help__note {
+  color: var(--mt-accent-text);
+}
+
+.mt-tombscript-guess-modal__remaining {
+  margin: 0.45rem 0 0;
+  color: var(--mt-text-muted);
+  font-size: 0.78rem;
+}
+
+.mt-tombscript-guess-modal__slots {
+  display: flex;
+  min-height: 3.5rem;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.55rem 0.85rem;
+  margin: 1.35rem 0;
+  font-family: var(--mt-font-mono);
+}
+
+.mt-tombscript-guess-modal__history {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.55rem;
+  margin: -0.55rem 0 1rem;
+  color: var(--mt-text-muted);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.mt-tombscript-guess-modal__history > span {
+  font-weight: 720;
+}
+
+.mt-tombscript-guess-modal__history ul {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mt-tombscript-guess-modal__history li {
+  overflow-wrap: anywhere;
+  color: var(--mt-negative);
+}
+
+.mt-tombscript-guess-modal__history li + li::before {
+  content: "·";
+  padding-inline: 0.4rem;
+  color: var(--mt-text-muted);
+}
+
+.mt-tombscript-guess-modal__word {
+  display: inline-flex;
+  gap: 0.18rem;
+}
+
+.mt-tombscript-guess-modal__slot {
+  display: grid;
+  width: clamp(0.75rem, 3vw, 1.15rem);
+  min-height: 1.8rem;
+  place-items: end center;
+  border-bottom: 1px solid var(--mt-border-control);
+  color: var(--mt-text-muted);
+  font-size: clamp(0.8rem, 3vw, 1.05rem);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.mt-tombscript-guess-modal__slot.is-hidden {
+  color: transparent;
+}
+
+.mt-tombscript-guess-modal__punctuation {
+  display: grid;
+  min-height: 1.8rem;
+  place-items: end center;
+  color: var(--mt-text-muted);
+}
+
+.mt-tombscript-guess-modal form {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.mt-tombscript-guess-modal .mt-control {
+  width: 100%;
+}
+
+.mt-tombscript-guess-modal__message {
+  margin: 0;
+  border-left: 3px solid var(--mt-negative);
+  padding: 0.45rem 0.65rem;
+  color: var(--mt-negative);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.mt-tombscript-guess-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+@media (max-width: 43rem) {
+  .mt-tombscript {
+    width: min(calc(100% - 1.5rem), 40rem);
+    padding-top: 1rem;
+  }
+
+  .mt-tombscript__top {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .mt-tombscript__heading {
+    grid-column: 1;
+    text-align: left;
+  }
+
+  .mt-tombscript__heading h1 {
+    font-size: 2rem;
+  }
+
+  .mt-tombscript__help-button {
+    grid-column: 2;
+  }
+
+  .mt-tombscript__status {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .mt-tombscript__game {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 1.25rem;
+    gap: 1.35rem;
+  }
+
+  .mt-tombscript__card {
+    width: min(42vw, 10.5rem);
+    margin-inline: auto;
+  }
+
+  .mt-tombscript__text-clues {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1.2rem;
+  }
+
+  .mt-tombscript__text-clues > section + section {
+    border-top: 1px solid var(--mt-border-subtle);
+    border-left: 0;
+    padding-top: 1rem;
+    padding-left: 0;
+  }
+
+  .mt-tombscript__text-clues p {
+    min-height: 0;
+  }
+
+  .mt-tombscript__actions {
+    margin-top: 1.35rem;
+    padding-top: 1.2rem;
+  }
+
+  .mt-tombscript__key-row,
+  .mt-tombscript__keyboard {
+    gap: 0.22rem;
+  }
+
+  .mt-tombscript__key-row button {
+    min-height: 2.75rem;
+    border-radius: 0.35rem;
+    padding-inline: 0;
+    font-size: 0.68rem;
+  }
+
+  .mt-tombscript__symbol-row {
+    gap: 0.3rem;
+  }
+
+  .mt-tombscript__symbol-row button {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-basis: 2.75rem;
+  }
+
+  .mt-tombscript-help__panel,
+  .mt-tombscript-guess-modal__panel {
+    width: min(100%, 34rem);
+  }
+}
+
+@media (max-width: 24rem) {
+  .mt-tombscript__status {
+    font-size: 0.6rem;
+  }
+
+  .mt-tombscript__status strong {
+    font-size: 0.72rem;
+  }
+
+  .mt-tombscript__name-row {
+    gap: 0.6rem;
+  }
+
+  .mt-tombscript__name-row > p {
+    font-size: 1.45rem;
+  }
+
+  .mt-tombscript__mana-cost img,
+  .mt-tombscript__masked-symbol {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .mt-tombscript-guess-modal__actions .mt-btn {
+    width: 100%;
+  }
+}

@@ -1,0 +1,398 @@
+{{ define "cards_search_filter_form" }}
+  {{ $ctx := . }}
+    <form method="GET" action="{{ $ctx.SearchActionPath }}" class="mt-advanced-search-form" data-card-search-form>
+      {{ if not $ctx.InlineResults }}
+        <input type="hidden" name="view" value="1">
+      {{ end }}
+      <input type="hidden" name="sort" value="{{ $ctx.Sort }}">
+      {{ if $ctx.SortDirectionExplicit }}
+        <input type="hidden" name="sort_dir" value="{{ $ctx.SortDirection }}">
+      {{ end }}
+      <input type="hidden" name="search_mode" value="advanced">
+      <script type="application/json" data-card-search-type-options>{{ toJSON $ctx.TypeOptions }}</script>
+      <script type="application/json" data-card-search-type-filters>{{ toJSON $ctx.TypeFilters }}</script>
+      <script type="application/json" data-card-search-set-options>{{ toJSON $ctx.SetSuggestions }}</script>
+
+      <section class="mt-advanced-search-section mt-advanced-search-section--primary" aria-label="Card filters">
+        <div class="mt-advanced-search-grid mt-advanced-search-grid--2">
+          <div class="mt-advanced-search-field">
+            <label for="advanced-card-name" class="mt-field-label">Card name</label>
+            <div class="mt-advanced-search-autocomplete" data-card-autocomplete-root>
+              <input id="advanced-card-name"
+                     type="text"
+                     name="q"
+                     value="{{ $ctx.NameQuery }}"
+                     placeholder="Thassa's Oracle"
+                     class="mt-control"
+                     autocomplete="off"
+                     role="combobox"
+                     aria-autocomplete="list"
+                     aria-controls="advanced-card-name-menu"
+                     aria-expanded="false"
+                     aria-haspopup="listbox"
+                     data-card-autocomplete-submit="false"
+                     data-card-autocomplete-input>
+              <div id="advanced-card-name-menu"
+                   data-card-autocomplete-menu
+                   class="mt-advanced-search-menu hidden"
+                   role="listbox"></div>
+            </div>
+          </div>
+
+          <div class="mt-advanced-search-field">
+            <label for="advanced-mana-cost" class="mt-field-label">Mana cost</label>
+            <div class="mt-advanced-search-mana-builder" data-mana-cost-builder>
+              <div class="mt-advanced-search-mana-builder__value">
+                <input id="advanced-mana-cost"
+                       type="text"
+                       name="mana_cost"
+                       value="{{ $ctx.ManaCostQuery }}"
+                       placeholder="Any mana cost"
+                       class="mt-control"
+                       readonly
+                       data-mana-cost-input>
+                <button type="button" class="mt-advanced-search-inline-action" data-mana-cost-undo>Undo</button>
+                <button type="button" class="mt-advanced-search-inline-action" data-mana-cost-clear>Clear</button>
+              </div>
+              <div class="mt-advanced-search-mana-pips" role="group" aria-label="Add a mana symbol">
+                <button type="button" data-mana-symbol="{W}" aria-label="Add white mana">
+                  <img src="https://svgs.scryfall.io/card-symbols/W.svg" alt="" aria-hidden="true">
+                </button>
+                <button type="button" data-mana-symbol="{U}" aria-label="Add blue mana">
+                  <img src="https://svgs.scryfall.io/card-symbols/U.svg" alt="" aria-hidden="true">
+                </button>
+                <button type="button" data-mana-symbol="{B}" aria-label="Add black mana">
+                  <img src="https://svgs.scryfall.io/card-symbols/B.svg" alt="" aria-hidden="true">
+                </button>
+                <button type="button" data-mana-symbol="{R}" aria-label="Add red mana">
+                  <img src="https://svgs.scryfall.io/card-symbols/R.svg" alt="" aria-hidden="true">
+                </button>
+                <button type="button" data-mana-symbol="{G}" aria-label="Add green mana">
+                  <img src="https://svgs.scryfall.io/card-symbols/G.svg" alt="" aria-hidden="true">
+                </button>
+                <button type="button" data-mana-symbol="{C}" aria-label="Add colorless mana">
+                  <img src="https://svgs.scryfall.io/card-symbols/C.svg" alt="" aria-hidden="true">
+                </button>
+                <button type="button" data-mana-symbol="{1}" aria-label="Add one generic mana">
+                  <img src="https://svgs.scryfall.io/card-symbols/1.svg" alt="" aria-hidden="true">
+                </button>
+              </div>
+              <span class="sr-only" data-mana-cost-status aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div class="mt-advanced-search-field">
+            <label for="advanced-rules-text" class="mt-field-label">Rules text</label>
+            <input id="advanced-rules-text"
+                   type="text"
+                   name="text"
+                   value="{{ $ctx.TextQuery }}"
+                   placeholder="draw a card"
+                   class="mt-control">
+          </div>
+
+          <div class="mt-advanced-search-field mt-advanced-search-field--wide" data-type-filter-root>
+            <label for="advanced-type-line" class="mt-field-label">Type line</label>
+            <div class="mt-advanced-search-type-controls">
+              <div class="mt-advanced-search-autocomplete">
+                <input id="advanced-type-line"
+                       type="text"
+                       data-type-filter-input
+                       placeholder="Search card types"
+                       autocomplete="off"
+                       role="combobox"
+                       aria-autocomplete="list"
+                       aria-controls="advanced-type-line-menu"
+                       aria-describedby="advanced-type-line-status"
+                       aria-expanded="false"
+                       aria-haspopup="listbox"
+                       class="mt-control">
+                <div id="advanced-type-line-menu"
+                     data-type-filter-menu
+                     class="mt-advanced-search-menu hidden"
+                     role="listbox"></div>
+              </div>
+              <label for="advanced-type-partial" class="mt-advanced-search-type-partial">
+                <input id="advanced-type-partial"
+                       type="checkbox"
+                       name="type_partial"
+                       value="1"
+                       {{ if $ctx.TypePartial }}checked{{ end }}>
+                <span>Allow partial type matches?</span>
+              </label>
+            </div>
+            <div data-type-filter-selected class="mt-advanced-search-type-filters"></div>
+            <div data-type-filter-hidden>
+              {{ range $ctx.TypeFilters }}
+                <input type="hidden" name="type_value" value="{{ .Value }}">
+                <input type="hidden" name="type_mode" value="{{ .Mode }}">
+              {{ end }}
+            </div>
+            <span id="advanced-type-line-status" data-type-filter-status class="sr-only" aria-live="polite"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-advanced-search-section" aria-label="Color filters">
+        <div class="mt-advanced-search-field">
+          <span id="advanced-colors-label" class="mt-field-label">Colors</span>
+          <div class="mt-advanced-search-color-control">
+            <select id="advanced-color-mode" name="color_mode" class="mt-control">
+              <option value="exact" {{ if eq $ctx.ColorMode "exact" }}selected{{ end }}>Exactly these colors</option>
+              <option value="includes" {{ if eq $ctx.ColorMode "includes" }}selected{{ end }}>Include these colors</option>
+              <option value="at_most" {{ if eq $ctx.ColorMode "at_most" }}selected{{ end }}>At most these colors</option>
+            </select>
+            <div class="mt-advanced-search-color-pips" role="group" aria-labelledby="advanced-colors-label">
+              <label>
+                <input type="checkbox" name="color" value="W" aria-label="White" {{ if index $ctx.ColorsSelected "W" }}checked{{ end }}>
+                <span><img src="https://svgs.scryfall.io/card-symbols/W.svg" alt="" aria-hidden="true"></span>
+              </label>
+              <label>
+                <input type="checkbox" name="color" value="U" aria-label="Blue" {{ if index $ctx.ColorsSelected "U" }}checked{{ end }}>
+                <span><img src="https://svgs.scryfall.io/card-symbols/U.svg" alt="" aria-hidden="true"></span>
+              </label>
+              <label>
+                <input type="checkbox" name="color" value="B" aria-label="Black" {{ if index $ctx.ColorsSelected "B" }}checked{{ end }}>
+                <span><img src="https://svgs.scryfall.io/card-symbols/B.svg" alt="" aria-hidden="true"></span>
+              </label>
+              <label>
+                <input type="checkbox" name="color" value="R" aria-label="Red" {{ if index $ctx.ColorsSelected "R" }}checked{{ end }}>
+                <span><img src="https://svgs.scryfall.io/card-symbols/R.svg" alt="" aria-hidden="true"></span>
+              </label>
+              <label>
+                <input type="checkbox" name="color" value="G" aria-label="Green" {{ if index $ctx.ColorsSelected "G" }}checked{{ end }}>
+                <span><img src="https://svgs.scryfall.io/card-symbols/G.svg" alt="" aria-hidden="true"></span>
+              </label>
+              <label>
+                <input type="checkbox" name="color" value="C" aria-label="Colorless" {{ if index $ctx.ColorsSelected "C" }}checked{{ end }}>
+                <span><img src="https://svgs.scryfall.io/card-symbols/C.svg" alt="" aria-hidden="true"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-advanced-search-section" aria-label="Printing filters">
+        <div class="mt-advanced-search-grid mt-advanced-search-grid--4">
+          <div class="mt-advanced-search-field mt-advanced-search-field--rarity">
+            <span id="advanced-rarity-label" class="mt-field-label">Rarity</span>
+            <div class="mt-advanced-search-rarity-options" role="group" aria-labelledby="advanced-rarity-label">
+              <label>
+                <input type="checkbox"
+                       value="any"
+                       data-rarity-any
+                       {{ if not (or (index $ctx.RaritiesSelected "common") (index $ctx.RaritiesSelected "uncommon") (index $ctx.RaritiesSelected "rare") (index $ctx.RaritiesSelected "mythic")) }}checked{{ end }}>
+                <span>Any</span>
+              </label>
+              <label>
+                <input type="checkbox" name="rarity" value="common" {{ if index $ctx.RaritiesSelected "common" }}checked{{ end }}>
+                <span>Common</span>
+              </label>
+              <label>
+                <input type="checkbox" name="rarity" value="uncommon" {{ if index $ctx.RaritiesSelected "uncommon" }}checked{{ end }}>
+                <span>Uncommon</span>
+              </label>
+              <label>
+                <input type="checkbox" name="rarity" value="rare" {{ if index $ctx.RaritiesSelected "rare" }}checked{{ end }}>
+                <span>Rare</span>
+              </label>
+              <label>
+                <input type="checkbox" name="rarity" value="mythic" {{ if index $ctx.RaritiesSelected "mythic" }}checked{{ end }}>
+                <span>Mythic</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="mt-advanced-search-field">
+            <label for="advanced-set" class="mt-field-label">Set</label>
+            <div class="mt-advanced-search-autocomplete" data-set-autocomplete-root>
+              <input id="advanced-set"
+                     type="text"
+                     name="set"
+                     value="{{ $ctx.SetQuery }}"
+                     placeholder="Set name or code"
+                     autocomplete="off"
+                     role="combobox"
+                     aria-autocomplete="list"
+                     aria-controls="advanced-set-menu"
+                     aria-expanded="false"
+                     aria-haspopup="listbox"
+                     data-set-autocomplete-input
+                     class="mt-control">
+              <div id="advanced-set-menu"
+                   data-set-autocomplete-menu
+                   class="mt-advanced-search-menu hidden"
+                   role="listbox"></div>
+            </div>
+          </div>
+
+          <div class="mt-advanced-search-field">
+            <label for="advanced-artist" class="mt-field-label">Artist</label>
+            <input id="advanced-artist"
+                   type="text"
+                   name="artist"
+                   value="{{ $ctx.ArtistQuery }}"
+                   placeholder="Artist name"
+                   class="mt-control">
+          </div>
+
+          <div class="mt-advanced-search-field">
+            <label for="advanced-layout" class="mt-field-label">Card layout</label>
+            <select id="advanced-layout" name="layout" class="mt-control">
+              {{ range $ctx.LayoutOptions }}
+                <option value="{{ .Value }}" {{ if eq $ctx.SelectedLayout .Value }}selected{{ end }}>{{ .Label }}</option>
+              {{ end }}
+            </select>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="mt-advanced-search-section mt-advanced-search-metric-rows" aria-label="Stat and price filters">
+        {{ $statOptions := $ctx.StatOptions }}
+        {{ $statOperatorOptions := $ctx.StatOperatorOptions }}
+        <div class="mt-advanced-search-stat-rows" data-stat-rows>
+          {{ range $statFilter := $ctx.StatFilters }}
+            <div class="mt-advanced-search-field mt-advanced-search-metric-row" data-stat-row>
+              <span class="mt-field-label">Stat</span>
+              <div class="mt-advanced-search-metric-controls mt-advanced-search-metric-controls--stat">
+                <select name="stat" data-stat-select class="mt-control" aria-label="Stat">
+                  {{ range $statOptions }}
+                    <option value="{{ .Value }}" {{ if eq $statFilter.Stat .Value }}selected{{ end }}>{{ .Label }}</option>
+                  {{ end }}
+                </select>
+                <select name="stat_op" data-stat-operator class="mt-control" aria-label="Stat comparison">
+                  {{ range $statOperatorOptions }}
+                    <option value="{{ .Value }}" {{ if eq $statFilter.Operator .Value }}selected{{ end }}>{{ .Label }}</option>
+                  {{ end }}
+                </select>
+                <input type="text"
+                       name="stat_value"
+                       value="{{ $statFilter.ValueRaw }}"
+                       data-stat-value
+                       inputmode="numeric"
+                       pattern="[0-9]+"
+                       placeholder="Value"
+                       class="mt-control"
+                       aria-label="Stat value">
+                <button type="button"
+                        data-remove-stat-filter
+                        class="mt-advanced-search-remove"
+                        aria-label="Remove stat filter">×</button>
+              </div>
+            </div>
+          {{ end }}
+        </div>
+
+        <template data-stat-row-template>
+          <div class="mt-advanced-search-field mt-advanced-search-metric-row" data-stat-row>
+            <span class="mt-field-label">Stat</span>
+            <div class="mt-advanced-search-metric-controls mt-advanced-search-metric-controls--stat">
+              <select name="stat" data-stat-select class="mt-control" aria-label="Stat">
+                {{ range $ctx.StatOptions }}
+                  <option value="{{ .Value }}">{{ .Label }}</option>
+                {{ end }}
+              </select>
+              <select name="stat_op" data-stat-operator class="mt-control" aria-label="Stat comparison">
+                {{ range $ctx.StatOperatorOptions }}
+                  <option value="{{ .Value }}">{{ .Label }}</option>
+                {{ end }}
+              </select>
+              <input type="text"
+                     name="stat_value"
+                     data-stat-value
+                     inputmode="numeric"
+                     pattern="[0-9]+"
+                     placeholder="Value"
+                     class="mt-control"
+                     aria-label="Stat value">
+              <button type="button"
+                      data-remove-stat-filter
+                      class="mt-advanced-search-remove"
+                      aria-label="Remove stat filter">×</button>
+            </div>
+          </div>
+        </template>
+
+        {{ $priceOperatorOptions := $ctx.PriceOperatorOptions }}
+        <div class="mt-advanced-search-price-rows" data-price-rows>
+          {{ range $priceFilter := $ctx.PriceFilters }}
+            <div class="mt-advanced-search-field mt-advanced-search-metric-row" data-price-row>
+              <span class="mt-field-label">Price</span>
+              <div class="mt-advanced-search-metric-controls mt-advanced-search-metric-controls--price">
+                <select name="price_op" data-price-operator class="mt-control" aria-label="Price comparison">
+                  {{ range $priceOperatorOptions }}
+                    <option value="{{ .Value }}" {{ if eq $priceFilter.Operator .Value }}selected{{ end }}>{{ .Label }}</option>
+                  {{ end }}
+                </select>
+                <input type="text"
+                       name="price_value"
+                       value="{{ $priceFilter.ValueRaw }}"
+                       data-price-value
+                       inputmode="decimal"
+                       pattern="[0-9]+([.][0-9]{1,2})?"
+                       placeholder="Value in USD"
+                       class="mt-control"
+                       aria-label="Price in USD">
+                <button type="button"
+                        data-remove-price-filter
+                        class="mt-advanced-search-remove"
+                        aria-label="Remove price filter">×</button>
+              </div>
+            </div>
+          {{ end }}
+        </div>
+
+        <template data-price-row-template>
+          <div class="mt-advanced-search-field mt-advanced-search-metric-row" data-price-row>
+            <span class="mt-field-label">Price</span>
+            <div class="mt-advanced-search-metric-controls mt-advanced-search-metric-controls--price">
+              <select name="price_op" data-price-operator class="mt-control" aria-label="Price comparison">
+                {{ range $ctx.PriceOperatorOptions }}
+                  <option value="{{ .Value }}">{{ .Label }}</option>
+                {{ end }}
+              </select>
+              <input type="text"
+                     name="price_value"
+                     data-price-value
+                     inputmode="decimal"
+                     pattern="[0-9]+([.][0-9]{1,2})?"
+                     placeholder="Value in USD"
+                     class="mt-control"
+                     aria-label="Price in USD">
+              <button type="button"
+                      data-remove-price-filter
+                      class="mt-advanced-search-remove"
+                      aria-label="Remove price filter">×</button>
+            </div>
+          </div>
+        </template>
+      </section>
+
+      <section class="mt-advanced-search-summary" data-search-summary-root aria-labelledby="advanced-search-summary-title">
+        <div class="mt-advanced-search-summary__heading">
+          <h2 id="advanced-search-summary-title">Search summary</h2>
+          <p data-search-summary-count aria-live="polite">No filters selected</p>
+        </div>
+        <p id="advanced-search-range-error"
+           class="mt-advanced-search-range-error"
+           data-search-range-error
+           role="status"
+           aria-live="polite"
+           hidden>Impossible range</p>
+        <div data-search-summary-chips class="mt-advanced-search-summary__chips"></div>
+      </section>
+
+      <div class="mt-advanced-search-actions">
+        <div>
+          <a href="{{ $ctx.ClearPath }}" class="mt-btn mt-btn--secondary">Clear</a>
+          <button type="submit"
+                  class="mt-btn mt-btn--primary mt-advanced-search-submit"
+                  data-search-submit
+                  aria-describedby="advanced-search-range-error">
+            {{ if $ctx.SubmitLabel }}{{ $ctx.SubmitLabel }}{{ else if $ctx.InlineResults }}Apply filters{{ else }}View Results{{ end }}
+          </button>
+        </div>
+      </div>
+    </form>
+{{ end }}

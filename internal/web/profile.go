@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"manatomb/app/internal/account"
 	"manatomb/app/internal/cards"
@@ -23,7 +26,7 @@ type profilePageData struct {
 	AwardTotal         int
 	FavoritePrintings  []profileFavoritePrintingView
 	FavoriteView       string
-	GuessAwards        []profileGuessAwardView
+	GuessWins          []profileGuessWinView
 	SpellifyAwards     []profileSpellifyAwardView
 	FavoritePagination profilePagination
 	GuessPagination    profilePagination
@@ -48,13 +51,20 @@ type profileStatsData struct {
 	FavoriteColorPips        []manaPipView
 	AvatarImageURI           string
 	AvatarAlt                string
+	BackgroundImageURI       string
+	BackgroundAlt            string
+	ProfilePicturePrintID    string
+	ProfileBackgroundPrintID string
 	AvatarChoices            []profileAvatarChoice
 	CanEdit                  bool
 }
 
 type profileAvatarChoice struct {
+	ScryfallID string
+	OracleID   string
 	Name       string
 	ImageURI   string
+	SetLabel   string
 	IsSelected bool
 }
 
@@ -75,13 +85,14 @@ type profileFavoritePrintingView struct {
 	FavoritedLabel  string
 }
 
-type profileGuessAwardView struct {
+type profileGuessWinView struct {
 	OracleID   string
 	CardName   string
 	ImageURI   string
 	DetailPath string
 	WonLabel   string
 	GuessCount int
+	ModeLabel  string
 }
 
 type profileSpellifyAwardView struct {
@@ -125,36 +136,60 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items := make([]deckListItem, 0, len(publicDecks))
-	for _, d := range publicDecks {
+	for index, d := range publicDecks {
 		item := deckListItem{
-			ID:               d.ID,
-			OwnerID:          profile.ID,
-			OwnerDisplayName: profile.DisplayName,
-			Name:             d.Name,
-			Description:      d.Description,
-			Tags:             d.Tags,
-			Format:           d.Format,
-			CommanderName:    d.CommanderName,
-			IsPublic:         d.IsPublic,
-			PublicSlug:       d.PublicSlug,
-			PowerBracket:     d.PowerBracket,
+			ID:            d.ID,
+			Name:          d.Name,
+			Description:   d.Description,
+			Tags:          d.Tags,
+			Format:        d.Format,
+			CommanderName: d.CommanderName,
+			IsPublic:      d.IsPublic,
+			PublicSlug:    d.PublicSlug,
+			PowerBracket:  d.PowerBracket,
+			ProfileTile:   true,
+			TileOrder:     index,
+		}
+		if d.PublishedAt != nil {
+			item.PublishedLabel = d.PublishedAt.Format("Jan 2, 2006")
 		}
 		if commanderName := strings.TrimSpace(d.CommanderName); commanderName != "" {
 			if c, ok := commanderCards[strings.ToLower(commanderName)]; ok {
 				applyCommanderCardMetaToDeckItem(&item, c)
+				if strings.TrimSpace(d.CommanderPrintID) != "" {
+					if selected, selectedErr := cards.GetCardPrintingByID(
+						r.Context(),
+						a.DB,
+						c.OracleID,
+						d.CommanderPrintID,
+					); selectedErr == nil {
+						applyCommanderPrintingMetaToDeckItem(&item, selected)
+					}
+				}
 			}
 		}
 		items = append(items, item)
 	}
 
 	currentUser := CurrentUser(r)
-	customAvatar, err := a.profileCustomAvatarChoice(r, *profile, items)
+	legacyAvatar, err := a.profileCustomAvatarChoice(r, *profile, items)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+	profilePicture, err := a.profileArtworkChoiceByPrintingID(r, profile.ProfilePicturePrintID)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+	profileBackground, err := a.profileArtworkChoiceByPrintingID(r, profile.ProfileBackgroundPrintID)
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
 	}
 
-	stats := buildProfileStats(*profile, publicDecks, items, customAvatar)
+	stats := buildProfileStats(*profile, publicDecks, items, legacyAvatar)
+	applyProfileArtwork(&stats, *profile, profilePicture, profileBackground, legacyAvatar)
 	stats.CanEdit = currentUser != nil && currentUser.ID == profile.ID
 	const profilePageSize = 24
 	activeTab := normalizeProfileTab(r.URL.Query())
@@ -163,7 +198,7 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 		a.RenderServerError(w, r, err)
 		return
 	}
-	guessTotal, err := countGuessCardAwards(r.Context(), a.DB, profile.ID)
+	guessTotal, err := countGuessCardWins(r.Context(), a.DB, profile.ID)
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
@@ -178,31 +213,32 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 	guessPagination := buildProfilePagination(r.URL.Query(), profile.ID, "guess_page", queryPage(r, "guess_page"), guessTotal, profilePageSize)
 	spellifyPagination := buildProfilePagination(r.URL.Query(), profile.ID, "tombscript_page", queryPage(r, "tombscript_page"), spellifyTotal, profilePageSize)
 
-	var favoritePrintings []favoritePrintingData
-	var awards []guessCardAward
-	var spellifyAwards []spellifyAward
-	if activeTab == "favorites" {
-		favoritePrintings, err = listFavoritePrintingsPage(r.Context(), a.DB, profile.ID, profilePageSize, (favoritePagination.Page-1)*profilePageSize)
-		if err != nil {
-			a.RenderServerError(w, r, err)
-			return
-		}
+	favoritePrintings, err := listFavoritePrintingsPage(r.Context(), a.DB, profile.ID, profilePageSize, (favoritePagination.Page-1)*profilePageSize)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
 	}
-	if activeTab == "achievements" {
-		awards, err = listGuessCardAwardsPage(r.Context(), a.DB, profile.ID, profilePageSize, (guessPagination.Page-1)*profilePageSize)
-		if err != nil {
-			a.RenderServerError(w, r, err)
-			return
-		}
-		spellifyAwards, err = listSpellifyAwardsPage(r.Context(), a.DB, profile.ID, profilePageSize, (spellifyPagination.Page-1)*profilePageSize)
-		if err != nil {
-			a.RenderServerError(w, r, err)
-			return
-		}
+	guessWins, err := listGuessCardWinsPage(r.Context(), a.DB, profile.ID, profilePageSize, (guessPagination.Page-1)*profilePageSize)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+	spellifyAwards, err := listSpellifyAwardsPage(r.Context(), a.DB, profile.ID, profilePageSize, (spellifyPagination.Page-1)*profilePageSize)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
 	}
 
 	a.Renderer.Render(w, "profile_show", TemplateData{
 		CurrentUser: currentUser,
+		Meta: &PageMeta{
+			Title:        profile.DisplayName,
+			Description:  fmt.Sprintf("View %s's public decks, favorite printings, and ManaTomb achievements.", profile.DisplayName),
+			CanonicalURL: absoluteSiteURL(a.PublicBaseURL, userProfilePath(profile.ID)),
+			ImageURL:     firstNonEmptyCardFlavor(stats.BackgroundImageURI, stats.AvatarImageURI),
+			ImageAlt:     firstNonEmptyCardFlavor(stats.BackgroundAlt, stats.AvatarAlt),
+			Type:         "profile",
+		},
 		Data: profilePageData{
 			Profile:            *profile,
 			Items:              items,
@@ -211,7 +247,7 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 			AwardTotal:         guessTotal + spellifyTotal,
 			FavoritePrintings:  buildProfileFavoritePrintingViews(favoritePrintings),
 			FavoriteView:       normalizeProfileFavoriteView(r.URL.Query().Get("favorites_view")),
-			GuessAwards:        buildProfileGuessAwardViews(awards),
+			GuessWins:          buildProfileGuessWinViews(guessWins),
 			SpellifyAwards:     buildProfileSpellifyAwardViews(spellifyAwards),
 			FavoritePagination: favoritePagination,
 			GuessPagination:    guessPagination,
@@ -297,7 +333,7 @@ func buildProfileSpellifyAwardViews(items []spellifyAward) []profileSpellifyAwar
 			OracleID:   item.OracleID,
 			CardName:   item.CardName,
 			ImageURI:   item.ImageURI,
-			DetailPath: cardDetailPath(item.OracleID),
+			DetailPath: cardPrintingDetailPath(item.OracleID, item.ScryfallID),
 			WonLabel:   formatProfileJoined(item.WonAt),
 			GuessCount: item.GuessCount,
 		})
@@ -358,16 +394,21 @@ func profilePrintingSetLabel(item favoritePrintingData) string {
 	}
 }
 
-func buildProfileGuessAwardViews(items []guessCardAward) []profileGuessAwardView {
-	out := make([]profileGuessAwardView, 0, len(items))
+func buildProfileGuessWinViews(items []guessCardWin) []profileGuessWinView {
+	out := make([]profileGuessWinView, 0, len(items))
 	for _, item := range items {
-		out = append(out, profileGuessAwardView{
+		modeLabel := "Practice"
+		if item.IsDaily {
+			modeLabel = "Daily"
+		}
+		out = append(out, profileGuessWinView{
 			OracleID:   item.OracleID,
 			CardName:   item.CardName,
 			ImageURI:   item.ImageURI,
-			DetailPath: cardDetailPath(item.OracleID),
+			DetailPath: cardPrintingDetailPath(item.OracleID, item.ScryfallID),
 			WonLabel:   formatProfileJoined(item.WonAt),
 			GuessCount: item.GuessCount,
+			ModeLabel:  modeLabel,
 		})
 	}
 	return out
@@ -386,6 +427,30 @@ func (a *App) HandleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	commanderName := strings.TrimSpace(r.Form.Get("commander_name"))
+	action := strings.ToLower(strings.TrimSpace(r.Form.Get("action")))
+	if action == "random" {
+		card, err := cards.RandomCard(r.Context(), a.DB)
+		if err != nil || card == nil || strings.TrimSpace(profileAvatarCardImageURI(*card)) == "" {
+			setFlash(w, "Could not choose random card art.")
+			http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+			return
+		}
+		if err := account.UpdateProfileAvatarCommander(r.Context(), a.DB, user.ID, strings.TrimSpace(card.Name)); err != nil {
+			setFlash(w, "Could not update profile avatar.")
+			http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+			return
+		}
+		setFlash(w, "Profile avatar updated.")
+		http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+		return
+	}
+
+	selectionRequired := strings.TrimSpace(r.Form.Get("selection_required")) == "1"
+	if selectionRequired && commanderName == "" {
+		setFlash(w, "Choose a card from the suggestions first.")
+		http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+		return
+	}
 	if commanderName == "" {
 		if err := account.UpdateProfileAvatarCommander(r.Context(), a.DB, user.ID, ""); err != nil {
 			setFlash(w, "Could not update profile avatar.")
@@ -397,32 +462,53 @@ func (a *App) HandleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	publicDecks, err := decks.ListPublicDecksByUser(r.Context(), a.DB, user.ID, 60)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
-
-	allowed := false
-	for _, d := range publicDecks {
-		if strings.EqualFold(strings.TrimSpace(d.CommanderName), commanderName) {
-			allowed = true
-			commanderName = strings.TrimSpace(d.CommanderName)
-			break
+	verifiedSuggestion := false
+	if selectionRequired {
+		oracleID := strings.TrimSpace(r.Form.Get("avatar_oracle_id"))
+		if oracleID == "" {
+			setFlash(w, "Choose a card from the suggestions first.")
+			http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+			return
 		}
-	}
-	if !allowed {
-		card, err := resolveProfileAvatarCard(r, a, commanderName)
-		if err != nil {
-			if errors.Is(err, cards.ErrCardNotFound) {
-				setFlash(w, "Choose a commander from your public decks or search for a legal card.")
-				http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+		if _, err := uuid.Parse(oracleID); err != nil {
+			setFlash(w, "Choose a valid card suggestion.")
+			http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+			return
+		}
+		card, err := cards.GetCardByOracleID(r.Context(), a.DB, oracleID)
+		if err != nil || card == nil || !strings.EqualFold(strings.TrimSpace(card.Name), commanderName) {
+			if err != nil && !errors.Is(err, cards.ErrCardNotFound) {
+				a.RenderServerError(w, r, err)
 				return
 			}
-			a.RenderServerError(w, r, err)
+			setFlash(w, "Choose a valid card suggestion.")
+			http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
 			return
 		}
 		commanderName = strings.TrimSpace(card.Name)
+		verifiedSuggestion = true
+	}
+
+	if !verifiedSuggestion {
+		publicDecks, err := decks.ListPublicDecksByUser(r.Context(), a.DB, user.ID, 60)
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
+
+		allowed := false
+		for _, d := range publicDecks {
+			if strings.EqualFold(strings.TrimSpace(d.CommanderName), commanderName) {
+				allowed = true
+				commanderName = strings.TrimSpace(d.CommanderName)
+				break
+			}
+		}
+		if !allowed {
+			setFlash(w, "Choose one of your commanders or select a card suggestion.")
+			http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+			return
+		}
 	}
 
 	if err := account.UpdateProfileAvatarCommander(r.Context(), a.DB, user.ID, commanderName); err != nil {
@@ -433,6 +519,221 @@ func (a *App) HandleProfileAvatarPost(w http.ResponseWriter, r *http.Request) {
 
 	setFlash(w, "Profile avatar updated.")
 	http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+}
+
+type profileArtResponse struct {
+	Target      string `json:"target"`
+	ScryfallID  string `json:"scryfall_id"`
+	OracleID    string `json:"oracle_id"`
+	Name        string `json:"name"`
+	ImageURI    string `json:"image_uri"`
+	SetLabel    string `json:"set_label"`
+	Message     string `json:"message"`
+	Error       string `json:"error,omitempty"`
+	RedirectURL string `json:"redirect_url,omitempty"`
+}
+
+func normalizeProfileArtTarget(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "picture", "profile_picture", "avatar":
+		return "picture"
+	case "background", "profile_background", "banner":
+		return "background"
+	default:
+		return ""
+	}
+}
+
+func wantsProfileArtJSON(r *http.Request) bool {
+	return r != nil && strings.Contains(strings.ToLower(r.Header.Get("Accept")), "application/json")
+}
+
+func writeProfileArtJSON(w http.ResponseWriter, status int, payload profileArtResponse) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func (a *App) HandleProfileArtPost(w http.ResponseWriter, r *http.Request) {
+	user := CurrentUser(r)
+	if user == nil {
+		if wantsProfileArtJSON(r) {
+			writeProfileArtJSON(w, http.StatusUnauthorized, profileArtResponse{
+				Error:       "Sign in to customize your profile.",
+				RedirectURL: "/login",
+			})
+			return
+		}
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		if wantsProfileArtJSON(r) {
+			writeProfileArtJSON(w, http.StatusBadRequest, profileArtResponse{Error: "Invalid profile art request."})
+			return
+		}
+		setFlash(w, "Invalid profile art request.")
+		http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+		return
+	}
+
+	target := normalizeProfileArtTarget(r.Form.Get("target"))
+	if target == "" {
+		if wantsProfileArtJSON(r) {
+			writeProfileArtJSON(w, http.StatusBadRequest, profileArtResponse{Error: "Choose profile picture or background."})
+			return
+		}
+		setFlash(w, "Choose profile picture or background.")
+		http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+		return
+	}
+
+	var selected *cards.Card
+	var err error
+	if strings.EqualFold(strings.TrimSpace(r.Form.Get("action")), "random") {
+		for attempt := 0; attempt < 5; attempt++ {
+			selected, err = cards.RandomCard(r.Context(), a.DB)
+			if err == nil && selected != nil && strings.TrimSpace(selected.ID) != "" && profileAvatarCardImageURI(*selected) != "" {
+				break
+			}
+			selected = nil
+		}
+	} else {
+		scryfallID := strings.TrimSpace(r.Form.Get("scryfall_id"))
+		if _, parseErr := uuid.Parse(scryfallID); parseErr == nil {
+			selected, err = cards.GetCardPrintingByScryfallID(r.Context(), a.DB, scryfallID)
+		} else {
+			err = cards.ErrCardNotFound
+		}
+	}
+	if err != nil || selected == nil || strings.TrimSpace(selected.ID) == "" || profileAvatarCardImageURI(*selected) == "" {
+		if err != nil && !errors.Is(err, cards.ErrCardNotFound) {
+			a.RenderServerError(w, r, err)
+			return
+		}
+		if wantsProfileArtJSON(r) {
+			writeProfileArtJSON(w, http.StatusBadRequest, profileArtResponse{Error: "Choose a printing with available artwork."})
+			return
+		}
+		setFlash(w, "Choose a printing with available artwork.")
+		http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+		return
+	}
+
+	if target == "picture" {
+		err = account.UpdateProfilePicturePrint(r.Context(), a.DB, user.ID, selected.ID)
+	} else {
+		err = account.UpdateProfileBackgroundPrint(r.Context(), a.DB, user.ID, selected.ID)
+	}
+	if err != nil {
+		if wantsProfileArtJSON(r) {
+			writeProfileArtJSON(w, http.StatusInternalServerError, profileArtResponse{Error: "Could not update profile art."})
+			return
+		}
+		setFlash(w, "Could not update profile art.")
+		http.Redirect(w, r, userProfilePath(user.ID), http.StatusSeeOther)
+		return
+	}
+
+	message := "Profile picture updated."
+	if target == "background" {
+		message = "Profile background updated."
+	}
+	choice := profileAvatarChoiceFromCard(*selected)
+	if wantsProfileArtJSON(r) {
+		writeProfileArtJSON(w, http.StatusOK, profileArtResponse{
+			Target:     target,
+			ScryfallID: choice.ScryfallID,
+			OracleID:   choice.OracleID,
+			Name:       choice.Name,
+			ImageURI:   choice.ImageURI,
+			SetLabel:   choice.SetLabel,
+			Message:    message,
+		})
+		return
+	}
+
+	setFlash(w, message)
+	returnTo := normalizeLocalReturnPath(r.Form.Get("return_to"), userProfilePath(user.ID))
+	http.Redirect(w, r, returnTo, http.StatusSeeOther)
+}
+
+func profileAvatarChoiceFromCard(card cards.Card) profileAvatarChoice {
+	setLabel := strings.TrimSpace(card.SetName)
+	setCode := strings.ToUpper(strings.TrimSpace(card.SetCode))
+	if setLabel == "" {
+		setLabel = setCode
+	} else if setCode != "" {
+		setLabel += " (" + setCode + ")"
+	}
+	if collector := strings.TrimSpace(card.CollectorNumber); collector != "" {
+		setLabel += " #" + collector
+	}
+	return profileAvatarChoice{
+		ScryfallID: strings.TrimSpace(card.ID),
+		OracleID:   strings.TrimSpace(card.OracleID),
+		Name:       strings.TrimSpace(card.Name),
+		ImageURI:   profileAvatarCardImageURI(card),
+		SetLabel:   strings.TrimSpace(setLabel),
+	}
+}
+
+func (a *App) profileArtworkChoiceByPrintingID(r *http.Request, scryfallID string) (*profileAvatarChoice, error) {
+	scryfallID = strings.TrimSpace(scryfallID)
+	if scryfallID == "" {
+		return nil, nil
+	}
+	card, err := cards.GetCardPrintingByScryfallID(r.Context(), a.DB, scryfallID)
+	if errors.Is(err, cards.ErrCardNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	choice := profileAvatarChoiceFromCard(*card)
+	if choice.ImageURI == "" {
+		return nil, nil
+	}
+	return &choice, nil
+}
+
+func applyProfileArtwork(
+	stats *profileStatsData,
+	profile account.PublicProfile,
+	profilePicture *profileAvatarChoice,
+	profileBackground *profileAvatarChoice,
+	legacyArtwork *profileAvatarChoice,
+) {
+	if stats == nil {
+		return
+	}
+	stats.ProfilePicturePrintID = strings.TrimSpace(profile.ProfilePicturePrintID)
+	stats.ProfileBackgroundPrintID = strings.TrimSpace(profile.ProfileBackgroundPrintID)
+	if profilePicture != nil && strings.TrimSpace(profilePicture.ImageURI) != "" {
+		stats.AvatarImageURI = strings.TrimSpace(profilePicture.ImageURI)
+		stats.AvatarAlt = cardMetaValue(profilePicture.Name, profile.DisplayName)
+	}
+	if profileBackground != nil && strings.TrimSpace(profileBackground.ImageURI) != "" {
+		stats.BackgroundImageURI = strings.TrimSpace(profileBackground.ImageURI)
+		stats.BackgroundAlt = cardMetaValue(profileBackground.Name, profile.DisplayName)
+	} else if legacyArtwork != nil && strings.TrimSpace(legacyArtwork.ImageURI) != "" {
+		stats.BackgroundImageURI = strings.TrimSpace(legacyArtwork.ImageURI)
+		stats.BackgroundAlt = cardMetaValue(legacyArtwork.Name, profile.DisplayName)
+	} else {
+		stats.BackgroundImageURI = stats.AvatarImageURI
+		stats.BackgroundAlt = stats.AvatarAlt
+	}
+	if stats.AvatarAlt == "" {
+		stats.AvatarAlt = profile.DisplayName
+	}
+	if stats.BackgroundAlt == "" {
+		stats.BackgroundAlt = profile.DisplayName
+	}
 }
 
 func (a *App) profileCustomAvatarChoice(r *http.Request, profile account.PublicProfile, items []deckListItem) (*profileAvatarChoice, error) {
@@ -465,17 +766,7 @@ func (a *App) profileCustomAvatarChoice(r *http.Request, profile account.PublicP
 }
 
 func resolveProfileAvatarCard(r *http.Request, a *App, name string) (*cards.Card, error) {
-	found, err := cards.SearchCards(r.Context(), a.DB, cards.CardSearchParams{
-		Query: strings.TrimSpace(name),
-		Limit: 1,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(found) == 0 {
-		return nil, cards.ErrCardNotFound
-	}
-	return &found[0], nil
+	return cards.GetCardByName(r.Context(), a.DB, strings.TrimSpace(name))
 }
 
 func profileAvatarCardImageURI(card cards.Card) string {

@@ -2,154 +2,311 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
-    <section class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="space-y-2">
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Browse Decks</h1>
+  <div class="mt-public-decks-page">
+    <header class="mt-public-decks-heading">
+      <h1>Browse Public Decks</h1>
+      <p>Explore decks published by the ManaTomb community.</p>
+    </header>
+
+    <form method="GET"
+          action="/decks/public"
+          class="mt-public-decks-browser"
+          data-public-decks-form>
+      <input type="hidden" name="sort" value="{{ $ctx.Sort }}">
+      <div class="mt-public-decks-search">
+        <label for="public-decks-name-search" class="sr-only">Search public decks by name</label>
+        <input id="public-decks-name-search"
+               type="search"
+               name="deck_name"
+               value="{{ $ctx.DeckName }}"
+               placeholder="Search public decks by name"
+               autocomplete="off"
+               enterkeyhint="search"
+               class="mt-control">
+        <button type="submit" class="sr-only">Search public decks</button>
       </div>
-    </section>
 
-    <section class="mt-panel p-5 sm:p-6 space-y-5">
-      <div class="space-y-2">
-        <p class="mt-kicker">Filters</p>
-        <h2 class="text-xl font-semibold tracking-tight text-slate-100">Find a Deck</h2>
-      </div>
+      <details class="mt-public-decks-filters">
+        <summary class="mt-public-decks-filters__summary">
+          <span class="mt-public-decks-filters__label">
+            <svg class="mt-public-decks-filters__chevron"
+                 viewBox="0 0 24 24"
+                 fill="none"
+                 stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round"
+                 stroke-linejoin="round"
+                 aria-hidden="true">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+            Filters
+          </span>
+          {{ if gt $ctx.ActiveFilters 0 }}
+            <span class="mt-public-decks-filters__count">{{ $ctx.ActiveFilters }} active</span>
+          {{ else }}
+            <span class="mt-public-decks-filters__count">Optional</span>
+          {{ end }}
+        </summary>
 
-      <form method="GET" action="/decks/public" class="space-y-5">
-        <div class="grid gap-4 md:grid-cols-2">
-          <label>
-            <span class="mt-field-label">Commander</span>
-            <input type="text"
-                   name="commander"
-                   value="{{ $ctx.CommanderName }}"
-                   placeholder="Commander name"
-                   class="mt-control">
-          </label>
-
-          <label>
-            <span class="mt-field-label">Format</span>
-            <select name="format" class="mt-control">
-              <option value="">Any format</option>
-              {{ range supportedFormats }}
-                <option value="{{ . }}" {{ if eq . $ctx.Format }}selected{{ end }}>{{ . }}</option>
-              {{ end }}
-            </select>
-          </label>
-
-          <label>
-            <span class="mt-field-label">Power Bracket</span>
-            <select name="power_bracket" class="mt-control">
-              {{ range supportedPowerBrackets }}
-                <option value="{{ . }}" {{ if eq . $ctx.PowerBracket }}selected{{ end }}>
-                  {{ if . }}{{ . }}{{ else }}Any bracket{{ end }}
-                </option>
-              {{ end }}
-            </select>
-          </label>
-
-          <fieldset class="md:col-span-2">
-            <legend class="mt-field-label">Color Identity</legend>
-            <div class="grid gap-2 sm:grid-cols-5">
-              <label class="mt-check-pill">
-                <input type="checkbox" name="color" value="W" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "W" }}checked{{ end }}>
-                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/W.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">White</span></span>
-              </label>
-              <label class="mt-check-pill">
-                <input type="checkbox" name="color" value="U" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "U" }}checked{{ end }}>
-                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/U.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Blue</span></span>
-              </label>
-              <label class="mt-check-pill">
-                <input type="checkbox" name="color" value="B" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "B" }}checked{{ end }}>
-                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/B.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Black</span></span>
-              </label>
-              <label class="mt-check-pill">
-                <input type="checkbox" name="color" value="R" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "R" }}checked{{ end }}>
-                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/R.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Red</span></span>
-              </label>
-              <label class="mt-check-pill">
-                <input type="checkbox" name="color" value="G" class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500" {{ if index $ctx.ColorSelected "G" }}checked{{ end }}>
-                <span class="mt-mana-choice"><img src="https://svgs.scryfall.io/card-symbols/G.svg" alt="" aria-hidden="true" class="mt-mana-pip"><span class="sr-only">Green</span></span>
-              </label>
+        <div class="mt-public-decks-filters__body">
+          <div class="mt-public-decks-filter-grid">
+            <div class="mt-public-decks-field">
+              <label for="public-decks-commander">Commander</label>
+              <input id="public-decks-commander"
+                     type="text"
+                     name="commander"
+                     value="{{ $ctx.CommanderName }}"
+                     placeholder="Any commander"
+                     autocomplete="off"
+                     class="mt-control">
             </div>
-          </fieldset>
-        </div>
 
-        <div class="flex flex-wrap justify-end gap-2 border-t border-slate-800 pt-4">
-          <a href="/decks/public" class="mt-btn mt-btn--secondary">Clear</a>
-          <button type="submit" class="mt-btn mt-btn--primary">Apply</button>
-        </div>
-      </form>
-    </section>
+            <div class="mt-public-decks-field">
+              <label for="public-decks-format">Format</label>
+              <select id="public-decks-format" name="format" class="mt-control">
+                <option value="">Any format</option>
+                {{ range supportedFormats }}
+                  <option value="{{ . }}" {{ if eq . $ctx.Format }}selected{{ end }}>{{ . }}</option>
+                {{ end }}
+              </select>
+            </div>
 
-    <section class="space-y-4">
-      <div class="flex items-center justify-between gap-3">
-        <h2 class="mt-section-label">Published Decks</h2>
-        <p class="text-xs text-slate-500">{{ len $ctx.Items }} result{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
+            <div class="mt-public-decks-field">
+              <label for="public-decks-power-bracket">Power bracket</label>
+              <select id="public-decks-power-bracket" name="power_bracket" class="mt-control">
+                {{ range supportedPowerBrackets }}
+                  <option value="{{ . }}" {{ if eq . $ctx.PowerBracket }}selected{{ end }}>
+                    {{ if . }}{{ . }}{{ else }}Any bracket{{ end }}
+                  </option>
+                {{ end }}
+              </select>
+            </div>
+
+            <fieldset class="mt-public-decks-archetypes">
+              <legend>Archetypes</legend>
+              <p>Matches any selected archetype.</p>
+              <div class="mt-public-decks-archetype-options">
+                {{ range supportedDeckTags }}
+                  <label class="mt-public-decks-archetype-option">
+                    <input type="checkbox"
+                           name="archetype"
+                           value="{{ . }}"
+                           aria-label="{{ . }}"
+                           class="mt-public-decks-archetype-input"
+                           {{ if index $ctx.ArchetypeSelected . }}checked{{ end }}>
+                    <span>{{ . }}</span>
+                  </label>
+                {{ end }}
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="mt-public-decks-color-section">
+            <fieldset class="mt-public-decks-color-mode">
+              <legend>Color match</legend>
+              <div class="mt-public-decks-color-mode__options">
+                <label>
+                  <input type="radio"
+                         name="color_mode"
+                         value="exact"
+                         {{ if eq $ctx.ColorMode "exact" }}checked{{ end }}>
+                  <span>Exactly these colors</span>
+                </label>
+                <label>
+                  <input type="radio"
+                         name="color_mode"
+                         value="includes"
+                         {{ if eq $ctx.ColorMode "includes" }}checked{{ end }}>
+                  <span>Include these colors</span>
+                </label>
+                <label>
+                  <input type="radio"
+                         name="color_mode"
+                         value="at_most"
+                         {{ if eq $ctx.ColorMode "at_most" }}checked{{ end }}>
+                  <span>At most these colors</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="mt-public-decks-colors">
+              <legend>Commander color identity</legend>
+              <p>Choose the symbols that should match.</p>
+              <div class="mt-public-decks-color-options" data-public-decks-color-options>
+                <label class="mt-public-decks-color-option" title="White">
+                  <input type="checkbox"
+                         name="color"
+                         value="W"
+                         aria-label="White"
+                         class="mt-public-decks-color-input"
+                         {{ if index $ctx.ColorSelected "W" }}checked{{ end }}>
+                  <span class="mt-public-decks-color-pip" aria-hidden="true">
+                    <img src="https://svgs.scryfall.io/card-symbols/W.svg" alt="">
+                  </span>
+                </label>
+                <label class="mt-public-decks-color-option" title="Blue">
+                  <input type="checkbox"
+                         name="color"
+                         value="U"
+                         aria-label="Blue"
+                         class="mt-public-decks-color-input"
+                         {{ if index $ctx.ColorSelected "U" }}checked{{ end }}>
+                  <span class="mt-public-decks-color-pip" aria-hidden="true">
+                    <img src="https://svgs.scryfall.io/card-symbols/U.svg" alt="">
+                  </span>
+                </label>
+                <label class="mt-public-decks-color-option" title="Black">
+                  <input type="checkbox"
+                         name="color"
+                         value="B"
+                         aria-label="Black"
+                         class="mt-public-decks-color-input"
+                         {{ if index $ctx.ColorSelected "B" }}checked{{ end }}>
+                  <span class="mt-public-decks-color-pip" aria-hidden="true">
+                    <img src="https://svgs.scryfall.io/card-symbols/B.svg" alt="">
+                  </span>
+                </label>
+                <label class="mt-public-decks-color-option" title="Red">
+                  <input type="checkbox"
+                         name="color"
+                         value="R"
+                         aria-label="Red"
+                         class="mt-public-decks-color-input"
+                         {{ if index $ctx.ColorSelected "R" }}checked{{ end }}>
+                  <span class="mt-public-decks-color-pip" aria-hidden="true">
+                    <img src="https://svgs.scryfall.io/card-symbols/R.svg" alt="">
+                  </span>
+                </label>
+                <label class="mt-public-decks-color-option" title="Green">
+                  <input type="checkbox"
+                         name="color"
+                         value="G"
+                         aria-label="Green"
+                         class="mt-public-decks-color-input"
+                         {{ if index $ctx.ColorSelected "G" }}checked{{ end }}>
+                  <span class="mt-public-decks-color-pip" aria-hidden="true">
+                    <img src="https://svgs.scryfall.io/card-symbols/G.svg" alt="">
+                  </span>
+                </label>
+                <label class="mt-public-decks-color-option" title="Colorless">
+                  <input type="checkbox"
+                         name="color"
+                         value="C"
+                         aria-label="Colorless"
+                         class="mt-public-decks-color-input"
+                         {{ if index $ctx.ColorSelected "C" }}checked{{ end }}>
+                  <span class="mt-public-decks-color-pip" aria-hidden="true">
+                    <img src="https://svgs.scryfall.io/card-symbols/C.svg" alt="">
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="mt-public-decks-filter-actions">
+            <a href="{{ $ctx.ClearPath }}" class="mt-btn mt-btn--secondary">Clear filters</a>
+            <button type="submit" class="mt-btn mt-btn--primary">Apply filters</button>
+          </div>
+        </div>
+      </details>
+
+      {{ if $ctx.AppliedFilters }}
+        <nav class="mt-public-decks-applied" aria-label="Applied filters">
+          <span class="mt-public-decks-applied__label">Applied</span>
+          <ul>
+            {{ range $ctx.AppliedFilters }}
+              <li>
+                <a href="{{ .RemovePath }}" aria-label="Remove filter: {{ .Label }}">
+                  <span>{{ .Label }}</span>
+                  <span aria-hidden="true">×</span>
+                </a>
+              </li>
+            {{ end }}
+          </ul>
+          <a href="{{ $ctx.ClearPath }}" class="mt-public-decks-applied__clear">Clear all</a>
+        </nav>
+      {{ end }}
+    </form>
+
+    <section class="mt-public-decks-results" aria-labelledby="public-decks-results-title">
+      <div class="mt-public-decks-results__heading">
+        <h2 id="public-decks-results-title">Public decks</h2>
+        <form method="GET"
+              action="/decks/public"
+              class="mt-public-decks-results-sort"
+              aria-label="Sort public decks">
+          {{ if $ctx.DeckName }}
+            <input type="hidden" name="deck_name" value="{{ $ctx.DeckName }}">
+          {{ end }}
+          {{ if $ctx.CommanderName }}
+            <input type="hidden" name="commander" value="{{ $ctx.CommanderName }}">
+          {{ end }}
+          {{ if $ctx.Format }}
+            <input type="hidden" name="format" value="{{ $ctx.Format }}">
+          {{ end }}
+          {{ if $ctx.PowerBracket }}
+            <input type="hidden" name="power_bracket" value="{{ $ctx.PowerBracket }}">
+          {{ end }}
+          {{ range $ctx.Archetypes }}
+            <input type="hidden" name="archetype" value="{{ . }}">
+          {{ end }}
+          {{ range $ctx.ColorFilters }}
+            <input type="hidden" name="color" value="{{ . }}">
+          {{ end }}
+          {{ if $ctx.ColorFilters }}
+            <input type="hidden" name="color_mode" value="{{ $ctx.ColorMode }}">
+          {{ end }}
+
+          <label for="public-decks-sort">Sort by</label>
+          <span id="public-decks-sort-hint" class="sr-only">Changing this option updates the results.</span>
+          <select id="public-decks-sort"
+                  name="sort"
+                  class="mt-control mt-control--sm"
+                  aria-describedby="public-decks-sort-hint"
+                  data-public-decks-sort>
+            <option value="recent" {{ if eq $ctx.Sort "recent" }}selected{{ end }}>Newest published</option>
+            <option value="updated" {{ if eq $ctx.Sort "updated" }}selected{{ end }}>Recently updated</option>
+            <option value="name" {{ if eq $ctx.Sort "name" }}selected{{ end }}>Deck name (A–Z)</option>
+            <option value="commander" {{ if eq $ctx.Sort "commander" }}selected{{ end }}>Commander (A–Z)</option>
+            <option value="oldest" {{ if eq $ctx.Sort "oldest" }}selected{{ end }}>Oldest published</option>
+          </select>
+          <noscript>
+            <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Apply</button>
+          </noscript>
+        </form>
       </div>
 
       {{ if $ctx.Items }}
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div class="mt-public-decks-grid">
           {{ range $ctx.Items }}
-            <article class="mt-action-card relative h-full cursor-pointer">
-              <a href="/decks/public/{{ .PublicSlug }}" class="absolute inset-0 z-0 rounded-lg" aria-label="Open {{ .Name }}"></a>
-              <div class="relative z-10 pointer-events-none flex gap-4">
-                <div class="h-32 w-[5.5rem] mt-card-media bg-slate-900 flex items-center justify-center shrink-0 overflow-hidden">
-                  {{ if .CommanderImageURI }}
-                    <img src="{{ .CommanderImageURI }}" alt="{{ .CommanderName }}" class="w-full h-full object-cover">
-                  {{ else }}
-                    <span class="text-[10px] uppercase tracking-wide text-slate-500">{{ if .CommanderName }}Commander{{ else }}Deck{{ end }}</span>
-                  {{ end }}
-                </div>
-
-                <div class="min-w-0 flex-1 space-y-3">
-                  <div class="space-y-1.5">
-                    <h3 class="text-base font-semibold text-slate-100 leading-tight">{{ .Name }}</h3>
-                    {{ if .OwnerDisplayName }}
-                      <p class="text-xs text-slate-400">
-                        <a href="{{ userProfilePath .OwnerID }}" class="relative z-20 pointer-events-auto text-sky-300 hover:text-sky-200">{{ .OwnerDisplayName }}</a>
-                      </p>
-                    {{ end }}
-                  </div>
-
-                  {{ if .CommanderName }}
-                    <div class="space-y-1">
-                      <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Commander</p>
-                      <p class="text-sm font-medium text-slate-100 leading-snug">{{ .CommanderName }}</p>
-                    </div>
-                  {{ end }}
-
-                  <div class="flex flex-wrap items-center gap-2">
-                    {{ if .ColorPips }}
-                      <span class="inline-flex items-center gap-1.5" aria-label="{{ .ColorIdentityName }}">
-                        {{ range .ColorPips }}
-                          <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
-                          <span class="sr-only">{{ .Label }}</span>
-                        {{ end }}
-                      </span>
-                    {{ end }}
-                    <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
-                    {{ if .PowerBracket }}
-                      <span class="mt-chip">{{ .PowerBracket }}</span>
-                    {{ end }}
-                  </div>
-
-                  {{ if .Tags }}
-                    <div class="flex flex-wrap gap-1 pt-1">
-                      {{ range splitTags .Tags }}
-                        <span class="{{ publicTagChipClass . }}">{{ . }}</span>
-                      {{ end }}
-                    </div>
-                  {{ end }}
-                </div>
-              </div>
-            </article>
+            {{ template "deck_tile" . }}
           {{ end }}
         </div>
       {{ else }}
-        <div class="mt-empty-state text-center">No matches.</div>
+        <div class="mt-public-decks-empty">
+          <h3>No public decks found</h3>
+          <p>Try broadening the filters or clear them to see the newest published decks.</p>
+        </div>
+      {{ end }}
+
+      {{ if or $ctx.HasPrevious $ctx.HasNext }}
+        <nav class="mt-public-decks-pagination" aria-label="Public deck pages">
+          {{ if $ctx.HasPrevious }}
+            <a href="{{ $ctx.PreviousPath }}" class="mt-btn mt-btn--secondary mt-btn--sm">Previous</a>
+          {{ else }}
+            <span></span>
+          {{ end }}
+          <span class="mt-public-decks-pagination__page">Page {{ $ctx.Page }}</span>
+          {{ if $ctx.HasNext }}
+            <a href="{{ $ctx.NextPath }}" class="mt-btn mt-btn--secondary mt-btn--sm">Next</a>
+          {{ else }}
+            <span></span>
+          {{ end }}
+        </nav>
       {{ end }}
     </section>
-  </main>
+  </div>
 
+  <script src="/assets/decks_public.js" defer></script>
   {{ template "layout_footer" . }}
 {{ end }}

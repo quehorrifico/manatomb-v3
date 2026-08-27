@@ -1,46 +1,56 @@
 {{ define "privacy" }}
   {{ template "layout_header" . }}
 
-  <section class="max-w-4xl mx-auto py-10 px-4 space-y-6">
-    <div class="space-y-2">
-      <p class="mt-kicker">Privacy</p>
-      <h1 class="mt-title">Privacy Notice</h1>
-      <p class="mt-copy">This page only describes the data and storage behavior currently present in Mana Tomb.</p>
-    </div>
+  <div class="mt-static-page mt-static-page--document">
+    <header class="mt-static-header">
+      <h1 class="mt-static-title">Privacy Notice</h1>
+      <p class="mt-static-lede">This page describes the data and storage behavior currently present in ManaTomb.</p>
+    </header>
 
-    <div class="mt-panel p-5 sm:p-6 space-y-5 text-sm text-slate-300 leading-6">
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">What Mana Tomb stores</h2>
-        <p>If you create an account, Mana Tomb stores your email address, display name, password hash, saved decks, and account settings.</p>
-        <p>If you publish a deck, the deck name, description, format, commander, and deck contents can become visible on the public deck pages.</p>
-        <p>If you play a daily game while signed out, Mana Tomb stores an anonymous identifier and your game progress so play can continue on the same device. Anonymous game records are removed after 90 days.</p>
+    <article class="mt-static-document">
+      <section class="mt-static-section">
+        <h2>What ManaTomb stores</h2>
+        <div class="mt-static-section__body">
+          <p>If you create an account, ManaTomb stores your email address, display name, password hash, saved decks, and account settings.</p>
+          <p>If you publish a deck, the deck name, description, format, commander, and deck contents can become visible on the public deck pages.</p>
+          <p>If you play a daily game while signed out, ManaTomb stores an anonymous identifier and your game progress so play can continue on the same device. Anonymous game records are removed after 90 days.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">Cookies and browser storage</h2>
-        <p>Mana Tomb uses a session cookie to keep you logged in and an anonymous game-progress cookie when you play a daily game while signed out.</p>
-        <p>Unsaved workbench decks, sandbox decks, and some deck-view preferences are stored in your browser with local storage so they persist between page loads on your device.</p>
+      <section class="mt-static-section">
+        <h2>Cookies and browser storage</h2>
+        <div class="mt-static-section__body">
+          <p>ManaTomb uses a session cookie to keep you logged in and an anonymous game-progress cookie when you play a daily game while signed out.</p>
+          <p>If you choose “Stay signed in on this device,” the login cookie can remain on that device for up to 30 days. If you turn it off, ManaTomb uses a browser-session cookie and the server-side session expires within 24 hours.</p>
+          <p>Unsaved workbench decks, sandbox decks, and some deck-view preferences are stored in your browser with local storage so they persist between page loads on your device.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">Third-party services</h2>
-        <p>Card data and many card images come from Scryfall, and some card-symbol assets are requested from Scryfall-hosted URLs in the browser.</p>
-        <p>If you request a password reset, the configured email delivery provider receives your email address and the reset message so it can deliver the request.</p>
-        <p>Support links in the footer point to the project&apos;s GitHub repository and issue tracker.</p>
+      <section class="mt-static-section">
+        <h2>Third-party services</h2>
+        <div class="mt-static-section__body">
+          <p>Card data and many card images come from Scryfall, and some card-symbol assets are requested from Scryfall-hosted URLs in the browser.</p>
+          <p>If you request a password reset, the configured email delivery provider receives your email address and the reset message so it can deliver the request.</p>
+          <p>Support links in the footer point to the project&apos;s GitHub repository and issue tracker.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">What this project does not currently do</h2>
-        <p>The current codebase does not include payment processing, advertising, or a dedicated third-party analytics service.</p>
+      <section class="mt-static-section">
+        <h2>What this project does not currently do</h2>
+        <div class="mt-static-section__body">
+          <p>The current codebase does not include payment processing, advertising, or a dedicated third-party analytics service.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">Your controls</h2>
-        <p>You can update your profile or delete your account from <a href="/settings" class="text-sky-300 hover:text-sky-200">Settings</a>.</p>
-        <p>You can make a deck private again from deck settings, and you can clear your browser storage if you want to remove local-only workbench data from your device.</p>
+      <section class="mt-static-section">
+        <h2>Your controls</h2>
+        <div class="mt-static-section__body">
+          <p>You can update your profile or delete your account from <a href="/settings" class="mt-static-link">Settings</a>.</p>
+          <p>You can make a deck private again from deck settings, and you can clear your browser storage if you want to remove local-only workbench data from your device.</p>
+        </div>
       </section>
-    </div>
-  </section>
+    </article>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

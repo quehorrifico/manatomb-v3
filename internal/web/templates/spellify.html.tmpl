@@ -2,361 +2,253 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8" data-tombscript-root>
-    <section class="grid gap-8 lg:grid-cols-[minmax(15rem,20rem)_1fr] lg:items-start">
-      <aside class="space-y-4">
-        <div class="relative mx-auto max-w-[17rem]">
-          <div class="absolute inset-x-8 -bottom-5 h-10 rounded-full bg-slate-950/70 blur-xl"></div>
-          {{ if $ctx.Completed }}
-            <a href="{{ $ctx.TargetDetailPath }}"
-               class="group relative block overflow-hidden rounded-2xl bg-slate-950 shadow-2xl shadow-slate-950/60 ring-1 {{ if $ctx.Won }}ring-amber-300/50{{ else }}ring-slate-700{{ end }}">
-              {{ if $ctx.TargetImageURI }}
-                <img src="{{ $ctx.TargetImageURI }}" alt="{{ $ctx.TargetName }}" class="aspect-[63/88] w-full object-cover transition group-hover:brightness-110">
-              {{ else }}
-                <span class="flex aspect-[63/88] w-full items-center justify-center px-4 text-center text-sm text-slate-400">{{ $ctx.TargetName }}</span>
-              {{ end }}
-            </a>
-          {{ else }}
-            <button type="button"
-                    data-tombscript-card-back
-                    class="relative block aspect-[63/88] w-full overflow-hidden rounded-2xl bg-slate-950 shadow-2xl shadow-slate-950/60 ring-1 ring-slate-700 transition duration-300 hover:-translate-y-1 hover:rotate-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-200"
-                    aria-label="Inspect hidden Tombscript card">
-              <img src="https://cards.scryfall.io/back.png" alt="Magic card back" class="h-full w-full object-cover">
-            </button>
-          {{ end }}
-        </div>
+  <div class="mt-tombscript" data-tombscript-root>
+    <header class="mt-tombscript__top">
+      <div class="mt-tombscript__heading">
+        {{ if $ctx.IsDaily }}<p class="mt-kicker">Daily Tombscript</p>{{ end }}
+        <h1>Tombscript</h1>
+      </div>
+      <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm mt-tombscript__help-button" data-tombscript-help-open>
+        How to Play
+      </button>
+    </header>
 
-        <div class="grid grid-cols-3 gap-2 text-center">
-          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
-            <p class="text-[10px] font-semibold uppercase text-slate-500">Status</p>
-            <p class="mt-1 text-sm font-semibold text-slate-100" data-tombscript-status>{{ $ctx.Status }}</p>
-          </div>
-          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
-            <p class="text-[10px] font-semibold uppercase text-slate-500">Guesses</p>
-            <p class="mt-1 text-sm font-semibold text-slate-100" data-tombscript-count>{{ $ctx.GuessCount }}</p>
-          </div>
-          <div class="rounded-lg border border-slate-800 bg-slate-950/45 px-3 py-2">
-            <p class="text-[10px] font-semibold uppercase text-slate-500">Award</p>
-            <p class="mt-1 text-sm font-semibold text-slate-100" data-tombscript-left>{{ $ctx.AwardStatus }}</p>
-          </div>
-        </div>
+    <p class="mt-tombscript__status" aria-label="Game status" aria-live="polite" aria-atomic="true">
+      Remaining Guesses <strong data-tombscript-remaining>{{ $ctx.RemainingGuesses }}</strong>
+    </p>
 
-        {{ if $ctx.CanGuess }}
-          <section class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/35 p-4">
-            <div class="space-y-1">
-              <h2 class="mt-section-label">Reveal</h2>
-              <p class="text-xs leading-5 text-slate-500">Type a letter or number, or use the field below on mobile.</p>
-            </div>
-            <form method="POST" action="/games/spellify" class="flex gap-2" data-tombscript-char-form>
-              <input type="hidden" name="action" value="char">
-              <label class="sr-only" for="tombscript-char">Character</label>
-              <input id="tombscript-char"
-                     name="char"
-                     type="text"
-                     maxlength="8"
-                     placeholder="G or {G}"
-                     class="mt-control min-w-0 flex-1"
-                     data-tombscript-char-input
-                     {{ if not $ctx.CanRevealChar }}disabled{{ end }}>
-              <button type="submit"
-                      class="mt-btn mt-btn--primary shrink-0"
-                      data-tombscript-char-button
-                      {{ if not $ctx.CanRevealChar }}disabled{{ end }}>Reveal</button>
-            </form>
-          </section>
+    <p class="sr-only" role="status" aria-live="polite" data-tombscript-announcement>{{ .Flash }}</p>
+
+    <section class="mt-tombscript__game{{ if $ctx.Completed }} mt-tombscript__game--completed{{ end }}" aria-label="Tombscript puzzle">
+      <figure class="mt-tombscript__card{{ if $ctx.Completed }} mt-tombscript__card--revealed{{ end }}">
+        {{ if $ctx.Completed }}
+          <a href="{{ $ctx.TargetDetailPath }}" class="mt-tombscript__card-link" aria-label="View {{ $ctx.TargetName }} card details">
+            {{ if $ctx.TargetImageURI }}
+              <img src="{{ $ctx.TargetImageURI }}" alt="{{ $ctx.TargetName }}">
+            {{ else }}
+              <span class="mt-tombscript__card-fallback">{{ $ctx.TargetName }}</span>
+            {{ end }}
+          </a>
+        {{ else }}
+          <div class="mt-tombscript__card-back" aria-hidden="true">
+            <img src="https://cards.scryfall.io/back.png" alt="">
+          </div>
+          <figcaption class="sr-only">Mystery card</figcaption>
         {{ end }}
-      </aside>
+      </figure>
 
-      <section class="space-y-6">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div class="space-y-2">
-            <p class="mt-kicker">{{ $ctx.GameModeLabel }}</p>
-            <h1 class="mt-title">Tombscript</h1>
-            <p class="max-w-2xl text-sm leading-6 text-slate-400">
-              Decode a hidden Commander staple by revealing characters in its name, rules text, and flavor text. {{ if $ctx.HasAccount }}Solve the daily card in fewer than {{ $ctx.AwardGuessLimit }} reveal guesses to add it to Tombscript Cards Won.{{ else }}Guest progress is saved on this device; sign in before a future daily card to earn profile awards.{{ end }}
-            </p>
+      <div class="mt-tombscript__puzzle">
+        <section class="mt-tombscript__name" aria-labelledby="tombscript-name-label">
+          <p id="tombscript-name-label" class="mt-tombscript__eyebrow">Card name</p>
+          <div class="mt-tombscript__name-row">
+            <p data-tombscript-name>{{ $ctx.MaskedName }}</p>
+            {{ if $ctx.HasManaCost }}
+              <div class="mt-tombscript__mana-cost" aria-label="Mana cost" data-tombscript-mana-cost>{{ $ctx.MaskedManaCost }}</div>
+            {{ end }}
           </div>
-          {{ if $ctx.CanGuess }}
-            <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm shrink-0" data-tombscript-help>How It Works</button>
-          {{ end }}
-        </div>
-
-        {{ if .Flash }}
-          <div class="rounded-lg border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{{ .Flash }}</div>
-        {{ end }}
-
-        <div class="hidden rounded-lg border px-4 py-3 text-sm" data-tombscript-message></div>
-
-        <section class="space-y-5 rounded-xl border border-slate-800 bg-slate-950/35 p-5 sm:p-6">
-          <div class="space-y-3">
-            <div class="flex items-center justify-between gap-3">
-              <h2 class="mt-section-label">Card Name</h2>
-              {{ if $ctx.CanGuess }}
-                <span class="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-200" data-tombscript-armed-label>Keyboard Ready</span>
-              {{ end }}
-            </div>
-            <p class="sr-only" data-tombscript-name-raw>{{ $ctx.MaskedName }}</p>
-            <div class="flex min-h-[3.4rem] flex-wrap items-center gap-x-2 gap-y-2 font-mono text-3xl text-slate-100 sm:text-4xl" data-tombscript-name>{{ $ctx.MaskedName }}</div>
-          </div>
-
-          <div class="grid gap-4 border-t border-slate-800 pt-5 xl:grid-cols-2">
-            <div class="space-y-2">
-              <h2 class="mt-section-label">Rules Text</h2>
-              <p class="min-h-[8rem] whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950/40 p-3 font-mono text-sm leading-7 text-slate-200" data-tombscript-rules>{{ $ctx.MaskedRulesText }}</p>
-            </div>
-            <div class="space-y-2">
-              <h2 class="mt-section-label">Flavor Text</h2>
-              <p class="min-h-[8rem] whitespace-pre-wrap rounded-lg border border-slate-800 bg-slate-950/40 p-3 font-mono text-sm italic leading-7 text-slate-300" data-tombscript-flavor>{{ $ctx.MaskedFlavorText }}</p>
-            </div>
-          </div>
-
-          {{ if and $ctx.Completed $ctx.TargetDescription }}
-            <div class="border-t border-slate-800 pt-4">
-              <p class="text-sm text-slate-400">{{ $ctx.TargetDescription }}</p>
-            </div>
-          {{ end }}
         </section>
 
-        {{ if $ctx.CanGuess }}
-          <section class="grid gap-4 rounded-xl border border-slate-800 bg-slate-950/25 p-4 lg:grid-cols-[1fr_auto] lg:items-end">
-            <div class="space-y-3">
-              <h2 class="mt-section-label">Submit a Guess</h2>
-              <form method="POST" action="/games/spellify" class="space-y-3">
-                <input type="hidden" name="action" value="guess">
-                <div class="relative" data-card-autocomplete-root>
-                  <label class="sr-only" for="tombscript-final">Card name</label>
-                  <input id="tombscript-final"
-                         name="guess"
-                         type="search"
-                         autocomplete="off"
-                         placeholder="Exact card name"
-                         class="mt-control w-full"
-                         aria-autocomplete="list"
-                         aria-expanded="false"
-                         aria-haspopup="listbox"
-                         data-card-autocomplete-input
-                         data-card-autocomplete-limit="12">
-                  <div data-card-autocomplete-menu
-                       class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
-                       role="listbox"></div>
-                </div>
-                <button type="submit" class="mt-btn mt-btn--primary w-full sm:w-auto">Submit Guess</button>
+        <div class="mt-tombscript__text-clues">
+          <section aria-labelledby="tombscript-rules-label">
+            <h2 id="tombscript-rules-label">Rules text</h2>
+            <p data-tombscript-rules>{{ if $ctx.HasRulesText }}{{ $ctx.MaskedRulesText }}{{ else }}No rules text.{{ end }}</p>
+          </section>
+          <section aria-labelledby="tombscript-flavor-label">
+            <h2 id="tombscript-flavor-label">Flavor text</h2>
+            <p class="mt-tombscript__flavor" data-tombscript-flavor>{{ if $ctx.HasFlavorText }}{{ $ctx.MaskedFlavorText }}{{ else }}No flavor text.{{ end }}</p>
+          </section>
+        </div>
+
+        {{ if or $ctx.CanRevealChar $ctx.CanGuess }}
+          <div class="mt-tombscript__actions">
+            {{ if $ctx.CanRevealChar }}
+              <section class="mt-tombscript__reveal" aria-label="Letter, digit, and symbol keyboard">
+                <p id="tombscript-keyboard-help" class="sr-only">Choose a letter, digit, or Magic symbol. Used keys show whether they appeared on the card.</p>
+                <form method="POST" action="/games/spellify" data-tombscript-character-form aria-describedby="tombscript-keyboard-help">
+                  <input type="hidden" name="action" value="char">
+                  <input type="hidden" name="game_id" value="{{ $ctx.GameID }}" data-tombscript-game-id>
+                  <div class="mt-tombscript__keyboard" data-tombscript-keyboard>
+                    <div class="mt-tombscript__key-row">
+                      <button type="submit" name="char" value="q" data-tombscript-key="q">Q</button>
+                      <button type="submit" name="char" value="w" data-tombscript-key="w">W</button>
+                      <button type="submit" name="char" value="e" data-tombscript-key="e">E</button>
+                      <button type="submit" name="char" value="r" data-tombscript-key="r">R</button>
+                      <button type="submit" name="char" value="t" data-tombscript-key="t">T</button>
+                      <button type="submit" name="char" value="y" data-tombscript-key="y">Y</button>
+                      <button type="submit" name="char" value="u" data-tombscript-key="u">U</button>
+                      <button type="submit" name="char" value="i" data-tombscript-key="i">I</button>
+                      <button type="submit" name="char" value="o" data-tombscript-key="o">O</button>
+                      <button type="submit" name="char" value="p" data-tombscript-key="p">P</button>
+                    </div>
+                    <div class="mt-tombscript__key-row">
+                      <button type="submit" name="char" value="a" data-tombscript-key="a">A</button>
+                      <button type="submit" name="char" value="s" data-tombscript-key="s">S</button>
+                      <button type="submit" name="char" value="d" data-tombscript-key="d">D</button>
+                      <button type="submit" name="char" value="f" data-tombscript-key="f">F</button>
+                      <button type="submit" name="char" value="g" data-tombscript-key="g">G</button>
+                      <button type="submit" name="char" value="h" data-tombscript-key="h">H</button>
+                      <button type="submit" name="char" value="j" data-tombscript-key="j">J</button>
+                      <button type="submit" name="char" value="k" data-tombscript-key="k">K</button>
+                      <button type="submit" name="char" value="l" data-tombscript-key="l">L</button>
+                    </div>
+                    <div class="mt-tombscript__key-row">
+                      <button type="submit" name="char" value="z" data-tombscript-key="z">Z</button>
+                      <button type="submit" name="char" value="x" data-tombscript-key="x">X</button>
+                      <button type="submit" name="char" value="c" data-tombscript-key="c">C</button>
+                      <button type="submit" name="char" value="v" data-tombscript-key="v">V</button>
+                      <button type="submit" name="char" value="b" data-tombscript-key="b">B</button>
+                      <button type="submit" name="char" value="n" data-tombscript-key="n">N</button>
+                      <button type="submit" name="char" value="m" data-tombscript-key="m">M</button>
+                    </div>
+                    <div class="mt-tombscript__key-row" role="group" aria-label="Digits">
+                      <button type="submit" name="char" value="0" data-tombscript-key="0">0</button>
+                      <button type="submit" name="char" value="1" data-tombscript-key="1">1</button>
+                      <button type="submit" name="char" value="2" data-tombscript-key="2">2</button>
+                      <button type="submit" name="char" value="3" data-tombscript-key="3">3</button>
+                      <button type="submit" name="char" value="4" data-tombscript-key="4">4</button>
+                      <button type="submit" name="char" value="5" data-tombscript-key="5">5</button>
+                      <button type="submit" name="char" value="6" data-tombscript-key="6">6</button>
+                      <button type="submit" name="char" value="7" data-tombscript-key="7">7</button>
+                      <button type="submit" name="char" value="8" data-tombscript-key="8">8</button>
+                      <button type="submit" name="char" value="9" data-tombscript-key="9">9</button>
+                    </div>
+                    <div class="mt-tombscript__symbol-row" role="group" aria-label="Magic symbols">
+                      {{ range $ctx.SymbolKeys }}
+                        <button
+                          type="submit"
+                          name="char"
+                          value="{{ .Value }}"
+                          aria-label="{{ .Label }}"
+                          data-tombscript-key="{{ .Value }}"
+                          data-tombscript-symbol-key
+                          {{ if .Guessed }}disabled{{ end }}>
+                          <img src="https://svgs.scryfall.io/card-symbols/{{ .AssetName }}.svg" alt="" aria-hidden="true">
+                          <span class="sr-only">{{ .Label }}</span>
+                        </button>
+                      {{ end }}
+                    </div>
+                  </div>
+                </form>
+              </section>
+            {{ end }}
+
+            <div class="mt-tombscript__decision">
+              {{ if $ctx.CanGuess }}
+                <button type="button" class="mt-btn mt-btn--primary" data-tombscript-guess-open>
+                  Make a Guess
+                </button>
+              {{ end }}
+              <form method="POST" action="/games/spellify" class="mt-tombscript__give-up" data-tombscript-give-up-form>
+                <input type="hidden" name="action" value="give_up">
+                <input type="hidden" name="game_id" value="{{ $ctx.GameID }}">
+                <button type="submit">Reveal card</button>
               </form>
             </div>
-            <form id="tombscript-give-up" method="POST" action="/games/spellify">
-              <input type="hidden" name="action" value="give_up">
-              <button type="submit" class="mt-btn mt-btn--secondary w-full">Give Up</button>
-            </form>
-          </section>
-        {{ else }}
-          <div class="flex flex-wrap gap-3">
-            <form method="POST" action="/games/spellify">
-              <input type="hidden" name="action" value="new">
-              <button type="submit" class="mt-btn mt-btn--primary">Play Again</button>
-            </form>
-            <a href="{{ $ctx.TargetDetailPath }}" class="mt-btn mt-btn--secondary">View Card</a>
-            {{ if not .CurrentUser }}<a href="/login?next=/games/spellify" class="mt-btn mt-btn--secondary">Sign In to Earn Awards</a>{{ end }}
           </div>
+        {{ else }}
+          <section class="mt-tombscript__result" aria-labelledby="tombscript-result-title">
+            <p class="mt-tombscript__eyebrow">{{ if $ctx.Won }}Solved{{ else }}Revealed{{ end }}</p>
+            <h2 id="tombscript-result-title">{{ $ctx.TargetName }}</h2>
+            {{ if $ctx.TargetDescription }}<p>{{ $ctx.TargetDescription }}</p>{{ end }}
+            <div class="mt-tombscript__result-actions">
+              <form method="POST" action="/games/spellify">
+                <input type="hidden" name="action" value="new">
+                <input type="hidden" name="game_id" value="{{ $ctx.GameID }}">
+                <button type="submit" class="mt-btn mt-btn--primary">Play Again</button>
+              </form>
+              <a href="{{ $ctx.TargetDetailPath }}" class="mt-btn mt-btn--secondary">View Card</a>
+            </div>
+          </section>
         {{ end }}
-      </section>
+      </div>
     </section>
 
-    {{ if $ctx.CanGuess }}
-      <div class="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/82 px-4 py-6 backdrop-blur-sm" data-tombscript-intro>
-        <section role="dialog" aria-modal="true" aria-labelledby="tombscript-intro-title" class="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-950 p-5 shadow-2xl shadow-slate-950/70 sm:p-6">
-          <div class="space-y-4">
-            <div class="space-y-2">
-              <p class="mt-kicker">Mana Tomb Word Game</p>
-              <h2 id="tombscript-intro-title" class="text-2xl font-semibold text-slate-50">Start Tombscript</h2>
-              <p class="text-sm leading-6 text-slate-400">You have {{ $ctx.RemainingGuesses }} reveal guesses. {{ if $ctx.HasAccount }}The daily award is earned in fewer than {{ $ctx.AwardGuessLimit }} reveal guesses; practice rounds never award cards.{{ else }}You can play as a guest; sign in before a future daily card to earn profile awards.{{ end }}</p>
-            </div>
-            <div class="grid gap-2 text-sm text-slate-300">
-              <p class="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2">The card name, rules text, and flavor text update immediately.</p>
-              <p class="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2">When you know the answer, submit the exact card name.</p>
-            </div>
-            <button type="button" class="mt-btn mt-btn--primary w-full" data-tombscript-intro-close>Start Typing</button>
+    <script type="application/json" data-tombscript-state>{{ toJSON $ctx }}</script>
+  </div>
+
+  {{ if $ctx.CanGuess }}
+    <div
+      id="tombscript-guess-modal"
+      class="mt-modal mt-tombscript-guess-modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="tombscript-guess-modal-title"
+      aria-describedby="tombscript-guess-modal-description"
+      data-tombscript-guess-modal>
+      <div class="mt-modal-panel mt-tombscript-guess-modal__panel" tabindex="-1" data-tombscript-guess-panel>
+        <button type="button" class="mt-tombscript-modal-close" aria-label="Close card guess" data-tombscript-guess-close>
+          <span aria-hidden="true">×</span>
+        </button>
+        <h2 id="tombscript-guess-modal-title">Make a Guess</h2>
+        <p id="tombscript-guess-modal-description" class="mt-tombscript-guess-modal__remaining">
+          <span data-tombscript-modal-guesses-left>{{ $ctx.RemainingCardGuesses }}</span>
+          card <span data-tombscript-modal-guess-unit>{{ if eq $ctx.RemainingCardGuesses 1 }}guess{{ else }}guesses{{ end }}</span> remaining
+        </p>
+        <div class="mt-tombscript-guess-modal__slots" aria-label="Revealed card name" data-tombscript-guess-slots></div>
+        <div class="mt-tombscript-guess-modal__history{{ if not $ctx.PreviousWrongGuesses }} hidden{{ end }}" data-tombscript-guess-history>
+          <span>Previous guesses</span>
+          <ul aria-label="Previous incorrect card guesses" data-tombscript-guess-history-list>
+            {{ range $ctx.PreviousWrongGuesses }}<li>{{ . }}</li>{{ end }}
+          </ul>
+        </div>
+        <form method="POST" action="/games/spellify" data-tombscript-guess-form>
+          <input type="hidden" name="action" value="guess">
+          <input type="hidden" name="game_id" value="{{ $ctx.GameID }}">
+          <label for="tombscript-final" class="sr-only">Exact card name</label>
+          <input
+            id="tombscript-final"
+            name="guess"
+            type="text"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            placeholder="Type the full card name"
+            class="mt-control"
+            required
+            data-tombscript-guess-input>
+          <p class="mt-tombscript-guess-modal__message hidden" role="status" aria-live="polite" data-tombscript-guess-message></p>
+          <div class="mt-tombscript-guess-modal__actions">
+            <button type="submit" class="mt-btn mt-btn--primary" data-tombscript-guess-submit>Submit Guess</button>
+            <button type="button" class="mt-btn mt-btn--secondary" data-tombscript-guess-cancel>Keep Revealing</button>
           </div>
-        </section>
+        </form>
       </div>
-    {{ end }}
-  </main>
+    </div>
+  {{ end }}
 
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      var root = document.querySelector("[data-tombscript-root]");
-      if (!root) return;
-
-      var state = {{ toJSON $ctx }};
-      var keyboardArmed = !state.CanGuess;
-      var pending = false;
-      var nameNode = root.querySelector("[data-tombscript-name]");
-      var nameRawNode = root.querySelector("[data-tombscript-name-raw]");
-      var rulesNode = root.querySelector("[data-tombscript-rules]");
-      var flavorNode = root.querySelector("[data-tombscript-flavor]");
-      var statusNode = root.querySelector("[data-tombscript-status]");
-      var countNode = root.querySelector("[data-tombscript-count]");
-      var leftNode = root.querySelector("[data-tombscript-left]");
-      var messageNode = root.querySelector("[data-tombscript-message]");
-      var charForm = root.querySelector("[data-tombscript-char-form]");
-      var charInput = root.querySelector("[data-tombscript-char-input]");
-      var charButton = root.querySelector("[data-tombscript-char-button]");
-      var intro = root.querySelector("[data-tombscript-intro]");
-      var introClose = root.querySelector("[data-tombscript-intro-close]");
-      var helpButton = root.querySelector("[data-tombscript-help]");
-      var cardBack = root.querySelector("[data-tombscript-card-back]");
-
-      function renderName(value) {
-        if (!nameNode) return;
-        nameNode.innerHTML = "";
-        Array.from(String(value || "")).forEach(function (char) {
-          var glyph = document.createElement("span");
-          if (char === " ") {
-            glyph.className = "inline-block w-4 sm:w-5";
-            glyph.innerHTML = "&nbsp;";
-          } else {
-            glyph.className = "inline-flex min-w-5 justify-center sm:min-w-6";
-            glyph.textContent = char;
-          }
-          nameNode.appendChild(glyph);
-        });
-        if (nameRawNode) {
-          nameRawNode.textContent = value || "";
-        }
-      }
-
-      function showMessage(message, ok) {
-        if (!messageNode) return;
-        messageNode.textContent = message || "";
-        messageNode.className = "rounded-lg border px-4 py-3 text-sm " + (ok ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-100" : "border-amber-400/30 bg-amber-400/10 text-amber-100");
-        messageNode.classList.toggle("hidden", !message);
-      }
-
-      function setControlsEnabled(enabled) {
-        if (charInput) charInput.disabled = !enabled;
-        if (charButton) charButton.disabled = !enabled;
-      }
-
-      function updateState(nextState) {
-        if (!nextState) return;
-        state = nextState;
-        renderName(state.MaskedName);
-        if (rulesNode) rulesNode.textContent = state.MaskedRulesText || "";
-        if (flavorNode) flavorNode.textContent = state.MaskedFlavorText || "";
-        if (statusNode) statusNode.textContent = state.Status || "";
-        if (countNode) countNode.textContent = String(state.GuessCount || 0);
-        if (leftNode) leftNode.textContent = String(state.AwardStatus || "Practice");
-        setControlsEnabled(Boolean(state.CanRevealChar) && !pending);
-      }
-
-      function normalizeChar(value) {
-        value = String(value || "").trim().toLowerCase();
-        if (value.charAt(0) === "{") value = value.slice(1);
-        if (value.charAt(value.length - 1) === "}") value = value.slice(0, -1);
-        value = value.trim();
-        if (!value) return "";
-        var char = Array.from(value)[0] || "";
-        return /^[a-z0-9]$/i.test(char) ? char.toLowerCase() : "";
-      }
-
-      async function submitChar(value) {
-        var guessChar = normalizeChar(value);
-        if (!guessChar) {
-          showMessage("Use one letter, number, or mana symbol.", false);
-          return;
-        }
-        if (!state.CanRevealChar || pending) {
-          showMessage("No reveal guesses left. Submit a card name or give up.", false);
-          return;
-        }
-
-        pending = true;
-        setControlsEnabled(false);
-        try {
-          var body = new URLSearchParams();
-          body.set("action", "char");
-          body.set("char", guessChar);
-          var response = await fetch("/games/spellify", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/x-www-form-urlencoded",
-              "X-Requested-With": "fetch"
-            },
-            body: body.toString()
-          });
-          var payload = await response.json();
-          if (payload && payload.Data) {
-            updateState(payload.Data);
-          }
-          showMessage((payload && payload.Message) || "Guess recorded.", Boolean(payload && payload.OK));
-        } catch (error) {
-          showMessage("Could not record that guess. Try again.", false);
-        } finally {
-          pending = false;
-          setControlsEnabled(Boolean(state.CanRevealChar));
-          if (charInput) charInput.value = "";
-        }
-      }
-
-      function closeIntro() {
-        if (intro) intro.classList.add("hidden");
-        keyboardArmed = true;
-        if (document.activeElement && document.activeElement.blur) {
-          document.activeElement.blur();
-        }
-      }
-
-      renderName(state.MaskedName);
-      setControlsEnabled(Boolean(state.CanRevealChar));
-
-      if (cardBack) {
-        cardBack.addEventListener("click", function () {
-          cardBack.classList.toggle("rotate-2");
-          cardBack.classList.toggle("scale-[1.02]");
-        });
-      }
-
-      if (introClose) {
-        introClose.addEventListener("click", closeIntro);
-        introClose.focus();
-      }
-      if (helpButton && intro) {
-        helpButton.addEventListener("click", function () {
-          intro.classList.remove("hidden");
-          keyboardArmed = false;
-          if (introClose) introClose.focus();
-        });
-      }
-      if (charForm) {
-        charForm.addEventListener("submit", function (event) {
-          event.preventDefault();
-          submitChar(charInput ? charInput.value : "");
-        });
-      }
-
-      document.addEventListener("keydown", function (event) {
-        if (!state.CanGuess) return;
-        if (intro && !intro.classList.contains("hidden")) {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            closeIntro();
-          }
-          return;
-        }
-        if (!keyboardArmed || event.metaKey || event.ctrlKey || event.altKey) return;
-        var target = event.target;
-        var tagName = target && target.tagName ? target.tagName.toLowerCase() : "";
-        if (tagName === "input" || tagName === "textarea" || tagName === "select" || (target && target.isContentEditable)) {
-          return;
-        }
-        if (event.key && event.key.length === 1 && /^[a-z0-9]$/i.test(event.key)) {
-          event.preventDefault();
-          submitChar(event.key);
-        }
-      });
-    });
-  </script>
+  <div
+    id="tombscript-help-modal"
+    class="mt-modal mt-tombscript-help hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="tombscript-help-title"
+    aria-describedby="tombscript-help-description"
+    data-auto-open="true"
+    data-tombscript-help-modal>
+    <div class="mt-modal-panel mt-tombscript-help__panel" tabindex="-1" data-tombscript-help-panel>
+      <button type="button" class="mt-tombscript-modal-close" aria-label="Close How to Play" data-tombscript-help-close>
+        <span aria-hidden="true">×</span>
+      </button>
+      <h2 id="tombscript-help-title">How to Play</h2>
+      <div id="tombscript-help-description" class="mt-tombscript-help__content">
+        <ol>
+          <li>Choose a letter, digit, or symbol to reveal every matching spot.</li>
+          <li>You have {{ $ctx.MaxGuesses }} reveals. Wrong choices still count.</li>
+          <li>You have {{ $ctx.MaxCardGuesses }} chances to name the exact card.</li>
+        </ol>
+        <div class="mt-tombscript-help__pool">
+          <h3>Card pool</h3>
+          <p>Mystery cards come from Scryfall’s EDHREC ranks 1–250 and have a supported paper printing, card art, and legality in at least one tracked format. Daily uses one shared card; practice chooses randomly from the same pool.</p>
+        </div>
+        <p class="mt-tombscript-help__note">
+          {{ if not $ctx.IsDaily }}Practice rounds do not award cards.{{ else if not $ctx.HasAccount }}Play as a guest, or sign in before a future Daily game to earn card awards.{{ else }}Solve the Daily card with fewer than {{ $ctx.AwardGuessLimit }} reveals to add it to your profile.{{ end }}
+        </p>
+      </div>
+    </div>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

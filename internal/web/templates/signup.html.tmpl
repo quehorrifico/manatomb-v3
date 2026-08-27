@@ -2,65 +2,85 @@
   {{ template "layout_header" . }}
   {{ $d := .Data }}
 
-  <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="space-y-2">
-        <p class="mt-kicker">Account</p>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Create Account</h1>
+  <section class="mt-auth-page" aria-labelledby="signup-title">
+    <header class="mt-auth-heading">
+      <h1 id="signup-title" class="mt-auth-title">Create an account</h1>
+      <p class="mt-auth-copy">Save your decks, return to unfinished builds, and keep everything in one place.</p>
+    </header>
+
+    <form method="POST" action="/signup" class="mt-auth-form"{{ if .Error }} aria-describedby="site-error"{{ end }}>
+      <input type="hidden" name="next" value="{{ $d.Next }}">
+
+      <div class="mt-auth-field">
+        <label for="signup-display-name" class="mt-field-label">Display name</label>
+        <input
+          id="signup-display-name"
+          type="text"
+          name="display_name"
+          value="{{ $d.DisplayName }}"
+          required
+          autocomplete="nickname"
+          class="mt-control"
+        >
       </div>
-      <div class="flex flex-wrap gap-2">
-        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
-        <a href="/login?next={{ urlquery $d.Next }}" class="mt-btn mt-btn--secondary mt-btn--sm">Log In</a>
+
+      <div class="mt-auth-field">
+        <label for="signup-email" class="mt-field-label">Email</label>
+        <input
+          id="signup-email"
+          type="email"
+          name="email"
+          value="{{ $d.Email }}"
+          required
+          autocomplete="email"
+          autocapitalize="none"
+          spellcheck="false"
+          class="mt-control"
+        >
       </div>
-    </div>
 
-    <section class="mt-panel max-w-md mx-auto p-5 sm:p-6">
-      <form method="POST" action="/signup" class="space-y-5">
-        <input type="hidden" name="next" value="{{ $d.Next }}">
-        <label class="block text-sm text-slate-200">
-          <span class="mt-field-label">Display Name</span>
-          <input
-            type="text"
-            name="display_name"
-            value="{{ $d.DisplayName }}"
-            required
-            class="mt-control"
-          >
-        </label>
+      <div class="mt-auth-field">
+        <label for="signup-password" class="mt-field-label">Password</label>
+        <input
+          id="signup-password"
+          type="password"
+          name="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+          aria-describedby="signup-password-hint"
+          class="mt-control"
+        >
+        <p id="signup-password-hint" class="mt-auth-hint">Use at least 8 characters.</p>
+      </div>
 
-        <label class="block text-sm text-slate-200">
-          <span class="mt-field-label">Email</span>
-          <input
-            type="email"
-            name="email"
-            value="{{ $d.Email }}"
-            required
-            class="mt-control"
-          >
-        </label>
+      <label class="mt-auth-session-choice" for="signup-stay-signed-in">
+        <input
+          id="signup-stay-signed-in"
+          type="checkbox"
+          name="stay_signed_in"
+          value="1"
+          {{ if $d.StaySignedIn }}checked{{ end }}
+        >
+        <span>
+          <strong>Stay signed in on this device</strong>
+          <small>For 30 days. Uncheck this on a shared device.</small>
+        </span>
+      </label>
 
-        <div class="text-sm text-slate-200">
-          <label class="block">
-            <span class="mt-field-label">Password</span>
-            <input
-              type="password"
-              name="password"
-              required
-              class="mt-control"
-            >
-          </label>
-        </div>
-
-        <div class="flex flex-col gap-3 pt-1">
-          <button type="submit" class="mt-btn mt-btn--primary w-full">Create Account</button>
-          <p class="text-[11px] text-slate-500 text-center">
-            Have an account?
-            <a href="/login?next={{ urlquery $d.Next }}" class="text-sky-300 hover:text-sky-200 font-medium">Log in</a>
-          </p>
-        </div>
-      </form>
-    </section>
-  </main>
+      <div class="mt-auth-actions">
+        <button type="submit" class="mt-btn mt-btn--primary mt-auth-submit">Create Account</button>
+        <p class="mt-auth-switch">
+          Already have an account?
+          <a href="/login?next={{ urlquery $d.Next }}" class="mt-auth-link">Sign in</a>
+        </p>
+        <p class="mt-auth-fine-print">
+          By creating an account, you agree to the <a href="/terms" class="mt-auth-link">Terms of Use</a>
+          and acknowledge the <a href="/privacy" class="mt-auth-link">Privacy Notice</a>.
+        </p>
+      </div>
+    </form>
+  </section>
 
   {{ template "layout_footer" . }}
 {{ end }}

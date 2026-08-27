@@ -1,0 +1,265 @@
+{{ define "decks_import" }}
+  {{ template "layout_header" . }}
+  {{ $ctx := .Data }}
+
+  <div class="mt-deck-import-page">
+    <header class="mt-deck-import-heading">
+      <h1>Import a Decklist</h1>
+      <p>Paste or upload a TXT or CSV decklist, then continue building in ManaTomb.</p>
+    </header>
+
+    <form method="POST" action="/decks/import" class="mt-deck-import-paste" data-import-form>
+      <input type="hidden" name="intent" value="import">
+      <input type="hidden" name="source" value="text">
+      <div class="mt-deck-import-paste__dropzone" data-import-dropzone>
+        <label class="mt-deck-import-paste__field" for="deck-import-text">
+          <span>Decklist</span>
+          <textarea id="deck-import-text"
+                    name="decklist"
+                    rows="16"
+                    autofocus
+                    required
+                    spellcheck="false"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    autocorrect="off"
+                    aria-invalid="{{ if $ctx.FieldError }}true{{ else }}false{{ end }}"
+                    aria-describedby="{{ if $ctx.FieldError }}deck-import-field-error {{ end }}deck-import-file-status"
+                    placeholder="Commander&#10;1 Atraxa, Grand Unifier (ONE) 196&#10;&#10;Deck&#10;1 Sol Ring (CMM) 396&#10;1 Swords to Plowshares&#10;&#10;Sideboard&#10;1 Swan Song"
+                    class="mt-control">{{ $ctx.Decklist }}</textarea>
+        </label>
+
+        {{ if $ctx.FieldError }}
+          <p id="deck-import-field-error" class="mt-deck-import-field-error" role="alert">{{ $ctx.FieldError }}</p>
+        {{ end }}
+
+        <div class="mt-deck-import-file-row">
+          <input id="deck-import-file"
+                 class="mt-deck-import-file-input"
+                 type="file"
+                 accept=".txt,.csv,text/plain,text/csv"
+                 data-import-file>
+          <label for="deck-import-file" class="mt-deck-import-file-picker">Choose TXT or CSV</label>
+          <span id="deck-import-file-status"
+                class="mt-deck-import-file-status"
+                role="status"
+                aria-live="polite">or drop a file onto the decklist</span>
+        </div>
+      </div>
+
+      <div id="deck-import-existing-warning"
+           class="mt-deck-import-existing-warning"
+           data-existing-draft-warning
+           role="status"
+           aria-live="polite"
+           hidden>
+        <div>
+          <strong>A local draft already exists.</strong>
+          <span>Importing this list will replace it in this browser.</span>
+        </div>
+        <div class="mt-deck-import-existing-warning__actions">
+          <a href="/decks/new/workbench">Resume current draft</a>
+          <label>
+            <input type="checkbox"
+                   name="replace_existing_draft"
+                   value="1"
+                   data-confirm-draft-replacement>
+            <span>Replace it with this import</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="deck-import-storage-warning"
+           class="mt-deck-import-storage-warning"
+           data-storage-warning
+           role="alert"
+           aria-live="assertive"
+           hidden>
+        <strong>Local drafts are unavailable.</strong>
+        <span>This browser is blocking site storage, so the imported deck cannot be opened safely.</span>
+      </div>
+
+      <div class="mt-deck-import-paste__footer">
+        <button type="submit"
+                class="mt-btn mt-btn--primary"
+                data-import-submit
+                aria-disabled="false">Import</button>
+        <span class="mt-deck-import-sr-only"
+              data-import-submit-status
+              role="status"
+              aria-live="polite"></span>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    (function () {
+      var form = document.querySelector('[data-import-form]');
+      var textarea = document.getElementById('deck-import-text');
+      var dropzone = document.querySelector('[data-import-dropzone]');
+      var fileInput = document.querySelector('[data-import-file]');
+      var fileStatus = document.getElementById('deck-import-file-status');
+      var fieldError = document.getElementById('deck-import-field-error');
+      var existingWarning = document.querySelector('[data-existing-draft-warning]');
+      var storageWarning = document.querySelector('[data-storage-warning]');
+      var replacementConfirmation = document.querySelector('[data-confirm-draft-replacement]');
+      var submit = document.querySelector('[data-import-submit]');
+      var submitStatus = document.querySelector('[data-import-submit-status]');
+      if (!form || !textarea || !dropzone || !fileInput || !fileStatus ||
+          !existingWarning || !storageWarning || !replacementConfirmation || !submit) return;
+
+      var hasExistingDraft = false;
+      var storageUnavailable = false;
+      var submitting = false;
+      var idleFileStatus = 'or drop a file onto the decklist';
+
+      function setSubmitDisabled(disabled, descriptionID) {
+        submit.disabled = disabled;
+        submit.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        if (descriptionID) submit.setAttribute('aria-describedby', descriptionID);
+        else submit.removeAttribute('aria-describedby');
+      }
+
+      function updateSubmitAvailability() {
+        var replacementRequired = hasExistingDraft && !replacementConfirmation.checked;
+        var descriptionID = storageUnavailable
+          ? 'deck-import-storage-warning'
+          : (replacementRequired ? 'deck-import-existing-warning' : '');
+        setSubmitDisabled(storageUnavailable || replacementRequired || submitting, descriptionID);
+      }
+
+      function setFileStatus(message, isError) {
+        fileStatus.textContent = message;
+        fileStatus.toggleAttribute('data-error', Boolean(isError));
+        if (isError) textarea.setAttribute('aria-invalid', 'true');
+      }
+
+      textarea.addEventListener('input', function () {
+        if (fieldError && !fieldError.hidden) fieldError.hidden = true;
+        textarea.setAttribute('aria-invalid', 'false');
+        textarea.setAttribute('aria-describedby', 'deck-import-file-status');
+        fileStatus.removeAttribute('data-error');
+        fileStatus.textContent = idleFileStatus;
+      });
+
+      function loadDecklistFile(file) {
+        if (!file) return;
+        var filename = String(file.name || 'file');
+        if (!/\.(txt|csv)$/i.test(filename)) {
+          setFileStatus('Choose a TXT or CSV file.', true);
+          fileInput.value = '';
+          return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+          setFileStatus('That file is too large. Choose a file under 2 MB.', true);
+          fileInput.value = '';
+          return;
+        }
+
+        var reader = new FileReader();
+        reader.addEventListener('load', function () {
+          var content = String(reader.result || '').replace(/^\uFEFF/, '');
+          if (content.trim() === '') {
+            setFileStatus(filename + ' is empty.', true);
+            fileInput.value = '';
+            return;
+          }
+          textarea.value = content;
+          textarea.setAttribute('aria-invalid', 'false');
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          setFileStatus(filename + ' loaded.', false);
+          fileInput.value = '';
+          textarea.focus();
+        });
+        reader.addEventListener('error', function () {
+          setFileStatus('That file could not be read.', true);
+          fileInput.value = '';
+        });
+        reader.readAsText(file);
+      }
+
+      fileInput.addEventListener('change', function () {
+        loadDecklistFile(fileInput.files && fileInput.files[0]);
+      });
+
+      function dragCarriesFiles(event) {
+        return Boolean(event.dataTransfer && event.dataTransfer.types &&
+          Array.prototype.indexOf.call(event.dataTransfer.types, 'Files') !== -1);
+      }
+
+      var dragDepth = 0;
+      dropzone.addEventListener('dragenter', function (event) {
+        if (!dragCarriesFiles(event)) return;
+        event.preventDefault();
+        dragDepth += 1;
+        dropzone.setAttribute('data-drag-active', 'true');
+      });
+      dropzone.addEventListener('dragover', function (event) {
+        if (!dragCarriesFiles(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+      });
+      dropzone.addEventListener('dragleave', function () {
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) dropzone.removeAttribute('data-drag-active');
+      });
+      dropzone.addEventListener('drop', function (event) {
+        if (!event.dataTransfer || !event.dataTransfer.files || event.dataTransfer.files.length === 0) return;
+        event.preventDefault();
+        dragDepth = 0;
+        dropzone.removeAttribute('data-drag-active');
+        loadDecklistFile(event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]);
+      });
+
+      function draftHasCards(raw) {
+        if (!raw) return false;
+        try {
+          var draft = JSON.parse(raw);
+          if (String((draft && draft.commanderName) || '').trim() !== '') return true;
+          var boards = ['cards', 'sideboardCards', 'maybeCards'];
+          for (var boardIndex = 0; boardIndex < boards.length; boardIndex++) {
+            var quantities = draft && draft[boards[boardIndex]];
+            if (!quantities || typeof quantities !== 'object') continue;
+            var names = Object.keys(quantities);
+            for (var nameIndex = 0; nameIndex < names.length; nameIndex++) {
+              if (Number(quantities[names[nameIndex]] || 0) > 0) return true;
+            }
+          }
+          return false;
+        } catch (parseError) {
+          return true;
+        }
+      }
+
+      try {
+        hasExistingDraft = draftHasCards(localStorage.getItem('manatomb.draftDeck'));
+      } catch (storageReadError) {
+        storageUnavailable = true;
+      }
+      if (storageUnavailable) {
+        storageWarning.hidden = false;
+      } else if (hasExistingDraft) {
+        existingWarning.hidden = false;
+        replacementConfirmation.required = true;
+      }
+      updateSubmitAvailability();
+
+      replacementConfirmation.addEventListener('change', function () {
+        updateSubmitAvailability();
+      });
+
+      form.addEventListener('submit', function (event) {
+        if (submit.disabled || submitting) {
+          event.preventDefault();
+          return;
+        }
+        submitting = true;
+        submit.textContent = 'Importing…';
+        if (submitStatus) submitStatus.textContent = 'Importing decklist.';
+        updateSubmitAvailability();
+      });
+    })();
+  </script>
+
+  {{ template "layout_footer" . }}
+{{ end }}

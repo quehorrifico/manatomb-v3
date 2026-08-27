@@ -1,0 +1,212 @@
+.mt-auth-page {
+  width: 100%;
+}
+
+body[data-page="login"] main.flex-1,
+body[data-page="signup"] main.flex-1,
+body[data-page="forgot-password"] main.flex-1,
+body[data-page="reset-password"] main.flex-1 {
+  display: flex;
+  align-items: center;
+}
+
+body[data-page="login"] .mt-page-shell,
+body[data-page="signup"] .mt-page-shell,
+body[data-page="forgot-password"] .mt-page-shell,
+body[data-page="reset-password"] .mt-page-shell {
+  width: 100%;
+  max-width: 30rem;
+  padding-top: clamp(2.75rem, 8vh, 5.25rem);
+  padding-bottom: clamp(2.75rem, 8vh, 5.25rem);
+}
+
+.mt-auth-heading {
+  margin-bottom: 1.75rem;
+}
+
+body[data-page="login"] .mt-auth-heading {
+  text-align: center;
+}
+
+body[data-page="login"] .mt-auth-copy {
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.mt-auth-title {
+  margin: 0;
+  color: var(--mt-text);
+  font-size: clamp(2rem, 7vw, 2.65rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.mt-auth-copy {
+  max-width: 27rem;
+  margin-top: 0.85rem;
+  color: var(--mt-text-soft);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.mt-auth-form {
+  display: grid;
+  gap: 1.2rem;
+  border-top: 1px solid var(--mt-border-subtle);
+  padding-top: 1.5rem;
+}
+
+.mt-auth-field {
+  min-width: 0;
+}
+
+.mt-auth-page .mt-field-label {
+  color: var(--mt-text-soft);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+}
+
+.mt-auth-field-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.mt-auth-field-heading .mt-field-label {
+  margin-bottom: 0;
+}
+
+.mt-auth-hint,
+.mt-auth-switch,
+.mt-auth-fine-print {
+  color: var(--mt-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.mt-auth-hint {
+  margin-top: 0.45rem;
+}
+
+.mt-auth-link {
+  color: var(--mt-accent-text);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: var(--mt-border-strong);
+  text-underline-offset: 0.18em;
+}
+
+.mt-auth-link:hover {
+  color: var(--mt-text);
+  text-decoration-color: currentColor;
+}
+
+.mt-auth-link:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-auth-field-heading .mt-auth-link {
+  flex: none;
+  font-size: 0.76rem;
+}
+
+.mt-auth-session-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  color: var(--mt-text-soft);
+  cursor: pointer;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.mt-auth-session-choice input {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin: 0.12rem 0 0;
+  accent-color: var(--mt-accent);
+}
+
+.mt-auth-session-choice input:focus-visible {
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-auth-session-choice span {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.mt-auth-session-choice strong {
+  color: var(--mt-text);
+  font-weight: 650;
+}
+
+.mt-auth-session-choice small {
+  color: var(--mt-text-muted);
+  font-size: 0.74rem;
+}
+
+.mt-auth-actions {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.2rem;
+}
+
+.mt-auth-submit {
+  width: 100%;
+}
+
+.mt-auth-switch {
+  margin: 0;
+  text-align: center;
+}
+
+.mt-auth-fine-print {
+  margin: -0.25rem auto 0;
+  max-width: 25rem;
+  text-align: center;
+}
+
+body[data-page="login"] *,
+body[data-page="login"] *::before,
+body[data-page="login"] *::after,
+body[data-page="signup"] *,
+body[data-page="signup"] *::before,
+body[data-page="signup"] *::after,
+body[data-page="forgot-password"] *,
+body[data-page="forgot-password"] *::before,
+body[data-page="forgot-password"] *::after,
+body[data-page="reset-password"] *,
+body[data-page="reset-password"] *::before,
+body[data-page="reset-password"] *::after {
+  animation: none;
+  transition: none;
+}
+
+body[data-page="login"] .mt-btn:hover,
+body[data-page="signup"] .mt-btn:hover,
+body[data-page="forgot-password"] .mt-btn:hover,
+body[data-page="reset-password"] .mt-btn:hover {
+  transform: none;
+}
+
+@media (max-width: 639px) {
+  body[data-page="login"] .mt-page-shell,
+  body[data-page="signup"] .mt-page-shell,
+  body[data-page="forgot-password"] .mt-page-shell,
+  body[data-page="reset-password"] .mt-page-shell {
+    padding-top: 2.5rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .mt-auth-heading {
+    margin-bottom: 1.5rem;
+  }
+}

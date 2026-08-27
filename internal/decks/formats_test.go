@@ -8,7 +8,7 @@ func TestNormalizeFormat(t *testing.T) {
 	cases := map[string]string{
 		"commander":         "Commander",
 		"sandbox":           "Sandbox",
-		"casual":            "Sandbox",
+		"casual":            "Casual",
 		"historic brawl":    "Historic Brawl",
 		"modern":            "Modern",
 		"\"Commander\"":     "Commander",
@@ -20,6 +20,47 @@ func TestNormalizeFormat(t *testing.T) {
 		if got := NormalizeFormat(input); got != want {
 			t.Fatalf("NormalizeFormat(%q) = %q, want %q", input, got, want)
 		}
+	}
+}
+
+func TestSupportedFormatsShareOneDefinitionRegistry(t *testing.T) {
+	t.Parallel()
+
+	for _, format := range SupportedFormats() {
+		definition := FormatDefinitionFor(format)
+		if definition.Name != format {
+			t.Fatalf("FormatDefinitionFor(%q).Name = %q", format, definition.Name)
+		}
+		if got := FormatRequiresCommander(format); got != definition.RequiresCommander {
+			t.Fatalf("FormatRequiresCommander(%q) = %t, want %t", format, got, definition.RequiresCommander)
+		}
+		if got := FormatTargetMainboardSize(format); got != definition.TargetMainboardSize {
+			t.Fatalf("FormatTargetMainboardSize(%q) = %d, want %d", format, got, definition.TargetMainboardSize)
+		}
+		if got := FormatCopyLimit(format); got != definition.CopyLimit {
+			t.Fatalf("FormatCopyLimit(%q) = %d, want %d", format, got, definition.CopyLimit)
+		}
+	}
+}
+
+func TestBuildableFormatsMatchCurrentBuilderEntryPoints(t *testing.T) {
+	t.Parallel()
+
+	want := []string{"Commander", "Standard", "Sandbox"}
+	got := BuildableFormats()
+	if len(got) != len(want) {
+		t.Fatalf("BuildableFormats() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("BuildableFormats()[%d] = %q, want %q", i, got[i], want[i])
+		}
+		if !FormatIsBuildable(got[i]) {
+			t.Fatalf("FormatIsBuildable(%q) = false", got[i])
+		}
+	}
+	if FormatIsBuildable("Modern") {
+		t.Fatal("Modern should remain known for existing data, not selectable in the current builder")
 	}
 }
 

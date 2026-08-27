@@ -1,10 +1,255 @@
 package cards
 
 import (
+	"context"
+	"database/sql"
 	"database/sql/driver"
+	"errors"
+	"io"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
+
+var cardSearchOutcomeDriverSequence atomic.Uint64
+
+type cardSearchOutcomeTestDriver struct {
+	exact bool
+	fuzzy bool
+}
+
+func (d *cardSearchOutcomeTestDriver) Open(string) (driver.Conn, error) {
+	return &cardSearchOutcomeTestConn{driver: d}, nil
+}
+
+type cardSearchOutcomeTestConn struct {
+	driver *cardSearchOutcomeTestDriver
+}
+
+func (c *cardSearchOutcomeTestConn) Prepare(string) (driver.Stmt, error) {
+	return nil, errors.New("unexpected prepared statement")
+}
+
+func (c *cardSearchOutcomeTestConn) Close() error {
+	return nil
+}
+
+func (c *cardSearchOutcomeTestConn) Begin() (driver.Tx, error) {
+	return nil, errors.New("unexpected transaction")
+}
+
+func (c *cardSearchOutcomeTestConn) QueryContext(
+	_ context.Context,
+	query string,
+	_ []driver.NamedValue,
+) (driver.Rows, error) {
+	lowerQuery := strings.ToLower(query)
+	if strings.Contains(lowerQuery, "count(") {
+		total := int64(0)
+		if c.driver.exact || c.driver.fuzzy {
+			total = 1
+		}
+		return &cardSearchOutcomeTestRows{
+			columns: []string{"count"},
+			values:  [][]driver.Value{{total}},
+		}, nil
+	}
+
+	if strings.Contains(query, "oc.name_search = normalize_card_name") {
+		return newCardSearchOutcomeTestRows(c.driver.exact, "Exact Card"), nil
+	}
+	if strings.Contains(query, "oc.name_search LIKE") {
+		return newCardSearchOutcomeTestRows(c.driver.fuzzy, "Fuzzy Card"), nil
+	}
+	if strings.Contains(query, "WHERE 1=1") {
+		return newCardSearchOutcomeTestRows(c.driver.fuzzy, "Filtered Card"), nil
+	}
+	return nil, errors.New("unexpected search query")
+}
+
+type cardSearchOutcomeTestRows struct {
+	columns []string
+	values  [][]driver.Value
+	index   int
+}
+
+func newCardSearchOutcomeTestRows(include bool, name string) *cardSearchOutcomeTestRows {
+	rows := &cardSearchOutcomeTestRows{columns: canonicalCardSearchTestColumns()}
+	if include {
+		rows.values = [][]driver.Value{canonicalCardSearchTestRow(name)}
+	}
+	return rows
+}
+
+func (r *cardSearchOutcomeTestRows) Columns() []string {
+	return r.columns
+}
+
+func (r *cardSearchOutcomeTestRows) Close() error {
+	return nil
+}
+
+func (r *cardSearchOutcomeTestRows) Next(dest []driver.Value) error {
+	if r.index >= len(r.values) {
+		return io.EOF
+	}
+	copy(dest, r.values[r.index])
+	r.index++
+	return nil
+}
+
+func canonicalCardSearchTestColumns() []string {
+	return []string{
+		"id",
+		"oracle_id",
+		"name",
+		"mana_cost",
+		"type_line",
+		"oracle_text",
+		"flavor_text",
+		"image_uri",
+		"art_crop_uri",
+		"colors",
+		"color_identity",
+		"cmc",
+		"power",
+		"toughness",
+		"loyalty",
+		"layout",
+		"legal_anywhere",
+		"commander_legal",
+		"is_commander_candidate",
+		"price_usd",
+		"artist",
+		"edhrec_rank",
+		"scryfall_uri",
+		"set_code",
+		"set_name",
+		"collector_number",
+		"rarity",
+		"released_at",
+		"lang",
+		"faces_json",
+		"legalities_json",
+	}
+}
+
+func canonicalCardSearchTestRow(name string) []driver.Value {
+	return []driver.Value{
+		"223e4567-e89b-12d3-a456-426614174000",
+		"123e4567-e89b-12d3-a456-426614174000",
+		name,
+		"{1}{U}",
+		"Creature",
+		"Draw a card.",
+		"",
+		"https://example.test/card.jpg",
+		"https://example.test/art.jpg",
+		"{U}",
+		"{U}",
+		float64(2),
+		"2",
+		"2",
+		"",
+		"normal",
+		true,
+		true,
+		true,
+		"$1.00",
+		"Test Artist",
+		int64(1),
+		"https://example.test/card",
+		"tst",
+		"Test Set",
+		"1",
+		"rare",
+		"2026-01-01",
+		"en",
+		"[]",
+		"{}",
+	}
+}
+
+func openCardSearchOutcomeTestDB(t *testing.T, exact, fuzzy bool) *sql.DB {
+	t.Helper()
+
+	driverName := "card-search-outcome-" + strconv.FormatUint(cardSearchOutcomeDriverSequence.Add(1), 10)
+	sql.Register(driverName, &cardSearchOutcomeTestDriver{exact: exact, fuzzy: fuzzy})
+	db, err := sql.Open(driverName, "")
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+	return db
+}
+
+func TestSearchCardsWithOutcomeReportsExactNameMatch(t *testing.T) {
+	db := openCardSearchOutcomeTestDB(t, true, true)
+
+	outcome, err := SearchCardsWithOutcome(context.Background(), db, CardSearchParams{
+		Query: "Exact Card",
+		Limit: 20,
+	})
+	if err != nil {
+		t.Fatalf("SearchCardsWithOutcome() error = %v", err)
+	}
+	if !outcome.ExactNameMatch {
+		t.Fatal("SearchCardsWithOutcome().ExactNameMatch = false, want true")
+	}
+	if len(outcome.Cards) != 1 || outcome.Cards[0].Name != "Exact Card" {
+		t.Fatalf("SearchCardsWithOutcome().Cards = %#v, want exact card", outcome.Cards)
+	}
+
+	legacy, err := SearchCards(context.Background(), db, CardSearchParams{
+		Query: "Exact Card",
+		Limit: 20,
+	})
+	if err != nil {
+		t.Fatalf("SearchCards() compatibility wrapper error = %v", err)
+	}
+	if len(legacy) != 1 || legacy[0].Name != "Exact Card" {
+		t.Fatalf("SearchCards() = %#v, want exact card", legacy)
+	}
+}
+
+func TestSearchCardsWithOutcomeDoesNotMarkFuzzySingletonExact(t *testing.T) {
+	db := openCardSearchOutcomeTestDB(t, false, true)
+
+	outcome, err := SearchCardsWithOutcome(context.Background(), db, CardSearchParams{
+		Query: "Fuzzy",
+		Limit: 20,
+	})
+	if err != nil {
+		t.Fatalf("SearchCardsWithOutcome() error = %v", err)
+	}
+	if outcome.ExactNameMatch {
+		t.Fatal("SearchCardsWithOutcome().ExactNameMatch = true, want false")
+	}
+	if len(outcome.Cards) != 1 || outcome.Cards[0].Name != "Fuzzy Card" {
+		t.Fatalf("SearchCardsWithOutcome().Cards = %#v, want fuzzy singleton", outcome.Cards)
+	}
+}
+
+func TestSearchCardsWithOutcomeDoesNotMarkFilterOnlySingletonExact(t *testing.T) {
+	db := openCardSearchOutcomeTestDB(t, false, true)
+
+	outcome, err := SearchCardsWithOutcome(context.Background(), db, CardSearchParams{
+		Layout: "normal",
+		Limit:  20,
+	})
+	if err != nil {
+		t.Fatalf("SearchCardsWithOutcome() error = %v", err)
+	}
+	if outcome.ExactNameMatch {
+		t.Fatal("SearchCardsWithOutcome().ExactNameMatch = true, want false")
+	}
+	if len(outcome.Cards) != 1 || outcome.Cards[0].Name != "Filtered Card" {
+		t.Fatalf("SearchCardsWithOutcome().Cards = %#v, want filter-only singleton", outcome.Cards)
+	}
+}
 
 func TestBuildCardSearchFiltersAdvanced(t *testing.T) {
 	t.Parallel()
@@ -155,6 +400,21 @@ func TestLegalAnywhereRequiresLegalOrRestrictedFormat(t *testing.T) {
 	}
 }
 
+func TestDecodeLegalitiesJSONNormalizesAndRejectsInvalidData(t *testing.T) {
+	t.Parallel()
+
+	got := decodeLegalitiesJSON(`{"Commander":"LEGAL","vintage":"restricted"}`)
+	if got["commander"] != "legal" || got["vintage"] != "restricted" {
+		t.Fatalf("decodeLegalitiesJSON() = %#v, want normalized legalities", got)
+	}
+	if invalid := decodeLegalitiesJSON(`{"commander":`); len(invalid) != 0 {
+		t.Fatalf("decodeLegalitiesJSON(invalid) = %#v, want empty map", invalid)
+	}
+	if empty := decodeLegalitiesJSON(""); len(empty) != 0 {
+		t.Fatalf("decodeLegalitiesJSON(empty) = %#v, want empty map", empty)
+	}
+}
+
 func TestCardSearchLimitSupportsAllMatches(t *testing.T) {
 	t.Parallel()
 
@@ -197,6 +457,43 @@ func TestCardNameSearchMatchSQLIncludesContainsAndFuzzy(t *testing.T) {
 	}
 }
 
+func TestCanonicalCardSelectCarriesDefaultPrintingIdentity(t *testing.T) {
+	t.Parallel()
+
+	sqlText := canonicalCardSelectSQL()
+	for _, snippet := range []string{
+		"COALESCE(oc.default_print_id::text, '') AS id",
+		"LEFT JOIN card_prints cp ON cp.scryfall_id = oc.default_print_id",
+		"COALESCE(cp.flavor_text, '') AS flavor_text",
+		"NULLIF(cp.card_faces_json::text, '[]')",
+		"COALESCE(oc.legalities, '{}'::jsonb)::text AS legalities_json",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("canonicalCardSelectSQL() missing %q in %q", snippet, sqlText)
+		}
+	}
+}
+
+func TestCardPrintingSelectKeepsPrintingSpecificData(t *testing.T) {
+	t.Parallel()
+
+	sqlText := cardPrintingSelectSQL()
+	for _, snippet := range []string{
+		"cp.scryfall_id::text AS id",
+		"COALESCE(cp.flavor_text, '') AS flavor_text",
+		"COALESCE(cp.image_uri, '') AS image_uri",
+		"NULLIF(cp.card_faces_json::text, '[]')",
+		"COALESCE(oc.legalities, '{}'::jsonb)::text AS legalities_json",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("cardPrintingSelectSQL() missing %q in %q", snippet, sqlText)
+		}
+	}
+	if strings.Contains(sqlText, "COALESCE(cp.flavor_text, COALESCE(oc.flavor_text, ''))") {
+		t.Fatalf("cardPrintingSelectSQL() still borrows flavor text from another printing: %q", sqlText)
+	}
+}
+
 func TestBuildCardSearchFiltersSupportsManaCostExactTypeAndStatOperator(t *testing.T) {
 	t.Parallel()
 
@@ -233,6 +530,68 @@ func TestBuildCardSearchFiltersSupportsManaCostExactTypeAndStatOperator(t *testi
 	}
 	if args[2] != powerValue {
 		t.Fatalf("args[2] = %#v, want %v", args[2], powerValue)
+	}
+}
+
+func TestBuildCardSearchFiltersSupportsMultipleStatsAndRarities(t *testing.T) {
+	t.Parallel()
+
+	sqlText, args := buildCardSearchFilters(CardSearchParams{
+		StatFilters: []CardStatFilter{
+			{Stat: "mana_value", Operator: "gte", Value: 2},
+			{Stat: "power", Operator: "lte", Value: 4},
+		},
+		Rarities: []string{"rare", "mythic", "rare", "invalid"},
+	}, 1)
+
+	for _, snippet := range []string{
+		"oc.cmc >= $1",
+		"oc.power_value <= $2",
+		"lower(COALESCE(cp.rarity, '')) = ANY($3::text[])",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("buildCardSearchFilters() missing SQL snippet %q in %q", snippet, sqlText)
+		}
+	}
+	if len(args) != 3 {
+		t.Fatalf("buildCardSearchFilters() returned %d args, want 3", len(args))
+	}
+	if args[0] != 2.0 || args[1] != 4.0 {
+		t.Fatalf("buildCardSearchFilters() stat args = %#v, want [2 4]", args[:2])
+	}
+	if got := arrayArgString(t, args[2]); got != `{"rare","mythic"}` {
+		t.Fatalf("buildCardSearchFilters() rarity arg = %q, want %q", got, `{"rare","mythic"}`)
+	}
+}
+
+func TestBuildCardSearchFiltersSupportsMultiplePricesWithSlicePrecedence(t *testing.T) {
+	t.Parallel()
+
+	scalarValue := 99.0
+	minValue := 50.0
+	maxValue := 100.0
+	sqlText, args := buildCardSearchFilters(CardSearchParams{
+		PriceOperator: "eq",
+		PriceValue:    &scalarValue,
+		PriceUSDMin:   &minValue,
+		PriceUSDMax:   &maxValue,
+		PriceFilters: []CardPriceFilter{
+			{Operator: "gte", Value: 1},
+			{Operator: "lte", Value: 25},
+		},
+	}, 1)
+
+	priceExpr := "NULLIF(regexp_replace(COALESCE(oc.default_price_usd, ''), '[^0-9.]', '', 'g'), '')::double precision"
+	for _, snippet := range []string{
+		priceExpr + " >= $1",
+		priceExpr + " <= $2",
+	} {
+		if !strings.Contains(sqlText, snippet) {
+			t.Fatalf("buildCardSearchFilters() missing SQL snippet %q in %q", snippet, sqlText)
+		}
+	}
+	if len(args) != 2 || args[0] != 1.0 || args[1] != 25.0 {
+		t.Fatalf("buildCardSearchFilters() price args = %#v, want [1 25]", args)
 	}
 }
 

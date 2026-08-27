@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -24,13 +25,16 @@ type User struct {
 	Email        string
 	DisplayName  string
 	PasswordHash string
+	SiteTheme    string
 }
 
 type PublicProfile struct {
-	ID                     int64
-	DisplayName            string
-	ProfileAvatarCommander string
-	CreatedAt              time.Time
+	ID                       int64
+	DisplayName              string
+	ProfileAvatarCommander   string
+	ProfilePicturePrintID    string
+	ProfileBackgroundPrintID string
+	CreatedAt                time.Time
 }
 
 type Session struct {
@@ -49,7 +53,12 @@ type PasswordResetToken struct {
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
 func CreateUser(ctx context.Context, db *sql.DB, email, displayName, password string) (*User, error) {
+	email = normalizeEmail(email)
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -59,19 +68,20 @@ func CreateUser(ctx context.Context, db *sql.DB, email, displayName, password st
 	err = db.QueryRowContext(ctx, `
 		INSERT INTO users (email, password_hash, display_name)
 		VALUES ($1, $2, $3)
-		RETURNING id, email, display_name, password_hash
-	`, email, string(hash), displayName).Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash)
+		RETURNING id, email, display_name, password_hash, site_theme
+	`, email, string(hash), displayName).Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash, &u.SiteTheme)
 
 	return &u, err
 }
 
 func Authenticate(ctx context.Context, db *sql.DB, email, password string) (*User, error) {
+	email = normalizeEmail(email)
 	var u User
 	err := db.QueryRowContext(ctx, `
-		SELECT id, email, display_name, password_hash
+		SELECT id, email, display_name, password_hash, site_theme
 		FROM users
-		WHERE email = $1
-	`, email).Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash)
+		WHERE lower(email) = $1
+	`, email).Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash, &u.SiteTheme)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrInvalidCredentials
@@ -238,11 +248,11 @@ func ResetPasswordWithToken(ctx context.Context, db *sql.DB, token, newPassword 
 func GetUserBySession(ctx context.Context, db *sql.DB, sid uuid.UUID) (*User, error) {
 	var u User
 	err := db.QueryRowContext(ctx, `
-		SELECT u.id, u.email, u.display_name, u.password_hash
+		SELECT u.id, u.email, u.display_name, u.password_hash, u.site_theme
 		FROM sessions s
 		JOIN users u ON u.id = s.user_id
 		WHERE s.id = $1 AND s.expires_at > NOW()
-	`, sid).Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash)
+	`, sid).Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash, &u.SiteTheme)
 
 	if err != nil {
 		return nil, err
@@ -263,6 +273,9 @@ func EnsureUserTable(ctx context.Context, db *sql.DB) error {
             password_hash TEXT NOT NULL,
             display_name TEXT NOT NULL,
             profile_avatar_commander TEXT NOT NULL DEFAULT '',
+			profile_picture_print_id UUID NULL,
+			profile_background_print_id UUID NULL,
+            site_theme TEXT NOT NULL DEFAULT 'tomb',
             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
     `); err != nil {
@@ -273,6 +286,36 @@ func EnsureUserTable(ctx context.Context, db *sql.DB) error {
 		ADD COLUMN IF NOT EXISTS profile_avatar_commander TEXT NOT NULL DEFAULT ''
 	`); err != nil {
 		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		ALTER TABLE users
+		ADD COLUMN IF NOT EXISTS profile_picture_print_id UUID NULL
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		ALTER TABLE users
+		ADD COLUMN IF NOT EXISTS profile_background_print_id UUID NULL
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		ALTER TABLE users
+		ADD COLUMN IF NOT EXISTS site_theme TEXT NOT NULL DEFAULT 'tomb'
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		ALTER TABLE users
+		ALTER COLUMN site_theme SET DEFAULT 'tomb'
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_case_insensitive
+		ON users (lower(email))
+	`); err != nil {
+		return fmt.Errorf("ensure case-insensitive email uniqueness (resolve any existing case-only duplicates first): %w", err)
 	}
 	_, err := db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -297,6 +340,9 @@ func EnsureSessionsTable(ctx context.Context, db *sql.DB) error {
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             expires_at TIMESTAMPTZ NOT NULL
         );
+		CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
+		CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at);
+		DELETE FROM sessions WHERE expires_at <= NOW();
     `)
 	return err
 }
@@ -307,7 +353,7 @@ func UpdateProfile(ctx context.Context, db *sql.DB, userID int64, displayName, e
 		 SET display_name = $1,
 		     email = $2
 		 WHERE id = $3`,
-		displayName, email, userID,
+		displayName, normalizeEmail(email), userID,
 	)
 	return err
 }
@@ -318,6 +364,34 @@ func UpdateProfileAvatarCommander(ctx context.Context, db *sql.DB, userID int64,
 		 SET profile_avatar_commander = $1
 		 WHERE id = $2`,
 		strings.TrimSpace(commanderName), userID,
+	)
+	return err
+}
+
+func UpdateProfilePicturePrint(ctx context.Context, db *sql.DB, userID int64, scryfallID string) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE users
+		SET profile_picture_print_id = NULLIF($1, '')::uuid
+		WHERE id = $2
+	`, strings.TrimSpace(scryfallID), userID)
+	return err
+}
+
+func UpdateProfileBackgroundPrint(ctx context.Context, db *sql.DB, userID int64, scryfallID string) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE users
+		SET profile_background_print_id = NULLIF($1, '')::uuid
+		WHERE id = $2
+	`, strings.TrimSpace(scryfallID), userID)
+	return err
+}
+
+func UpdateSiteTheme(ctx context.Context, db *sql.DB, userID int64, siteTheme string) error {
+	_, err := db.ExecContext(ctx,
+		`UPDATE users
+		 SET site_theme = $1
+		 WHERE id = $2`,
+		strings.TrimSpace(siteTheme), userID,
 	)
 	return err
 }
@@ -393,10 +467,22 @@ func DeleteAccount(ctx context.Context, db *sql.DB, userID int64) error {
 func GetPublicProfileByID(ctx context.Context, db *sql.DB, userID int64) (*PublicProfile, error) {
 	var profile PublicProfile
 	err := db.QueryRowContext(ctx, `
-		SELECT id, display_name, COALESCE(profile_avatar_commander, ''), created_at
+		SELECT id,
+		       display_name,
+		       COALESCE(profile_avatar_commander, ''),
+		       COALESCE(profile_picture_print_id::text, ''),
+		       COALESCE(profile_background_print_id::text, ''),
+		       created_at
 		FROM users
 		WHERE id = $1
-	`, userID).Scan(&profile.ID, &profile.DisplayName, &profile.ProfileAvatarCommander, &profile.CreatedAt)
+	`, userID).Scan(
+		&profile.ID,
+		&profile.DisplayName,
+		&profile.ProfileAvatarCommander,
+		&profile.ProfilePicturePrintID,
+		&profile.ProfileBackgroundPrintID,
+		&profile.CreatedAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +514,12 @@ func ListPublicProfilesByIDs(ctx context.Context, db *sql.DB, userIDs []int64) (
 	}
 
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, display_name, COALESCE(profile_avatar_commander, ''), created_at
+		SELECT id,
+		       display_name,
+		       COALESCE(profile_avatar_commander, ''),
+		       COALESCE(profile_picture_print_id::text, ''),
+		       COALESCE(profile_background_print_id::text, ''),
+		       created_at
 		FROM users
 		WHERE id IN (`+strings.Join(placeholders, ", ")+`)
 	`, args...)
@@ -439,7 +530,14 @@ func ListPublicProfilesByIDs(ctx context.Context, db *sql.DB, userIDs []int64) (
 
 	for rows.Next() {
 		var profile PublicProfile
-		if err := rows.Scan(&profile.ID, &profile.DisplayName, &profile.ProfileAvatarCommander, &profile.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&profile.ID,
+			&profile.DisplayName,
+			&profile.ProfileAvatarCommander,
+			&profile.ProfilePicturePrintID,
+			&profile.ProfileBackgroundPrintID,
+			&profile.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		out[profile.ID] = profile

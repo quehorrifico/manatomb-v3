@@ -7,15 +7,15 @@
     {{ $authNext = "/decks/new" }}
   {{ end }}
 
-  <main class="w-full px-3 xl:px-4 overflow-hidden">
+  <div class="pt-playtest-page w-full px-3 xl:px-4 overflow-hidden">
     <div class="pt-playtest-root">
-      <section class="pt-battlefield-section mt-panel p-4 sm:p-5 flex-1 min-h-0 flex flex-col">
+      <section class="pt-battlefield-section p-4 sm:p-5 flex-1 min-h-0 flex flex-col">
         <p id="pt-status" class="sr-only" aria-live="polite"></p>
 
         <div class="relative flex-1 min-h-0">
           <div id="pt-zone-battlefield"
                data-zone="battlefield"
-               class="pt-drop-zone pt-battlefield-zone h-full rounded-xl bg-slate-950/80 p-3 relative overflow-hidden"></div>
+               class="pt-drop-zone pt-zone-surface pt-battlefield-zone h-full rounded-xl p-3 relative overflow-hidden"></div>
         </div>
       </section>
 
@@ -23,18 +23,18 @@
         <div class="pt-zones-grid flex-1 min-h-0">
           <div class="pt-zone-card">
             <div class="flex items-center justify-between gap-2">
-              <p id="pt-count-hand" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Hand (0)</p>
+              <p id="pt-count-hand" class="pt-zone-label text-[11px] font-semibold uppercase tracking-wide">Hand (0)</p>
             </div>
             <div id="pt-zone-hand"
                  data-zone="hand"
-                 class="pt-drop-zone pt-hand-zone mt-2 flex-1 min-h-0 rounded-xl bg-slate-950/80 p-1.5 flex gap-1.5 overflow-x-auto overflow-y-hidden items-start"></div>
+                 class="pt-drop-zone pt-zone-surface pt-hand-zone mt-2 flex-1 min-h-0 rounded-xl p-1.5 flex gap-1.5 overflow-x-auto overflow-y-hidden items-start"></div>
           </div>
 
           <div class="pt-side-grid">
             <div class="pt-zone-card">
               <div class="relative flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
-                  <p id="pt-count-library" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Library (0)</p>
+                  <p id="pt-count-library" class="pt-zone-label text-[11px] font-semibold uppercase tracking-wide">Library (0)</p>
                   <button id="pt-library-menu-toggle"
                           type="button"
                           class="pt-menu-trigger"
@@ -153,31 +153,31 @@
               </div>
               <div id="pt-zone-library"
                    data-zone="library"
-                   class="pt-drop-zone pt-side-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden cursor-pointer"></div>
+                   class="pt-drop-zone pt-zone-surface pt-side-zone mt-2 rounded-xl relative overflow-hidden cursor-pointer"></div>
             </div>
 
             <div class="pt-zone-card">
               <div class="flex items-center justify-between gap-2">
-                <p id="pt-count-graveyard" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Graveyard (0)</p>
+                <p id="pt-count-graveyard" class="pt-zone-label text-[11px] font-semibold uppercase tracking-wide">Graveyard (0)</p>
               </div>
               <div id="pt-zone-graveyard"
                    data-zone="graveyard"
-                   class="pt-drop-zone pt-side-zone pt-stack-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden"></div>
+                   class="pt-drop-zone pt-zone-surface pt-side-zone pt-stack-zone mt-2 rounded-xl relative overflow-hidden"></div>
             </div>
 
             <div class="pt-zone-card">
               <div class="flex items-center justify-between gap-2">
-                <p id="pt-count-exile" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Exile (0)</p>
+                <p id="pt-count-exile" class="pt-zone-label text-[11px] font-semibold uppercase tracking-wide">Exile (0)</p>
               </div>
               <div id="pt-zone-exile"
                    data-zone="exile"
-                   class="pt-drop-zone pt-side-zone pt-stack-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden"></div>
+                   class="pt-drop-zone pt-zone-surface pt-side-zone pt-stack-zone mt-2 rounded-xl relative overflow-hidden"></div>
             </div>
 
             <div class="pt-zone-card">
               <div class="relative flex items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
-                  <p id="pt-count-command" class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Command (0)</p>
+                  <p id="pt-count-command" class="pt-zone-label text-[11px] font-semibold uppercase tracking-wide">Command (0)</p>
                   <button id="pt-command-menu-toggle"
                           type="button"
                           class="pt-menu-trigger"
@@ -206,7 +206,7 @@
               </div>
               <div id="pt-zone-command"
                    data-zone="command"
-                   class="pt-drop-zone pt-side-zone pt-stack-zone mt-2 rounded-xl bg-slate-950/80 relative overflow-hidden"></div>
+                   class="pt-drop-zone pt-zone-surface pt-side-zone pt-stack-zone mt-2 rounded-xl relative overflow-hidden"></div>
             </div>
           </div>
         </div>
@@ -441,10 +441,10 @@
     <div id="pt-token-overlay" class="hidden fixed inset-0 z-40">
       <button id="pt-token-backdrop"
               type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
-      <section class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] mt-panel bg-slate-950/95 p-4 space-y-3">
+              class="pt-overlay-backdrop absolute inset-0"></button>
+      <section class="pt-compact-dialog absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] p-4 space-y-3">
         <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-100">Token</h2>
+          <h2 class="pt-dialog-title text-sm font-semibold">Token</h2>
           <button id="pt-token-close"
                   type="button"
                   class="mt-btn mt-btn--secondary mt-btn--xs">
@@ -453,7 +453,7 @@
         </div>
         <div class="space-y-2">
           <div>
-            <label for="pt-token-name" class="block text-xs text-slate-400 mb-1">Name</label>
+            <label for="pt-token-name" class="pt-dialog-label block text-xs mb-1">Name</label>
             <input id="pt-token-name"
                    type="text"
                    value="Token"
@@ -461,7 +461,7 @@
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label for="pt-token-power" class="block text-xs text-slate-400 mb-1">Power</label>
+              <label for="pt-token-power" class="pt-dialog-label block text-xs mb-1">Power</label>
               <input id="pt-token-power"
                      type="number"
                      value="1"
@@ -469,7 +469,7 @@
                      class="mt-control mt-control--sm">
             </div>
             <div>
-              <label for="pt-token-toughness" class="block text-xs text-slate-400 mb-1">Toughness</label>
+              <label for="pt-token-toughness" class="pt-dialog-label block text-xs mb-1">Toughness</label>
               <input id="pt-token-toughness"
                      type="number"
                      value="1"
@@ -478,14 +478,14 @@
             </div>
           </div>
           <div>
-            <label for="pt-token-type" class="block text-xs text-slate-400 mb-1">Type</label>
+            <label for="pt-token-type" class="pt-dialog-label block text-xs mb-1">Type</label>
             <input id="pt-token-type"
                    type="text"
                    placeholder="e.g. Creature — Soldier"
                    class="mt-control mt-control--sm">
           </div>
           <div>
-            <label for="pt-token-qty" class="block text-xs text-slate-400 mb-1">Quantity</label>
+            <label for="pt-token-qty" class="pt-dialog-label block text-xs mb-1">Quantity</label>
             <input id="pt-token-qty"
                    type="number"
                    value="1"
@@ -504,7 +504,7 @@
     <div id="pt-scry-overlay" class="hidden fixed inset-0 z-40">
       <button id="pt-scry-backdrop"
               type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
+              class="pt-overlay-backdrop absolute inset-0"></button>
       <section class="pt-opening-dialog pt-scry-dialog">
         <div class="pt-opening-dialog__hero">
           <div class="pt-opening-title-row">
@@ -534,7 +534,7 @@
     <div id="pt-library-search-overlay" class="hidden fixed inset-0 z-40">
       <button id="pt-library-search-backdrop"
               type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
+              class="pt-overlay-backdrop absolute inset-0"></button>
       <section class="pt-library-search-dialog">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div class="space-y-2 min-w-0">
@@ -562,7 +562,7 @@
     <div id="pt-count-picker-overlay" class="hidden fixed inset-0 z-40">
       <button id="pt-count-picker-backdrop"
               type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
+              class="pt-overlay-backdrop absolute inset-0"></button>
       <section class="pt-count-picker-dialog">
         <div class="flex items-start justify-between gap-4">
           <div class="space-y-1">
@@ -587,17 +587,17 @@
     <div id="pt-custom-count-overlay" class="hidden fixed inset-0 z-50">
       <button id="pt-custom-count-backdrop"
               type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
-      <section class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] mt-panel bg-slate-950/95 p-4 space-y-3">
+              class="pt-overlay-backdrop absolute inset-0"></button>
+      <section class="pt-compact-dialog absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(360px,92vw)] p-4 space-y-3">
         <div class="flex items-center justify-between">
-          <h2 id="pt-custom-count-title" class="text-sm font-semibold text-slate-100">Choose X</h2>
+          <h2 id="pt-custom-count-title" class="pt-dialog-title text-sm font-semibold">Choose X</h2>
           <button id="pt-custom-count-close"
                   type="button"
                   class="mt-btn mt-btn--secondary mt-btn--xs">
             Close
           </button>
         </div>
-        <label for="pt-custom-count-input" class="block text-xs text-slate-400 mb-1">Count</label>
+        <label for="pt-custom-count-input" class="pt-dialog-label block text-xs mb-1">Count</label>
         <input id="pt-custom-count-input"
                type="text"
                inputmode="numeric"
@@ -615,7 +615,7 @@
     <div id="pt-history-overlay" class="hidden fixed inset-0 z-40">
       <button id="pt-history-backdrop"
               type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
+              class="pt-overlay-backdrop absolute inset-0"></button>
       <section class="pt-history-dialog">
         <div class="flex items-start justify-between gap-4">
           <div class="space-y-1">
@@ -635,7 +635,7 @@
     <div id="pt-card-detail-overlay" class="hidden fixed inset-0 z-40">
       <button id="pt-card-detail-backdrop"
               type="button"
-              class="absolute inset-0 bg-slate-950/70"></button>
+              class="pt-overlay-backdrop absolute inset-0"></button>
       <section class="pt-card-detail-dialog">
         <div class="pt-card-detail-header">
           <div class="min-w-0">
@@ -653,9 +653,9 @@
           <div class="pt-card-detail-art">
             <img id="pt-card-detail-image"
                  alt=""
-                 class="w-full h-auto bg-slate-900 hidden">
+                 class="pt-card-detail-surface w-full h-auto hidden">
             <div id="pt-card-detail-fallback"
-                 class="pt-card-detail-fallback hidden min-h-[320px] bg-slate-900 p-6 text-center text-sm text-slate-300"></div>
+                 class="pt-card-detail-fallback pt-card-detail-surface hidden min-h-[320px] p-6 text-center text-sm"></div>
           </div>
           <div class="pt-card-detail-body">
             <div class="pt-card-detail-summary">
@@ -818,6 +818,80 @@
     </div>
 
     <style>
+      body[data-page="deck-playtest"] {
+        --pt-canvas: var(--mt-bg);
+        --pt-surface: var(--mt-surface);
+        --pt-surface-raised: var(--mt-surface-raised);
+        --pt-border: var(--mt-border-subtle);
+        --pt-border-strong: var(--mt-border-control);
+        --pt-text: var(--mt-text);
+        --pt-text-soft: var(--mt-text-soft);
+        --pt-text-muted: var(--mt-text-muted);
+        --pt-text-disabled: var(--mt-text-disabled);
+        --pt-accent: var(--mt-accent);
+        --pt-accent-strong: var(--mt-accent-strong);
+        --pt-accent-text: var(--mt-accent-text);
+        --pt-overlay: color-mix(in srgb, var(--mt-bg) 76%, transparent);
+      }
+
+      .pt-zone-surface {
+        background: color-mix(in srgb, var(--pt-canvas) 82%, transparent);
+      }
+
+      .pt-zone-label,
+      .pt-dialog-label,
+      .pt-card-note,
+      .pt-empty-message {
+        color: var(--pt-text-muted);
+      }
+
+      .pt-dialog-title {
+        color: var(--pt-text);
+      }
+
+      .pt-overlay-backdrop {
+        background: var(--pt-overlay);
+      }
+
+      .pt-compact-dialog {
+        border: 1px solid var(--pt-border-strong);
+        border-radius: 1rem;
+        background: color-mix(in srgb, var(--pt-canvas) 96%, transparent);
+        box-shadow: var(--mt-shadow-popover);
+        color: var(--pt-text-soft);
+      }
+
+      .pt-card-detail-surface {
+        background: var(--pt-surface);
+        color: var(--pt-text-soft);
+      }
+
+      .pt-empty-message {
+        font-size: 0.875rem;
+      }
+
+      .pt-empty-message--padded {
+        padding: 0.75rem 0.25rem;
+      }
+
+      .pt-empty-message--centered {
+        align-self: center;
+      }
+
+      .pt-empty-message--waiting {
+        padding: 1.5rem 0.5rem 0;
+        font-size: 0.75rem;
+      }
+
+      .pt-card-note {
+        font-size: 0.6875rem;
+        text-align: center;
+      }
+
+      .pt-card-note--spaced {
+        margin-top: 0.125rem;
+      }
+
       .pt-playtest-root {
         --pt-card-width: 108px;
         --pt-card-height: 151px;
@@ -886,9 +960,9 @@
         width: 100%;
         min-height: 2.8rem;
         border-radius: 0.75rem;
-        border: 1px solid rgba(30, 41, 59, 0.92);
-        background: rgba(2, 6, 23, 0.92);
-        box-shadow: 0 14px 36px rgba(2, 6, 23, 0.38);
+        border: 1px solid color-mix(in srgb, var(--pt-surface-raised) 92%, transparent);
+        background: color-mix(in srgb, var(--pt-canvas) 92%, transparent);
+        box-shadow: 0 14px 36px color-mix(in srgb, var(--pt-canvas) 38%, transparent);
         padding: 0.42rem 0.5rem;
         overflow: visible;
       }
@@ -908,9 +982,9 @@
         gap: 0.35rem;
         min-height: 1.9rem;
         border-radius: 0.6rem;
-        border: 1px solid rgba(51, 65, 85, 0.92);
-        background: rgba(15, 23, 42, 0.88);
-        color: rgb(226 232 240);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-surface) 88%, transparent);
+        color: var(--pt-text-soft);
         font-size: 0.74rem;
         font-weight: 700;
         line-height: 1;
@@ -920,9 +994,9 @@
 
       .pt-toolbar-button:hover,
       .pt-toolbar-button[aria-expanded="true"] {
-        border-color: rgba(56, 189, 248, 0.48);
-        background: rgba(8, 47, 73, 0.42);
-        color: rgb(240 249 255);
+        border-color: color-mix(in srgb, var(--pt-accent-strong) 48%, transparent);
+        background: color-mix(in srgb, var(--pt-accent) 20%, var(--pt-surface));
+        color: var(--pt-text);
       }
 
       .pt-toolbar-menu {
@@ -937,9 +1011,9 @@
         flex-direction: column;
         gap: 0.45rem;
         border-radius: 0.8rem;
-        border: 1px solid rgba(51, 65, 85, 0.92);
-        background: rgba(2, 6, 23, 0.98);
-        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.5);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-canvas) 98%, transparent);
+        box-shadow: 0 18px 40px color-mix(in srgb, var(--pt-canvas) 50%, transparent);
         padding: 0.55rem;
       }
 
@@ -961,7 +1035,7 @@
       .pt-toolbar-menu__value {
         min-width: 3rem;
         text-align: center;
-        color: rgb(248 250 252);
+        color: var(--pt-text);
         font-size: 1.25rem;
         font-weight: 800;
         line-height: 1;
@@ -979,9 +1053,9 @@
         flex-direction: column;
         gap: 0.1rem;
         border-radius: 0.85rem;
-        border: 1px solid rgba(51, 65, 85, 0.92);
-        background: rgba(2, 6, 23, 0.98);
-        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.48);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-canvas) 98%, transparent);
+        box-shadow: 0 18px 40px color-mix(in srgb, var(--pt-canvas) 48%, transparent);
         padding: 0.35rem;
       }
 
@@ -1020,9 +1094,9 @@
         gap: 0.45rem;
         width: 100%;
         border-radius: 0.65rem;
-        border: 1px solid rgba(51, 65, 85, 0.78);
-        background: rgba(15, 23, 42, 0.72);
-        color: rgb(203 213 225);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-surface) 72%, transparent);
+        color: var(--pt-text-soft);
         padding: 0.4rem;
       }
 
@@ -1042,15 +1116,15 @@
         width: 1.05rem;
         height: 1.05rem;
         border-radius: 9999px;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         font-size: 0.74rem;
         font-weight: 900;
         line-height: 1;
       }
 
       .pt-command-tax__step:hover {
-        background: rgba(30, 41, 59, 0.88);
-        color: rgb(248 250 252);
+        background: color-mix(in srgb, var(--pt-surface-raised) 88%, transparent);
+        color: var(--pt-text);
       }
 
       .pt-command-tax__step:disabled {
@@ -1065,11 +1139,11 @@
         flex: 1 1 16rem;
         min-width: 10rem;
         max-width: 34rem;
-        border: 1px solid rgba(51, 65, 85, 0.6);
+        border: 1px solid var(--pt-border);
         border-radius: 0.55rem;
-        background: rgba(15, 23, 42, 0.58);
+        background: color-mix(in srgb, var(--pt-surface) 58%, transparent);
         padding: 0.38rem 0.6rem;
-        color: rgb(203 213 225);
+        color: var(--pt-text-soft);
         font-size: 0.78rem;
         line-height: 1.25;
         text-align: left;
@@ -1088,28 +1162,28 @@
       .pt-visible-status__hint {
         margin-left: auto;
         flex: 0 0 auto;
-        color: rgba(203, 213, 225, 0.5);
+        color: color-mix(in srgb, var(--pt-text-soft) 50%, transparent);
         font-size: 0.66rem;
         line-height: 1;
         white-space: nowrap;
       }
 
       .pt-visible-status:hover {
-        border-color: rgba(56, 189, 248, 0.42);
-        background: rgba(15, 23, 42, 0.78);
-        color: rgb(226 232 240);
+        border-color: color-mix(in srgb, var(--pt-accent-strong) 42%, transparent);
+        background: color-mix(in srgb, var(--pt-surface) 78%, transparent);
+        color: var(--pt-text-soft);
       }
 
       .pt-overlay-metric {
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
-        border: 1px solid rgba(51, 65, 85, 0.94);
+        border: 1px solid var(--pt-border-strong);
         border-radius: 9999px;
-        background: rgba(2, 6, 23, 0.92);
-        box-shadow: 0 12px 24px rgba(2, 6, 23, 0.35);
+        background: color-mix(in srgb, var(--pt-canvas) 92%, transparent);
+        box-shadow: 0 12px 24px color-mix(in srgb, var(--pt-canvas) 35%, transparent);
         padding: 0.35rem 0.6rem;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         backdrop-filter: blur(8px);
       }
 
@@ -1118,7 +1192,7 @@
         font-weight: 700;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: rgb(148 163 184);
+        color: var(--pt-text-muted);
       }
 
       .pt-overlay-metric__value {
@@ -1126,7 +1200,7 @@
         font-size: 0.9rem;
         font-weight: 700;
         line-height: 1;
-        color: rgb(248 250 252);
+        color: var(--pt-text);
         text-align: center;
       }
 
@@ -1137,28 +1211,28 @@
         width: 1.25rem;
         height: 1.25rem;
         border-radius: 9999px;
-        background: rgba(15, 23, 42, 0.96);
-        color: rgb(226 232 240);
+        background: color-mix(in srgb, var(--pt-surface) 96%, transparent);
+        color: var(--pt-text-soft);
         font-size: 0.8rem;
         font-weight: 700;
         line-height: 1;
       }
 
       .pt-overlay-metric__step:hover {
-        background: rgba(30, 41, 59, 0.98);
-        color: rgb(248 250 252);
+        background: color-mix(in srgb, var(--pt-surface-raised) 98%, transparent);
+        color: var(--pt-text);
       }
 
       .pt-mana-tracker {
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
-        border: 1px solid rgba(51, 65, 85, 0.94);
+        border: 1px solid var(--pt-border-strong);
         border-radius: 9999px;
-        background: rgba(2, 6, 23, 0.92);
-        box-shadow: 0 12px 24px rgba(2, 6, 23, 0.35);
+        background: color-mix(in srgb, var(--pt-canvas) 92%, transparent);
+        box-shadow: 0 12px 24px color-mix(in srgb, var(--pt-canvas) 35%, transparent);
         padding: 0.28rem 0.45rem 0.28rem 0.6rem;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         backdrop-filter: blur(8px);
       }
 
@@ -1176,8 +1250,8 @@
         justify-items: center;
         min-height: 1.45rem;
         border-radius: 9999px;
-        border: 1px solid rgba(51, 65, 85, 0.72);
-        background: rgba(15, 23, 42, 0.88);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-surface) 88%, transparent);
         overflow: hidden;
       }
 
@@ -1190,7 +1264,7 @@
         justify-content: center;
         font-size: 0.58rem;
         font-weight: 800;
-        color: rgb(15 23 42);
+        color: var(--pt-canvas);
         background: transparent;
       }
 
@@ -1201,7 +1275,7 @@
 
       .pt-mana-count {
         min-width: 1rem;
-        color: rgb(248 250 252);
+        color: var(--pt-text);
         font-size: 0.74rem;
         font-weight: 800;
         line-height: 1;
@@ -1212,7 +1286,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: rgb(203 213 225);
+        color: var(--pt-text-soft);
         font-size: 0.66rem;
         font-weight: 800;
         line-height: 1;
@@ -1225,8 +1299,8 @@
 
       .pt-mana-step:hover,
       .pt-mana-clear:hover {
-        color: rgb(248 250 252);
-        background: rgba(30, 41, 59, 0.74);
+        color: var(--pt-text);
+        background: color-mix(in srgb, var(--pt-surface-raised) 74%, transparent);
       }
 
       .pt-mana-clear {
@@ -1296,17 +1370,17 @@
         min-width: 1.45rem;
         height: 1.45rem;
         border-radius: 9999px;
-        border: 1px solid rgba(51, 65, 85, 0.92);
-        background: rgba(15, 23, 42, 0.9);
-        color: rgb(203 213 225);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-surface) 90%, transparent);
+        color: var(--pt-text-soft);
         font-size: 0.64rem;
         font-weight: 700;
         letter-spacing: 0.08em;
       }
 
       .pt-menu-trigger:hover {
-        border-color: rgba(56, 189, 248, 0.45);
-        color: rgb(240 249 255);
+        border-color: color-mix(in srgb, var(--pt-accent-strong) 45%, transparent);
+        color: var(--pt-text);
       }
 
       .pt-inline-menu {
@@ -1317,9 +1391,9 @@
         max-height: min(60vh, 22rem);
         overflow: auto;
         border-radius: 0.85rem;
-        border: 1px solid rgba(51, 65, 85, 0.92);
-        background: rgba(2, 6, 23, 0.96);
-        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.42);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-canvas) 96%, transparent);
+        box-shadow: 0 18px 40px color-mix(in srgb, var(--pt-canvas) 42%, transparent);
         padding: 0.35rem;
       }
 
@@ -1335,7 +1409,7 @@
         border-radius: 0.65rem;
         padding: 0.55rem 0.7rem;
         font-size: 0.8rem;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         text-align: left;
       }
 
@@ -1366,10 +1440,10 @@
       }
 
       .pt-menu-shortcut {
-        border: 1px solid rgba(148, 163, 184, 0.22);
+        border: 1px solid color-mix(in srgb, var(--pt-text-muted) 22%, transparent);
         border-radius: 9999px;
-        background: rgba(15, 23, 42, 0.62);
-        color: rgba(226, 232, 240, 0.64);
+        background: color-mix(in srgb, var(--pt-surface) 62%, transparent);
+        color: color-mix(in srgb, var(--pt-text-soft) 64%, transparent);
         font-size: 0.64rem;
         font-weight: 900;
         line-height: 1;
@@ -1380,13 +1454,13 @@
       }
 
       .pt-inline-menu__item:hover {
-        background: rgba(15, 23, 42, 0.94);
-        color: rgb(240 249 255);
+        background: color-mix(in srgb, var(--pt-surface) 94%, transparent);
+        color: var(--pt-text);
       }
 
       .pt-inline-menu__item:disabled:hover {
         background: transparent;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
       }
 
       .pt-card-inline-menu {
@@ -1404,9 +1478,9 @@
         flex-direction: column;
         gap: 0.1rem;
         border-radius: 0.85rem;
-        border: 1px solid rgba(51, 65, 85, 0.92);
-        background: rgba(2, 6, 23, 0.98);
-        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.48);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-canvas) 98%, transparent);
+        box-shadow: 0 18px 40px color-mix(in srgb, var(--pt-canvas) 48%, transparent);
         padding: 0.35rem;
       }
 
@@ -1425,15 +1499,15 @@
       }
 
       .pt-drop-zone.pt-drop-zone--active {
-        background: rgb(8 47 73 / 0.62);
-        box-shadow: 0 0 0 2px rgb(14 116 144 / 0.5) inset;
+        background: color-mix(in srgb, var(--pt-accent) 30%, var(--pt-surface));
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--pt-accent-strong) 50%, transparent) inset;
       }
 
       .pt-battlefield-zone {
         background-image:
-          linear-gradient(rgba(51, 65, 85, 0.14) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(51, 65, 85, 0.14) 1px, transparent 1px),
-          radial-gradient(circle at top, rgba(14, 165, 233, 0.08), transparent 55%);
+          linear-gradient(color-mix(in srgb, var(--pt-border) 18%, transparent) 1px, transparent 1px),
+          linear-gradient(90deg, color-mix(in srgb, var(--pt-border) 18%, transparent) 1px, transparent 1px),
+          radial-gradient(circle at top, color-mix(in srgb, var(--pt-accent) 8%, transparent), transparent 55%);
         background-size: 24px 24px, 24px 24px, auto;
         background-position: center;
       }
@@ -1442,8 +1516,8 @@
         width: var(--pt-card-width);
         border-radius: 0;
         overflow: hidden;
-        background: rgb(2 6 23);
-        box-shadow: 0 8px 22px rgba(2, 6, 23, 0.55);
+        background: var(--pt-canvas);
+        box-shadow: 0 8px 22px color-mix(in srgb, var(--pt-canvas) 55%, transparent);
         cursor: grab;
         transition: transform 120ms ease, box-shadow 120ms ease;
         user-select: none;
@@ -1477,7 +1551,7 @@
         aspect-ratio: 63 / 88;
         object-fit: cover;
         display: block;
-        background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+        background: linear-gradient(160deg, color-mix(in srgb, var(--pt-surface) 95%, transparent), color-mix(in srgb, var(--pt-surface-raised) 90%, transparent));
       }
 
       .pt-card__fallback {
@@ -1489,9 +1563,9 @@
         text-align: center;
         font-size: 11px;
         line-height: 1.2;
-        color: rgb(203 213 225);
+        color: var(--pt-text-soft);
         padding: 10px;
-        background: linear-gradient(160deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+        background: linear-gradient(160deg, color-mix(in srgb, var(--pt-surface) 95%, transparent), color-mix(in srgb, var(--pt-surface-raised) 90%, transparent));
       }
 
       .pt-card__counters {
@@ -1506,13 +1580,13 @@
         max-height: 45%;
         overflow: hidden;
         padding: 3px;
-        background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.84) 36%, rgba(2, 6, 23, 0.94));
+        background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--pt-canvas) 84%, transparent) 36%, color-mix(in srgb, var(--pt-canvas) 94%, transparent));
       }
 
       .pt-card__counter {
-        border: 1px solid rgba(148, 163, 184, 0.42);
-        background: rgba(15, 23, 42, 0.86);
-        color: rgb(226 232 240);
+        border: 1px solid color-mix(in srgb, var(--pt-text-muted) 42%, transparent);
+        background: color-mix(in srgb, var(--pt-surface) 86%, transparent);
+        color: var(--pt-text-soft);
         font-size: 0.55rem;
         font-weight: 800;
         line-height: 1;
@@ -1538,7 +1612,7 @@
 
       .pt-drag-avatar {
         opacity: 0.96;
-        filter: drop-shadow(0 18px 32px rgba(2, 6, 23, 0.48));
+        filter: drop-shadow(0 18px 32px color-mix(in srgb, var(--pt-canvas) 48%, transparent));
       }
 
       .pt-drag-avatar.pt-card--tapped {
@@ -1587,12 +1661,12 @@
       }
 
       .pt-hand-zone::-webkit-scrollbar-track {
-        background: rgba(15, 23, 42, 0.45);
+        background: color-mix(in srgb, var(--pt-surface) 45%, transparent);
         border-radius: 999px;
       }
 
       .pt-hand-zone::-webkit-scrollbar-thumb {
-        background: rgba(71, 85, 105, 0.9);
+        background: var(--pt-border-strong);
         border-radius: 999px;
       }
 
@@ -1604,7 +1678,7 @@
       .pt-hand-zone,
       .pt-side-zone {
         border-radius: 0.55rem;
-        background: rgba(2, 6, 23, 0.68);
+        background: color-mix(in srgb, var(--pt-canvas) 68%, transparent);
       }
 
       .pt-count-picker-dialog {
@@ -1616,10 +1690,10 @@
         flex-direction: column;
         gap: 1rem;
         border-radius: 1rem;
-        border: 1px solid rgba(71, 85, 105, 0.88);
-        background: rgba(2, 6, 23, 0.97);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-canvas) 97%, transparent);
         padding: 1rem;
-        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.58);
+        box-shadow: 0 24px 60px color-mix(in srgb, var(--pt-canvas) 58%, transparent);
       }
 
       .pt-count-picker-options {
@@ -1635,17 +1709,17 @@
       .pt-count-picker-option {
         min-height: 2.4rem;
         border-radius: 0.7rem;
-        border: 1px solid rgba(51, 65, 85, 0.88);
-        background: rgba(15, 23, 42, 0.9);
-        color: rgb(226 232 240);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-surface) 90%, transparent);
+        color: var(--pt-text-soft);
         font-size: 0.9rem;
         font-weight: 800;
       }
 
       .pt-count-picker-option:hover {
-        border-color: rgba(56, 189, 248, 0.48);
-        background: rgba(8, 47, 73, 0.48);
-        color: rgb(240 249 255);
+        border-color: color-mix(in srgb, var(--pt-accent-strong) 48%, transparent);
+        background: color-mix(in srgb, var(--pt-accent) 24%, var(--pt-surface));
+        color: var(--pt-text);
       }
 
       .pt-history-dialog {
@@ -1659,10 +1733,10 @@
         gap: 1rem;
         overflow: hidden;
         border-radius: 1.1rem;
-        border: 1px solid rgba(71, 85, 105, 0.88);
-        background: rgba(2, 6, 23, 0.97);
+        border: 1px solid var(--pt-border-strong);
+        background: color-mix(in srgb, var(--pt-canvas) 97%, transparent);
         padding: 1.1rem;
-        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.58);
+        box-shadow: 0 24px 60px color-mix(in srgb, var(--pt-canvas) 58%, transparent);
       }
 
       .pt-history-list {
@@ -1680,13 +1754,13 @@
         gap: 0.75rem;
         align-items: start;
         border-radius: 0.7rem;
-        border: 1px solid rgba(51, 65, 85, 0.68);
-        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-surface) 62%, transparent);
         padding: 0.65rem 0.75rem;
       }
 
       .pt-history-item__turn {
-        color: rgb(148 163 184);
+        color: var(--pt-text-muted);
         font-size: 0.72rem;
         font-weight: 800;
         line-height: 1.3;
@@ -1695,7 +1769,7 @@
 
       .pt-history-item__text {
         min-width: 0;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         font-size: 0.88rem;
         line-height: 1.35;
       }
@@ -1710,8 +1784,8 @@
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(circle at top, rgba(14, 165, 233, 0.16), transparent 34%),
-          linear-gradient(180deg, rgba(2, 6, 23, 0.86), rgba(2, 6, 23, 0.94));
+          radial-gradient(circle at top, color-mix(in srgb, var(--pt-accent) 16%, transparent), transparent 34%),
+          linear-gradient(180deg, color-mix(in srgb, var(--pt-canvas) 86%, transparent), color-mix(in srgb, var(--pt-canvas) 94%, transparent));
         backdrop-filter: blur(10px);
       }
 
@@ -1722,15 +1796,15 @@
         flex-direction: column;
         gap: 1.25rem;
         border-radius: 1.2rem;
-        border: 1px solid rgba(71, 85, 105, 0.88);
+        border: 1px solid var(--pt-border-strong);
         background:
-          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
-          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+          linear-gradient(180deg, color-mix(in srgb, var(--pt-canvas) 97%, transparent), color-mix(in srgb, var(--pt-canvas) 94%, transparent)),
+          radial-gradient(circle at top, color-mix(in srgb, var(--pt-accent) 14%, transparent), transparent 52%);
         padding: 1.35rem 1.4rem 1.2rem;
         overflow: hidden;
         box-shadow:
-          0 24px 60px rgba(2, 6, 23, 0.58),
-          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+          0 24px 60px color-mix(in srgb, var(--pt-canvas) 58%, transparent),
+          inset 0 1px 0 color-mix(in srgb, var(--pt-text-muted) 12%, transparent);
       }
 
       .pt-opening-dialog__hero {
@@ -1755,14 +1829,14 @@
         line-height: 1.05;
         font-weight: 700;
         letter-spacing: 0;
-        color: rgb(248 250 252);
+        color: var(--pt-text);
       }
 
       .pt-opening-hint {
         max-width: 48rem;
         font-size: 0.95rem;
         line-height: 1.5;
-        color: rgb(148 163 184);
+        color: var(--pt-text-muted);
       }
 
       .pt-opening-hand-grid {
@@ -1799,14 +1873,14 @@
         flex-direction: column;
         gap: 1.25rem;
         border-radius: 1.2rem;
-        border: 1px solid rgba(71, 85, 105, 0.88);
+        border: 1px solid var(--pt-border-strong);
         background:
-          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
-          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+          linear-gradient(180deg, color-mix(in srgb, var(--pt-canvas) 97%, transparent), color-mix(in srgb, var(--pt-canvas) 94%, transparent)),
+          radial-gradient(circle at top, color-mix(in srgb, var(--pt-accent) 14%, transparent), transparent 52%);
         padding: 1.35rem 1.4rem 1.2rem;
         box-shadow:
-          0 24px 60px rgba(2, 6, 23, 0.58),
-          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+          0 24px 60px color-mix(in srgb, var(--pt-canvas) 58%, transparent),
+          inset 0 1px 0 color-mix(in srgb, var(--pt-text-muted) 12%, transparent);
       }
 
       .pt-card-detail-dialog {
@@ -1821,14 +1895,14 @@
         gap: 1.25rem;
         overflow: auto;
         border-radius: 1.2rem;
-        border: 1px solid rgba(71, 85, 105, 0.88);
+        border: 1px solid var(--pt-border-strong);
         background:
-          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
-          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+          linear-gradient(180deg, color-mix(in srgb, var(--pt-canvas) 97%, transparent), color-mix(in srgb, var(--pt-canvas) 94%, transparent)),
+          radial-gradient(circle at top, color-mix(in srgb, var(--pt-accent) 14%, transparent), transparent 52%);
         padding: 1.35rem 1.4rem 1.2rem;
         box-shadow:
-          0 24px 60px rgba(2, 6, 23, 0.58),
-          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+          0 24px 60px color-mix(in srgb, var(--pt-canvas) 58%, transparent),
+          inset 0 1px 0 color-mix(in srgb, var(--pt-text-muted) 12%, transparent);
       }
 
       .pt-card-detail-header {
@@ -1836,13 +1910,13 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        border-bottom: 1px solid rgba(51, 65, 85, 0.72);
+        border-bottom: 1px solid var(--pt-border);
         padding-bottom: 1rem;
       }
 
       .pt-card-detail-title {
         margin: 0;
-        color: rgb(248 250 252);
+        color: var(--pt-text);
         font-size: clamp(1.35rem, 2.4vw, 2rem);
         font-weight: 850;
         line-height: 1.05;
@@ -1850,7 +1924,7 @@
 
       .pt-card-detail-subtitle {
         margin-top: 0.45rem;
-        color: rgb(148 163 184);
+        color: var(--pt-text-muted);
         font-size: 0.92rem;
         line-height: 1.35;
       }
@@ -1868,8 +1942,8 @@
 
       .pt-card-detail-art img,
       .pt-card-detail-fallback {
-        border: 1px solid rgba(51, 65, 85, 0.78);
-        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.42);
+        border: 1px solid var(--pt-border);
+        box-shadow: 0 18px 34px color-mix(in srgb, var(--pt-canvas) 42%, transparent);
       }
 
       .pt-card-detail-body {
@@ -1887,8 +1961,8 @@
 
       .pt-card-detail-field,
       .pt-card-detail-panel {
-        border: 1px solid rgba(51, 65, 85, 0.72);
-        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-surface) 58%, transparent);
       }
 
       .pt-card-detail-field {
@@ -1899,7 +1973,7 @@
 
       .pt-card-detail-field__label,
       .pt-card-detail-panel__label {
-        color: rgb(100 116 139);
+        color: var(--pt-text-disabled);
         font-size: 0.66rem;
         font-weight: 800;
         letter-spacing: 0.12em;
@@ -1910,7 +1984,7 @@
       .pt-card-detail-field__value {
         margin-top: 0.45rem;
         min-height: 1.35rem;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         font-size: 0.9rem;
         line-height: 1.35;
         overflow-wrap: anywhere;
@@ -1924,7 +1998,7 @@
       }
 
       .pt-card-detail-flavor {
-        color: rgb(203 213 225);
+        color: var(--pt-text-soft);
         font-style: italic;
       }
 
@@ -1935,7 +2009,7 @@
 
       .pt-card-detail-oracle {
         margin-top: 0.7rem;
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         font-size: 0.93rem;
         line-height: 1.65;
         white-space: pre-wrap;
@@ -1953,14 +2027,14 @@
         gap: 1rem;
         overflow: hidden;
         border-radius: 1.2rem;
-        border: 1px solid rgba(71, 85, 105, 0.88);
+        border: 1px solid var(--pt-border-strong);
         background:
-          linear-gradient(180deg, rgba(2, 6, 23, 0.97), rgba(2, 6, 23, 0.94)),
-          radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 52%);
+          linear-gradient(180deg, color-mix(in srgb, var(--pt-canvas) 97%, transparent), color-mix(in srgb, var(--pt-canvas) 94%, transparent)),
+          radial-gradient(circle at top, color-mix(in srgb, var(--pt-accent) 14%, transparent), transparent 52%);
         padding: 1.35rem 1.4rem 1.2rem;
         box-shadow:
-          0 24px 60px rgba(2, 6, 23, 0.58),
-          inset 0 1px 0 rgba(148, 163, 184, 0.12);
+          0 24px 60px color-mix(in srgb, var(--pt-canvas) 58%, transparent),
+          inset 0 1px 0 color-mix(in srgb, var(--pt-text-muted) 12%, transparent);
       }
 
       .pt-library-search-results {
@@ -2006,10 +2080,10 @@
 
       .pt-scry-count {
         border-radius: 9999px;
-        border: 1px solid rgba(51, 65, 85, 0.84);
-        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-surface) 82%, transparent);
         padding: 0.28rem 0.55rem;
-        color: rgb(203 213 225);
+        color: var(--pt-text-soft);
         font-size: 0.72rem;
         font-weight: 800;
         line-height: 1;
@@ -2040,7 +2114,7 @@
         justify-content: space-between;
         gap: 0.45rem;
         width: min(100%, var(--pt-card-width));
-        color: rgb(148 163 184);
+        color: var(--pt-text-muted);
         font-size: 0.68rem;
         font-weight: 800;
         line-height: 1;
@@ -2048,7 +2122,7 @@
       }
 
       .pt-scry-card__destination {
-        color: rgb(203 213 225);
+        color: var(--pt-text-soft);
       }
 
       .pt-scry-card__toggle {
@@ -2061,8 +2135,8 @@
       }
 
       .pt-scry-card__toggle--top {
-        border-color: rgba(56, 189, 248, 0.5);
-        background: rgba(8, 47, 73, 0.32);
+        border-color: color-mix(in srgb, var(--pt-accent-strong) 50%, transparent);
+        background: color-mix(in srgb, var(--pt-accent) 16%, var(--pt-surface));
       }
 
       .pt-scry-lane {
@@ -2077,7 +2151,7 @@
         align-items: baseline;
         justify-content: space-between;
         gap: 0.75rem;
-        color: rgb(203 213 225);
+        color: var(--pt-text-soft);
       }
 
       .pt-scry-lane__title {
@@ -2089,7 +2163,7 @@
       }
 
       .pt-scry-lane__hint {
-        color: rgb(148 163 184);
+        color: var(--pt-text-muted);
         font-size: 0.74rem;
         line-height: 1.25;
         text-align: right;
@@ -2097,19 +2171,19 @@
 
       .pt-scry-fan-box {
         min-height: calc(var(--pt-card-height) + 2rem);
-        border: 1px solid rgba(51, 65, 85, 0.84);
-        background: rgba(2, 6, 23, 0.52);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-canvas) 52%, transparent);
         padding: 0.75rem;
         overflow: hidden;
       }
 
       .pt-scry-fan-box--bottom {
-        background: rgba(15, 23, 42, 0.62);
+        background: color-mix(in srgb, var(--pt-surface) 62%, transparent);
       }
 
       .pt-scry-fan-box.pt-drop-zone--active {
-        border-color: rgba(56, 189, 248, 0.62);
-        background: rgba(8, 47, 73, 0.38);
+        border-color: color-mix(in srgb, var(--pt-accent-strong) 62%, transparent);
+        background: color-mix(in srgb, var(--pt-accent) 18%, var(--pt-surface));
       }
 
       .pt-scry-fan {
@@ -2140,13 +2214,13 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem;
-        border: 1px solid rgba(51, 65, 85, 0.78);
-        background: rgba(15, 23, 42, 0.64);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-surface) 64%, transparent);
         padding: 0.65rem 0.75rem;
       }
 
       .pt-reveal-tools__label {
-        color: rgb(226 232 240);
+        color: var(--pt-text-soft);
         font-size: 0.78rem;
         font-weight: 800;
         line-height: 1.2;
@@ -2157,14 +2231,14 @@
         grid-template-columns: repeat(2, minmax(3rem, 1fr));
         gap: 0.25rem;
         border-radius: 9999px;
-        border: 1px solid rgba(51, 65, 85, 0.72);
-        background: rgba(2, 6, 23, 0.72);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-canvas) 72%, transparent);
         padding: 0.18rem;
       }
 
       .pt-reveal-toggle__option {
         border-radius: 9999px;
-        color: rgb(148 163 184);
+        color: var(--pt-text-muted);
         font-size: 0.72rem;
         font-weight: 900;
         line-height: 1;
@@ -2172,9 +2246,9 @@
       }
 
       .pt-reveal-toggle__option[aria-pressed="true"] {
-        background: rgba(14, 165, 233, 0.24);
-        color: rgb(240 249 255);
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.42) inset;
+        background: color-mix(in srgb, var(--pt-accent) 24%, transparent);
+        color: var(--pt-text);
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--pt-accent-strong) 42%, transparent) inset;
       }
 
       .pt-reveal-grid {
@@ -2205,9 +2279,9 @@
 
       .pt-reveal-action {
         border-radius: 0.55rem;
-        border: 1px solid rgba(51, 65, 85, 0.84);
-        background: rgba(15, 23, 42, 0.78);
-        color: rgb(226 232 240);
+        border: 1px solid var(--pt-border);
+        background: color-mix(in srgb, var(--pt-surface) 78%, transparent);
+        color: var(--pt-text-soft);
         font-size: 0.66rem;
         font-weight: 800;
         line-height: 1;
@@ -2216,9 +2290,9 @@
       }
 
       .pt-reveal-action:hover {
-        border-color: rgba(56, 189, 248, 0.48);
-        background: rgba(8, 47, 73, 0.42);
-        color: rgb(240 249 255);
+        border-color: color-mix(in srgb, var(--pt-accent-strong) 48%, transparent);
+        background: color-mix(in srgb, var(--pt-accent) 20%, var(--pt-surface));
+        color: var(--pt-text);
       }
 
       .pt-scry-empty {
@@ -2226,15 +2300,15 @@
         align-items: center;
         justify-content: center;
         min-height: var(--pt-card-height);
-        color: rgb(100 116 139);
+        color: var(--pt-text-disabled);
         font-size: 0.84rem;
         text-align: center;
       }
 
       .pt-card--selected {
         box-shadow:
-          0 0 0 2px rgba(56, 189, 248, 0.9),
-          0 16px 28px rgba(2, 6, 23, 0.55);
+          0 0 0 2px color-mix(in srgb, var(--pt-accent-strong) 90%, transparent),
+          0 16px 28px color-mix(in srgb, var(--pt-canvas) 55%, transparent);
         transform: translateY(-2px);
       }
 
@@ -2249,7 +2323,7 @@
         position: absolute;
         inset: 0;
         border-radius: 0;
-        border: 1px solid rgba(15, 23, 42, 0.92);
+        border: 1px solid color-mix(in srgb, var(--pt-surface) 92%, transparent);
         background-image:
           url("https://cards.scryfall.io/back.png"),
           radial-gradient(circle at 18% 20%, rgba(220, 38, 38, 0.82), transparent 6%),
@@ -2262,7 +2336,7 @@
         background-position: center;
         background-repeat: no-repeat;
         background-size: cover;
-        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.42);
+        box-shadow: 0 8px 20px color-mix(in srgb, var(--pt-canvas) 42%, transparent);
       }
 
       .pt-library-stack__card:nth-child(2) {
@@ -2319,7 +2393,7 @@
       };
     </script>
     <script src="/assets/playtest.js"></script>
-  </main>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

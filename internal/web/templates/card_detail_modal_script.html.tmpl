@@ -32,16 +32,19 @@
     var manaEl = modal.querySelector('[data-field="mana-cost"]');
     var oracleEl = modal.querySelector('[data-field="oracle-text"]');
     var imageEl = modal.querySelector('[data-field="image"]');
+    var imageFallbackEl = modal.querySelector('[data-field="image-fallback"]');
     var priceEl = modal.querySelector('[data-field="price-usd"]');
     var artistEl = modal.querySelector('[data-field="artist"]');
     var printingGroupEl = modal.querySelector('[data-field="printing-group"]');
     var printingSelectEl = modal.querySelector('[data-field="printing-select"]');
     var printingMetaEl = modal.querySelector('[data-field="printing-meta"]');
     var stickyNameInputEl = modal.querySelector('[data-field="sticky-name-input"]');
+    var stickyPrintInputEl = modal.querySelector('[data-field="sticky-print-input"]');
     var openPageLinkEl = modal.querySelector('[data-field="open-page-link"]');
     var openDeckPickerEl = modal.querySelector('[data-open-deck-picker]');
     var flipBtn = modal.querySelector('[data-flip-card]');
     var modalPanelEl = modal.querySelector('.mt-modal-panel');
+    var closeButtonEl = modal.querySelector('[data-close-modal]');
     var restoreFocusEl = null;
     var previousBodyOverflow = '';
 
@@ -60,7 +63,9 @@
 
     function closeModal() {
       if (modal.classList.contains('hidden')) return;
+      modalRequestToken++;
       modal.classList.add('hidden');
+      if (modalPanelEl) modalPanelEl.removeAttribute('aria-busy');
       document.body.style.overflow = previousBodyOverflow;
       if (restoreFocusEl && document.contains(restoreFocusEl)) {
         restoreFocusEl.focus({ preventScroll: true });
@@ -83,7 +88,7 @@
       }
     }
 
-    function setOpenPageLink(detailPath, oracleID) {
+    function setOpenPageLink(detailPath, oracleID, printingID) {
       if (!openPageLinkEl) return;
       var nextPath = trimValue(detailPath);
       if (!nextPath) {
@@ -91,8 +96,14 @@
       }
       if (!nextPath) {
         openPageLinkEl.classList.add('hidden');
-        openPageLinkEl.href = '#';
+        openPageLinkEl.removeAttribute('href');
         return;
+      }
+      var selectedPrintingID = trimValue(printingID);
+      if (selectedPrintingID) {
+        var detailURL = new URL(nextPath, window.location.origin);
+        detailURL.searchParams.set('printing', selectedPrintingID);
+        nextPath = detailURL.pathname + detailURL.search + detailURL.hash;
       }
       openPageLinkEl.href = nextPath;
       openPageLinkEl.classList.remove('hidden');
@@ -228,8 +239,14 @@
         return;
       }
       var bits = [];
+      var setName = trimValue(version.set_name);
+      var setCode = trimValue(version.set_code).toUpperCase();
+      var collectorNumber = trimValue(version.collector_number);
       var rarityLabel = formatRarityLabel(version.rarity);
       var lang = trimValue(version.lang).toUpperCase();
+      if (setName && setCode) bits.push(setName + ' (' + setCode + ')');
+      else if (setName || setCode) bits.push(setName || setCode);
+      if (collectorNumber) bits.push('#' + collectorNumber);
       if (rarityLabel) bits.push(rarityLabel);
       if (lang && lang !== 'EN') bits.push(lang);
       printingMetaEl.textContent = bits.join(' · ');
@@ -285,8 +302,30 @@
 	    }
 
     function setVersionsLoading(loading) {
-      if (!printingSelectEl) return;
-      printingSelectEl.disabled = !!loading;
+      if (printingSelectEl && loading) printingSelectEl.disabled = true;
+      if (modalPanelEl) {
+        if (loading) modalPanelEl.setAttribute('aria-busy', 'true');
+        else modalPanelEl.removeAttribute('aria-busy');
+      }
+    }
+
+    function setCardImage(imageURI, cardName) {
+      var image = trimValue(imageURI);
+      var name = trimValue(cardName);
+      if (imageEl) {
+        if (image) {
+          imageEl.src = image;
+          imageEl.alt = name ? ('Card image for ' + name) : 'Card image';
+          imageEl.classList.remove('hidden');
+        } else {
+          imageEl.removeAttribute('src');
+          imageEl.alt = '';
+          imageEl.classList.add('hidden');
+        }
+      }
+      if (imageFallbackEl) {
+        imageFallbackEl.classList.toggle('hidden', !!image);
+      }
     }
 
     function renderFace(face, fallback) {
@@ -304,15 +343,7 @@
       if (manaEl) manaEl.innerHTML = renderManaSymbols(faceMana);
       if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(faceOracle, 'No oracle text.');
 
-      if (imageEl) {
-        if (faceImage) {
-          imageEl.src = faceImage;
-          imageEl.classList.remove('hidden');
-        } else {
-          imageEl.src = '';
-          imageEl.classList.add('hidden');
-        }
-      }
+      setCardImage(faceImage, faceName);
 
       if (artistEl) {
         artistEl.textContent = faceArtist || '—';
@@ -321,7 +352,15 @@
 
     function applyVersion(version) {
       if (!version) return;
+      if (stickyPrintInputEl) {
+        stickyPrintInputEl.value = trimValue(version.scryfall_id);
+      }
       setPrintingMeta(version);
+      setOpenPageLink(
+        modal.getAttribute('data-detail-path'),
+        modal.getAttribute('data-oracle-id'),
+        version.scryfall_id
+      );
 
       currentFaces = Array.isArray(version.faces) ? version.faces : [];
       currentFaceIndex = 0;
@@ -338,15 +377,7 @@
         if (manaEl) manaEl.innerHTML = renderManaSymbols(trimValue(version.mana_cost));
         if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(trimValue(version.oracle_text), 'No oracle text.');
 
-        if (imageEl) {
-          if (trimValue(version.image_uri)) {
-            imageEl.src = trimValue(version.image_uri);
-            imageEl.classList.remove('hidden');
-          } else {
-            imageEl.src = '';
-            imageEl.classList.add('hidden');
-          }
-        }
+        setCardImage(version.image_uri, version.name);
 
         if (artistEl) {
           artistEl.textContent = trimValue(version.artist) || '—';
@@ -455,7 +486,7 @@
       }
 
       setCardContext(payload.name, payload.detailPath, payload.oracleID);
-      setOpenPageLink(payload.detailPath, payload.oracleID);
+      setOpenPageLink(payload.detailPath, payload.oracleID, currentPreferredPrintID);
 
 	      currentVersions = [payloadToVersion(payload)];
 	      var selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
@@ -469,6 +500,8 @@
 	      modal.scrollTop = 0;
 	      if (modalPanelEl) modalPanelEl.scrollTop = 0;
 	      modal.classList.remove('hidden');
+	      if (closeButtonEl) closeButtonEl.focus({ preventScroll: true });
+	      else if (modalPanelEl) modalPanelEl.focus({ preventScroll: true });
 
       var shouldResolveIdentity = !!payload.resolveExact || (!payload.oracleID && !!payload.name) || (!payload.detailPath && !!payload.name);
       if (shouldResolveIdentity) {
@@ -480,7 +513,7 @@
             stickyNameInputEl.value = payload.name;
           }
 	          setCardContext(payload.name, payload.detailPath, payload.oracleID);
-	          setOpenPageLink(payload.detailPath, payload.oracleID);
+	          setOpenPageLink(payload.detailPath, payload.oracleID, currentPreferredPrintID);
 	          currentVersions = [payloadToVersion(payload)];
 	          selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
 	          populatePrintings(currentVersions, selectedIdx);
@@ -499,6 +532,7 @@
 	        if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
 	          printingSelectEl.focus();
         }
+        setVersionsLoading(false);
         return;
       }
 
@@ -506,6 +540,7 @@
 	      selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
 	      populatePrintings(currentVersions, selectedIdx);
 	      applyVersion(currentVersions[selectedIdx]);
+	      setVersionsLoading(false);
 	      if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
 	        printingSelectEl.focus();
       }
@@ -526,6 +561,27 @@
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
         closeModal();
+        return;
+      }
+      if (event.key !== 'Tab' || modal.classList.contains('hidden')) return;
+      var focusable = Array.prototype.slice.call(modal.querySelectorAll(
+        'a[href]:not([hidden]), button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )).filter(function (element) {
+        return !element.classList.contains('hidden') && element.getClientRects().length > 0;
+      });
+      if (focusable.length === 0) {
+        event.preventDefault();
+        if (modalPanelEl) modalPanelEl.focus();
+        return;
+      }
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     });
 

@@ -8,13 +8,18 @@ can be added without hunting through handler files.
 ### Home and auth
 - `/` -> `HandleHome`
 - `/healthz` -> `HandleHealthz`
+- `/robots.txt` -> crawler policy and canonical sitemap location
+- `/sitemap.xml` -> stable, public site routes
+- `/changelog` -> public release history and current site version
 - `/privacy` -> `HandlePrivacy`
 - `/terms` -> `HandleTerms`
-- `/profile/avatar` (POST) -> choose profile commander-art avatar
+- `/users/{id}` -> public player profile, decks, favorite printings, and game achievements
+- `/profile/avatar` (POST) -> legacy profile commander-art selection
+- `/profile/art` (POST) -> choose an exact printing for profile picture or background
 - `/signup` (GET/POST) -> `HandleSignupShow` / `HandleSignupPost`
 - `/login` (GET/POST) -> `HandleLoginShow` / `HandleLoginPost`
-- `/logout` -> `HandleLogout`
-- Files: `internal/web/auth.go`, `internal/web/legal.go`
+- `POST /logout` -> `HandleLogout`
+- Files: `internal/web/auth.go`, `internal/web/changelog.go`, `internal/web/legal.go`, `internal/web/seo.go`
 
 ### Settings
 - `/settings` (GET/POST) -> `HandleSettingsShow` / `HandleSettingsPost`
@@ -57,6 +62,8 @@ can be added without hunting through handler files.
 - `/cards/search` -> advanced card search
 - `/cards/view/{oracle_id}` -> dedicated card detail page
 - `/cards/autocomplete` -> deck-builder autocomplete results
+- `/cards/resolve` -> exact card-name resolution
+- `/cards/versions` -> printing choices for a card
 - `/commanders/search` -> commander search
 - Compatibility aliases kept for older links:
   `/cards/search/autocomplete`, `/cards/search/deck`
@@ -65,6 +72,12 @@ can be added without hunting through handler files.
 ### Rules
 - `/rules` -> rulings home
 - File: `internal/web/rules.go`
+
+### Games
+- `/games/guess-card` (GET/POST) -> daily Guess the Card game
+- `/games/spellify` (GET/POST) -> daily Tombscript game
+- `/games/pack-opening` (GET/POST) -> Pack Crack booster simulator
+- Files: `internal/web/guess_card.go`, `internal/web/spellify.go`, `internal/web/pack_opening.go`
 
 ### Public decks
 - `/decks/public` -> public deck browse page

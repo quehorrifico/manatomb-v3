@@ -31,38 +31,43 @@ type favoritePrintingData struct {
 }
 
 type guessCardGame struct {
-	ID               int64
-	UserID           int64
-	GuestID          string
-	TargetOracleID   string
-	TargetScryfallID string
-	Status           string
-	QuestionCount    int
-	GuessCount       int
-	IsDaily          bool
-	DailyKey         string
-	MaxQuestions     int
-	AskedQuestions   []string
-	CreatedAt        time.Time
-	CompletedAt      *time.Time
+	ID                  int64
+	UserID              int64
+	GuestID             string
+	TargetOracleID      string
+	TargetScryfallID    string
+	Status              string
+	QuestionCount       int
+	GuessCount          int
+	IsDaily             bool
+	DailyKey            string
+	AwardEarned         bool
+	MaxQuestions        int
+	AskedQuestions      []string
+	WrongGuessOracleIDs []string
+	HistoryEvents       []string
+	CreatedAt           time.Time
+	CompletedAt         *time.Time
 }
 
 type spellifyGame struct {
-	ID               int64
-	UserID           int64
-	GuestID          string
-	TargetOracleID   string
-	TargetScryfallID string
-	Status           string
-	GuessedChars     []string
-	GuessCount       int
-	IsDaily          bool
-	DailyKey         string
-	CreatedAt        time.Time
-	CompletedAt      *time.Time
+	ID                   int64
+	UserID               int64
+	GuestID              string
+	TargetOracleID       string
+	TargetScryfallID     string
+	Status               string
+	GuessedChars         []string
+	GuessCount           int
+	CardGuessCount       int
+	PreviousWrongGuesses []string
+	IsDaily              bool
+	DailyKey             string
+	CreatedAt            time.Time
+	CompletedAt          *time.Time
 }
 
-type guessCardAward struct {
+type guessCardWin struct {
 	ID            int64
 	UserID        int64
 	OracleID      string
@@ -72,6 +77,7 @@ type guessCardAward struct {
 	WonAt         time.Time
 	QuestionCount int
 	GuessCount    int
+	IsDaily       bool
 }
 
 type spellifyAward struct {
@@ -86,7 +92,27 @@ type spellifyAward struct {
 }
 
 var errGuessCardQuestionUnavailable = errors.New("guess card question unavailable")
+var errGuessCardGameUnavailable = errors.New("guess card game unavailable")
+var errGuessCardAttemptDuplicate = errors.New("guess card attempt already recorded")
 var errSpellifyGuessUnavailable = errors.New("spellify guess unavailable")
+var errSpellifyCardGuessUnavailable = errors.New("spellify card guess unavailable")
+
+const (
+	guessCardHistoryQuestionPrefix = "question:"
+	guessCardHistoryGuessPrefix    = "guess:"
+	guessCardHistoryGuessMaxRunes  = 256
+)
+
+type guessCardAttemptResult struct {
+	GuessCount int
+	Awarded    bool
+	Won        bool
+}
+
+type spellifyCardGuessResult struct {
+	CardGuessCount int
+	Exhausted      bool
+}
 
 // EnsureFeatureTables creates account-scoped feature tables that are owned by
 // the web layer: favorite printings, guess-card games, and game awards.
@@ -101,7 +127,42 @@ func EnsureFeatureTables(ctx context.Context, db *sql.DB) error {
 			PRIMARY KEY (user_id, scryfall_id)
 		);
 		`,
+		`ALTER TABLE user_card_printing_favorites ADD COLUMN IF NOT EXISTS oracle_id UUID;`,
+		`
+		UPDATE user_card_printing_favorites AS favorite
+		SET oracle_id = print.oracle_id
+		FROM card_prints AS print
+		WHERE print.scryfall_id = favorite.scryfall_id
+		  AND favorite.oracle_id IS DISTINCT FROM print.oracle_id;
+		`,
+		`CREATE INDEX IF NOT EXISTS idx_user_card_printing_favorites_oracle ON user_card_printing_favorites (user_id, oracle_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_user_card_printing_favorites_user_created ON user_card_printing_favorites (user_id, created_at DESC);`,
+		`
+		DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM pg_constraint
+				WHERE conname = 'users_profile_picture_print_id_fkey'
+			) THEN
+				ALTER TABLE users
+				ADD CONSTRAINT users_profile_picture_print_id_fkey
+				FOREIGN KEY (profile_picture_print_id)
+				REFERENCES card_prints(scryfall_id)
+				ON DELETE SET NULL;
+			END IF;
+
+			IF NOT EXISTS (
+				SELECT 1 FROM pg_constraint
+				WHERE conname = 'users_profile_background_print_id_fkey'
+			) THEN
+				ALTER TABLE users
+				ADD CONSTRAINT users_profile_background_print_id_fkey
+				FOREIGN KEY (profile_background_print_id)
+				REFERENCES card_prints(scryfall_id)
+				ON DELETE SET NULL;
+			END IF;
+		END $$;
+		`,
 		`
 		CREATE TABLE IF NOT EXISTS daily_game_targets (
 			mode TEXT NOT NULL,
@@ -124,8 +185,11 @@ func EnsureFeatureTables(ctx context.Context, db *sql.DB) error {
 			guess_count INT NOT NULL DEFAULT 0,
 			is_daily BOOLEAN NOT NULL DEFAULT true,
 			daily_key TEXT NOT NULL DEFAULT '',
-			max_questions INT NOT NULL DEFAULT 0,
+			award_earned BOOLEAN NOT NULL DEFAULT false,
+			max_questions INT NOT NULL DEFAULT 8,
 			asked_questions TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+			wrong_guess_oracle_ids UUID[] NOT NULL DEFAULT ARRAY[]::UUID[],
+			history_events TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			completed_at TIMESTAMPTZ NULL
 		);
@@ -149,7 +213,20 @@ func EnsureFeatureTables(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE user_guess_card_games ADD COLUMN IF NOT EXISTS guess_count INT NOT NULL DEFAULT 0;`,
 		`ALTER TABLE user_guess_card_games ADD COLUMN IF NOT EXISTS is_daily BOOLEAN NOT NULL DEFAULT true;`,
 		`ALTER TABLE user_guess_card_games ADD COLUMN IF NOT EXISTS daily_key TEXT NOT NULL DEFAULT '';`,
-		`ALTER TABLE user_guess_card_games ALTER COLUMN max_questions SET DEFAULT 0;`,
+		`ALTER TABLE user_guess_card_games ADD COLUMN IF NOT EXISTS award_earned BOOLEAN NOT NULL DEFAULT false;`,
+		`ALTER TABLE user_guess_card_games ADD COLUMN IF NOT EXISTS wrong_guess_oracle_ids UUID[] NOT NULL DEFAULT ARRAY[]::UUID[];`,
+		`ALTER TABLE user_guess_card_games ADD COLUMN IF NOT EXISTS history_events TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];`,
+		`
+		UPDATE user_guess_card_games
+		SET history_events = ARRAY(
+			SELECT 'question:' || question_id
+			FROM unnest(asked_questions) WITH ORDINALITY AS asked(question_id, position)
+			ORDER BY position
+		)
+		WHERE cardinality(history_events) = 0
+		  AND cardinality(asked_questions) > 0;
+		`,
+		`ALTER TABLE user_guess_card_games ALTER COLUMN max_questions SET DEFAULT 8;`,
 		`CREATE INDEX IF NOT EXISTS idx_user_guess_card_games_active ON user_guess_card_games (user_id, status, created_at DESC);`,
 		`CREATE INDEX IF NOT EXISTS idx_user_guess_card_games_daily ON user_guess_card_games (user_id, daily_key, is_daily);`,
 		`
@@ -169,6 +246,21 @@ func EnsureFeatureTables(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE user_guess_card_awards ADD COLUMN IF NOT EXISTS guess_count INT NOT NULL DEFAULT 0;`,
 		`CREATE INDEX IF NOT EXISTS idx_user_guess_card_awards_user_won ON user_guess_card_awards (user_id, won_at DESC);`,
 		`
+		UPDATE user_guess_card_games AS game
+		SET award_earned = true
+		WHERE game.award_earned = false
+		  AND game.status = 'won'
+		  AND game.completed_at IS NOT NULL
+		  AND EXISTS (
+			SELECT 1
+			FROM user_guess_card_awards AS award
+			WHERE award.user_id = game.user_id
+			  AND award.scryfall_id = game.target_scryfall_id
+			  AND award.won_at BETWEEN game.completed_at - interval '1 minute'
+			                       AND game.completed_at + interval '1 minute'
+		  );
+		`,
+		`
 		CREATE TABLE IF NOT EXISTS user_spellify_games (
 			id BIGSERIAL PRIMARY KEY,
 			user_id BIGINT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -178,6 +270,8 @@ func EnsureFeatureTables(ctx context.Context, db *sql.DB) error {
 			status TEXT NOT NULL DEFAULT 'active',
 			guessed_chars TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
 			guess_count INT NOT NULL DEFAULT 0,
+			card_guess_count INT NOT NULL DEFAULT 0,
+			previous_wrong_guesses TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
 			is_daily BOOLEAN NOT NULL DEFAULT true,
 			daily_key TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -200,6 +294,8 @@ func EnsureFeatureTables(ctx context.Context, db *sql.DB) error {
 		`,
 		`CREATE INDEX IF NOT EXISTS idx_user_spellify_games_guest_active ON user_spellify_games (guest_id, status, created_at DESC);`,
 		`CREATE INDEX IF NOT EXISTS idx_user_spellify_games_guest_daily ON user_spellify_games (guest_id, daily_key, is_daily);`,
+		`ALTER TABLE user_spellify_games ADD COLUMN IF NOT EXISTS card_guess_count INT NOT NULL DEFAULT 0;`,
+		`ALTER TABLE user_spellify_games ADD COLUMN IF NOT EXISTS previous_wrong_guesses TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];`,
 		`ALTER TABLE user_spellify_games ADD COLUMN IF NOT EXISTS is_daily BOOLEAN NOT NULL DEFAULT true;`,
 		`ALTER TABLE user_spellify_games ADD COLUMN IF NOT EXISTS daily_key TEXT NOT NULL DEFAULT '';`,
 		`CREATE INDEX IF NOT EXISTS idx_user_spellify_games_active ON user_spellify_games (user_id, status, created_at DESC);`,
@@ -260,34 +356,21 @@ func setFavoritePrinting(ctx context.Context, db *sql.DB, userID int64, scryfall
 		return errors.New("scryfall id is required")
 	}
 	if favorite {
-		result, err := db.ExecContext(ctx, `
+		var storedScryfallID string
+		err := db.QueryRowContext(ctx, `
 			INSERT INTO user_card_printing_favorites (user_id, scryfall_id, oracle_id)
 			SELECT $1, cp.scryfall_id, cp.oracle_id
 			FROM card_prints cp
 			WHERE cp.scryfall_id = $2::uuid
-			ON CONFLICT (user_id, scryfall_id) DO NOTHING
-		`, userID, scryfallID)
+			ON CONFLICT (user_id, scryfall_id) DO UPDATE
+			SET oracle_id = EXCLUDED.oracle_id
+			RETURNING scryfall_id::text
+		`, userID, scryfallID).Scan(&storedScryfallID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return cards.ErrCardNotFound
+		}
 		if err != nil {
 			return err
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return err
-		}
-		if affected == 0 {
-			var exists bool
-			if err := db.QueryRowContext(ctx, `
-				SELECT EXISTS (
-					SELECT 1
-					FROM user_card_printing_favorites
-					WHERE user_id = $1 AND scryfall_id = $2::uuid
-				)
-			`, userID, scryfallID).Scan(&exists); err != nil {
-				return err
-			}
-			if !exists {
-				return cards.ErrCardNotFound
-			}
 		}
 		return nil
 	}
@@ -380,11 +463,29 @@ func listFavoritePrintingsPage(ctx context.Context, db *sql.DB, userID int64, li
 }
 
 func applyPrintingFavoriteStatus(page *cardDetailPageData, favoriteIDs map[string]bool) {
-	if page == nil || len(favoriteIDs) == 0 {
+	if page == nil {
 		return
 	}
+
+	normalizedFavoriteIDs := make(map[string]bool, len(favoriteIDs))
+	for id, favorited := range favoriteIDs {
+		id = strings.ToLower(strings.TrimSpace(id))
+		if id != "" && favorited {
+			normalizedFavoriteIDs[id] = true
+		}
+	}
+
+	page.FavoritePrintingCount = len(normalizedFavoriteIDs)
+	selectedPrintingID := strings.ToLower(strings.TrimSpace(page.Card.ScryfallID))
+	page.SelectedPrintingIsFavorited = normalizedFavoriteIDs[selectedPrintingID]
+	page.OtherFavoritePrintingCount = page.FavoritePrintingCount
+	if page.SelectedPrintingIsFavorited && page.OtherFavoritePrintingCount > 0 {
+		page.OtherFavoritePrintingCount--
+	}
+
 	for i := range page.Printings {
-		page.Printings[i].IsFavorited = favoriteIDs[page.Printings[i].ScryfallID]
+		printingID := strings.ToLower(strings.TrimSpace(page.Printings[i].ScryfallID))
+		page.Printings[i].IsFavorited = normalizedFavoriteIDs[printingID]
 	}
 }
 
@@ -401,8 +502,11 @@ func loadActiveGuessCardGame(ctx context.Context, db *sql.DB, player gamePlayer)
 			guess_count,
 			is_daily,
 			daily_key,
+			award_earned,
 			max_questions,
 			asked_questions,
+			wrong_guess_oracle_ids,
+			history_events,
 			created_at,
 			completed_at
 		FROM user_guess_card_games
@@ -427,8 +531,11 @@ func loadGuessCardGameByID(ctx context.Context, db *sql.DB, player gamePlayer, g
 			guess_count,
 			is_daily,
 			daily_key,
+			award_earned,
 			max_questions,
 			asked_questions,
+			wrong_guess_oracle_ids,
+			history_events,
 			created_at,
 			completed_at
 		FROM user_guess_card_games
@@ -456,8 +563,11 @@ func scanGuessCardGame(row interface {
 		&game.GuessCount,
 		&game.IsDaily,
 		&game.DailyKey,
+		&game.AwardEarned,
 		&game.MaxQuestions,
 		pq.Array(&game.AskedQuestions),
+		pq.Array(&game.WrongGuessOracleIDs),
+		pq.Array(&game.HistoryEvents),
 		&game.CreatedAt,
 		&completedAt,
 	); err != nil {
@@ -490,9 +600,58 @@ func createGuessCardGame(ctx context.Context, db *sql.DB, player gamePlayer, isD
 	if err != nil {
 		return nil, err
 	}
-	row := db.QueryRowContext(ctx, `
-		INSERT INTO user_guess_card_games (user_id, guest_id, target_oracle_id, target_scryfall_id, is_daily, daily_key)
-		VALUES ($1, NULLIF($2, '')::uuid, $3::uuid, NULLIF($4, '')::uuid, $5, $6)
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var lockResult any
+	if err := tx.QueryRowContext(ctx, `
+		SELECT pg_advisory_xact_lock(hashtextextended($1, 0))
+	`, guessCardOwnerLockKey(player)).Scan(&lockResult); err != nil {
+		return nil, err
+	}
+
+	active, err := scanGuessCardGame(tx.QueryRowContext(ctx, `
+		SELECT
+			id,
+			user_id,
+			COALESCE(guest_id::text, ''),
+			target_oracle_id::text,
+			COALESCE(target_scryfall_id::text, ''),
+			status,
+			question_count,
+			guess_count,
+			is_daily,
+			daily_key,
+			award_earned,
+			max_questions,
+			asked_questions,
+			wrong_guess_oracle_ids,
+			history_events,
+			created_at,
+			completed_at
+		FROM user_guess_card_games
+		WHERE (user_id = $1 OR guest_id = NULLIF($2, '')::uuid)
+		  AND status = 'active'
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, player.userIDValue(), player.guestIDValue()))
+	if err == nil {
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return active, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	game, err := scanGuessCardGame(tx.QueryRowContext(ctx, `
+		INSERT INTO user_guess_card_games (user_id, guest_id, target_oracle_id, target_scryfall_id, is_daily, daily_key, max_questions)
+		VALUES ($1, NULLIF($2, '')::uuid, $3::uuid, NULLIF($4, '')::uuid, $5, $6, $7)
 		RETURNING
 			id,
 			user_id,
@@ -504,12 +663,28 @@ func createGuessCardGame(ctx context.Context, db *sql.DB, player gamePlayer, isD
 			guess_count,
 			is_daily,
 			daily_key,
+			award_earned,
 			max_questions,
 			asked_questions,
+			wrong_guess_oracle_ids,
+			history_events,
 			created_at,
 			completed_at
-	`, player.userIDValue(), player.guestIDValue(), oracleID, scryfallID, isDaily, dailyKey)
-	return scanGuessCardGame(row)
+	`, player.userIDValue(), player.guestIDValue(), oracleID, scryfallID, isDaily, dailyKey, guessCardDefaultMaxQuestions))
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return game, nil
+}
+
+func guessCardOwnerLockKey(player gamePlayer) string {
+	if player.UserID > 0 {
+		return fmt.Sprintf("guess-card:user:%d", player.UserID)
+	}
+	return "guess-card:guest:" + strings.ToLower(strings.TrimSpace(player.GuestID))
 }
 
 func guessCardDailyKey(now time.Time) string {
@@ -517,17 +692,21 @@ func guessCardDailyKey(now time.Time) string {
 }
 
 func selectGuessCardTarget(ctx context.Context, db *sql.DB) (string, string, error) {
+	return selectRandomGameTarget(ctx, db, guessCardEligiblePoolPredicateSQL)
+}
+
+func selectTombscriptTarget(ctx context.Context, db *sql.DB) (string, string, error) {
+	return selectRandomGameTarget(ctx, db, sharedGameEligiblePoolPredicateSQL)
+}
+
+func selectRandomGameTarget(ctx context.Context, db *sql.DB, eligiblePoolPredicate string) (string, string, error) {
 	var oracleID, scryfallID string
 	if err := db.QueryRowContext(ctx, `
 		SELECT
 			oc.oracle_id::text,
 			COALESCE(oc.default_print_id::text, '')
 		FROM oracle_cards oc
-		WHERE COALESCE(oc.legal_anywhere, true) = true
-		  AND COALESCE(oc.default_image_uri, '') <> ''
-		  AND oc.default_print_id IS NOT NULL
-		  AND COALESCE(oc.edhrec_rank, 0) BETWEEN 1 AND 250
-		  AND lower(COALESCE(oc.default_set_code, '')) <> 'unk'
+		WHERE `+eligiblePoolPredicate+`
 		ORDER BY random()
 		LIMIT 1
 	`).Scan(&oracleID, &scryfallID); err != nil {
@@ -543,7 +722,7 @@ type queryRower interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-func selectDailyGuessCardTarget(ctx context.Context, db queryRower, dailyKey string) (string, string, error) {
+func selectDailyGameTarget(ctx context.Context, db queryRower, dailyKey, eligiblePoolPredicate string) (string, string, error) {
 	dailyKey = strings.TrimSpace(dailyKey)
 	if dailyKey == "" {
 		return "", "", cards.ErrCardNotFound
@@ -553,11 +732,7 @@ func selectDailyGuessCardTarget(ctx context.Context, db queryRower, dailyKey str
 	if err := db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM oracle_cards oc
-		WHERE COALESCE(oc.legal_anywhere, true) = true
-		  AND COALESCE(oc.default_image_uri, '') <> ''
-		  AND oc.default_print_id IS NOT NULL
-		  AND COALESCE(oc.edhrec_rank, 0) BETWEEN 1 AND 250
-		  AND lower(COALESCE(oc.default_set_code, '')) <> 'unk'
+		WHERE `+eligiblePoolPredicate+`
 	`).Scan(&count); err != nil {
 		return "", "", err
 	}
@@ -572,11 +747,7 @@ func selectDailyGuessCardTarget(ctx context.Context, db queryRower, dailyKey str
 			oc.oracle_id::text,
 			COALESCE(oc.default_print_id::text, '')
 		FROM oracle_cards oc
-		WHERE COALESCE(oc.legal_anywhere, true) = true
-		  AND COALESCE(oc.default_image_uri, '') <> ''
-		  AND oc.default_print_id IS NOT NULL
-		  AND COALESCE(oc.edhrec_rank, 0) BETWEEN 1 AND 250
-		  AND lower(COALESCE(oc.default_set_code, '')) <> 'unk'
+		WHERE `+eligiblePoolPredicate+`
 		ORDER BY COALESCE(oc.edhrec_rank, 1000000), oc.name, oc.oracle_id::text
 		OFFSET $1
 		LIMIT 1
@@ -601,12 +772,18 @@ func getOrCreateDailyGameTarget(ctx context.Context, db *sql.DB, mode, dailyKey 
 		return "", "", err
 	}
 	defer tx.Rollback()
+	eligiblePoolPredicate := sharedGameEligiblePoolPredicateSQL
+	if mode == "guess-card" {
+		eligiblePoolPredicate = guessCardEligiblePoolPredicateSQL
+	}
 
 	var oracleID, scryfallID string
 	err = tx.QueryRowContext(ctx, `
-		SELECT target_oracle_id::text, COALESCE(target_scryfall_id::text, '')
-		FROM daily_game_targets
-		WHERE mode = $1 AND daily_key = $2
+		SELECT dt.target_oracle_id::text, COALESCE(dt.target_scryfall_id::text, '')
+		FROM daily_game_targets dt
+		JOIN oracle_cards oc ON oc.oracle_id = dt.target_oracle_id
+		WHERE dt.mode = $1 AND dt.daily_key = $2
+		  AND (`+eligiblePoolPredicate+`)
 	`, mode, dailyKey).Scan(&oracleID, &scryfallID)
 	if err == nil {
 		if err := tx.Commit(); err != nil {
@@ -618,14 +795,16 @@ func getOrCreateDailyGameTarget(ctx context.Context, db *sql.DB, mode, dailyKey 
 		return "", "", err
 	}
 
-	oracleID, scryfallID, err = selectDailyGuessCardTarget(ctx, tx, mode+":"+dailyKey)
+	oracleID, scryfallID, err = selectDailyGameTarget(ctx, tx, mode+":"+dailyKey, eligiblePoolPredicate)
 	if err != nil {
 		return "", "", err
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO daily_game_targets (mode, daily_key, target_oracle_id, target_scryfall_id)
 		VALUES ($1, $2, $3::uuid, NULLIF($4, '')::uuid)
-		ON CONFLICT (mode, daily_key) DO NOTHING
+		ON CONFLICT (mode, daily_key) DO UPDATE
+		SET target_oracle_id = EXCLUDED.target_oracle_id,
+		    target_scryfall_id = EXCLUDED.target_scryfall_id
 	`, mode, dailyKey, oracleID, scryfallID); err != nil {
 		return "", "", err
 	}
@@ -714,6 +893,17 @@ func abandonActiveGuessCardGames(ctx context.Context, db *sql.DB, player gamePla
 	return err
 }
 
+func abandonGuessCardGame(ctx context.Context, db *sql.DB, player gamePlayer, gameID int64) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE user_guess_card_games
+		SET status = 'abandoned', completed_at = now()
+		WHERE id = $1
+		  AND (user_id = $2 OR guest_id = NULLIF($3, '')::uuid)
+		  AND status = 'active'
+	`, gameID, player.userIDValue(), player.guestIDValue())
+	return err
+}
+
 func addGuessCardQuestion(ctx context.Context, db *sql.DB, gameID int64, player gamePlayer, questionID string) error {
 	questionID = strings.TrimSpace(questionID)
 	if questionByID(questionID) == nil {
@@ -723,12 +913,23 @@ func addGuessCardQuestion(ctx context.Context, db *sql.DB, gameID int64, player 
 		UPDATE user_guess_card_games
 		SET
 			asked_questions = array_append(asked_questions, $4),
+			history_events = (
+				CASE
+					WHEN cardinality(history_events) = 0 AND cardinality(asked_questions) > 0 THEN ARRAY(
+						SELECT $7 || prior_question_id
+						FROM unnest(asked_questions) WITH ORDINALITY AS prior(prior_question_id, position)
+						ORDER BY position
+					)
+					ELSE history_events
+				END
+			) || ARRAY[$6],
 			question_count = question_count + 1
 		WHERE id = $1
 		  AND (user_id = $2 OR guest_id = NULLIF($3, '')::uuid)
 		  AND status = 'active'
 		  AND NOT ($4 = ANY(asked_questions))
-	`, gameID, player.userIDValue(), player.guestIDValue(), questionID)
+		  AND question_count < CASE WHEN max_questions > 0 THEN max_questions ELSE $5 END
+	`, gameID, player.userIDValue(), player.guestIDValue(), questionID, guessCardDefaultMaxQuestions, guessCardHistoryQuestionPrefix+questionID, guessCardHistoryQuestionPrefix)
 	if err != nil {
 		return err
 	}
@@ -742,25 +943,182 @@ func addGuessCardQuestion(ctx context.Context, db *sql.DB, gameID int64, player 
 	return nil
 }
 
-func incrementGuessCardGuessCount(ctx context.Context, db *sql.DB, gameID int64, player gamePlayer) error {
-	result, err := db.ExecContext(ctx, `
-		UPDATE user_guess_card_games
-		SET guess_count = guess_count + 1
+// recordGuessCardFinalGuess counts an exact-name guess and, when it is correct,
+// completes the round and records its award in the same transaction. Keeping
+// these writes together prevents duplicate browser submissions from counting
+// twice or leaving a solved game active after an award has been inserted.
+func recordGuessCardFinalGuess(
+	ctx context.Context,
+	db *sql.DB,
+	gameID int64,
+	player gamePlayer,
+	card cards.Card,
+	guessedOracleID string,
+	guessedName string,
+	expectedGuessNumber int,
+) (guessCardAttemptResult, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return guessCardAttemptResult{}, err
+	}
+	defer tx.Rollback()
+
+	var (
+		guessCount          int
+		questionCount       int
+		isDaily             bool
+		dailyKey            string
+		userID              sql.NullInt64
+		targetScryfallID    string
+		targetOracleID      string
+		askedQuestions      []string
+		wrongGuessOracleIDs []string
+		historyEvents       []string
+	)
+	err = tx.QueryRowContext(ctx, `
+		SELECT
+			guess_count,
+			question_count,
+			is_daily,
+			daily_key,
+			user_id,
+			target_oracle_id::text,
+			COALESCE(target_scryfall_id::text, ''),
+			asked_questions,
+			wrong_guess_oracle_ids,
+			history_events
+		FROM user_guess_card_games
 		WHERE id = $1
 		  AND (user_id = $2 OR guest_id = NULLIF($3, '')::uuid)
 		  AND status = 'active'
-	`, gameID, player.userIDValue(), player.guestIDValue())
+		FOR UPDATE
+	`, gameID, player.userIDValue(), player.guestIDValue()).Scan(
+		&guessCount,
+		&questionCount,
+		&isDaily,
+		&dailyKey,
+		&userID,
+		&targetOracleID,
+		&targetScryfallID,
+		pq.Array(&askedQuestions),
+		pq.Array(&wrongGuessOracleIDs),
+		pq.Array(&historyEvents),
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return guessCardAttemptResult{}, errGuessCardGameUnavailable
+	}
 	if err != nil {
-		return err
+		return guessCardAttemptResult{}, err
 	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return err
+	if guessCount+1 != expectedGuessNumber {
+		return guessCardAttemptResult{}, errGuessCardAttemptDuplicate
 	}
-	if affected == 0 {
-		return errors.New("guess could not be counted")
+	if !strings.EqualFold(strings.TrimSpace(card.OracleID), strings.TrimSpace(targetOracleID)) {
+		return guessCardAttemptResult{}, errors.New("guess card target does not match the locked round")
 	}
-	return nil
+
+	guessCount++
+	won := strings.TrimSpace(guessedOracleID) != "" &&
+		strings.EqualFold(strings.TrimSpace(guessedOracleID), strings.TrimSpace(targetOracleID))
+	if !won {
+		if len(historyEvents) == 0 {
+			for _, questionID := range askedQuestions {
+				questionID = strings.TrimSpace(questionID)
+				if questionID != "" {
+					historyEvents = append(historyEvents, guessCardHistoryQuestionPrefix+questionID)
+				}
+			}
+		}
+		if guessedName = guessCardPersistedGuessName(guessedName); guessedName != "" {
+			historyEvents = append(historyEvents, guessCardHistoryGuessPrefix+guessedName)
+		}
+		wrongGuessOracleIDs = appendResolvedWrongGuessOracleID(
+			wrongGuessOracleIDs,
+			guessedOracleID,
+			targetOracleID,
+		)
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE user_guess_card_games
+			SET guess_count = $2,
+				wrong_guess_oracle_ids = $3::uuid[],
+				history_events = $4::text[]
+			WHERE id = $1 AND status = 'active'
+		`, gameID, guessCount, pq.Array(wrongGuessOracleIDs), pq.Array(historyEvents)); err != nil {
+			return guessCardAttemptResult{}, err
+		}
+		if err := tx.Commit(); err != nil {
+			return guessCardAttemptResult{}, err
+		}
+		return guessCardAttemptResult{GuessCount: guessCount, Won: false}, nil
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE user_guess_card_games
+		SET guess_count = $2, status = 'won', completed_at = now()
+		WHERE id = $1 AND status = 'active'
+	`, gameID, guessCount); err != nil {
+		return guessCardAttemptResult{}, err
+	}
+
+	result := guessCardAttemptResult{GuessCount: guessCount, Won: true}
+	awardEligible := userID.Valid && userID.Int64 > 0 &&
+		isDaily && strings.TrimSpace(dailyKey) == guessCardDailyKey(time.Now().UTC()) &&
+		guessCount < guessCardAwardGuessLimit
+	if awardEligible {
+		awardScryfallID := strings.TrimSpace(card.ID)
+		if awardScryfallID == "" {
+			awardScryfallID = strings.TrimSpace(targetScryfallID)
+		}
+		insertResult, err := tx.ExecContext(ctx, `
+			INSERT INTO user_guess_card_awards (
+				user_id, oracle_id, scryfall_id, card_name, image_uri, question_count, guess_count
+			)
+			VALUES ($1, $2::uuid, NULLIF($3, '')::uuid, $4, $5, $6, $7)
+			ON CONFLICT (user_id, scryfall_id) DO NOTHING
+		`, userID.Int64, targetOracleID, awardScryfallID, card.Name, card.ImageURI, questionCount, guessCount)
+		if err != nil {
+			return guessCardAttemptResult{}, err
+		}
+		if affected, err := insertResult.RowsAffected(); err != nil {
+			return guessCardAttemptResult{}, err
+		} else {
+			result.Awarded = affected > 0
+		}
+		if result.Awarded {
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE user_guess_card_games
+				SET award_earned = true
+				WHERE id = $1
+			`, gameID); err != nil {
+				return guessCardAttemptResult{}, err
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return guessCardAttemptResult{}, err
+	}
+	return result, nil
+}
+
+// guessCardPersistedGuessName bounds and normalizes user-provided history
+// before it reaches the round's PostgreSQL text array. Templates still escape
+// the value at render time.
+func guessCardPersistedGuessName(value string) string {
+	value = strings.Map(func(r rune) rune {
+		if r == 0 {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(value))
+	if value == "" {
+		return ""
+	}
+	runes := []rune(value)
+	if len(runes) > guessCardHistoryGuessMaxRunes {
+		runes = runes[:guessCardHistoryGuessMaxRunes]
+	}
+	return string(runes)
 }
 
 func completeGuessCardGame(ctx context.Context, db *sql.DB, gameID int64, player gamePlayer, won bool) error {
@@ -783,46 +1141,9 @@ func completeGuessCardGame(ctx context.Context, db *sql.DB, gameID int64, player
 		return err
 	}
 	if affected == 0 {
-		return errors.New("game could not be completed")
+		return errGuessCardGameUnavailable
 	}
 	return nil
-}
-
-func completeGuessCardGameWithAward(ctx context.Context, db *sql.DB, game guessCardGame, card cards.Card, guessCount int) error {
-	if game.UserID <= 0 {
-		return errors.New("guest games cannot create awards")
-	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	result, err := tx.ExecContext(ctx, `
-		UPDATE user_guess_card_games
-		SET status = 'won', completed_at = now()
-		WHERE id = $1 AND user_id = $2 AND status = 'active'
-	`, game.ID, game.UserID)
-	if err != nil {
-		return err
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if affected == 0 {
-		return errors.New("game could not be completed")
-	}
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO user_guess_card_awards (
-			user_id, oracle_id, scryfall_id, card_name, image_uri, question_count, guess_count
-		)
-		VALUES ($1, $2::uuid, NULLIF($3, '')::uuid, $4, $5, $6, $7)
-		ON CONFLICT (user_id, scryfall_id) DO NOTHING
-	`, game.UserID, card.OracleID, game.TargetScryfallID, card.Name, card.ImageURI, game.QuestionCount, guessCount); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 func loadActiveSpellifyGame(ctx context.Context, db *sql.DB, player gamePlayer) (*spellifyGame, error) {
@@ -836,6 +1157,8 @@ func loadActiveSpellifyGame(ctx context.Context, db *sql.DB, player gamePlayer) 
 			status,
 			guessed_chars,
 			guess_count,
+			card_guess_count,
+			previous_wrong_guesses,
 			is_daily,
 			daily_key,
 			created_at,
@@ -860,6 +1183,8 @@ func loadSpellifyGameByID(ctx context.Context, db *sql.DB, player gamePlayer, ga
 			status,
 			guessed_chars,
 			guess_count,
+			card_guess_count,
+			previous_wrong_guesses,
 			is_daily,
 			daily_key,
 			created_at,
@@ -887,6 +1212,8 @@ func scanSpellifyGame(row interface {
 		&game.Status,
 		pq.Array(&game.GuessedChars),
 		&game.GuessCount,
+		&game.CardGuessCount,
+		pq.Array(&game.PreviousWrongGuesses),
 		&game.IsDaily,
 		&game.DailyKey,
 		&game.CreatedAt,
@@ -913,12 +1240,58 @@ func createSpellifyGame(ctx context.Context, db *sql.DB, player gamePlayer, isDa
 	if isDaily {
 		oracleID, scryfallID, err = getOrCreateDailyGameTarget(ctx, db, "tombscript", dailyKey)
 	} else {
-		oracleID, scryfallID, err = selectGuessCardTarget(ctx, db)
+		oracleID, scryfallID, err = selectTombscriptTarget(ctx, db)
 	}
 	if err != nil {
 		return nil, err
 	}
-	row := db.QueryRowContext(ctx, `
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	var lockResult any
+	if err := tx.QueryRowContext(ctx, `
+		SELECT pg_advisory_xact_lock(hashtextextended($1, 0))
+	`, spellifyOwnerLockKey(player)).Scan(&lockResult); err != nil {
+		return nil, err
+	}
+
+	active, err := scanSpellifyGame(tx.QueryRowContext(ctx, `
+		SELECT
+			id,
+			user_id,
+			COALESCE(guest_id::text, ''),
+			target_oracle_id::text,
+			COALESCE(target_scryfall_id::text, ''),
+			status,
+			guessed_chars,
+			guess_count,
+			card_guess_count,
+			previous_wrong_guesses,
+			is_daily,
+			daily_key,
+			created_at,
+			completed_at
+		FROM user_spellify_games
+		WHERE (user_id = $1 OR guest_id = NULLIF($2, '')::uuid)
+		  AND status = 'active'
+		ORDER BY created_at DESC
+		LIMIT 1
+	`, player.userIDValue(), player.guestIDValue()))
+	if err == nil {
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return active, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+
+	game, err := scanSpellifyGame(tx.QueryRowContext(ctx, `
 		INSERT INTO user_spellify_games (user_id, guest_id, target_oracle_id, target_scryfall_id, is_daily, daily_key)
 		VALUES ($1, NULLIF($2, '')::uuid, $3::uuid, NULLIF($4, '')::uuid, $5, $6)
 		RETURNING
@@ -930,12 +1303,27 @@ func createSpellifyGame(ctx context.Context, db *sql.DB, player gamePlayer, isDa
 			status,
 			guessed_chars,
 			guess_count,
+			card_guess_count,
+			previous_wrong_guesses,
 			is_daily,
 			daily_key,
 			created_at,
 			completed_at
-	`, player.userIDValue(), player.guestIDValue(), oracleID, scryfallID, isDaily, dailyKey)
-	return scanSpellifyGame(row)
+	`, player.userIDValue(), player.guestIDValue(), oracleID, scryfallID, isDaily, dailyKey))
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return game, nil
+}
+
+func spellifyOwnerLockKey(player gamePlayer) string {
+	if player.UserID > 0 {
+		return fmt.Sprintf("spellify:user:%d", player.UserID)
+	}
+	return "spellify:guest:" + strings.ToLower(strings.TrimSpace(player.GuestID))
 }
 
 func activeOrNewSpellifyGame(ctx context.Context, db *sql.DB, player gamePlayer) (*spellifyGame, error) {
@@ -1026,6 +1414,69 @@ func addSpellifyGuessChar(ctx context.Context, db *sql.DB, gameID int64, player 
 	return nil
 }
 
+// recordSpellifyWrongCardGuess consumes one of the round's separate card-name
+// attempts without changing its character-reveal count. The final failed
+// attempt closes the round so it cannot remain active with no valid actions.
+func recordSpellifyWrongCardGuess(
+	ctx context.Context,
+	db *sql.DB,
+	gameID int64,
+	player gamePlayer,
+	wrongGuess string,
+	maxCardGuesses int,
+) (spellifyCardGuessResult, error) {
+	if maxCardGuesses <= 0 {
+		return spellifyCardGuessResult{}, errSpellifyCardGuessUnavailable
+	}
+	wrongGuess = spellifyPersistedWrongGuess(wrongGuess)
+	if wrongGuess == "" {
+		return spellifyCardGuessResult{}, errSpellifyCardGuessUnavailable
+	}
+	var result spellifyCardGuessResult
+	err := db.QueryRowContext(ctx, `
+		UPDATE user_spellify_games
+		SET
+			card_guess_count = card_guess_count + 1,
+			previous_wrong_guesses = array_append(previous_wrong_guesses, $4),
+			status = CASE
+				WHEN card_guess_count + 1 >= $5 THEN 'lost'
+				ELSE status
+			END,
+			completed_at = CASE
+				WHEN card_guess_count + 1 >= $5 THEN now()
+				ELSE completed_at
+			END
+		WHERE id = $1
+		  AND (user_id = $2 OR guest_id = NULLIF($3, '')::uuid)
+		  AND status = 'active'
+		  AND card_guess_count < $5
+		RETURNING card_guess_count, status = 'lost'
+	`, gameID, player.userIDValue(), player.guestIDValue(), wrongGuess, maxCardGuesses).Scan(
+		&result.CardGuessCount,
+		&result.Exhausted,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return spellifyCardGuessResult{}, errSpellifyCardGuessUnavailable
+	}
+	return result, err
+}
+
+const spellifyPersistedWrongGuessMaxRunes = 256
+
+// spellifyPersistedWrongGuess keeps user-submitted history safe for a
+// PostgreSQL text array and bounded for later page/JSON rendering. It preserves
+// the submitted wording while normalizing whitespace and invalid byte/NUL data.
+func spellifyPersistedWrongGuess(value string) string {
+	value = strings.ToValidUTF8(value, "�")
+	value = strings.ReplaceAll(value, "\x00", "�")
+	value = strings.Join(strings.Fields(value), " ")
+	runes := []rune(value)
+	if len(runes) > spellifyPersistedWrongGuessMaxRunes {
+		runes = runes[:spellifyPersistedWrongGuessMaxRunes]
+	}
+	return string(runes)
+}
+
 func completeSpellifyGame(ctx context.Context, db *sql.DB, gameID int64, player gamePlayer, won bool) error {
 	status := "lost"
 	if won {
@@ -1088,7 +1539,7 @@ func completeSpellifyGameWithAward(ctx context.Context, db *sql.DB, game spellif
 	return tx.Commit()
 }
 
-func listGuessCardAwardsPage(ctx context.Context, db *sql.DB, userID int64, limit, offset int) ([]guessCardAward, error) {
+func listGuessCardWinsPage(ctx context.Context, db *sql.DB, userID int64, limit, offset int) ([]guessCardWin, error) {
 	if limit <= 0 {
 		limit = 60
 	}
@@ -1097,18 +1548,28 @@ func listGuessCardAwardsPage(ctx context.Context, db *sql.DB, userID int64, limi
 	}
 	rows, err := db.QueryContext(ctx, `
 		SELECT
-			id,
-			user_id,
-			oracle_id::text,
-			COALESCE(scryfall_id::text, ''),
-			card_name,
-			image_uri,
-			won_at,
-			question_count,
-			guess_count
-		FROM user_guess_card_awards
-		WHERE user_id = $1
-		ORDER BY won_at DESC
+			game.id,
+			game.user_id,
+			game.target_oracle_id::text,
+			COALESCE(game.target_scryfall_id::text, ''),
+			oracle_card.name,
+			COALESCE(
+				NULLIF(print.image_uri, ''),
+				NULLIF(oracle_card.default_image_uri, ''),
+				''
+			),
+			COALESCE(game.completed_at, game.created_at),
+			game.question_count,
+			game.guess_count,
+			game.is_daily
+		FROM user_guess_card_games AS game
+		JOIN oracle_cards AS oracle_card
+		  ON oracle_card.oracle_id = game.target_oracle_id
+		LEFT JOIN card_prints AS print
+		  ON print.scryfall_id = game.target_scryfall_id
+		WHERE game.user_id = $1
+		  AND game.status = 'won'
+		ORDER BY COALESCE(game.completed_at, game.created_at) DESC, game.id DESC
 		LIMIT $2 OFFSET $3
 	`, userID, limit, offset)
 	if err != nil {
@@ -1116,23 +1577,24 @@ func listGuessCardAwardsPage(ctx context.Context, db *sql.DB, userID int64, limi
 	}
 	defer rows.Close()
 
-	out := make([]guessCardAward, 0, limit)
+	out := make([]guessCardWin, 0, limit)
 	for rows.Next() {
-		var award guessCardAward
+		var win guessCardWin
 		if err := rows.Scan(
-			&award.ID,
-			&award.UserID,
-			&award.OracleID,
-			&award.ScryfallID,
-			&award.CardName,
-			&award.ImageURI,
-			&award.WonAt,
-			&award.QuestionCount,
-			&award.GuessCount,
+			&win.ID,
+			&win.UserID,
+			&win.OracleID,
+			&win.ScryfallID,
+			&win.CardName,
+			&win.ImageURI,
+			&win.WonAt,
+			&win.QuestionCount,
+			&win.GuessCount,
+			&win.IsDaily,
 		); err != nil {
 			return nil, err
 		}
-		out = append(out, award)
+		out = append(out, win)
 	}
 	return out, rows.Err()
 }
@@ -1145,11 +1607,37 @@ func listSpellifyAwardsPage(ctx context.Context, db *sql.DB, userID int64, limit
 		offset = 0
 	}
 	rows, err := db.QueryContext(ctx, `
-		SELECT id, user_id, oracle_id::text, COALESCE(scryfall_id::text, ''),
-		       card_name, image_uri, won_at, guess_count
-		FROM user_spellify_awards
-		WHERE user_id = $1
-		ORDER BY won_at DESC
+		SELECT id, user_id, oracle_id, scryfall_id, card_name, image_uri, won_at, guess_count
+		FROM (
+			SELECT DISTINCT ON (
+				COALESCE(NULLIF(game.daily_key, ''), 'legacy:' || game.id::text)
+			)
+				game.id,
+				game.user_id,
+				game.target_oracle_id::text AS oracle_id,
+				COALESCE(game.target_scryfall_id::text, '') AS scryfall_id,
+				oracle_card.name AS card_name,
+				COALESCE(
+					NULLIF(print.image_uri, ''),
+					NULLIF(oracle_card.default_image_uri, ''),
+					''
+				) AS image_uri,
+				COALESCE(game.completed_at, game.created_at) AS won_at,
+				game.guess_count
+			FROM user_spellify_games AS game
+			JOIN oracle_cards AS oracle_card
+			  ON oracle_card.oracle_id = game.target_oracle_id
+			LEFT JOIN card_prints AS print
+			  ON print.scryfall_id = game.target_scryfall_id
+			WHERE game.user_id = $1
+			  AND game.is_daily = true
+			  AND game.status = 'won'
+			ORDER BY
+				COALESCE(NULLIF(game.daily_key, ''), 'legacy:' || game.id::text),
+				COALESCE(game.completed_at, game.created_at) DESC,
+				game.id DESC
+		) AS daily_wins
+		ORDER BY won_at DESC, id DESC
 		LIMIT $2 OFFSET $3
 	`, userID, limit, offset)
 	if err != nil {
@@ -1174,14 +1662,25 @@ func countFavoritePrintings(ctx context.Context, db *sql.DB, userID int64) (int,
 	return count, err
 }
 
-func countGuessCardAwards(ctx context.Context, db *sql.DB, userID int64) (int, error) {
+func countGuessCardWins(ctx context.Context, db *sql.DB, userID int64) (int, error) {
 	var count int
-	err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_guess_card_awards WHERE user_id = $1`, userID).Scan(&count)
+	err := db.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM user_guess_card_games
+		WHERE user_id = $1
+		  AND status = 'won'
+	`, userID).Scan(&count)
 	return count, err
 }
 
 func countSpellifyAwards(ctx context.Context, db *sql.DB, userID int64) (int, error) {
 	var count int
-	err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_spellify_awards WHERE user_id = $1`, userID).Scan(&count)
+	err := db.QueryRowContext(ctx, `
+		SELECT COUNT(DISTINCT COALESCE(NULLIF(daily_key, ''), 'legacy:' || id::text))
+		FROM user_spellify_games
+		WHERE user_id = $1
+		  AND is_daily = true
+		  AND status = 'won'
+	`, userID).Scan(&count)
 	return count, err
 }

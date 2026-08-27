@@ -1,230 +1,216 @@
+{{ define "commander_search_card" }}
+  <li class="mt-commander-browser-card" data-card-detail-root>
+    <button
+      type="button"
+      class="mt-commander-browser-card__button"
+      data-card-detail
+      data-oracle-id="{{ .OracleID }}"
+      data-scryfall-id="{{ .ScryfallID }}"
+      data-name="{{ .Name }}"
+      data-mana-cost="{{ .ManaCost }}"
+      data-type-line="{{ .TypeLine }}"
+      data-image-uri="{{ .ImageURI }}"
+      data-price="{{ .PriceUSD }}"
+      data-artist="{{ .Artist }}"
+      data-set-code="{{ .SetCode }}"
+      data-set-name="{{ .SetName }}"
+      data-released-at="{{ .ReleasedAt }}"
+      data-faces='{{ .FacesJSON }}'
+      aria-label="View {{ .Name }} and choose a printing">
+      <span class="mt-commander-browser-card__media">
+        {{ if .ImageURI }}
+          <img src="{{ .ImageURI }}"
+               alt=""
+               loading="lazy"
+               decoding="async">
+        {{ else }}
+          <span class="mt-commander-browser-card__fallback">Image unavailable</span>
+        {{ end }}
+      </span>
+      <span class="mt-commander-browser-card__copy">
+        <strong>{{ .Name }}</strong>
+        <span>{{ .TypeLine }}</span>
+      </span>
+    </button>
+    <span class="hidden js-oracle-text">{{ .OracleText }}</span>
+  </li>
+{{ end }}
+
 {{ define "commanders_search" }}
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
+  {{ $clearSearchPath := print "/commanders/search?return_to=" (urlquery $ctx.ReturnTo) }}
 
-  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="space-y-2">
-        <p class="mt-kicker">Builder</p>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Commander Search</h1>
+  <div class="mt-commander-browser">
+    <nav class="mt-commander-browser__return" aria-label="Return to deck">
+      <a href="{{ $ctx.ReturnTo }}">← {{ $ctx.ReturnLabel }}</a>
+    </nav>
+
+    <header class="mt-commander-browser__heading">
+      <h1>Choose a commander</h1>
+      <p>Search by name or explore a recommendation. Open a card to choose its exact printing.</p>
+    </header>
+
+    <form method="GET" action="/commanders/search" class="mt-commander-browser__search" role="search">
+      <input type="hidden" name="return_to" value="{{ $ctx.ReturnTo }}">
+      <label for="commander-browser-search" class="sr-only">Search commanders by name</label>
+      <div class="mt-commander-browser__search-field" data-card-autocomplete-root>
+        <input
+          id="commander-browser-search"
+          type="search"
+          name="q"
+          value="{{ $ctx.Query }}"
+          placeholder="Search commanders by name"
+          class="mt-control"
+          autocomplete="off"
+          enterkeyhint="search"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls="commander-browser-search-menu"
+          aria-expanded="false"
+          aria-haspopup="listbox"
+          data-card-autocomplete-input
+          data-card-autocomplete-commander-only="true">
+        <div
+          id="commander-browser-search-menu"
+          data-card-autocomplete-menu
+          class="mt-autocomplete-menu mt-commander-browser__search-menu hidden"
+          role="listbox"></div>
       </div>
+      <button type="submit" class="sr-only">Search commanders</button>
+    </form>
 
-      <div class="flex flex-wrap gap-2">
-        <a href="{{ $ctx.ReturnTo }}" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">{{ $ctx.ReturnLabel }}</a>
-        <a href="/" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2">Home</a>
-      </div>
-    </div>
-
-    <section class="mt-panel p-5 sm:p-6 space-y-5">
-      <p class="mt-hint">Search commander cards by name.</p>
-      <form method="GET" action="/commanders/search" class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-        <input type="hidden" name="return_to" value="{{ $ctx.ReturnTo }}">
-        <label>
-          <span class="mt-field-label">Card Name</span>
-          <div class="relative" data-card-autocomplete-root>
-            <input type="text"
-                   name="q"
-                   value="{{ $ctx.Query }}"
-                   placeholder="Commander name"
-                   class="mt-control"
-                   autocomplete="off"
-                   aria-autocomplete="list"
-                   aria-expanded="false"
-                   aria-haspopup="listbox"
-                   data-card-autocomplete-input
-                   data-card-autocomplete-commander-only="true">
-            <div
-              data-card-autocomplete-menu
-              class="hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] z-20 overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
-              role="listbox"></div>
+    {{ if $ctx.Query }}
+      <section class="mt-commander-browser__section" aria-labelledby="commander-browser-results-title">
+        <div class="mt-commander-browser__section-heading">
+          <div>
+            <h2 id="commander-browser-results-title">Search results</h2>
+            <p>{{ len $ctx.Results }} matching commander{{ if ne (len $ctx.Results) 1 }}s{{ end }}</p>
           </div>
-        </label>
-
-        <div class="flex items-end">
-          <button type="submit" class="mt-btn mt-btn--primary w-full md:w-auto">Search</button>
+          <a href="{{ $clearSearchPath }}">Clear search</a>
         </div>
-      </form>
 
-      <div class="flex flex-wrap gap-2">
-        <span class="mt-chip">Commander</span>
-        <span class="mt-chip">Duel Commander</span>
-        <span class="mt-chip">Brawl</span>
-        <span class="mt-chip">Historic Brawl</span>
-        <span class="mt-chip">Oathbreaker</span>
-      </div>
-    </section>
-
-    <section class="space-y-3">
-      <div class="flex items-center justify-between gap-2">
-        <h2 class="text-lg font-semibold text-slate-100">
-          {{ if $ctx.Query }}Results for “{{ $ctx.Query }}”{{ else }}Results{{ end }}
-          {{ if $ctx.Results }}<span class="ml-1 text-xs text-slate-500">({{ len $ctx.Results }})</span>{{ end }}
-        </h2>
-      </div>
-
-      {{ if $ctx.Query }}
         {{ if $ctx.Results }}
-          <ul class="grid gap-4 grid-cols-2 lg:grid-cols-3">
+          <ul class="mt-commander-browser__grid">
             {{ range $ctx.Results }}
-              <li class="mt-action-card space-y-3">
-                <button
-                  type="button"
-                  class="block w-full text-left"
-                  data-card-detail
-                  data-oracle-id="{{ .OracleID }}"
-                  data-name="{{ .Name }}"
-                  data-mana-cost="{{ .ManaCost }}"
-                  data-type-line="{{ .TypeLine }}"
-                  data-image-uri="{{ .ImageURI }}"
-                  data-price="{{ .PriceUSD }}"
-                  data-artist="{{ .Artist }}"
-                  data-set-code="{{ .SetCode }}"
-                data-set-name="{{ .SetName }}"
-                data-released-at="{{ .ReleasedAt }}"
-                data-faces='{{ .FacesJSON }}'>
-                  {{ if .ImageURI }}
-                    <img src="{{ .ImageURI }}"
-                         alt="{{ .Name }}"
-                         class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
-                  {{ else }}
-                    <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback">
-                      No image available
-                    </div>
-                  {{ end }}
-                </button>
-                <div class="space-y-1">
-                  <p class="text-sm font-semibold text-slate-100">{{ .Name }}</p>
-                  <p class="text-xs text-slate-400">{{ .TypeLine }}</p>
-                </div>
-                <div class="hidden js-oracle-text">
-                  {{ .OracleText }}
-                </div>
-              </li>
+              {{ template "commander_search_card" . }}
             {{ end }}
           </ul>
         {{ else }}
-          <div class="mt-empty-state">
-            <p class="text-sm text-slate-300">No matches.</p>
+          <div class="mt-commander-browser__empty">
+            <p>No eligible commanders matched “{{ $ctx.Query }}”. Try a shorter or differently spelled name.</p>
           </div>
         {{ end }}
+      </section>
+    {{ end }}
+
+    <section class="mt-commander-browser__section" aria-labelledby="commander-browser-recommended-title">
+      <div class="mt-commander-browser__section-heading">
+        <div>
+          <h2 id="commander-browser-recommended-title">Recommended commanders</h2>
+          <p>A fresh selection of popular eligible commanders.</p>
+        </div>
+      </div>
+
+      {{ if $ctx.Recommended }}
+        <ul class="mt-commander-browser__grid">
+          {{ range $ctx.Recommended }}
+            {{ template "commander_search_card" . }}
+          {{ end }}
+        </ul>
       {{ else }}
-        <div class="mt-empty-state">
-          <p class="text-sm text-slate-300">Search or pick a recommendation.</p>
+        <div class="mt-commander-browser__empty">
+          <p>Recommendations are unavailable right now. You can still search by name.</p>
         </div>
       {{ end }}
     </section>
 
-    {{ if $ctx.Recommended }}
-      <section class="space-y-3">
-        <p class="mt-section-label">Recommended</p>
-
-        <ul class="grid gap-4 grid-cols-2 lg:grid-cols-3">
-          {{ range $ctx.Recommended }}
-            <li class="mt-action-card space-y-3">
-              <button
-                type="button"
-                class="block w-full text-left"
-                data-card-detail
-                data-oracle-id="{{ .OracleID }}"
-                data-name="{{ .Name }}"
-                data-mana-cost="{{ .ManaCost }}"
-                data-type-line="{{ .TypeLine }}"
-                data-image-uri="{{ .ImageURI }}"
-                data-price="{{ .PriceUSD }}"
-                data-artist="{{ .Artist }}"
-                data-set-code="{{ .SetCode }}"
-              data-set-name="{{ .SetName }}"
-              data-released-at="{{ .ReleasedAt }}"
-              data-faces='{{ .FacesJSON }}'>
-                {{ if .ImageURI }}
-                  <img src="{{ .ImageURI }}"
-                       alt="{{ .Name }}"
-                       class="w-full h-auto mt-card-media shadow-md shadow-slate-900/80">
-                {{ else }}
-                  <div class="w-full aspect-[3/4] mt-card-media mt-card-media__fallback">
-                    No image available
-                  </div>
-                {{ end }}
-              </button>
-              <div class="space-y-1">
-                <p class="text-sm font-semibold text-slate-100">{{ .Name }}</p>
-                <p class="text-xs text-slate-400">{{ .TypeLine }}</p>
-              </div>
-              <div class="hidden js-oracle-text">
-                {{ .OracleText }}
-              </div>
-            </li>
-          {{ end }}
-        </ul>
-      </section>
-    {{ end }}
-
     <div id="card-detail-modal"
-         class="mt-modal hidden">
-      <div class="mt-modal-panel max-w-xl">
-        <button type="button" class="absolute top-3 right-3 mt-btn mt-btn--secondary text-xs !px-3 !py-2" data-close-modal>
-          Close
+         class="mt-modal hidden"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="card-detail-modal-title">
+      <div class="mt-modal-panel mt-card-detail-modal__panel" tabindex="-1">
+        <button type="button"
+                class="mt-card-detail-modal__close"
+                data-close-modal
+                aria-label="Close card details">
+          <span aria-hidden="true">×</span>
         </button>
 
-        <div class="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] items-start">
-          <div class="flex items-center justify-center">
+        <div class="mt-card-detail-modal__layout">
+          <div class="mt-card-detail-modal__media">
             <img data-field="image"
                  alt=""
-                 class="w-full max-w-xs h-auto mt-card-media shadow-md shadow-slate-900/80">
+                 class="mt-card-detail-modal__image">
+            <p data-field="image-fallback"
+               class="mt-card-detail-modal__image-fallback hidden">Card image unavailable</p>
           </div>
 
-          <div class="space-y-3 text-sm text-slate-200">
-            <h3 class="text-lg font-semibold text-slate-50" data-field="name"></h3>
-            <div class="space-y-1" data-field="printing-group">
-              <label for="printing-select" class="mt-field-label">
-                Version
-              </label>
-              <select id="printing-select" data-field="printing-select"
-                      class="mt-control mt-control--sm text-xs text-slate-100">
-                <option value="">Latest printing</option>
-              </select>
+          <div class="mt-card-detail-modal__content">
+            <header class="mt-card-detail-modal__header">
+              <div class="mt-card-detail-modal__title-row">
+                <h3 id="card-detail-modal-title"
+                    class="mt-card-detail-modal__title"
+                    data-field="name"></h3>
+                <span class="mt-card-detail-modal__mana"
+                      data-field="mana-cost"
+                      aria-label="Mana cost"></span>
+              </div>
+              <p class="mt-card-detail-modal__type" data-field="type-line"></p>
+            </header>
+
+            <div class="mt-card-detail-modal__oracle" data-field="oracle-text"></div>
+
+            <dl class="mt-card-detail-modal__facts">
+              <div>
+                <dt>Price</dt>
+                <dd data-field="price-usd">—</dd>
+              </div>
+              <div>
+                <dt>Artist</dt>
+                <dd data-field="artist">—</dd>
+              </div>
+            </dl>
+
+            <div class="mt-card-detail-modal__printing">
+              <div class="mt-card-detail-modal__printing-control" data-field="printing-group">
+                <label for="card-detail-printing-select">Printing</label>
+                <select id="card-detail-printing-select"
+                        data-field="printing-select"
+                        class="mt-control mt-control--sm">
+                  <option value="">Latest printing</option>
+                </select>
+              </div>
+              <p data-field="printing-meta" class="mt-card-detail-modal__printing-meta hidden"></p>
             </div>
-            <p class="text-xs uppercase tracking-wide text-slate-400">
-              <span data-field="type-line"></span>
-            </p>
 
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
-              <span>
-                <span class="font-medium text-slate-200">Cost:</span>
-                <span data-field="mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
-              </span>
-              <span>
-                <span class="font-medium text-slate-200">Price:</span>
-                <span data-field="price-usd">—</span>
-              </span>
-              <span>
-                <span class="font-medium text-slate-200">Artist:</span>
-                <span data-field="artist">—</span>
-              </span>
-            </div>
-
-            <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
-
-            <div class="mt-3 flex justify-end">
-              <button type="button" class="mt-btn mt-btn--primary text-xs !px-3 !py-2 hidden" data-flip-card>
-                Flip Card
+            <div class="mt-card-detail-modal__actions">
+              <a data-field="open-page-link"
+                 class="hidden mt-btn mt-btn--secondary mt-btn--sm">
+                View card page
+              </a>
+              <button type="button"
+                      class="mt-btn mt-btn--secondary mt-btn--sm hidden"
+                      data-flip-card>
+                Flip card
               </button>
+              <form method="POST" action="/decks/new/commander">
+                <input type="hidden" name="commander_name" value="" data-field="sticky-name-input">
+                <input type="hidden" name="commander_print_id" value="" data-field="sticky-print-input">
+                <input type="hidden" name="return_to" value="{{ $ctx.ReturnTo }}">
+                <button type="submit" class="mt-btn mt-btn--primary mt-btn--sm">
+                  Select Commander
+                </button>
+              </form>
             </div>
-
-            <form method="POST" action="/decks/new/commander" class="pt-2">
-              <input type="hidden" name="commander_name" value="" data-field="sticky-name-input">
-              <input type="hidden" name="return_to" value="{{ $ctx.ReturnTo }}">
-              <button type="submit" class="mt-btn mt-btn--primary">
-                Select Commander
-              </button>
-            </form>
           </div>
         </div>
       </div>
     </div>
 
     {{ template "card_detail_modal_script" . }}
-  </main>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

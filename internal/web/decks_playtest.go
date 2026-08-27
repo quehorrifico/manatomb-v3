@@ -64,6 +64,7 @@ type workbenchPlaytestCard struct {
 }
 
 type workbenchPlaytestCardMeta struct {
+	CardID               string            `json:"cardID,omitempty"`
 	Name                 string            `json:"name,omitempty"`
 	ManaCost             string            `json:"manaCost,omitempty"`
 	TypeLine             string            `json:"typeLine,omitempty"`
@@ -78,35 +79,41 @@ type workbenchPlaytestCardMeta struct {
 	CollectorNumber      string            `json:"collectorNumber,omitempty"`
 	Artist               string            `json:"artist,omitempty"`
 	ImageURI             string            `json:"imageURI,omitempty"`
+	PreferredPrintID     string            `json:"preferredPrintID,omitempty"`
+	PrintID              string            `json:"printID,omitempty"`
 	IsCommanderCandidate bool              `json:"isCommanderCandidate,omitempty"`
 }
 
 type workbenchPlaytestPayload struct {
-	CommanderName       string                               `json:"commander_name"`
-	Format              string                               `json:"format"`
-	Name                string                               `json:"name"`
-	Description         string                               `json:"description"`
-	Tags                string                               `json:"tags"`
-	Cards               []workbenchPlaytestCard              `json:"cards"`
-	SideboardCards      []workbenchPlaytestCard              `json:"sideboard_cards"`
-	MaybeCards          []workbenchPlaytestCard              `json:"maybe_cards"`
-	CommanderCandidates []string                             `json:"commander_candidates"`
-	CardMeta            map[string]workbenchPlaytestCardMeta `json:"card_meta"`
-	Sandbox             bool                                 `json:"sandbox"`
+	CommanderName       string                                          `json:"commander_name"`
+	CommanderPrintID    string                                          `json:"commander_print_id"`
+	Format              string                                          `json:"format"`
+	Name                string                                          `json:"name"`
+	Description         string                                          `json:"description"`
+	Tags                string                                          `json:"tags"`
+	Cards               []workbenchPlaytestCard                         `json:"cards"`
+	SideboardCards      []workbenchPlaytestCard                         `json:"sideboard_cards"`
+	MaybeCards          []workbenchPlaytestCard                         `json:"maybe_cards"`
+	CommanderCandidates []string                                        `json:"commander_candidates"`
+	CardMeta            map[string]workbenchPlaytestCardMeta            `json:"card_meta"`
+	BoardCardMeta       map[string]map[string]workbenchPlaytestCardMeta `json:"board_card_meta"`
+	Sandbox             bool                                            `json:"sandbox"`
 }
 
 type workbenchDraftSeed struct {
-	CommanderName       string                               `json:"commanderName"`
-	Format              string                               `json:"format"`
-	Name                string                               `json:"name"`
-	Description         string                               `json:"description"`
-	Tags                string                               `json:"tags"`
-	Cards               map[string]int                       `json:"cards"`
-	SideboardCards      map[string]int                       `json:"sideboardCards"`
-	MaybeCards          map[string]int                       `json:"maybeCards"`
-	CardMeta            map[string]workbenchPlaytestCardMeta `json:"cardMeta"`
-	CommanderCandidates []string                             `json:"commanderCandidates"`
-	Sandbox             bool                                 `json:"sandbox"`
+	CommanderName       string                                          `json:"commanderName"`
+	CommanderPrintID    string                                          `json:"commanderPrintID"`
+	Format              string                                          `json:"format"`
+	Name                string                                          `json:"name"`
+	Description         string                                          `json:"description"`
+	Tags                string                                          `json:"tags"`
+	Cards               map[string]int                                  `json:"cards"`
+	SideboardCards      map[string]int                                  `json:"sideboardCards"`
+	MaybeCards          map[string]int                                  `json:"maybeCards"`
+	CardMeta            map[string]workbenchPlaytestCardMeta            `json:"cardMeta"`
+	BoardCardMeta       map[string]map[string]workbenchPlaytestCardMeta `json:"boardCardMeta"`
+	CommanderCandidates []string                                        `json:"commanderCandidates"`
+	Sandbox             bool                                            `json:"sandbox"`
 }
 
 func parsePlaytestDeckID(path string) (int64, error) {
@@ -308,6 +315,28 @@ func hydratePlaytestCommanderFromDB(commander playtestCommander, dbCard cards.DB
 	}
 }
 
+func playtestCommanderFromCard(card *cards.Card) playtestCommander {
+	if card == nil {
+		return playtestCommander{}
+	}
+	return playtestCommander{
+		Name:            strings.TrimSpace(card.Name),
+		ImageURI:        strings.TrimSpace(card.ImageURI),
+		ManaCost:        strings.TrimSpace(card.ManaCost),
+		ManaValue:       card.CMC,
+		Colors:          normalizePlaytestColorList(card.Colors),
+		ColorIdentity:   normalizePlaytestColorList(card.ColorIdentity),
+		TypeLine:        strings.TrimSpace(card.TypeLine),
+		OracleText:      strings.TrimSpace(card.OracleText),
+		FlavorText:      strings.TrimSpace(card.FlavorText),
+		PriceUSD:        strings.TrimSpace(card.PriceUSD),
+		Artist:          strings.TrimSpace(card.Artist),
+		SetCode:         strings.TrimSpace(card.SetCode),
+		SetName:         strings.TrimSpace(card.SetName),
+		CollectorNumber: strings.TrimSpace(card.CollectorNumber),
+	}
+}
+
 func normalizeWorkbenchPlaytestCards(cardsIn []workbenchPlaytestCard, cardMeta map[string]workbenchPlaytestCardMeta) []playtestCard {
 	metaByName := normalizeWorkbenchCardMeta(cardMeta)
 	metaByKey := make(map[string]workbenchPlaytestCardMeta, len(metaByName))
@@ -398,7 +427,21 @@ func normalizeWorkbenchCardMeta(cardMeta map[string]workbenchPlaytestCardMeta) m
 		meta.CollectorNumber = strings.TrimSpace(meta.CollectorNumber)
 		meta.Artist = strings.TrimSpace(meta.Artist)
 		meta.ImageURI = strings.TrimSpace(meta.ImageURI)
+		meta.CardID = strings.TrimSpace(meta.CardID)
+		meta.PreferredPrintID = strings.TrimSpace(meta.PreferredPrintID)
+		meta.PrintID = strings.TrimSpace(meta.PrintID)
 		out[name] = meta
+	}
+	return out
+}
+
+func normalizeWorkbenchBoardCardMeta(boardCardMeta map[string]map[string]workbenchPlaytestCardMeta) map[string]map[string]workbenchPlaytestCardMeta {
+	out := make(map[string]map[string]workbenchPlaytestCardMeta, 3)
+	for _, board := range []string{"main", "side", "maybe"} {
+		meta := normalizeWorkbenchCardMeta(boardCardMeta[board])
+		if len(meta) > 0 {
+			out[board] = meta
+		}
 	}
 	return out
 }
@@ -433,25 +476,33 @@ func normalizeWorkbenchCommanderCandidates(candidates []string, commanderName st
 
 func normalizeWorkbenchDraftSeed(in workbenchPlaytestPayload) workbenchDraftSeed {
 	commanderName := strings.TrimSpace(in.CommanderName)
+	commanderPrintID := strings.TrimSpace(in.CommanderPrintID)
 	mode := ""
 	if in.Sandbox {
 		mode = "sandbox"
 	}
 	format := defaultDeckFormat(in.Format, commanderName, mode)
-	if format != "Commander" {
+	if !decks.FormatRequiresCommander(format) {
 		commanderName = ""
+		commanderPrintID = ""
+	}
+	name := strings.TrimSpace(in.Name)
+	if name == "" {
+		name = randomDeckName()
 	}
 
 	return workbenchDraftSeed{
 		CommanderName:       commanderName,
+		CommanderPrintID:    commanderPrintID,
 		Format:              format,
-		Name:                "New Guest Deck",
+		Name:                name,
 		Description:         strings.TrimSpace(in.Description),
 		Tags:                strings.TrimSpace(in.Tags),
 		Cards:               normalizeWorkbenchCardCounts(in.Cards),
 		SideboardCards:      normalizeWorkbenchCardCounts(in.SideboardCards),
 		MaybeCards:          normalizeWorkbenchCardCounts(in.MaybeCards),
 		CardMeta:            normalizeWorkbenchCardMeta(in.CardMeta),
+		BoardCardMeta:       normalizeWorkbenchBoardCardMeta(in.BoardCardMeta),
 		CommanderCandidates: normalizeWorkbenchCommanderCandidates(in.CommanderCandidates, commanderName),
 		Sandbox:             in.Sandbox,
 	}
@@ -481,8 +532,9 @@ func deckRowsToPlaytestCards(deckCards []decks.DeckCard) []playtestCard {
 	return out
 }
 
-func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, rows []playtestCard) ([]byte, []byte, error) {
+func (a *App) buildPlaytestPayload(ctx context.Context, commanderName, commanderPrintID string, rows []playtestCard) ([]byte, []byte, error) {
 	commanderName = strings.TrimSpace(commanderName)
+	commanderPrintID = strings.TrimSpace(commanderPrintID)
 	commander := playtestCommander{Name: commanderName}
 	out := make([]playtestCard, 0, len(rows))
 	missingNames := make([]string, 0, len(rows)+1)
@@ -584,6 +636,11 @@ func (a *App) buildPlaytestPayload(ctx context.Context, commanderName string, ro
 		if dbCard, ok := resolvedByName[strings.ToLower(commander.Name)]; ok {
 			commander = hydratePlaytestCommanderFromDB(commander, dbCard)
 		}
+		if commanderPrintID != "" {
+			commander = playtestCommanderFromCard(
+				a.lookupCommanderCardPrinting(ctx, commander.Name, commanderPrintID),
+			)
+		}
 	}
 
 	cardsJSON, err := json.Marshal(out)
@@ -615,7 +672,9 @@ func (a *App) renderPlaytestPage(
 	workbenchMode bool,
 ) {
 	data := TemplateData{
+		PageID:      "deck-playtest",
 		CurrentUser: user,
+		Meta:        deckPlaytestPageMeta(deck),
 		Data: playtestData{
 			Deck:          deck,
 			CardsJSON:     template.JS(cardsJSON),
@@ -663,7 +722,12 @@ func (a *App) HandleDeckPlaytest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cardsJSON, commanderJSON, err := a.buildPlaytestPayload(r.Context(), d.CommanderName, deckRowsToPlaytestCards(deckCards))
+	cardsJSON, commanderJSON, err := a.buildPlaytestPayload(
+		r.Context(),
+		d.CommanderName,
+		d.CommanderPrintID,
+		deckRowsToPlaytestCards(deckCards),
+	)
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
@@ -713,7 +777,12 @@ func (a *App) HandleDeckWorkbenchPlaytest(w http.ResponseWriter, r *http.Request
 	}
 	commanderName := workbenchDraft.CommanderName
 
-	cardsJSON, commanderJSON, err := a.buildPlaytestPayload(r.Context(), commanderName, normalizeWorkbenchPlaytestCards(in.Cards, in.CardMeta))
+	cardsJSON, commanderJSON, err := a.buildPlaytestPayload(
+		r.Context(),
+		commanderName,
+		workbenchDraft.CommanderPrintID,
+		normalizeWorkbenchPlaytestCards(in.Cards, in.CardMeta),
+	)
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
@@ -721,22 +790,25 @@ func (a *App) HandleDeckWorkbenchPlaytest(w http.ResponseWriter, r *http.Request
 
 	deckName := workbenchDraft.Name
 	if strings.TrimSpace(deckName) == "" {
-		deckName = "New Guest Deck"
+		deckName = randomDeckName()
 	}
 
 	fakeDeck := &decks.Deck{
-		ID:            0,
-		UserID:        0,
-		Name:          deckName,
-		Description:   workbenchDraft.Description,
-		Tags:          workbenchDraft.Tags,
-		Format:        workbenchDraft.Format,
-		CommanderName: commanderName,
+		ID:               0,
+		UserID:           0,
+		Name:             deckName,
+		Description:      workbenchDraft.Description,
+		Tags:             workbenchDraft.Tags,
+		Format:           workbenchDraft.Format,
+		CommanderName:    commanderName,
+		CommanderPrintID: workbenchDraft.CommanderPrintID,
 	}
 
 	authNextPath := deckWorkbenchPath(deckWorkbenchOptions{
-		Format:  workbenchDraft.Format,
-		Sandbox: workbenchDraft.Sandbox,
+		Format:           workbenchDraft.Format,
+		CommanderName:    commanderName,
+		CommanderPrintID: workbenchDraft.CommanderPrintID,
+		Sandbox:          workbenchDraft.Sandbox,
 	})
 
 	a.renderPlaytestPage(

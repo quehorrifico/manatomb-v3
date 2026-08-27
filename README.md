@@ -1,11 +1,11 @@
-# Mana Tomb
+# ManaTomb
 
-Mana Tomb is a hobby web application for *Magic: The Gathering* players.
+ManaTomb is a hobby web application for *Magic: The Gathering* players.
 Search cards from a local Scryfall-powered database, build decks across formats, publish public deck pages, and explore gameplay tools as the project evolves.
 
 This project also serves as a full‑stack learning environment focused on **Go**, **PostgreSQL**, **TailwindCSS**, and maintainable backend architecture.
 
-> Mana Tomb is a non-commercial project. All card data and images are provided by Scryfall.
+> ManaTomb is a non-commercial project. All card data and images are provided by Scryfall.
 
 ---
 
@@ -52,7 +52,6 @@ Example values:
 
 ```env
 DATABASE_URL=postgres://username:password@localhost:5432/manatomb?sslmode=disable
-SESSION_SECRET=dev-session-secret-change-me
 SESSION_COOKIE_SECURE=false
 PUBLIC_BASE_URL=http://localhost:8080
 SMTP_HOST=
@@ -79,6 +78,34 @@ docker run --name manatomb-db \
 ```
 
 ### 4. Run the server
+
+Build the local Tailwind stylesheet whenever templates or JavaScript add or
+remove utility classes:
+
+```
+npm install
+npm run build:css
+```
+
+For active frontend development, `npm run watch:css` rebuilds it as files
+change. The generated stylesheet is committed and embedded in the Go binary,
+so production does not need Node.js or a browser-side Tailwind compiler.
+
+When adding another set to Pack Crack from an official Wizards product
+article, follow the source-to-recipe contract in
+[the Pack Crack recipe guide](docs/crack-a-pack-recipes.md). It documents
+the supported extension points, probability rules, publication gate, and
+required database preflight.
+
+Site colors are driven by a small set of centralized palette primitives. See
+[the theme system guide](docs/theme-system.md) before changing an existing
+palette or adding another signed-in appearance option.
+
+Public release notes live at `/changelog`. Follow
+[the release guide](docs/releases.md) when adding a feature or patch version
+so the page and shared footer stay in sync.
+
+Then start the server:
 
 ```
 go run ./cmd/server
@@ -118,7 +145,7 @@ docker run -p 8080:8080 --env-file .env manatomb
 
 ## Deployment Overview
 
-Mana Tomb is deployed on DigitalOcean App Platform.
+ManaTomb is deployed on DigitalOcean App Platform.
 
 - Environment variables configure the app.
 - Backend connects to a managed PostgreSQL instance.  
@@ -131,13 +158,18 @@ Sensitive credentials and connection strings should be kept outside this reposit
 ### Production Release Checklist
 
 - Take and verify a PostgreSQL backup before deploying schema or card-sync changes.
-- Set `SESSION_COOKIE_SECURE=true` and use a strong, unique `SESSION_SECRET`.
+- Before the first v1.0 deploy, confirm there are no case-only duplicate account emails with `SELECT lower(email), count(*) FROM users GROUP BY lower(email) HAVING count(*) > 1;`; resolve any rows returned before startup creates the case-insensitive unique index.
+- Set `SESSION_COOKIE_SECURE=true` (this is enabled automatically when `PUBLIC_BASE_URL` uses HTTPS).
 - Set `PUBLIC_BASE_URL` to the canonical HTTPS origin, such as `https://manatomb.app`.
+- Use the managed PostgreSQL TLS connection string in `DATABASE_URL` (`sslmode=require` or stricter); never carry the local `sslmode=disable` example into production.
+- Confirm `GET /robots.txt` and `GET /sitemap.xml` use that same origin, and verify a public card and public deck URL in a social-preview debugger after deployment.
 - Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_FROM` so password reset email can be delivered.
 - Use an SMTP submission endpoint that supports STARTTLS; `SMTP_FROM` may be a plain address or a display-name address.
 - Set `TRUSTED_PROXY_HOPS` to the number of trusted reverse proxies in front of the app so per-IP rate limits cannot be spoofed. Leave it at `0` when running directly; a direct DigitalOcean App Platform ingress is typically `1`.
 - Keep `CARD_SYNC_MAX_ROWS=0` in production and confirm a full sync completes successfully.
-- Confirm `GET /healthz`, login, password reset delivery, signed-out daily games, signed-out pack generation, and signed-in game awards after deployment.
+- Confirm `GET /healthz` returns 200 with the production database available; the endpoint now reports 503 when database readiness fails.
+- Confirm login, password reset delivery, signed-out daily games, signed-out pack generation, signed-in game awards, favorite toggling, profile customization, and one saved-deck edit after deployment.
+- Run `npm ci && npm run build:css`, `go test -race ./...`, `go vet ./...`, and `docker build .` before promoting a release. The included CI workflow also enforces generated CSS, tests, vet, and the server build on pull requests.
 
 To test password reset locally, run a local SMTP inbox such as Mailpit, set `SMTP_HOST=localhost`, `SMTP_PORT=1025`, and `SMTP_FROM=noreply@manatomb.local`, then request a reset and inspect the inbox at Mailpit's web UI.
 
@@ -145,7 +177,7 @@ To test password reset locally, run a local SMTP inbox such as Mailpit, set `SMT
 
 ## Scryfall Attribution
 
-Mana Tomb uses the Scryfall API for card data and images.
+ManaTomb uses the Scryfall API for card data and images.
 
 - Scryfall API: https://scryfall.com/docs/api  
 - Card data © Scryfall  

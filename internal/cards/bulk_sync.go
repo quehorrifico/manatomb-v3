@@ -1,6 +1,8 @@
 package cards
 
 import (
+	"bufio"
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -20,14 +22,52 @@ import (
 const (
 	scryfallBulkListURL     = "https://api.scryfall.com/bulk-data"
 	scryfallAPIAccept       = "application/json;q=0.9,*/*;q=0.8"
-	scryfallAPIUserAgent    = "Mana Tomb/1.0 (+https://github.com/zeusborrego/manatomb-v3)"
+	scryfallAPIUserAgent    = "ManaTomb/1.0 (+https://github.com/zeusborrego/manatomb-v3)"
 	scryfallHeaderTimeout   = 90 * time.Second
 	scryfallRetryAttempts   = 4
 	scryfallRetryDelay      = 3 * time.Second
 	scryfallMaxRetryDelay   = 30 * time.Second
 	defaultBulkSyncInterval = 24 * time.Hour
 	cardSyncAdvisoryLockKey = int64(91342817)
-	cardSyncDataVersion     = 3
+	cardSyncDataVersion     = 7
+	staleCardPrintDeleteSQL = `
+		DELETE FROM card_prints cp
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM card_prints_sync_stage s
+			WHERE s.scryfall_id = cp.scryfall_id
+		)
+		AND NOT EXISTS (
+			SELECT 1
+			FROM deck_cards dc
+			WHERE dc.preferred_print_id = cp.scryfall_id
+		)
+		AND NOT EXISTS (
+			SELECT 1
+			FROM decks d
+			WHERE d.commander_print_id = cp.scryfall_id
+		)
+	`
+	staleOracleCardDeleteSQL = `
+		DELETE FROM oracle_cards oc
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM oracle_cards_sync_stage s
+			WHERE s.oracle_id = oc.oracle_id
+		)
+		AND NOT EXISTS (
+			SELECT 1
+			FROM deck_cards dc
+			WHERE dc.oracle_id = oc.oracle_id
+		)
+		AND NOT EXISTS (
+			SELECT 1
+			FROM decks d
+			JOIN card_prints cp
+			  ON cp.scryfall_id = d.commander_print_id
+			WHERE cp.oracle_id = oc.oracle_id
+		)
+	`
 )
 
 var ErrCardSyncInProgress = errors.New("card sync already running")
@@ -47,11 +87,12 @@ type CardBulkSyncResult struct {
 }
 
 type scryfallBulkDescriptor struct {
-	Object      string    `json:"object"`
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	DownloadURI string    `json:"download_uri"`
+	Object           string    `json:"object"`
+	ID               string    `json:"id"`
+	Type             string    `json:"type"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	DownloadURI      string    `json:"download_uri"`
+	JSONLDownloadURI string    `json:"jsonl_download_uri"`
 }
 
 type scryfallBulkListResponse struct {
@@ -79,6 +120,7 @@ type oracleBulkRow struct {
 	AllPartsJSON         string
 	LegalAnywhere        bool
 	CommanderLegal       bool
+	LegalitiesJSON       string
 	IsCommanderCandidate bool
 	EDHRecRank           int
 }
@@ -111,6 +153,9 @@ type printBulkRow struct {
 	Variation        bool
 	Artist           string
 	PriceUSD         string
+	PriceUSDNonfoil  string
+	PriceUSDFoil     string
+	PriceUSDEtched   string
 	ScryfallURI      string
 }
 
@@ -151,6 +196,17 @@ func stringSliceJSON(values []string) string {
 	b, err := json.Marshal(nonNilStrings(values))
 	if err != nil {
 		return "[]"
+	}
+	return string(b)
+}
+
+func stringMapJSON(values map[string]string) string {
+	if len(values) == 0 {
+		return "{}"
+	}
+	b, err := json.Marshal(values)
+	if err != nil {
+		return "{}"
 	}
 	return string(b)
 }
@@ -245,10 +301,20 @@ func shouldIncludePrint(sc scryfallCard, c Card) bool {
 	if !supportsPaper(sc.Games) {
 		return false
 	}
-	if !strings.EqualFold(strings.TrimSpace(sc.Lang), "en") {
+	if !strings.EqualFold(strings.TrimSpace(sc.Lang), "en") && !isHobbitEternalDwarvishPrint(sc) {
 		return false
 	}
 	return true
+}
+
+func isHobbitEternalDwarvishPrint(sc scryfallCard) bool {
+	if !strings.EqualFold(strings.TrimSpace(sc.Lang), "dw") ||
+		!strings.EqualFold(strings.TrimSpace(sc.Set), "hoc") {
+		return false
+	}
+
+	collectorNumber, err := strconv.Atoi(strings.TrimSpace(sc.CollectorNumber))
+	return err == nil && collectorNumber >= 93 && collectorNumber <= 97
 }
 
 func newScryfallRequest(ctx context.Context, method, rawURL string) (*http.Request, error) {
@@ -412,16 +478,26 @@ func fetchBulkDescriptor(ctx context.Context, wantedType string) (scryfallBulkDe
 		return scryfallBulkDescriptor{}, scryfallStatusError("bulk descriptor list request", resp)
 	}
 
+	return decodeBulkDescriptor(resp.Body, wantedType)
+}
+
+func decodeBulkDescriptor(reader io.Reader, wantedType string) (scryfallBulkDescriptor, error) {
 	var list scryfallBulkListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+	if err := json.NewDecoder(reader).Decode(&list); err != nil {
 		return scryfallBulkDescriptor{}, err
 	}
-
 	wantedType = strings.TrimSpace(wantedType)
 	for _, descriptor := range list.Data {
 		if strings.EqualFold(strings.TrimSpace(descriptor.Type), wantedType) {
-			if strings.TrimSpace(descriptor.DownloadURI) == "" {
-				return scryfallBulkDescriptor{}, fmt.Errorf("missing download_uri for bulk type %s", wantedType)
+			descriptor.DownloadURI = strings.TrimSpace(descriptor.DownloadURI)
+			if descriptor.DownloadURI == "" {
+				descriptor.DownloadURI = strings.TrimSpace(descriptor.JSONLDownloadURI)
+			}
+			if descriptor.DownloadURI == "" {
+				return scryfallBulkDescriptor{}, fmt.Errorf(
+					"missing download_uri and jsonl_download_uri for bulk type %s",
+					wantedType,
+				)
 			}
 			return descriptor, nil
 		}
@@ -429,31 +505,112 @@ func fetchBulkDescriptor(ctx context.Context, wantedType string) (scryfallBulkDe
 	return scryfallBulkDescriptor{}, fmt.Errorf("bulk descriptor not found for type %s", wantedType)
 }
 
-func newBulkJSONDecoder(ctx context.Context, downloadURI string) (*json.Decoder, func(), error) {
+type bulkJSONDecoder struct {
+	decoder *json.Decoder
+	array   bool
+}
+
+func (d *bulkJSONDecoder) DecodeNext(destination any) (bool, error) {
+	if d.array && !d.decoder.More() {
+		endToken, err := d.decoder.Token()
+		if err != nil {
+			return false, err
+		}
+		if delim, ok := endToken.(json.Delim); !ok || delim != ']' {
+			return false, errors.New("unexpected bulk payload format: expected closing JSON array")
+		}
+		return false, nil
+	}
+
+	if err := d.decoder.Decode(destination); err != nil {
+		if !d.array && errors.Is(err, io.EOF) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func newBulkJSONDecoder(ctx context.Context, downloadURI string) (*bulkJSONDecoder, func(), error) {
 	resp, err := doScryfallRequest(ctx, http.MethodGet, downloadURI, "bulk download request")
 	if err != nil {
 		return nil, nil, err
 	}
-	cleanup := func() {
-		_ = resp.Body.Close()
-	}
+	cleanup := func() { _ = resp.Body.Close() }
 	if resp.StatusCode != http.StatusOK {
 		cleanup()
 		return nil, nil, scryfallStatusError("bulk download request", resp)
 	}
 
-	dec := json.NewDecoder(resp.Body)
-	startTok, err := dec.Token()
+	bulkDecoder, decoderCleanup, err := newBulkJSONDecoderFromReader(resp.Body)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	delim, ok := startTok.(json.Delim)
-	if !ok || delim != '[' {
-		cleanup()
-		return nil, nil, errors.New("unexpected bulk payload format: expected JSON array")
+	cleanup = func() {
+		decoderCleanup()
+		_ = resp.Body.Close()
 	}
-	return dec, cleanup, nil
+	return bulkDecoder, cleanup, nil
+}
+
+func newBulkJSONDecoderFromReader(payload io.Reader) (*bulkJSONDecoder, func(), error) {
+	cleanup := func() {}
+	buffered := bufio.NewReader(payload)
+	reader := io.Reader(buffered)
+	var gzipReader *gzip.Reader
+	if header, peekErr := buffered.Peek(2); peekErr == nil && len(header) == 2 && header[0] == 0x1f && header[1] == 0x8b {
+		var err error
+		gzipReader, err = gzip.NewReader(buffered)
+		if err != nil {
+			return nil, nil, fmt.Errorf("open gzip bulk payload: %w", err)
+		}
+		reader = gzipReader
+		cleanup = func() { _ = gzipReader.Close() }
+	}
+
+	jsonReader := bufio.NewReader(reader)
+	firstByte, err := firstBulkJSONByte(jsonReader)
+	if err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("read bulk payload: %w", err)
+	}
+	if firstByte != '[' && firstByte != '{' {
+		cleanup()
+		return nil, nil, errors.New("unexpected bulk payload format: expected JSON array or JSON Lines objects")
+	}
+
+	decoder := json.NewDecoder(jsonReader)
+	bulkDecoder := &bulkJSONDecoder{decoder: decoder, array: firstByte == '['}
+	if bulkDecoder.array {
+		startToken, tokenErr := decoder.Token()
+		if tokenErr != nil {
+			cleanup()
+			return nil, nil, tokenErr
+		}
+		if delim, ok := startToken.(json.Delim); !ok || delim != '[' {
+			cleanup()
+			return nil, nil, errors.New("unexpected bulk payload format: expected JSON array")
+		}
+	}
+	return bulkDecoder, cleanup, nil
+}
+
+func firstBulkJSONByte(reader *bufio.Reader) (byte, error) {
+	for {
+		value, err := reader.Peek(1)
+		if err != nil {
+			return 0, err
+		}
+		switch value[0] {
+		case ' ', '\t', '\r', '\n':
+			if _, err := reader.ReadByte(); err != nil {
+				return 0, err
+			}
+		default:
+			return value[0], nil
+		}
+	}
 }
 
 func decodeOracleRows(ctx context.Context, downloadURI string, maxRows int) ([]oracleBulkRow, error) {
@@ -462,12 +619,19 @@ func decodeOracleRows(ctx context.Context, downloadURI string, maxRows int) ([]o
 		return nil, err
 	}
 	defer cleanup()
+	return decodeOracleRowsFromDecoder(dec, maxRows)
+}
 
+func decodeOracleRowsFromDecoder(dec *bulkJSONDecoder, maxRows int) ([]oracleBulkRow, error) {
 	rows := make([]oracleBulkRow, 0, 40000)
-	for dec.More() {
+	for {
 		var raw scryfallCard
-		if err := dec.Decode(&raw); err != nil {
+		more, err := dec.DecodeNext(&raw)
+		if err != nil {
 			return nil, err
+		}
+		if !more {
+			break
 		}
 
 		card := normalizeScryfallCard(raw)
@@ -509,6 +673,7 @@ func decodeOracleRows(ctx context.Context, downloadURI string, maxRows int) ([]o
 			AllPartsJSON:         allPartsJSON,
 			LegalAnywhere:        legalAnywhere(raw.Legalities),
 			CommanderLegal:       card.CommanderLegal,
+			LegalitiesJSON:       stringMapJSON(card.Legalities),
 			IsCommanderCandidate: isCommanderCandidate(raw),
 			EDHRecRank:           card.EDHRecRank,
 		})
@@ -535,12 +700,19 @@ func decodePrintRows(ctx context.Context, downloadURI string, maxRows int) ([]pr
 		return nil, err
 	}
 	defer cleanup()
+	return decodePrintRowsFromDecoder(dec, maxRows)
+}
 
+func decodePrintRowsFromDecoder(dec *bulkJSONDecoder, maxRows int) ([]printBulkRow, error) {
 	rows := make([]printBulkRow, 0, 50000)
-	for dec.More() {
+	for {
 		var raw scryfallCard
-		if err := dec.Decode(&raw); err != nil {
+		more, err := dec.DecodeNext(&raw)
+		if err != nil {
 			return nil, err
+		}
+		if !more {
+			break
 		}
 
 		card := normalizeScryfallCard(raw)
@@ -572,7 +744,7 @@ func decodePrintRows(ctx context.Context, downloadURI string, maxRows int) ([]pr
 			SetCode:         strings.ToLower(strings.TrimSpace(card.SetCode)),
 			SetType:         strings.ToLower(strings.TrimSpace(raw.SetType)),
 			CollectorNumber: strings.TrimSpace(raw.CollectorNumber),
-			Lang:            "en",
+			Lang:            strings.TrimSpace(card.Lang),
 			ReleasedAt: sql.NullTime{
 				Time:  releasedAt,
 				Valid: hasRelease,
@@ -596,6 +768,9 @@ func decodePrintRows(ctx context.Context, downloadURI string, maxRows int) ([]pr
 			Variation:        raw.Variation,
 			Artist:           card.Artist,
 			PriceUSD:         card.PriceUSD,
+			PriceUSDNonfoil:  strings.TrimSpace(raw.Prices.USD),
+			PriceUSDFoil:     strings.TrimSpace(raw.Prices.USDFoil),
+			PriceUSDEtched:   strings.TrimSpace(raw.Prices.USDEtched),
 			ScryfallURI:      card.ScryfallURI,
 		})
 
@@ -697,6 +872,7 @@ func applyBulkRows(
 			all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
 			legal_anywhere BOOLEAN,
 			commander_legal BOOLEAN,
+			legalities JSONB,
 			is_commander_candidate BOOLEAN,
 			edhrec_rank INTEGER
 		) ON COMMIT DROP;
@@ -732,6 +908,9 @@ func applyBulkRows(
 			variation BOOLEAN,
 			artist TEXT,
 			price_usd TEXT,
+			price_usd_nonfoil TEXT,
+			price_usd_foil TEXT,
+			price_usd_etched TEXT,
 			scryfall_uri TEXT
 		) ON COMMIT DROP;
 	`); err != nil {
@@ -760,6 +939,7 @@ func applyBulkRows(
 		"all_parts",
 		"legal_anywhere",
 		"commander_legal",
+		"legalities",
 		"is_commander_candidate",
 		"edhrec_rank",
 	))
@@ -788,6 +968,7 @@ func applyBulkRows(
 			row.AllPartsJSON,
 			row.LegalAnywhere,
 			row.CommanderLegal,
+			row.LegalitiesJSON,
 			row.IsCommanderCandidate,
 			row.EDHRecRank,
 		); err != nil {
@@ -832,6 +1013,9 @@ func applyBulkRows(
 		"variation",
 		"artist",
 		"price_usd",
+		"price_usd_nonfoil",
+		"price_usd_foil",
+		"price_usd_etched",
 		"scryfall_uri",
 	))
 	if err != nil {
@@ -866,6 +1050,9 @@ func applyBulkRows(
 			row.Variation,
 			row.Artist,
 			row.PriceUSD,
+			row.PriceUSDNonfoil,
+			row.PriceUSDFoil,
+			row.PriceUSDEtched,
 			row.ScryfallURI,
 		); err != nil {
 			_ = printCopyStmt.Close()
@@ -915,6 +1102,7 @@ func applyBulkRows(
 			all_parts,
 			legal_anywhere,
 			commander_legal,
+			legalities,
 			is_commander_candidate,
 			edhrec_rank
 		)
@@ -939,6 +1127,7 @@ func applyBulkRows(
 			s.all_parts,
 			s.legal_anywhere,
 			s.commander_legal,
+			s.legalities,
 			s.is_commander_candidate,
 			s.edhrec_rank
 		FROM oracle_cards_sync_stage s
@@ -963,6 +1152,7 @@ func applyBulkRows(
 			all_parts = EXCLUDED.all_parts,
 			legal_anywhere = EXCLUDED.legal_anywhere,
 			commander_legal = EXCLUDED.commander_legal,
+			legalities = EXCLUDED.legalities,
 			is_commander_candidate = EXCLUDED.is_commander_candidate,
 			edhrec_rank = EXCLUDED.edhrec_rank
 	`)
@@ -1001,6 +1191,9 @@ func applyBulkRows(
 			variation,
 			artist,
 			price_usd,
+			price_usd_nonfoil,
+			price_usd_foil,
+			price_usd_etched,
 			scryfall_uri
 		)
 		SELECT
@@ -1031,6 +1224,9 @@ func applyBulkRows(
 			s.variation,
 			s.artist,
 			s.price_usd,
+			s.price_usd_nonfoil,
+			s.price_usd_foil,
+			s.price_usd_etched,
 			s.scryfall_uri
 		FROM card_prints_sync_stage s
 		ON CONFLICT (scryfall_id) DO UPDATE
@@ -1061,6 +1257,9 @@ func applyBulkRows(
 			variation = EXCLUDED.variation,
 			artist = EXCLUDED.artist,
 			price_usd = EXCLUDED.price_usd,
+			price_usd_nonfoil = EXCLUDED.price_usd_nonfoil,
+			price_usd_foil = EXCLUDED.price_usd_foil,
+			price_usd_etched = EXCLUDED.price_usd_etched,
 			scryfall_uri = EXCLUDED.scryfall_uri
 	`)
 	if err != nil {
@@ -1070,20 +1269,9 @@ func applyBulkRows(
 	logger.Printf("cards sync phase: upserted printings=%d", printUpserted)
 
 	if deleteStale {
-		// Stale printings are removed unless explicitly selected as preferred prints.
-		printDeleteRes, err := tx.ExecContext(ctx, `
-		DELETE FROM card_prints cp
-		WHERE NOT EXISTS (
-			SELECT 1
-			FROM card_prints_sync_stage s
-			WHERE s.scryfall_id = cp.scryfall_id
-		)
-		AND NOT EXISTS (
-			SELECT 1
-			FROM deck_cards dc
-			WHERE dc.preferred_print_id = cp.scryfall_id
-		)
-	`)
+		// Stale printings are removed unless explicitly selected by a deck card
+		// or by the deck's commander slot.
+		printDeleteRes, err := tx.ExecContext(ctx, staleCardPrintDeleteSQL)
 		if err != nil {
 			return err
 		}
@@ -1091,19 +1279,7 @@ func applyBulkRows(
 		logger.Printf("cards sync phase: deleted stale printings=%d", printDeleted)
 
 		// Stale canonical cards are removed unless still referenced by decks.
-		oracleDeleteRes, err := tx.ExecContext(ctx, `
-		DELETE FROM oracle_cards oc
-		WHERE NOT EXISTS (
-			SELECT 1
-			FROM oracle_cards_sync_stage s
-			WHERE s.oracle_id = oc.oracle_id
-		)
-		AND NOT EXISTS (
-			SELECT 1
-			FROM deck_cards dc
-			WHERE dc.oracle_id = oc.oracle_id
-		)
-	`)
+		oracleDeleteRes, err := tx.ExecContext(ctx, staleOracleCardDeleteSQL)
 		if err != nil {
 			return err
 		}

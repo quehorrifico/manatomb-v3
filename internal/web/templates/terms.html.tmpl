@@ -1,43 +1,52 @@
 {{ define "terms" }}
   {{ template "layout_header" . }}
 
-  <section class="max-w-4xl mx-auto py-10 px-4 space-y-6">
-    <div class="space-y-2">
-      <p class="mt-kicker">Terms</p>
-      <h1 class="mt-title">Terms of Use</h1>
-      <p class="mt-copy">These terms are intentionally short and limited to the project as it exists today.</p>
-    </div>
+  <div class="mt-static-page mt-static-page--document">
+    <header class="mt-static-header">
+      <h1 class="mt-static-title">Terms of Use</h1>
+      <p class="mt-static-lede">These terms are intentionally short and limited to the project as it exists today.</p>
+    </header>
 
-    <div class="mt-panel p-5 sm:p-6 space-y-5 text-sm text-slate-300 leading-6">
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">Project status</h2>
-        <p>Mana Tomb is a free, non-commercial hobby project for Magic: The Gathering players.</p>
-        <p>The app may change, break, or go offline without notice while development continues.</p>
+    <article class="mt-static-document">
+      <section class="mt-static-section">
+        <h2>Project status</h2>
+        <div class="mt-static-section__body">
+          <p>ManaTomb is a free, non-commercial hobby project for Magic: The Gathering players.</p>
+          <p>The app may change, break, or go offline without notice while development continues.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">Accounts and public decks</h2>
-        <p>You are responsible for the deck names, descriptions, and other content you choose to save or publish.</p>
-        <p>If you publish a deck, treat it as public information until you make it private again or remove it.</p>
+      <section class="mt-static-section">
+        <h2>Accounts and public decks</h2>
+        <div class="mt-static-section__body">
+          <p>You are responsible for the deck names, descriptions, and other content you choose to save or publish.</p>
+          <p>If you publish a deck, treat it as public information until you make it private again or remove it.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">Card data and intellectual property</h2>
-        <p>Mana Tomb uses card data and images provided through Scryfall.</p>
-        <p>Card data is credited to Scryfall, and card images remain the property of Wizards of the Coast. The project should remain free and non-commercial.</p>
+      <section class="mt-static-section">
+        <h2>Card data and intellectual property</h2>
+        <div class="mt-static-section__body">
+          <p>ManaTomb uses card data and images provided through Scryfall.</p>
+          <p>Card data is credited to Scryfall, and card images remain the property of Wizards of the Coast. The project should remain free and non-commercial.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">No warranty</h2>
-        <p>Mana Tomb is provided as-is. Deck suggestions, card information, search results, and gameplay tools may be incomplete or inaccurate.</p>
+      <section class="mt-static-section">
+        <h2>No warranty</h2>
+        <div class="mt-static-section__body">
+          <p>ManaTomb is provided as-is. Deck suggestions, card information, search results, and gameplay tools may be incomplete or inaccurate.</p>
+        </div>
       </section>
 
-      <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-100">Support</h2>
-        <p>Feedback and bug reports currently go through the project&apos;s <a href="{{ projectIssuesURL }}" class="text-sky-300 hover:text-sky-200" target="_blank" rel="noopener noreferrer">GitHub issue tracker</a>.</p>
+      <section class="mt-static-section">
+        <h2>Support</h2>
+        <div class="mt-static-section__body">
+          <p>Feedback and bug reports currently go through the project&apos;s <a href="{{ projectIssuesURL }}" class="mt-static-link" target="_blank" rel="noopener noreferrer">GitHub issue tracker<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+        </div>
       </section>
-    </div>
-  </section>
+    </article>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

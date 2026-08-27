@@ -29,7 +29,7 @@
   var CATEGORY_LABELS = {};
   CATEGORY_DEFINITIONS.forEach(function (item) { CATEGORY_LABELS[item.key] = item.label; });
   var TYPE_ORDER = ["Creatures", "Artifacts", "Enchantments", "Planeswalkers", "Battles", "Instants", "Sorceries", "Other", "Lands"];
-  var TYPE_SORT_ORDER = ["Lands", "Creatures", "Artifacts", "Enchantments", "Planeswalkers", "Battles", "Instants", "Sorceries", "Other"];
+  var TYPE_SORT_ORDER = TYPE_ORDER.slice();
   var MANA_VALUE_ORDER = ["0", "1", "2", "3", "4", "5", "6", "7+", "Unknown", "Lands"];
   var PRICE_ORDER = ["Free", "Under $1", "$1-$4.99", "$5-$9.99", "$10+", "Unknown"];
   var COMBO_NAMES = [
@@ -77,6 +77,10 @@
     if (value === "name") value = "alphabet";
     if (value === "mana-asc" || value === "mana-desc") value = "mv";
     return ["alphabet", "mv", "type", "price"].indexOf(value) >= 0 ? value : "alphabet";
+  }
+
+  function normalizeSortDirection(value) {
+    return String(value || "").toLowerCase() === "desc" ? "desc" : "asc";
   }
 
   function normalizeCard(input, index) {
@@ -256,26 +260,37 @@
     return index >= 0 ? index : TYPE_SORT_ORDER.length;
   }
 
-  function compareCards(left, right, sort) {
+  function compareCards(left, right, sort, direction) {
     left = left || {};
     right = right || {};
     sort = normalizeSort(sort);
+    direction = normalizeSortDirection(direction);
+    var directionMultiplier = direction === "desc" ? -1 : 1;
     if (sort === "mv") {
+      var leftLand = primaryType(left.typeLine) === "Lands";
+      var rightLand = primaryType(right.typeLine) === "Lands";
+      if (leftLand !== rightLand) return leftLand ? 1 : -1;
       var leftMV = numberValue(left.cmc, 0);
       var rightMV = numberValue(right.cmc, 0);
-      if (leftMV !== rightMV) return leftMV - rightMV;
+      if (leftMV !== rightMV) return (leftMV - rightMV) * directionMultiplier;
     } else if (sort === "type") {
+      var leftTypeLand = primaryType(left.typeLine) === "Lands";
+      var rightTypeLand = primaryType(right.typeLine) === "Lands";
+      if (leftTypeLand !== rightTypeLand) return leftTypeLand ? 1 : -1;
       var leftRank = typeRank(left);
       var rightRank = typeRank(right);
-      if (leftRank !== rightRank) return leftRank - rightRank;
+      if (leftRank !== rightRank) return (leftRank - rightRank) * directionMultiplier;
     } else if (sort === "price") {
       var leftPrice = priceValue(left);
       var rightPrice = priceValue(right);
       if (leftPrice === null && rightPrice !== null) return 1;
       if (leftPrice !== null && rightPrice === null) return -1;
-      if (leftPrice !== null && rightPrice !== null && leftPrice !== rightPrice) return leftPrice - rightPrice;
+      if (leftPrice !== null && rightPrice !== null && leftPrice !== rightPrice) {
+        return (leftPrice - rightPrice) * directionMultiplier;
+      }
     }
-    return trim(left.name).localeCompare(trim(right.name));
+    var nameOrder = trim(left.name).localeCompare(trim(right.name));
+    return sort === "alphabet" ? nameOrder * directionMultiplier : nameOrder;
   }
 
   function groupName(card, group) {
@@ -315,9 +330,10 @@
     options = options || {};
     var group = normalizeGroup(options.group, "none");
     var sort = normalizeSort(options.sort);
+    var direction = normalizeSortDirection(options.direction);
     var filtered = filterCards(cards, options.filter);
     if (group === "none") {
-      filtered.sort(function (a, b) { return compareCards(a, b, sort); });
+      filtered.sort(function (a, b) { return compareCards(a, b, sort, direction); });
       return [{ name: "", cards: filtered }];
     }
 
@@ -331,12 +347,12 @@
     var groups = [];
     groupOrder(group).forEach(function (name) {
       if (!buckets[name] || !buckets[name].length) return;
-      buckets[name].sort(function (a, b) { return compareCards(a, b, sort); });
+      buckets[name].sort(function (a, b) { return compareCards(a, b, sort, direction); });
       groups.push({ name: name, cards: buckets[name] });
       delete buckets[name];
     });
     Object.keys(buckets).sort().forEach(function (name) {
-      buckets[name].sort(function (a, b) { return compareCards(a, b, sort); });
+      buckets[name].sort(function (a, b) { return compareCards(a, b, sort, direction); });
       groups.push({ name: name, cards: buckets[name] });
     });
     return groups;
@@ -384,19 +400,50 @@
     return cards.map(function (card, index) { return normalizeCard(card, index); });
   }
 
+  function exportBoardCards(boards, board, metadata) {
+    var cards = boardCards(boards, board);
+    var commanderName = board === "main" ? trim(metadata && metadata.commanderName).toLowerCase() : "";
+    var commanderRemaining = commanderName ? 1 : 0;
+    return cards.map(function (card) {
+      if (commanderRemaining > 0 && card.name.toLowerCase() === commanderName) {
+        var removed = Math.min(commanderRemaining, card.quantity);
+        card.quantity -= removed;
+        commanderRemaining -= removed;
+      }
+      return card;
+    }).filter(function (card) { return card.quantity > 0; });
+  }
+
   function textExport(boards, metadata) {
     metadata = metadata || {};
     var lines = [];
-    if (trim(metadata.name)) lines.push(trim(metadata.name));
+    if (trim(metadata.name)) lines.push("Name: " + trim(metadata.name));
     if (trim(metadata.format)) lines.push("Format: " + trim(metadata.format));
-    if (trim(metadata.commanderName)) lines.push("Commander: " + trim(metadata.commanderName));
+    if (trim(metadata.commanderName)) {
+      var commander = normalizeCard(metadata.commander || { name: metadata.commanderName }, -1);
+      commander.name = trim(metadata.commanderName);
+      var commanderIdentity = commander.name;
+      if (commander.setCode && commander.collectorNumber) {
+        commanderIdentity += " (" + commander.setCode + ") " + commander.collectorNumber;
+      }
+      var commanderPrintID = commander.printID || commander.preferredPrintID;
+      if (commanderPrintID) commanderIdentity += " {scryfall:" + commanderPrintID + "}";
+      lines.push("Commander:");
+      lines.push("1 " + commanderIdentity);
+    }
     if (lines.length) lines.push("");
     [["Mainboard", "main"], ["Sideboard", "side"], ["Maybeboard", "maybe"]].forEach(function (entry) {
-      var cards = boardCards(boards, entry[1]);
+      var cards = exportBoardCards(boards, entry[1], metadata);
       if (!cards.length && entry[1] !== "main") return;
       lines.push(entry[0] + " (" + String(quantityTotal(cards)) + ")");
       cards.sort(function (a, b) { return compareCards(a, b, "alphabet"); }).forEach(function (card) {
-        lines.push(String(card.quantity) + " " + card.name);
+        var identity = card.name;
+        if (card.setCode && card.collectorNumber) {
+          identity += " (" + card.setCode + ") " + card.collectorNumber;
+        }
+        var printID = card.printID || card.preferredPrintID;
+        if (printID) identity += " {scryfall:" + printID + "}";
+        lines.push(String(card.quantity) + " " + identity);
       });
       lines.push("");
     });
@@ -408,11 +455,39 @@
     return /[",\n]/.test(text) ? ('"' + text.replace(/"/g, '""') + '"') : text;
   }
 
-  function csvExport(boards) {
-    var rows = [["Board", "Quantity", "Name", "Set", "Collector Number", "Price USD"]];
+  function csvExport(boards, metadata) {
+    metadata = metadata || {};
+    var deckName = trim(metadata.name);
+    var format = trim(metadata.format);
+    var rows = [["Board", "Quantity", "Name", "Set", "Collector Number", "Print ID", "Price USD", "Deck Name", "Format"]];
+    if (trim(metadata.commanderName)) {
+      var commander = normalizeCard(metadata.commander || { name: metadata.commanderName }, -1);
+      commander.name = trim(metadata.commanderName);
+      rows.push([
+        "Commander",
+        1,
+        commander.name,
+        commander.setCode,
+        commander.collectorNumber,
+        commander.printID || commander.preferredPrintID,
+        commander.price,
+        deckName,
+        format
+      ]);
+    }
     [["Mainboard", "main"], ["Sideboard", "side"], ["Maybeboard", "maybe"]].forEach(function (entry) {
-      boardCards(boards, entry[1]).sort(function (a, b) { return compareCards(a, b, "alphabet"); }).forEach(function (card) {
-        rows.push([entry[0], card.quantity, card.name, card.setCode, card.collectorNumber, card.price]);
+      exportBoardCards(boards, entry[1], metadata).sort(function (a, b) { return compareCards(a, b, "alphabet"); }).forEach(function (card) {
+        rows.push([
+          entry[0],
+          card.quantity,
+          card.name,
+          card.setCode,
+          card.collectorNumber,
+          card.printID || card.preferredPrintID,
+          card.price,
+          deckName,
+          format
+        ]);
       });
     });
     return rows.map(function (row) { return row.map(csvCell).join(","); }).join("\n") + "\n";
@@ -443,6 +518,7 @@
     normalizeCard: normalizeCard,
     normalizeGroup: normalizeGroup,
     normalizeSort: normalizeSort,
+    normalizeSortDirection: normalizeSortDirection,
     normalizeView: normalizeView,
     orderedCards: orderedCards,
     priceGroup: priceGroup,

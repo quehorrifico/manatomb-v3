@@ -2,11 +2,11 @@ package web
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,8 +18,12 @@ const (
 	projectIssuesURL = "https://github.com/quehorrifico/manatomb-v3/issues"
 )
 
+//go:embed templates/*.html.tmpl
+var rendererTemplates embed.FS
+
 type Renderer struct {
-	tmpl *template.Template
+	tmpl          *template.Template
+	publicBaseURL string
 }
 
 type deckTagTheme struct {
@@ -155,14 +159,16 @@ func deckTagThemeMap() map[string]deckTagTheme {
 	return out
 }
 
-func NewRenderer() *Renderer {
-	pattern := filepath.Join("internal", "web", "templates", "*.html.tmpl")
+func NewRenderer(publicBaseURLs ...string) *Renderer {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"supportedFormats":        decks.SupportedFormats,
-		"supportedPowerBrackets":  decks.SupportedPowerBrackets,
-		"supportedDeckTags":       decks.SupportedDeckTags,
-		"splitTags":               decks.SplitTags,
-		"formatRequiresCommander": decks.FormatRequiresCommander,
+		"buildableFormats":          decks.BuildableFormats,
+		"formatIsBuildable":         decks.FormatIsBuildable,
+		"supportedFormats":          decks.SupportedFormats,
+		"supportedPowerBrackets":    decks.SupportedPowerBrackets,
+		"supportedDeckTags":         decks.SupportedDeckTags,
+		"splitTags":                 decks.SplitTags,
+		"formatRequiresCommander":   decks.FormatRequiresCommander,
+		"formatTargetMainboardSize": decks.FormatTargetMainboardSize,
 		"toJSON": func(v any) template.JS {
 			b, err := json.Marshal(v)
 			if err != nil {
@@ -179,20 +185,27 @@ func NewRenderer() *Renderer {
 		"projectIssuesURL": func() string {
 			return projectIssuesURL
 		},
+		"siteVersion": func() string {
+			return currentSiteVersion
+		},
 		"userProfilePath":    userProfilePath,
 		"publicTagChipClass": publicTagChipClass,
 		"deckTagButtonClass": deckTagButtonClass,
 		"deckTagThemeMap":    deckTagThemeMap,
-	}).ParseGlob(pattern)
+	}).ParseFS(rendererTemplates, "templates/*.html.tmpl")
 	if err != nil {
 		log.Fatalf("failed to parse templates: %v", err)
 	}
-	return &Renderer{tmpl: tmpl}
+	publicBaseURL := ""
+	if len(publicBaseURLs) > 0 {
+		publicBaseURL = strings.TrimRight(strings.TrimSpace(publicBaseURLs[0]), "/")
+	}
+	return &Renderer{tmpl: tmpl, publicBaseURL: publicBaseURL}
 }
 
 func defaultActiveNav(name string, data TemplateData) string {
 	switch name {
-	case "decks_new", "decks_new_commander", "decks_workbench_import_seed":
+	case "decks_new", "decks_new_commander", "decks_import", "decks_workbench_import_seed":
 		return "builder"
 	case "deck_show":
 		if page, ok := data.Data.(deckPageData); ok && page.WorkbenchMode {
@@ -214,23 +227,250 @@ func defaultActiveNav(name string, data TemplateData) string {
 		return "profile"
 	case "settings":
 		return "settings"
-	case "login":
+	case "login", "signup", "forgot_password", "reset_password":
 		return "login"
 	default:
 		return ""
 	}
 }
 
-func applyDefaultActiveNav(name string, data any) any {
+func setTemplateDefaults(name string, page *TemplateData) {
+	setTemplateDefaultsWithPublicBaseURL(name, page, "")
+}
+
+func setTemplateDefaultsWithPublicBaseURL(name string, page *TemplateData, publicBaseURL string) {
+	if page.ActiveNav == "" {
+		page.ActiveNav = defaultActiveNav(name, *page)
+	}
+	if name == "cards_list" || name == "deck_show" || name == "decks_new_commander" || name == "decks_public_show" || name == "guess_card" || name == "spellify" || name == "pack_opening" {
+		page.WideLayout = true
+	}
+	if page.Meta == nil {
+		page.Meta = defaultPageMeta(name)
+	}
+	applyPageSEODefaults(name, page, publicBaseURL)
+	page.Theme = resolvedSiteTheme(name, *page)
+	page.PageID = resolvedPageID(name, *page)
+}
+
+func applyPageSEODefaults(name string, page *TemplateData, publicBaseURL string) {
+	if page.Meta == nil {
+		return
+	}
+	meta := *page.Meta
+	page.Meta = &meta
+	if strings.TrimSpace(meta.Robots) == "" {
+		meta.Robots = defaultRobotsDirective(name)
+	}
+	if strings.TrimSpace(meta.CanonicalURL) == "" {
+		if path := defaultCanonicalPath(name); path != "" {
+			meta.CanonicalURL = absoluteSiteURL(publicBaseURL, path)
+		}
+	}
+	if strings.TrimSpace(meta.Type) == "" {
+		meta.Type = "website"
+	}
+	if strings.TrimSpace(meta.ImageURL) == "" && !strings.HasPrefix(meta.Robots, "noindex") {
+		meta.ImageURL = absoluteSiteURL(publicBaseURL, "/assets/og.png")
+		if meta.ImageURL != "" && strings.TrimSpace(meta.ImageAlt) == "" {
+			meta.ImageAlt = "ManaTomb card search, deck building, and play tools"
+		}
+	}
+}
+
+func defaultCanonicalPath(name string) string {
+	switch name {
+	case "home":
+		return "/"
+	case "cards_search":
+		return "/cards/search"
+	case "decks_public":
+		return "/decks/public"
+	case "guess_card":
+		return "/games/guess-card"
+	case "spellify":
+		return "/games/spellify"
+	case "pack_opening":
+		return "/games/pack-opening"
+	case "changelog":
+		return "/changelog"
+	case "privacy":
+		return "/privacy"
+	case "terms":
+		return "/terms"
+	default:
+		return ""
+	}
+}
+
+func defaultRobotsDirective(name string) string {
+	switch name {
+	case "decks_list", "deck_show", "deck_playtest", "settings",
+		"login", "signup", "forgot_password", "reset_password",
+		"cards_list", "decks_new", "decks_new_commander", "commanders_search",
+		"decks_import", "decks_workbench_import_seed", "rules_home":
+		return "noindex,follow"
+	case "not_found", "error":
+		return "noindex,nofollow"
+	default:
+		return "index,follow"
+	}
+}
+
+func defaultPageMeta(name string) *PageMeta {
+	switch name {
+	case "home":
+		return &PageMeta{
+			Title:       "ManaTomb",
+			Description: "Search Magic cards, build decks, browse public lists, and play ManaTomb games.",
+		}
+	case "decks_list":
+		return &PageMeta{
+			Title:       "My Decks",
+			Description: "Open, organize, and continue building your saved Magic decks.",
+		}
+	case "deck_show":
+		return &PageMeta{
+			Title:       "Deck Editor",
+			Description: "Build, organize, analyze, and playtest a Magic deck.",
+		}
+	case "deck_playtest":
+		return &PageMeta{
+			Title:       "Deck Playtest",
+			Description: "Playtest a Magic deck in an interactive tabletop workspace.",
+		}
+	case "decks_public":
+		return &PageMeta{
+			Title:       "Browse Public Decks",
+			Description: "Search and explore public Magic decks shared by ManaTomb players.",
+		}
+	case "settings":
+		return &PageMeta{
+			Title:       "Settings",
+			Description: "Manage your ManaTomb profile, appearance, and account security.",
+		}
+	case "profile_show":
+		return &PageMeta{
+			Title:       "Player Profile",
+			Description: "View a ManaTomb player profile, public decks, favorite printings, and achievements.",
+		}
+	case "login":
+		return &PageMeta{
+			Title:       "Sign In",
+			Description: "Sign in to ManaTomb to access your decks.",
+		}
+	case "signup":
+		return &PageMeta{
+			Title:       "Create an Account",
+			Description: "Create a ManaTomb account to save and manage your decks.",
+		}
+	case "forgot_password":
+		return &PageMeta{
+			Title:       "Reset Your Password",
+			Description: "Request a secure password reset link for your ManaTomb account.",
+		}
+	case "reset_password":
+		return &PageMeta{
+			Title:       "Choose a New Password",
+			Description: "Choose a new password for your ManaTomb account.",
+		}
+	case "cards_search":
+		return &PageMeta{
+			Title:       "Advanced Card Search",
+			Description: "Find Magic cards by name, color identity, type, printing details, stats, legality, and price.",
+		}
+	case "cards_list":
+		return &PageMeta{
+			Title:       "Card Search Results",
+			Description: "Browse Magic cards matching your search.",
+		}
+	case "decks_new":
+		return &PageMeta{
+			Title:       "Build a Deck",
+			Description: "Start a Commander deck, open a blank Sandbox deck, or import an existing decklist.",
+		}
+	case "decks_new_commander":
+		return &PageMeta{
+			Title:       "Choose a Commander",
+			Description: "Search eligible Magic cards or choose a popular commander to start a deck.",
+		}
+	case "commanders_search":
+		return &PageMeta{
+			Title:       "Choose a Commander",
+			Description: "Search eligible commander cards and choose an exact printing for your deck.",
+		}
+	case "decks_import":
+		return &PageMeta{
+			Title:       "Import a Decklist",
+			Description: "Import a Magic: The Gathering decklist and continue editing it in ManaTomb.",
+		}
+	case "decks_workbench_import_seed":
+		return &PageMeta{
+			Title:       "Preparing Deck Import",
+			Description: "Preparing an imported decklist for the ManaTomb deck editor.",
+		}
+	case "guess_card":
+		return &PageMeta{
+			Title:       "Guess the Card",
+			Description: "Ask questions, reveal clues, and identify the hidden Magic card.",
+		}
+	case "spellify":
+		return &PageMeta{
+			Title:       "Tombscript",
+			Description: "Reveal characters across a hidden Magic card, then name it before your clues run out.",
+		}
+	case "pack_opening":
+		return &PageMeta{
+			Title:       "Pack Crack",
+			Description: "Choose a Magic set, slide open a simulated booster, and reveal every pull.",
+		}
+	case "changelog":
+		return &PageMeta{
+			Title:       "Changelog",
+			Description: "See what is new in ManaTomb, from major feature releases to smaller improvements and fixes.",
+		}
+	case "privacy":
+		return &PageMeta{
+			Title:       "Privacy Notice",
+			Description: "Learn what ManaTomb stores, which services it uses, and the controls available to you.",
+		}
+	case "terms":
+		return &PageMeta{
+			Title:       "Terms of Use",
+			Description: "Read the concise terms for using the free, non-commercial ManaTomb project.",
+		}
+	case "rules_home":
+		return &PageMeta{
+			Title:       "Rules",
+			Description: "ManaTomb rules reference.",
+		}
+	case "not_found":
+		return &PageMeta{
+			Title:       "Page Not Found",
+			Description: "The requested ManaTomb page could not be found.",
+		}
+	case "error":
+		return &PageMeta{
+			Title:       "Something Went Wrong",
+			Description: "ManaTomb could not complete the request.",
+		}
+	default:
+		return nil
+	}
+}
+
+func applyTemplateDefaults(name string, data any) any {
+	return applyTemplateDefaultsWithPublicBaseURL(name, data, "")
+}
+
+func applyTemplateDefaultsWithPublicBaseURL(name string, data any, publicBaseURL string) any {
 	switch page := data.(type) {
 	case TemplateData:
-		if page.ActiveNav == "" {
-			page.ActiveNav = defaultActiveNav(name, page)
-		}
+		setTemplateDefaultsWithPublicBaseURL(name, &page, publicBaseURL)
 		return page
 	case *TemplateData:
-		if page != nil && page.ActiveNav == "" {
-			page.ActiveNav = defaultActiveNav(name, *page)
+		if page != nil {
+			setTemplateDefaultsWithPublicBaseURL(name, page, publicBaseURL)
 		}
 	}
 	return data
@@ -238,7 +478,7 @@ func applyDefaultActiveNav(name string, data any) any {
 
 func (r *Renderer) Render(w http.ResponseWriter, name string, data any) {
 	var buf bytes.Buffer
-	data = applyDefaultActiveNav(name, data)
+	data = applyTemplateDefaultsWithPublicBaseURL(name, data, r.publicBaseURL)
 
 	// Render into a buffer first so we don't write partial HTML and then
 	// attempt to write an error response.

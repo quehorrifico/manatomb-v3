@@ -32,6 +32,9 @@ type deckListItem struct {
 	IsPublic            bool
 	PublicSlug          string
 	PowerBracket        string
+	PublishedLabel      string
+	ProfileTile         bool
+	TileOrder           int
 }
 
 type manaPipView struct {
@@ -52,22 +55,48 @@ type deckNewPageData struct {
 }
 
 type publicDeckPageData struct {
-	Deck               *decks.Deck
-	DeckCards          []decks.DeckCard
-	SideboardDeckCards []decks.DeckCard
-	MaybeDeckCards     []decks.DeckCard
-	Analytics          deckAnalyticsData
-	Commander          *cards.Card
-	Owner              *account.PublicProfile
+	Deck                    *decks.Deck
+	DeckCards               []decks.DeckCard
+	SideboardDeckCards      []decks.DeckCard
+	MaybeDeckCards          []decks.DeckCard
+	Analytics               deckAnalyticsData
+	Commander               *cards.Card
+	Owner                   *account.PublicProfile
+	ColorPips               []manaPipView
+	ColorIdentityName       string
+	PublishedLabel          string
+	UpdatedLabel            string
+	DeckCostDisplay         string
+	DeckCostNote            string
+	SampleHand              []decks.DeckCard
+	SampleExcludesCommander bool
 }
 
 type publicDeckListPageData struct {
-	CommanderName string
-	Format        string
-	PowerBracket  string
-	ColorFilters  []string
-	ColorSelected map[string]bool
-	Items         []deckListItem
+	DeckName          string
+	CommanderName     string
+	Format            string
+	PowerBracket      string
+	Archetypes        []string
+	ArchetypeSelected map[string]bool
+	ColorFilters      []string
+	ColorSelected     map[string]bool
+	ColorMode         string
+	Sort              string
+	ClearPath         string
+	ActiveFilters     int
+	AppliedFilters    []publicDeckAppliedFilter
+	Page              int
+	HasPrevious       bool
+	HasNext           bool
+	PreviousPath      string
+	NextPath          string
+	Items             []deckListItem
+}
+
+type publicDeckAppliedFilter struct {
+	Label      string
+	RemovePath string
 }
 
 func normalizeDeckBuilderMode(raw string) string {
@@ -83,11 +112,11 @@ func normalizeDeckBuilderMode(raw string) string {
 
 func defaultDeckFormat(rawFormat, commanderName, mode string) string {
 	if strings.TrimSpace(rawFormat) != "" {
-		switch decks.NormalizeFormat(rawFormat) {
-		case "Commander":
-			return "Commander"
-		case "Sandbox":
-			return "Sandbox"
+		normalized := decks.NormalizeFormat(rawFormat)
+		for _, supported := range decks.SupportedFormats() {
+			if normalized == supported {
+				return supported
+			}
 		}
 		if strings.TrimSpace(commanderName) != "" {
 			return "Commander"
@@ -104,7 +133,7 @@ func defaultDeckFormat(rawFormat, commanderName, mode string) string {
 }
 
 func defaultDeckPowerBracket(rawPowerBracket, format string) string {
-	if defaultDeckFormat(format, "", "") != "Commander" {
+	if !strings.EqualFold(defaultDeckFormat(format, "", ""), "Commander") {
 		return ""
 	}
 	return decks.NormalizePowerBracket(rawPowerBracket)
@@ -122,6 +151,21 @@ func applyCommanderCardMetaToDeckItem(item *deckListItem, card cards.DBCard) {
 	}
 	item.ColorPips = manaPipsForColorIdentity(card.ColorIdentity)
 	item.ColorIdentityName = colorCombinationName(card.ColorIdentity)
+}
+
+func applyCommanderPrintingMetaToDeckItem(item *deckListItem, card *cards.Card) {
+	if item == nil || card == nil {
+		return
+	}
+	if imageURI := strings.TrimSpace(card.ImageURI); imageURI != "" {
+		item.CommanderImageURI = imageURI
+	}
+	if artCropURI := strings.TrimSpace(card.ArtCropURI); artCropURI != "" {
+		item.CommanderArtCropURI = artCropURI
+	}
+	colorIdentity := strings.Join(card.ColorIdentity, ",")
+	item.ColorPips = manaPipsForColorIdentity(colorIdentity)
+	item.ColorIdentityName = colorCombinationName(colorIdentity)
 }
 
 func manaPipsForColorIdentity(raw string) []manaPipView {
@@ -355,6 +399,7 @@ func visibleDeckCardCount(deckCards []decks.DeckCard, commanderName string) int 
 			continue
 		}
 		if commanderName != "" && strings.EqualFold(name, commanderName) {
+			total += dc.Quantity - 1
 			continue
 		}
 		total += dc.Quantity
@@ -374,13 +419,22 @@ func deckCardQuantityTotal(cards []decks.DeckCard) int {
 	return total
 }
 
-func (a *App) commanderForFormatChange(ctx context.Context, deckID int64, currentFormat, nextFormat, currentCommander string) (string, error) {
+func (a *App) commanderForFormatChange(
+	ctx context.Context,
+	deckID int64,
+	currentFormat,
+	nextFormat,
+	currentCommander,
+	currentCommanderPrintID string,
+) (string, error) {
 	currentCommander = strings.TrimSpace(currentCommander)
 	currentFormat = defaultDeckFormat(currentFormat, currentCommander, "")
 	nextFormat = defaultDeckFormat(nextFormat, currentCommander, "")
+	currentRequiresCommander := decks.FormatRequiresCommander(currentFormat)
+	nextRequiresCommander := decks.FormatRequiresCommander(nextFormat)
 
-	if nextFormat == "Commander" {
-		if currentFormat == "Commander" {
+	if nextRequiresCommander {
+		if currentRequiresCommander {
 			return currentCommander, nil
 		}
 		return "", nil
@@ -390,11 +444,23 @@ func (a *App) commanderForFormatChange(ctx context.Context, deckID int64, curren
 		return "", nil
 	}
 
-	if currentFormat == "Commander" {
+	if currentRequiresCommander {
 		card, err := cards.EnsureCardByName(ctx, a.DB, currentCommander)
 		if err == nil && card.OracleID != "" {
 			if addErr := decks.AddCard(ctx, a.DB, deckID, card.OracleID, 1); addErr != nil {
 				return "", addErr
+			}
+			if strings.TrimSpace(currentCommanderPrintID) != "" {
+				if printErr := decks.SetCardPreferredPrint(
+					ctx,
+					a.DB,
+					deckID,
+					card.OracleID,
+					"main",
+					currentCommanderPrintID,
+				); printErr != nil {
+					return "", printErr
+				}
 			}
 		}
 	}

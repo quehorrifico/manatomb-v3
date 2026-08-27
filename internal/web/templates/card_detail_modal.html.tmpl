@@ -1,58 +1,73 @@
 {{ define "card_detail_modal" }}
-  <div id="card-detail-modal" class="mt-modal hidden" role="dialog" aria-modal="true" aria-labelledby="card-detail-modal-title">
-    <div class="mt-modal-panel max-w-2xl">
-      <button type="button" class="absolute top-3 right-3 mt-btn mt-btn--secondary text-xs !px-3 !py-2" data-close-modal>
-        Close
+  <div id="card-detail-modal"
+       class="mt-modal hidden"
+       role="dialog"
+       aria-modal="true"
+       aria-labelledby="card-detail-modal-title">
+    <div class="mt-modal-panel mt-card-detail-modal__panel" tabindex="-1">
+      <button type="button"
+              class="mt-card-detail-modal__close"
+              data-close-modal
+              aria-label="Close card details">
+        <span aria-hidden="true">×</span>
       </button>
 
-      <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] items-start">
-        <div class="flex items-center justify-center">
+      <div class="mt-card-detail-modal__layout">
+        <div class="mt-card-detail-modal__media">
           <img data-field="image"
                alt=""
-               class="w-full max-w-xs h-auto mt-card-media shadow-md shadow-slate-900/80">
+               class="mt-card-detail-modal__image">
+          <p data-field="image-fallback"
+             class="mt-card-detail-modal__image-fallback hidden">Card image unavailable</p>
         </div>
 
-        <div class="space-y-3 text-sm text-slate-200">
-          <h3 id="card-detail-modal-title" class="text-lg font-semibold text-slate-50" data-field="name"></h3>
+        <div class="mt-card-detail-modal__content">
+          <header class="mt-card-detail-modal__header">
+            <div class="mt-card-detail-modal__title-row">
+              <h3 id="card-detail-modal-title"
+                  class="mt-card-detail-modal__title"
+                  data-field="name"></h3>
+              <span class="mt-card-detail-modal__mana"
+                    data-field="mana-cost"
+                    aria-label="Mana cost"></span>
+            </div>
+            <p class="mt-card-detail-modal__type" data-field="type-line"></p>
+          </header>
 
-          <div class="space-y-1" data-field="printing-group">
-            <label for="card-detail-printing-select" class="mt-field-label">Version</label>
-            <select id="card-detail-printing-select" data-field="printing-select"
-                    class="mt-control mt-control--sm text-xs text-slate-100">
-              <option value="">Latest printing</option>
-            </select>
-            <p data-field="printing-meta" class="hidden text-[11px] uppercase tracking-wide text-slate-500"></p>
+          <div class="mt-card-detail-modal__oracle" data-field="oracle-text"></div>
+
+          <dl class="mt-card-detail-modal__facts">
+            <div>
+              <dt>Price</dt>
+              <dd data-field="price-usd">—</dd>
+            </div>
+            <div>
+              <dt>Artist</dt>
+              <dd data-field="artist">—</dd>
+            </div>
+          </dl>
+
+          <div class="mt-card-detail-modal__printing">
+            <div class="mt-card-detail-modal__printing-control" data-field="printing-group">
+              <label for="card-detail-printing-select">Printing</label>
+              <select id="card-detail-printing-select"
+                      data-field="printing-select"
+                      class="mt-control mt-control--sm">
+                <option value="">Latest printing</option>
+              </select>
+            </div>
+            <p data-field="printing-meta" class="mt-card-detail-modal__printing-meta hidden"></p>
           </div>
 
-          <p class="text-xs uppercase tracking-wide text-slate-400">
-            <span data-field="type-line"></span>
-          </p>
-
-          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
-            <span>
-              <span class="font-medium text-slate-200">Cost:</span>
-              <span data-field="mana-cost" class="inline-flex items-center gap-1 align-middle"></span>
-            </span>
-            <span>
-              <span class="font-medium text-slate-200">Price:</span>
-              <span data-field="price-usd">—</span>
-            </span>
-            <span>
-              <span class="font-medium text-slate-200">Artist:</span>
-              <span data-field="artist">—</span>
-            </span>
-          </div>
-
-          <p class="text-sm text-slate-200 whitespace-pre-line" data-field="oracle-text"></p>
-
-          <div class="flex flex-wrap justify-between gap-2 pt-2">
-            <a href="#"
-               data-field="open-page-link"
-               class="hidden mt-btn mt-btn--secondary text-xs !px-3 !py-2">
-              Open Full Page
+          <div class="mt-card-detail-modal__actions">
+            <a data-field="open-page-link"
+               class="hidden mt-btn mt-btn--secondary mt-btn--sm">
+              View card page
             </a>
-            <button type="button" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2 hidden" data-flip-card>
-              Flip Card
+            <button type="button"
+                    class="mt-btn mt-btn--secondary mt-btn--sm hidden"
+                    data-flip-card>
+              Flip card
             </button>
           </div>
         </div>

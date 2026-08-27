@@ -1,0 +1,2 @@
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS site_theme TEXT NOT NULL DEFAULT 'classic';

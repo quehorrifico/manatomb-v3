@@ -1,0 +1,2 @@
+ALTER TABLE oracle_cards
+ADD COLUMN IF NOT EXISTS legalities JSONB NOT NULL DEFAULT '{}'::jsonb;

@@ -2,75 +2,58 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
-
-    <div data-deck-action-status hidden class="rounded-2xl border px-4 py-3">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p data-deck-action-status-text class="text-sm font-medium"></p>
-        <a data-deck-action-status-link href="#" class="hidden text-sm font-semibold text-sky-300 transition-colors hover:text-sky-200">Open deck</a>
-      </div>
+  <div class="mt-card-page">
+    <div data-deck-action-status hidden class="mt-card-status" role="status">
+      <p data-deck-action-status-text></p>
+      <a data-deck-action-status-link class="hidden">Open deck</a>
     </div>
 
-    <section class="rounded-2xl border border-slate-800 bg-slate-950/35 p-5 sm:p-6">
-      <div class="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-8 items-start">
-        <div class="space-y-3">
-          <div class="relative z-0 mx-auto w-full max-w-[18rem] overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/70 shadow-lg shadow-slate-950/50 lg:mx-0"
-               data-card-hero-shell>
-            <div class="bg-slate-950">
-              {{ if $ctx.Card.ImageURI }}
-                <img
-                  src="{{ $ctx.Card.ImageURI }}"
-                  alt="{{ $ctx.Card.Name }}"
-                  data-card-hero-image
-                  class="mt-card-art-rotatable block w-full h-auto"
-                />
-              {{ else }}
-                <img
-                  src=""
-                  alt=""
-                  data-card-hero-image
-                  class="mt-card-art-rotatable hidden w-full h-auto"
-                />
-              {{ end }}
+    <section class="mt-card-hero" aria-labelledby="card-detail-title">
+      <div class="mt-card-visual">
+        <div class="mt-card-art-shell" data-card-hero-shell>
+          {{ if $ctx.Card.ImageURI }}
+            <img
+              src="{{ $ctx.Card.ImageURI }}"
+              alt="{{ $ctx.Card.Name }}"
+              data-card-hero-image
+              class="mt-card-art-rotatable mt-card-art"
+            />
+          {{ else }}
+            <img
+              alt=""
+              data-card-hero-image
+              class="mt-card-art-rotatable mt-card-art hidden"
+            />
+          {{ end }}
 
-              <div
-                data-card-hero-fallback
-                class="{{ if $ctx.Card.ImageURI }}hidden{{ end }} flex aspect-[3/4] items-center justify-center px-6 text-center text-sm text-slate-400">
-                No image available
-              </div>
-            </div>
+          <div
+            data-card-hero-fallback
+            class="mt-card-art-fallback {{ if $ctx.Card.ImageURI }}hidden{{ end }}">
+            No image available
           </div>
-
-          <div data-card-face-tabs class="flex justify-center lg:justify-start {{ if not $ctx.Card.Faces }}hidden{{ end }}"></div>
         </div>
 
-        <div class="space-y-5">
-          <div class="space-y-4">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div class="min-w-0 space-y-2">
-                <div class="flex flex-wrap items-center gap-2">
-                  <h2 data-card-name class="text-2xl font-semibold leading-tight text-slate-50">{{ $ctx.Card.Name }}</h2>
-                  <div data-card-mana class="flex flex-wrap items-center gap-1">
-                    {{ if $ctx.Card.ManaCost }}
-                      <span class="mt-chip font-mono">{{ $ctx.Card.ManaCost }}</span>
-                    {{ end }}
-                  </div>
-                </div>
-                <p data-card-type class="text-sm text-slate-400">{{ $ctx.Card.TypeLine }}</p>
-              </div>
+        <div data-card-face-tabs class="mt-card-face-controls {{ if not $ctx.Card.Faces }}hidden{{ end }}"></div>
+      </div>
 
-              <div class="flex flex-wrap gap-2 md:justify-end">
-                {{ if .CurrentUser }}
+      <article class="mt-card-info">
+        <section class="mt-card-primary-group" aria-label="Card details">
+          <div class="mt-card-primary-head">
+            <h1 id="card-detail-title" data-card-name class="mt-card-primary-line">{{ $ctx.Card.Name }}</h1>
+            {{ if .CurrentUser }}
+              <div class="mt-card-action-stack">
+                <div class="mt-card-actions" aria-label="Card actions">
                   <form method="POST" action="/cards/favorites/printing" data-card-favorite-form>
-                    <input type="hidden" name="scryfall_id" value="" data-card-favorite-scryfall-id>
-                    <input type="hidden" name="action" value="favorite" data-card-favorite-action>
+                    <input type="hidden" name="scryfall_id" value="{{ $ctx.Card.ScryfallID }}" data-card-favorite-scryfall-id>
+                    <input type="hidden" name="favorite_action" value="{{ if $ctx.SelectedPrintingIsFavorited }}unfavorite{{ else }}favorite{{ end }}" data-card-favorite-action>
                     <input type="hidden" name="return_to" value="{{ $ctx.CurrentPath }}" data-card-favorite-return-to>
                     <button type="submit"
-                            class="mt-heart-button"
-                            title="Love this card version"
-                            aria-label="Love this card version"
+                            class="mt-heart-button{{ if $ctx.SelectedPrintingIsFavorited }} is-loved{{ end }}"
+                            title="{{ if $ctx.SelectedPrintingIsFavorited }}Remove this printing from favorites{{ else }}Favorite this printing{{ end }}"
+                            aria-label="{{ if $ctx.SelectedPrintingIsFavorited }}Remove this printing from favorites{{ else }}Favorite this printing{{ end }}"
+                            {{ if not $ctx.Card.ScryfallID }}disabled{{ end }}
                             data-card-favorite-button>
-                      <span class="mt-heart-button__symbol" data-card-favorite-symbol aria-hidden="true">♡</span>
+                      <span class="mt-heart-button__symbol" data-card-favorite-symbol aria-hidden="true">{{ if $ctx.SelectedPrintingIsFavorited }}♥{{ else }}♡{{ end }}</span>
                     </button>
                   </form>
                   <button type="button"
@@ -79,160 +62,170 @@
                           data-card-name="{{ $ctx.Card.Name }}">
                     Add To Deck
                   </button>
-                {{ else }}
-                  <a href="/login?next={{ urlquery $ctx.CurrentPath }}"
-                     class="mt-heart-button"
-                     title="Log in to love this card version"
-                     aria-label="Log in to love this card version"
-                     data-card-favorite-login-link>
-                    <span class="mt-heart-button__symbol" aria-hidden="true">♡</span>
-                  </a>
-                  <a href="/login?next={{ urlquery $ctx.CurrentPath }}" class="mt-btn mt-btn--primary mt-btn--sm" data-card-add-login-link>
-                    Add To Deck
-                  </a>
-                {{ end }}
-                <a
-                  href="{{ if $ctx.Card.ScryfallURI }}{{ $ctx.Card.ScryfallURI }}{{ else }}#{{ end }}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-card-scryfall-link
-                  class="mt-btn mt-btn--secondary mt-btn--sm {{ if not $ctx.Card.ScryfallURI }}hidden{{ end }}">
-                  Scryfall
+                  <details class="mt-card-profile-art" data-card-profile-art-menu>
+                    <summary class="mt-btn mt-btn--secondary mt-btn--sm">Use Art</summary>
+                    <div class="mt-card-profile-art__menu">
+                      <form method="POST" action="/profile/art" data-card-profile-art-form>
+                        <input type="hidden" name="target" value="picture">
+                        <input type="hidden" name="scryfall_id" value="{{ $ctx.Card.ScryfallID }}" data-card-profile-art-scryfall-id>
+                        <input type="hidden" name="return_to" value="{{ $ctx.CurrentPath }}">
+                        <button type="submit">Set as profile picture</button>
+                      </form>
+                      <form method="POST" action="/profile/art" data-card-profile-art-form>
+                        <input type="hidden" name="target" value="background">
+                        <input type="hidden" name="scryfall_id" value="{{ $ctx.Card.ScryfallID }}" data-card-profile-art-scryfall-id>
+                        <input type="hidden" name="return_to" value="{{ $ctx.CurrentPath }}">
+                        <button type="submit">Set as profile background</button>
+                      </form>
+                    </div>
+                  </details>
+                </div>
+                <p class="mt-card-profile-art__status" data-card-profile-art-status role="status" aria-live="polite"></p>
+                <p class="mt-card-favorite-context"
+                   data-card-favorite-context
+                   role="status"
+                   aria-live="polite"
+                   {{ if eq $ctx.FavoritePrintingCount 0 }}hidden{{ end }}>
+                  {{ if $ctx.SelectedPrintingIsFavorited }}
+                    {{ if eq $ctx.OtherFavoritePrintingCount 1 }}
+                      This printing and 1 other are in your favorites.
+                    {{ else if gt $ctx.OtherFavoritePrintingCount 1 }}
+                      This printing and {{ $ctx.OtherFavoritePrintingCount }} others are in your favorites.
+                    {{ else }}
+                      This printing is in your favorites.
+                    {{ end }}
+                  {{ else if eq $ctx.OtherFavoritePrintingCount 1 }}
+                    You favorited another printing.
+                  {{ else if gt $ctx.OtherFavoritePrintingCount 1 }}
+                    You favorited {{ $ctx.OtherFavoritePrintingCount }} other printings.
+                  {{ end }}
+                </p>
+              </div>
+            {{ else }}
+              <div class="mt-card-actions" aria-label="Card actions">
+                <a href="/login?next={{ urlquery $ctx.CurrentPath }}"
+                   class="mt-btn mt-btn--primary mt-btn--sm"
+                   data-card-add-login-link>
+                  Add To Deck
                 </a>
               </div>
-            </div>
+            {{ end }}
           </div>
 
-          <section class="border-t border-slate-800 pt-4">
-            <div class="mb-3 flex items-center justify-between gap-2">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Rules Text</p>
-            </div>
-            <div data-card-oracle class="text-sm leading-7 text-slate-100 whitespace-pre-line">{{ $ctx.Card.OracleText }}</div>
-            <div data-card-flavor-group class="mt-4 border-l border-slate-700 pl-4" {{ if not $ctx.Card.FlavorText }}hidden{{ end }}>
-              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Flavor</p>
-              <div data-card-flavor class="mt-2 text-sm leading-7 italic text-slate-300 whitespace-pre-line">{{ $ctx.Card.FlavorText }}</div>
-            </div>
-          </section>
-
-          <div class="grid gap-6 xl:grid-cols-2">
-            <section class="border-t border-slate-800 pt-4">
-              <div class="mb-3 flex items-center justify-between gap-2">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Game Data</p>
-              </div>
-              <dl class="divide-y divide-slate-800/80">
-                <div class="flex items-start justify-between gap-4 py-2 first:pt-0">
-                  <dt class="text-xs font-medium text-slate-500">Mana Value</dt>
-                  <dd data-card-mana-value class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.ManaValue }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Colors</dt>
-                  <dd data-card-colors class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.Colors }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Color Identity</dt>
-                  <dd data-card-color-identity class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.ColorIdentity }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Commander</dt>
-                  <dd data-card-commander class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.CommanderStatus }}</dd>
-                </div>
-                <div class="grid grid-cols-3 gap-3 py-3">
-                  <div>
-                    <dt class="text-xs font-medium text-slate-500">Power</dt>
-                    <dd data-card-power class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.Power }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-xs font-medium text-slate-500">Toughness</dt>
-                    <dd data-card-toughness class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.Toughness }}</dd>
-                  </div>
-                  <div>
-                    <dt class="text-xs font-medium text-slate-500">Loyalty</dt>
-                    <dd data-card-loyalty class="mt-1 text-sm font-semibold text-slate-100">{{ $ctx.Card.Loyalty }}</dd>
-                  </div>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Layout</dt>
-                  <dd data-card-layout class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.Layout }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">EDHREC Rank</dt>
-                  <dd data-card-edhrec class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.EDHRecRank }}</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section class="border-t border-slate-800 pt-4">
-              <div class="mb-3 flex items-center justify-between gap-2">
-                <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Printing Data</p>
-              </div>
-              <dl class="divide-y divide-slate-800/80">
-                <div class="flex items-start justify-between gap-4 py-2 first:pt-0">
-                  <dt class="text-xs font-medium text-slate-500">Set</dt>
-                  <dd data-card-set class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.SetName }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Set Code</dt>
-                  <dd data-card-set-code class="text-sm font-semibold uppercase text-slate-100 text-right">{{ $ctx.Card.SetCode }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Collector #</dt>
-                  <dd data-card-collector class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.CollectorNumber }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Rarity</dt>
-                  <dd data-card-rarity class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.Rarity }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Released</dt>
-                  <dd data-card-released class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.ReleasedAt }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Language</dt>
-                  <dd data-card-lang class="text-sm font-semibold uppercase text-slate-100 text-right">{{ $ctx.Card.Lang }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Price</dt>
-                  <dd data-card-price class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.PriceUSD }}</dd>
-                </div>
-                <div class="flex items-start justify-between gap-4 py-2">
-                  <dt class="text-xs font-medium text-slate-500">Artist</dt>
-                  <dd data-card-artist class="text-sm font-semibold text-slate-100 text-right">{{ $ctx.Card.Artist }}</dd>
-                </div>
-              </dl>
-            </section>
+          <div data-card-mana class="mt-card-primary-line mt-card-primary-mana">
+            {{ if $ctx.Card.ManaCost }}<span class="font-mono">{{ $ctx.Card.ManaCost }}</span>{{ else }}No mana cost{{ end }}
           </div>
-
-          <section class="border-t border-slate-800 pt-4">
-            <div class="mb-3 flex items-center justify-between gap-2">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Identifiers</p>
-            </div>
-            <dl class="grid gap-3">
-              <div class="flex items-start justify-between gap-4">
-                <dt class="text-xs font-medium text-slate-500">Oracle ID</dt>
-                <dd data-card-oracle-id class="text-xs font-semibold text-slate-100 break-all text-right">{{ $ctx.Card.OracleID }}</dd>
-              </div>
-              <div class="flex items-start justify-between gap-4 border-t border-slate-800/80 pt-3">
-                <dt class="text-xs font-medium text-slate-500">Scryfall ID</dt>
-                <dd data-card-scryfall-id class="text-xs font-semibold text-slate-100 break-all text-right">{{ if $ctx.Card.ScryfallID }}{{ $ctx.Card.ScryfallID }}{{ else }}N/A{{ end }}</dd>
-              </div>
-            </dl>
+          <p data-card-type class="mt-card-primary-line">{{ $ctx.Card.TypeLine }}</p>
+          <div data-card-oracle class="mt-card-primary-line mt-card-primary-rules whitespace-pre-line">{{ $ctx.Card.OracleText }}</div>
+          <div data-card-flavor-group class="mt-card-primary-line mt-card-primary-flavor" {{ if not $ctx.Card.FlavorText }}hidden{{ end }}>
+            <div data-card-flavor class="whitespace-pre-line">{{ $ctx.Card.FlavorText }}</div>
+          </div>
+          <p data-card-power-toughness class="mt-card-primary-line" {{ if not $ctx.Card.HasPowerToughness }}hidden{{ end }}>
+            <span data-card-power>{{ $ctx.Card.Power }}</span>/<span data-card-toughness>{{ $ctx.Card.Toughness }}</span>
+          </p>
+          <p class="mt-card-primary-line">
+            <span class="sr-only">Price: </span><span data-card-price>{{ $ctx.Card.PriceUSD }}</span>
+          </p>
+          <p class="mt-card-primary-line">
+            Artist — <span data-card-artist>{{ $ctx.Card.Artist }}</span>
+          </p>
+          <section class="mt-card-format-legalities" aria-labelledby="card-format-legalities-title">
+            <h2 id="card-format-legalities-title" class="mt-card-primary-line mt-card-format-legalities__title">
+              Format legalities
+            </h2>
+            <ul data-card-format-legalities class="mt-card-format-legalities__list">
+              {{ range $ctx.Card.Legalities }}
+                <li>
+                  <span class="mt-card-format-legalities__format">{{ .Format }}</span>
+                  <span class="mt-card-format-legalities__status" data-legality-status="{{ .Status }}">{{ .StatusLabel }}</span>
+                </li>
+              {{ else }}
+                <li class="mt-card-format-legalities__empty">Legality data unavailable.</li>
+              {{ end }}
+            </ul>
           </section>
-        </div>
-      </div>
+        </section>
+
+        <section class="mt-card-printing-group" aria-labelledby="card-printing-title">
+          <h2 id="card-printing-title" class="sr-only">Printing details</h2>
+          <dl class="mt-card-printing-facts">
+            <div>
+              <dt>Set name</dt>
+              <dd data-card-set>{{ $ctx.Card.SetName }}</dd>
+            </div>
+            <div>
+              <dt>Set code</dt>
+              <dd data-card-set-code>{{ $ctx.Card.SetCode }}</dd>
+            </div>
+            <div>
+              <dt>Collector number</dt>
+              <dd data-card-collector>{{ $ctx.Card.CollectorNumber }}</dd>
+            </div>
+            <div>
+              <dt>Rarity</dt>
+              <dd data-card-rarity>{{ $ctx.Card.Rarity }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <details class="mt-card-more">
+          <summary>Technical details</summary>
+          <dl class="mt-card-facts">
+            <div class="mt-card-fact">
+              <dt>Mana Value</dt>
+              <dd data-card-mana-value>{{ $ctx.Card.ManaValue }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Colors</dt>
+              <dd data-card-colors>{{ $ctx.Card.Colors }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Color Identity</dt>
+              <dd data-card-color-identity>{{ $ctx.Card.ColorIdentity }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Loyalty</dt>
+              <dd data-card-loyalty>{{ $ctx.Card.Loyalty }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Released</dt>
+              <dd data-card-released>{{ $ctx.Card.ReleasedAt }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Language</dt>
+              <dd data-card-lang>{{ $ctx.Card.Lang }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Layout</dt>
+              <dd data-card-layout>{{ $ctx.Card.Layout }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>EDHREC Rank</dt>
+              <dd data-card-edhrec>{{ $ctx.Card.EDHRecRank }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Oracle ID</dt>
+              <dd data-card-oracle-id class="mt-card-id">{{ $ctx.Card.OracleID }}</dd>
+            </div>
+            <div class="mt-card-fact">
+              <dt>Scryfall ID</dt>
+              <dd data-card-scryfall-id class="mt-card-id">{{ if $ctx.Card.ScryfallID }}{{ $ctx.Card.ScryfallID }}{{ else }}N/A{{ end }}</dd>
+            </div>
+          </dl>
+        </details>
+      </article>
     </section>
 
-    <section class="space-y-3">
-      <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div class="space-y-1">
-          <h2 class="text-base font-semibold text-slate-100">
-            Other Printings <span data-printings-count class="ml-1 text-xs text-slate-500"></span>
-          </h2>
-        </div>
+    <section class="mt-printings-section" aria-labelledby="printings-title">
+      <header class="mt-printings-header">
+        <h2 id="printings-title">
+          Printings <span data-printings-count></span>
+        </h2>
 
-        <div class="flex flex-wrap gap-3">
-          <label class="block text-sm text-slate-200">
-            <span class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Sort</span>
-            <select data-printings-sort class="mt-control mt-control--sm">
+        <div class="mt-printings-controls">
+          <label class="mt-printings-sort">
+            <span class="mt-printings-sort__label">Sort</span>
+            <select data-printings-sort class="mt-printings-sort__select">
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
               <option value="price_low">Cheapest first</option>
@@ -240,23 +233,18 @@
               <option value="set">Set name A-Z</option>
             </select>
           </label>
-
-          <label class="mt-check-pill self-end">
-            <input type="checkbox" data-printings-english-only class="rounded border-slate-600 bg-slate-950 text-sky-500 focus:ring-sky-500">
-            <span>English only</span>
-          </label>
         </div>
+      </header>
+
+      <div data-printings-empty hidden class="mt-card-empty">
+        No printings available.
       </div>
 
-      <div data-printings-empty hidden class="mt-empty-state">
-        <p class="text-sm text-slate-300">No other printings match the current filters.</p>
-      </div>
-
-      <div class="grid grid-cols-3 gap-3 sm:gap-4" data-printings-grid></div>
+      <div class="mt-printings-grid" data-printings-grid></div>
     </section>
 
     {{ template "saved_deck_picker" . }}
-  </main>
+  </div>
 
   {{ template "card_ui_helpers_script" . }}
   {{ template "saved_deck_picker_script" . }}

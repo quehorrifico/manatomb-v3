@@ -1,10 +1,22 @@
 package web
 
 import (
+	"encoding/json"
+	"regexp"
+	"strings"
 	"testing"
 
+	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
 )
+
+func TestNormalizeWorkbenchDraftSeedGeneratesMissingName(t *testing.T) {
+	got := normalizeWorkbenchDraftSeed(workbenchPlaytestPayload{Format: "Sandbox", Sandbox: true})
+
+	if !regexp.MustCompile(`^[A-Za-z0-9_]{6,32}$`).MatchString(got.Name) {
+		t.Fatalf("expected a generated gamertag deck name, got %q", got.Name)
+	}
+}
 
 func TestNormalizeWorkbenchPlaytestCardsAppliesMetadata(t *testing.T) {
 	got := normalizeWorkbenchPlaytestCards(
@@ -99,12 +111,14 @@ func TestDeckRowsToPlaytestCardsPreservesManaCost(t *testing.T) {
 }
 
 func TestNormalizeWorkbenchDraftSeedCommander(t *testing.T) {
+	const commanderPrintID = "223e4567-e89b-12d3-a456-426614174000"
 	in := workbenchPlaytestPayload{
-		CommanderName: "Atraxa, Grand Unifier",
-		Format:        "Commander",
-		Name:          "Ignored",
-		Description:   "Test deck",
-		Tags:          "Ramp, Midrange",
+		CommanderName:    "Atraxa, Grand Unifier",
+		CommanderPrintID: commanderPrintID,
+		Format:           "Commander",
+		Name:             "Ignored",
+		Description:      "Test deck",
+		Tags:             "Ramp, Midrange",
 		Cards: []workbenchPlaytestCard{
 			{Name: "Atraxa, Grand Unifier", Qty: 1},
 			{Name: "Sol Ring", Qty: 1},
@@ -125,14 +139,17 @@ func TestNormalizeWorkbenchDraftSeedCommander(t *testing.T) {
 
 	got := normalizeWorkbenchDraftSeed(in)
 
-	if got.Name != "New Guest Deck" {
-		t.Fatalf("expected guest deck name to be fixed, got %q", got.Name)
+	if got.Name != "Ignored" {
+		t.Fatalf("expected workbench deck name to be preserved, got %q", got.Name)
 	}
 	if got.Format != "Commander" {
 		t.Fatalf("expected Commander format, got %q", got.Format)
 	}
 	if got.CommanderName != "Atraxa, Grand Unifier" {
 		t.Fatalf("expected commander preserved, got %q", got.CommanderName)
+	}
+	if got.CommanderPrintID != commanderPrintID {
+		t.Fatalf("expected commander printing preserved, got %q", got.CommanderPrintID)
 	}
 	if got.Cards["Island"] != 3 {
 		t.Fatalf("expected Island count 3, got %d", got.Cards["Island"])
@@ -151,11 +168,86 @@ func TestNormalizeWorkbenchDraftSeedCommander(t *testing.T) {
 	}
 }
 
+func TestWorkbenchPlaytestPreservesPerBoardPrintingMetadata(t *testing.T) {
+	const (
+		mainPrint  = "11111111-1111-1111-1111-111111111111"
+		sidePrint  = "22222222-2222-2222-2222-222222222222"
+		maybePrint = "33333333-3333-3333-3333-333333333333"
+	)
+
+	raw := []byte(`{
+		"format":"Sandbox",
+		"sandbox":true,
+		"cards":[{"name":"Sol Ring","qty":1}],
+		"sideboard_cards":[{"name":"Sol Ring","qty":1}],
+		"maybe_cards":[{"name":"Arcane Signet","qty":1}],
+		"board_card_meta":{
+			"main":{"Sol Ring":{"name":"Sol Ring","preferredPrintID":"` + mainPrint + `","setCode":"CMM"}},
+			"side":{"Sol Ring":{"name":"Sol Ring","preferredPrintID":"` + sidePrint + `","setCode":"LTC"}},
+			"maybe":{"Arcane Signet":{"name":"Arcane Signet","preferredPrintID":"` + maybePrint + `","setCode":"MKC"}}
+		}
+	}`)
+
+	var payload workbenchPlaytestPayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("decode browser playtest payload: %v", err)
+	}
+
+	seed := normalizeWorkbenchDraftSeed(payload)
+	if got := seed.BoardCardMeta["main"]["Sol Ring"].PreferredPrintID; got != mainPrint {
+		t.Fatalf("mainboard printing changed during normalization: got %q", got)
+	}
+	if got := seed.BoardCardMeta["side"]["Sol Ring"].PreferredPrintID; got != sidePrint {
+		t.Fatalf("sideboard printing changed during normalization: got %q", got)
+	}
+	if seed.BoardCardMeta["main"]["Sol Ring"].PreferredPrintID == seed.BoardCardMeta["side"]["Sol Ring"].PreferredPrintID {
+		t.Fatal("same card on different boards collapsed to one printing")
+	}
+	if got := seed.BoardCardMeta["maybe"]["Arcane Signet"].PreferredPrintID; got != maybePrint {
+		t.Fatalf("maybeboard printing changed during normalization: got %q", got)
+	}
+
+	encoded, err := json.Marshal(seed)
+	if err != nil {
+		t.Fatalf("encode playtest workbench seed: %v", err)
+	}
+	for _, needle := range []string{
+		`"boardCardMeta"`,
+		`"` + mainPrint + `"`,
+		`"` + sidePrint + `"`,
+		`"` + maybePrint + `"`,
+	} {
+		if !strings.Contains(string(encoded), needle) {
+			t.Fatalf("rendered workbench seed is missing %s: %s", needle, encoded)
+		}
+	}
+}
+
+func TestNormalizeWorkbenchDraftSeedCommanderFormatVariantsKeepCommander(t *testing.T) {
+	t.Parallel()
+
+	in := workbenchPlaytestPayload{
+		CommanderName:    "Atraxa, Grand Unifier",
+		CommanderPrintID: "223e4567-e89b-12d3-a456-426614174000",
+		Format:           "Historic Brawl",
+		Name:             "Atraxa Brawl",
+	}
+
+	got := normalizeWorkbenchDraftSeed(in)
+	if got.Format != "Historic Brawl" {
+		t.Fatalf("expected Historic Brawl format, got %q", got.Format)
+	}
+	if got.CommanderName != in.CommanderName || got.CommanderPrintID != in.CommanderPrintID {
+		t.Fatalf("expected commander and printing to survive, got %#v", got)
+	}
+}
+
 func TestNormalizeWorkbenchDraftSeedSandboxClearsCommander(t *testing.T) {
 	in := workbenchPlaytestPayload{
-		CommanderName: "Atraxa, Grand Unifier",
-		Format:        "Sandbox",
-		Sandbox:       true,
+		CommanderName:    "Atraxa, Grand Unifier",
+		CommanderPrintID: "223e4567-e89b-12d3-a456-426614174000",
+		Format:           "Sandbox",
+		Sandbox:          true,
 		Cards: []workbenchPlaytestCard{
 			{Name: "Sol Ring", Qty: 1},
 		},
@@ -169,7 +261,29 @@ func TestNormalizeWorkbenchDraftSeedSandboxClearsCommander(t *testing.T) {
 	if got.CommanderName != "" {
 		t.Fatalf("expected commander to be cleared for sandbox, got %q", got.CommanderName)
 	}
+	if got.CommanderPrintID != "" {
+		t.Fatalf("expected commander printing to be cleared for sandbox, got %q", got.CommanderPrintID)
+	}
 	if got.Sandbox != true {
 		t.Fatalf("expected sandbox flag to be preserved")
+	}
+}
+
+func TestPlaytestCommanderFromCardUsesExactPrinting(t *testing.T) {
+	got := playtestCommanderFromCard(&cards.Card{
+		Name:            "Atraxa, Grand Unifier",
+		ImageURI:        "https://example.test/exact.jpg",
+		PriceUSD:        "42.00",
+		SetCode:         "mul",
+		SetName:         "Multiverse Legends",
+		CollectorNumber: "196",
+		Artist:          "Marta Nael",
+	})
+
+	if got.ImageURI != "https://example.test/exact.jpg" ||
+		got.PriceUSD != "42.00" ||
+		got.SetCode != "mul" ||
+		got.CollectorNumber != "196" {
+		t.Fatalf("exact commander printing was not preserved in playtest: %#v", got)
 	}
 }

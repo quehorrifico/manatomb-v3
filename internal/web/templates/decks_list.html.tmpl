@@ -2,75 +2,72 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h1 class="text-2xl font-semibold tracking-tight text-slate-50">My Decks</h1>
-      <a href="/decks/new" class="mt-btn mt-btn--primary w-full sm:w-auto">
+  <div class="mt-account-page mt-deck-library">
+    <header class="mt-deck-library__header">
+      <div>
+        <h1>My Decks</h1>
+        <p>{{ if $ctx }}{{ len $ctx }} saved deck{{ if ne (len $ctx) 1 }}s{{ end }}{{ else }}0 saved decks{{ end }}</p>
+      </div>
+      <a href="/decks/new" class="mt-btn mt-btn--primary mt-deck-library__new">
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14"></path>
         </svg>
         Build New Deck
       </a>
-    </div>
+    </header>
 
-    <section class="mt-panel p-4 sm:p-6">
-      {{ if $ctx }}
-        <div class="space-y-3">
-          {{ range $ctx }}
-            <article class="mt-action-card relative cursor-pointer">
-              <a href="/decks/{{ .ID }}" class="absolute inset-0 z-0 rounded-lg" aria-label="Open {{ .Name }}"></a>
-              <div class="relative z-10 pointer-events-none flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div class="flex items-start gap-4 min-w-0">
-                  <div class="h-16 w-12 mt-card-media bg-slate-900/80 flex-shrink-0 flex items-center justify-center">
-                    {{ if .CommanderImageURI }}
-                      <img src="{{ .CommanderImageURI }}" alt="{{ .CommanderName }}" class="w-full h-full object-cover">
-                    {{ else }}
-                      <div class="w-full h-full flex items-center justify-center text-[10px] text-slate-500 uppercase tracking-wide">
-                        {{ if .CommanderName }}Commander{{ else }}—{{ end }}
-                      </div>
-                    {{ end }}
-                  </div>
+    {{ if $ctx }}
+      <section class="mt-deck-library__grid" aria-label="Saved decks">
+        {{ range $ctx }}
+          <article class="mt-deck-library-card">
+            <a href="/decks/{{ .ID }}" class="mt-deck-library-card__link" aria-label="Open {{ .Name }}"></a>
+            <div class="mt-deck-library-card__media">
+              {{ if .CommanderImageURI }}
+                <img src="{{ .CommanderImageURI }}" alt="" loading="lazy">
+              {{ else }}
+                <span aria-hidden="true">{{ if .CommanderName }}Commander{{ else }}Deck{{ end }}</span>
+              {{ end }}
+            </div>
 
-                  <div class="min-w-0 space-y-2">
-                    <div class="space-y-1">
-                      <h3 class="text-lg font-semibold text-slate-100">{{ .Name }}</h3>
-                      {{ if .Description }}
-                        <p class="text-sm text-slate-400 line-clamp-2">{{ .Description }}</p>
-                      {{ end }}
-                    </div>
-
-                    <div class="flex flex-wrap gap-2">
-                      <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
-                      <span class="mt-chip">
-                        {{ if .CommanderName }}Commander: {{ .CommanderName }}{{ else }}No commander{{ end }}
-                      </span>
-                      <span class="mt-chip">{{ if .IsPublic }}Public{{ else }}Private{{ end }}</span>
-                      {{ if .PowerBracket }}
-                        <span class="mt-chip">Power: {{ .PowerBracket }}</span>
-                      {{ end }}
-                    </div>
-                  </div>
-                </div>
-
-                <div class="flex flex-wrap gap-2 md:justify-end">
-                  {{ if and .IsPublic .PublicSlug }}
-                    <a href="/decks/public/{{ .PublicSlug }}" class="relative z-20 pointer-events-auto mt-btn mt-btn--secondary mt-btn--sm">Public</a>
-                  {{ end }}
-                </div>
+            <div class="mt-deck-library-card__body">
+              <div class="mt-deck-library-card__title-row">
+                <h2>{{ .Name }}</h2>
+                <span class="mt-deck-library-card__visibility">{{ if .IsPublic }}Public{{ else }}Private{{ end }}</span>
               </div>
-            </article>
-          {{ end }}
+
+              {{ if .Description }}
+                <p class="mt-deck-library-card__description">{{ .Description }}</p>
+              {{ end }}
+
+              <div class="mt-deck-library-card__commander">
+                <span>Commander</span>
+                <strong>{{ if .CommanderName }}{{ .CommanderName }}{{ else }}None selected{{ end }}</strong>
+              </div>
+
+              <div class="mt-deck-library-card__footer">
+                <div class="mt-deck-library-card__meta">
+                  <span>{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
+                  {{ if .PowerBracket }}<span>{{ .PowerBracket }}</span>{{ end }}
+                </div>
+                {{ if and .IsPublic .PublicSlug }}
+                  <a href="/decks/public/{{ .PublicSlug }}" class="mt-deck-library-card__public">View public page</a>
+                {{ end }}
+              </div>
+            </div>
+          </article>
+        {{ end }}
+      </section>
+    {{ else }}
+      <section class="mt-deck-library__empty" aria-labelledby="empty-deck-library-title">
+        <h2 id="empty-deck-library-title">No decks yet</h2>
+        <p>Start a new deck or browse public lists for inspiration.</p>
+        <div>
+          <a href="/decks/new" class="mt-btn mt-btn--primary">Build a Deck</a>
+          <a href="/decks/public" class="mt-btn mt-btn--secondary">Browse Public Decks</a>
         </div>
-      {{ else }}
-        <div class="text-center space-y-4 py-6">
-          <p class="text-sm text-slate-400">No decks.</p>
-          <div class="flex flex-wrap justify-center gap-2">
-            <a href="/decks/public" class="mt-btn mt-btn--secondary">Browse Public Decks</a>
-          </div>
-        </div>
-      {{ end }}
-    </section>
-  </main>
+      </section>
+    {{ end }}
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

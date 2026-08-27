@@ -1,19 +1,18 @@
 {{ define "error" }}
   {{ template "layout_header" . }}
 
-  <main class="max-w-3xl mx-auto px-4 py-14">
-    <section class="mt-panel p-8 text-center space-y-5">
-      <div class="space-y-2">
-        <p class="mt-kicker">Error</p>
-        <h1 class="text-3xl font-bold text-slate-100">Something went wrong.</h1>
-      </div>
+  <div class="mt-static-page mt-static-page--message">
+    <section class="mt-static-message" aria-labelledby="error-title">
+      <p class="mt-static-status">Error</p>
+      <h1 id="error-title" class="mt-static-title">Something went wrong.</h1>
+      <p class="mt-static-lede">Try the previous page again, or return home and continue from there.</p>
 
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <button type="button" onclick="window.history.back()" class="mt-btn mt-btn--secondary">Back</button>
-        <a href="/" class="mt-btn mt-btn--primary">Home</a>
+      <div class="mt-static-actions" aria-label="Error recovery">
+        <button type="button" onclick="window.history.back()" class="mt-btn mt-btn--secondary">Go back</button>
+        <a href="/" class="mt-btn mt-btn--primary">Return home</a>
       </div>
     </section>
-  </main>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

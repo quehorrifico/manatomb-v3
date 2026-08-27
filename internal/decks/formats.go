@@ -5,28 +5,67 @@ import (
 	"strings"
 )
 
-var supportedFormats = []string{
+type FormatDefinition struct {
+	Name                string
+	RequiresCommander   bool
+	TargetMainboardSize int
+	CopyLimit           int
+}
+
+var supportedFormatDefinitions = []FormatDefinition{
+	{Name: "Commander", RequiresCommander: true, TargetMainboardSize: 100, CopyLimit: 1},
+	{Name: "Sandbox", TargetMainboardSize: 0, CopyLimit: 0},
+	{Name: "Duel Commander", RequiresCommander: true, TargetMainboardSize: 100, CopyLimit: 1},
+	{Name: "Standard", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Pioneer", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Modern", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Legacy", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Vintage", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Pauper", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Brawl", RequiresCommander: true, TargetMainboardSize: 60, CopyLimit: 1},
+	{Name: "Historic Brawl", RequiresCommander: true, TargetMainboardSize: 60, CopyLimit: 1},
+	{Name: "Historic", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Explorer", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Timeless", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Alchemy", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Oathbreaker", RequiresCommander: true, TargetMainboardSize: 60, CopyLimit: 1},
+	{Name: "Premodern", TargetMainboardSize: 60, CopyLimit: 4},
+	{Name: "Draft", TargetMainboardSize: 40, CopyLimit: 0},
+	{Name: "Sealed", TargetMainboardSize: 40, CopyLimit: 0},
+	{Name: "Cube", TargetMainboardSize: 0, CopyLimit: 0},
+	{Name: "Casual", TargetMainboardSize: 60, CopyLimit: 4},
+}
+
+var buildableFormats = []string{
 	"Commander",
-	"Sandbox",
-	"Duel Commander",
 	"Standard",
-	"Pioneer",
-	"Modern",
-	"Legacy",
-	"Vintage",
-	"Pauper",
-	"Brawl",
-	"Historic Brawl",
-	"Historic",
-	"Explorer",
-	"Timeless",
-	"Alchemy",
-	"Oathbreaker",
-	"Premodern",
-	"Draft",
-	"Sealed",
-	"Cube",
-	"Casual",
+	"Sandbox",
+}
+
+var formatAliases = map[string]string{
+	"commander":      "Commander",
+	"edh":            "Commander",
+	"sandbox":        "Sandbox",
+	"duel commander": "Duel Commander",
+	"duel":           "Duel Commander",
+	"standard":       "Standard",
+	"pioneer":        "Pioneer",
+	"modern":         "Modern",
+	"legacy":         "Legacy",
+	"vintage":        "Vintage",
+	"pauper":         "Pauper",
+	"brawl":          "Brawl",
+	"historic brawl": "Historic Brawl",
+	"historic":       "Historic",
+	"explorer":       "Explorer",
+	"timeless":       "Timeless",
+	"alchemy":        "Alchemy",
+	"oathbreaker":    "Oathbreaker",
+	"premodern":      "Premodern",
+	"draft":          "Draft",
+	"sealed":         "Sealed",
+	"cube":           "Cube",
+	"casual":         "Casual",
 }
 
 var supportedPowerBrackets = []string{
@@ -39,9 +78,41 @@ var supportedPowerBrackets = []string{
 }
 
 func SupportedFormats() []string {
-	out := make([]string, len(supportedFormats))
-	copy(out, supportedFormats)
+	out := make([]string, 0, len(supportedFormatDefinitions))
+	for _, definition := range supportedFormatDefinitions {
+		out = append(out, definition.Name)
+	}
 	return out
+}
+
+func BuildableFormats() []string {
+	out := make([]string, len(buildableFormats))
+	copy(out, buildableFormats)
+	return out
+}
+
+func FormatIsBuildable(raw string) bool {
+	format := NormalizeFormat(raw)
+	for _, buildable := range buildableFormats {
+		if buildable == format {
+			return true
+		}
+	}
+	return false
+}
+
+func FormatDefinitionFor(raw string) FormatDefinition {
+	format := NormalizeFormat(raw)
+	for _, definition := range supportedFormatDefinitions {
+		if definition.Name == format {
+			return definition
+		}
+	}
+	return FormatDefinition{
+		Name:                format,
+		TargetMainboardSize: 60,
+		CopyLimit:           4,
+	}
 }
 
 func SupportedPowerBrackets() []string {
@@ -75,50 +146,10 @@ func NormalizeFormat(raw string) string {
 		return "Commander"
 	}
 
-	switch strings.ToLower(trimmed) {
-	case "commander", "edh":
-		return "Commander"
-	case "sandbox", "casual":
-		return "Sandbox"
-	case "duel commander", "duel":
-		return "Duel Commander"
-	case "standard":
-		return "Standard"
-	case "pioneer":
-		return "Pioneer"
-	case "modern":
-		return "Modern"
-	case "legacy":
-		return "Legacy"
-	case "vintage":
-		return "Vintage"
-	case "pauper":
-		return "Pauper"
-	case "brawl":
-		return "Brawl"
-	case "historic brawl":
-		return "Historic Brawl"
-	case "historic":
-		return "Historic"
-	case "explorer":
-		return "Explorer"
-	case "timeless":
-		return "Timeless"
-	case "alchemy":
-		return "Alchemy"
-	case "oathbreaker":
-		return "Oathbreaker"
-	case "premodern":
-		return "Premodern"
-	case "draft":
-		return "Draft"
-	case "sealed":
-		return "Sealed"
-	case "cube":
-		return "Cube"
-	default:
-		return trimmed
+	if normalized, ok := formatAliases[strings.ToLower(trimmed)]; ok {
+		return normalized
 	}
+	return trimmed
 }
 
 func NormalizePowerBracket(raw string) string {
@@ -174,45 +205,17 @@ func normalizeLooseLabel(raw string) string {
 }
 
 func FormatRequiresCommander(format string) bool {
-	switch NormalizeFormat(format) {
-	case "Commander", "Duel Commander", "Brawl", "Historic Brawl", "Oathbreaker":
-		return true
-	default:
-		return false
-	}
+	return FormatDefinitionFor(format).RequiresCommander
 }
 
 func FormatTargetMainboardSize(format string) int {
-	switch NormalizeFormat(format) {
-	case "Commander", "Duel Commander":
-		return 100
-	case "Brawl", "Historic Brawl", "Oathbreaker":
-		return 60
-	case "Draft", "Sealed":
-		return 40
-	case "Cube", "Sandbox":
-		return 0
-	default:
-		return 60
-	}
+	return FormatDefinitionFor(format).TargetMainboardSize
 }
 
 func FormatEnforcesSingleton(format string) bool {
-	switch NormalizeFormat(format) {
-	case "Commander", "Duel Commander", "Brawl", "Historic Brawl", "Oathbreaker":
-		return true
-	default:
-		return false
-	}
+	return FormatDefinitionFor(format).CopyLimit == 1
 }
 
 func FormatCopyLimit(format string) int {
-	switch NormalizeFormat(format) {
-	case "Commander", "Duel Commander", "Brawl", "Historic Brawl", "Oathbreaker":
-		return 1
-	case "Draft", "Sealed", "Cube", "Sandbox":
-		return 0
-	default:
-		return 4
-	}
+	return FormatDefinitionFor(format).CopyLimit
 }
