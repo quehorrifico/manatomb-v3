@@ -1,0 +1,77 @@
+{{ define "deck_tile" }}
+  <article class="mt-deck-tile"
+           {{ if .ProfileTile }}data-profile-deck
+           data-order="{{ .TileOrder }}"
+           data-name="{{ .Name }}"
+           data-format="{{ .Format }}"
+           data-power="{{ .PowerBracket }}"
+           data-search="{{ .Name }} {{ .CommanderName }} {{ .Format }} {{ .Tags }} {{ .Description }}"{{ end }}>
+    <a href="/decks/public/{{ .PublicSlug }}"
+       class="mt-deck-tile__link"
+       aria-label="Open {{ .Name }}"></a>
+
+    <div class="mt-deck-tile__media">
+      {{ if .CommanderArtCropURI }}
+        <img class="mt-deck-tile__image mt-deck-tile__image--art"
+             src="{{ .CommanderArtCropURI }}"
+             alt=""
+             loading="lazy"
+             decoding="async">
+      {{ else if .CommanderImageURI }}
+        <img class="mt-deck-tile__image mt-deck-tile__image--card"
+             src="{{ .CommanderImageURI }}"
+             alt=""
+             loading="lazy"
+             decoding="async">
+      {{ else }}
+        <span aria-hidden="true">{{ if .CommanderName }}Commander{{ else }}Deck{{ end }}</span>
+      {{ end }}
+    </div>
+
+    <div class="mt-deck-tile__body">
+      <div class="mt-deck-tile__heading">
+        <div class="mt-deck-tile__heading-copy">
+          <h3>{{ .Name }}</h3>
+          {{ if .OwnerDisplayName }}
+            <p>by <a href="{{ userProfilePath .OwnerID }}">{{ .OwnerDisplayName }}</a></p>
+          {{ end }}
+        </div>
+        {{ if .ColorPips }}
+          <span class="mt-deck-tile__identity" role="img" aria-label="{{ .ColorIdentityName }}">
+            {{ range .ColorPips }}
+              <img src="{{ .ImageURI }}" alt="">
+            {{ end }}
+          </span>
+        {{ end }}
+      </div>
+
+      {{ if .CommanderName }}
+        <p class="mt-deck-tile__commander"><span>Commander:</span> {{ .CommanderName }}</p>
+      {{ end }}
+      {{ if .Description }}
+        <p class="mt-deck-tile__description">{{ .Description }}</p>
+      {{ end }}
+
+      <div class="mt-deck-tile__meta">
+        <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
+        {{ if .PowerBracket }}<span class="mt-chip">{{ .PowerBracket }}</span>{{ end }}
+      </div>
+
+      {{ if or .Tags .PublishedLabel }}
+        <div class="mt-deck-tile__footer">
+          {{ if .Tags }}
+            <div class="mt-deck-tile__tags" aria-label="Deck archetypes">
+              {{ range splitTags .Tags }}
+                <a href="/decks/public?archetype={{ urlquery . }}"
+                   aria-label="Browse public decks with the {{ . }} archetype">#{{ . }}</a>
+              {{ end }}
+            </div>
+          {{ end }}
+          {{ if .PublishedLabel }}
+            <span class="mt-deck-tile__published">Published {{ .PublishedLabel }}</span>
+          {{ end }}
+        </div>
+      {{ end }}
+    </div>
+  </article>
+{{ end }}

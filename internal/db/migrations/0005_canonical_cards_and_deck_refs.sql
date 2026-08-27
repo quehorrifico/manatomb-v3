@@ -169,17 +169,113 @@ ALTER TABLE card_sync_state ADD COLUMN IF NOT EXISTS data_version INTEGER NOT NU
 INSERT INTO card_sync_state (id) VALUES (1)
 ON CONFLICT (id) DO NOTHING;
 
-DROP TABLE IF EXISTS deck_maybe_cards;
-DROP TABLE IF EXISTS deck_cards;
+-- Upgrade the legacy name-based deck tables without ever dropping them before
+-- every positive-quantity row has a canonical match. A raised exception rolls
+-- back this entire DO statement and leaves the original tables intact.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'deck_cards'
+      AND column_name = 'card_id'
+  ) THEN
+    DROP TABLE IF EXISTS deck_cards_v2;
+    CREATE TABLE deck_cards_v2 (
+      deck_id BIGINT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+      oracle_id UUID NOT NULL REFERENCES oracle_cards(oracle_id) ON DELETE RESTRICT,
+      qty INT NOT NULL DEFAULT 0,
+      board TEXT NOT NULL DEFAULT 'main',
+      preferred_print_id UUID NULL REFERENCES card_prints(scryfall_id) ON DELETE SET NULL,
+      PRIMARY KEY (deck_id, oracle_id, board),
+      CHECK (board IN ('main', 'maybe', 'side'))
+    );
 
-CREATE TABLE IF NOT EXISTS deck_cards (
-  deck_id BIGINT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
-  oracle_id UUID NOT NULL REFERENCES oracle_cards(oracle_id) ON DELETE RESTRICT,
-  qty INT NOT NULL DEFAULT 0,
-  board TEXT NOT NULL DEFAULT 'main',
-  preferred_print_id UUID NULL REFERENCES card_prints(scryfall_id) ON DELETE SET NULL,
-  PRIMARY KEY (deck_id, oracle_id, board),
-  CHECK (board IN ('main', 'maybe', 'side'))
-);
+    IF EXISTS (
+      SELECT 1
+      FROM deck_cards dc
+      LEFT JOIN cards c ON c.id = dc.card_id
+      LEFT JOIN LATERAL (
+        SELECT candidate.oracle_id
+        FROM oracle_cards candidate
+        WHERE candidate.name_search = normalize_card_name(c.name)
+        ORDER BY candidate.name, candidate.oracle_id
+        LIMIT 1
+      ) oc ON TRUE
+      WHERE dc.quantity > 0
+        AND (c.id IS NULL OR oc.oracle_id IS NULL)
+    ) THEN
+      RAISE EXCEPTION 'legacy deck_cards contains rows without canonical card matches';
+    END IF;
+
+    INSERT INTO deck_cards_v2 (deck_id, oracle_id, qty, board)
+    SELECT dc.deck_id, oc.oracle_id, dc.quantity, 'main'
+    FROM deck_cards dc
+    JOIN cards c ON c.id = dc.card_id
+    JOIN LATERAL (
+      SELECT candidate.oracle_id
+      FROM oracle_cards candidate
+      WHERE candidate.name_search = normalize_card_name(c.name)
+      ORDER BY candidate.name, candidate.oracle_id
+      LIMIT 1
+    ) oc ON TRUE
+    WHERE dc.quantity > 0
+    ON CONFLICT (deck_id, oracle_id, board)
+    DO UPDATE SET qty = deck_cards_v2.qty + EXCLUDED.qty;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'deck_maybe_cards'
+    ) THEN
+      IF EXISTS (
+        SELECT 1
+        FROM deck_maybe_cards dmc
+        LEFT JOIN cards c ON c.id = dmc.card_id
+        LEFT JOIN LATERAL (
+          SELECT candidate.oracle_id
+          FROM oracle_cards candidate
+          WHERE candidate.name_search = normalize_card_name(c.name)
+          ORDER BY candidate.name, candidate.oracle_id
+          LIMIT 1
+        ) oc ON TRUE
+        WHERE dmc.quantity > 0
+          AND (c.id IS NULL OR oc.oracle_id IS NULL)
+      ) THEN
+        RAISE EXCEPTION 'legacy deck_maybe_cards contains rows without canonical card matches';
+      END IF;
+
+      INSERT INTO deck_cards_v2 (deck_id, oracle_id, qty, board)
+      SELECT dmc.deck_id, oc.oracle_id, dmc.quantity, 'maybe'
+      FROM deck_maybe_cards dmc
+      JOIN cards c ON c.id = dmc.card_id
+      JOIN LATERAL (
+        SELECT candidate.oracle_id
+        FROM oracle_cards candidate
+        WHERE candidate.name_search = normalize_card_name(c.name)
+        ORDER BY candidate.name, candidate.oracle_id
+        LIMIT 1
+      ) oc ON TRUE
+      WHERE dmc.quantity > 0
+      ON CONFLICT (deck_id, oracle_id, board)
+      DO UPDATE SET qty = deck_cards_v2.qty + EXCLUDED.qty;
+
+      DROP TABLE deck_maybe_cards;
+    END IF;
+
+    DROP TABLE deck_cards;
+    ALTER TABLE deck_cards_v2 RENAME TO deck_cards;
+  ELSE
+    CREATE TABLE IF NOT EXISTS deck_cards (
+      deck_id BIGINT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+      oracle_id UUID NOT NULL REFERENCES oracle_cards(oracle_id) ON DELETE RESTRICT,
+      qty INT NOT NULL DEFAULT 0,
+      board TEXT NOT NULL DEFAULT 'main',
+      preferred_print_id UUID NULL REFERENCES card_prints(scryfall_id) ON DELETE SET NULL,
+      PRIMARY KEY (deck_id, oracle_id, board),
+      CHECK (board IN ('main', 'maybe', 'side'))
+    );
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_deck_cards_deck_board ON deck_cards (deck_id, board);

@@ -5,17 +5,28 @@
     var isSignedIn = {{ if .CurrentUser }}true{{ else }}false{{ end }};
     var deckBrowser = window.ManatombDeckBrowser;
     if (!deckBrowser) return;
+    var supportedDeckFormats = {{ toJSON (supportedFormats) }};
+    var commanderDeckFormats = {
+      {{ range supportedFormats }}
+        {{ toJSON . }}: {{ if formatRequiresCommander . }}true{{ else }}false{{ end }},
+      {{ end }}
+    };
     var commanderName = {{ toJSON .Data.Deck.CommanderName }};
+    var commanderPrintID = {{ toJSON .Data.Deck.CommanderPrintID }};
+    var initialDeckName = {{ toJSON .Data.Deck.Name }};
     var previewWrap = document.getElementById('deck-card-preview');
     var previewImg = document.getElementById('deck-card-preview-img');
     var previewFallback = document.getElementById('deck-card-preview-fallback');
     var topCommanderNameEl = document.getElementById('deck-commander-name');
     var topCommanderArtWrap = document.getElementById('deck-top-commander-art-wrap');
     var topCommanderArtImg = document.getElementById('deck-top-commander-art');
+    var commanderActionTrigger = document.getElementById('deck-commander-trigger');
     var commanderMenuSlot = document.getElementById('deck-commander-menu-slot');
     var exampleHandList = document.getElementById('deck-analytics-example-hand');
     var exampleHandEmpty = document.getElementById('deck-analytics-example-hand-empty');
     var exampleHandFreshBtn = document.getElementById('deck-analytics-new-hand');
+    var exampleHandFreshSlot = document.getElementById('deck-analytics-new-hand-slot');
+    var exampleHandStatus = document.getElementById('deck-analytics-example-hand-status');
     var requiresTapPreview = false;
     var tapPreviewSource = null;
     var previewLastX = 0;
@@ -108,6 +119,14 @@
     function normalizeName(s) {
       // Collapse internal whitespace and trim.
       return (s || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function normalizeDeckName(value) {
+      var normalized = normalizeName(value);
+      if (!normalized || normalized === 'New Guest Deck' || normalized === 'New Deck') {
+        return normalizeName(initialDeckName) || 'Untitled Deck';
+      }
+      return normalized;
     }
 
     function nextQuickBuildSeed() {
@@ -478,13 +497,18 @@
       if (!exampleHandList) return;
 
       var renderToken = ++exampleHandRenderToken;
-      exampleHandList.innerHTML = '';
+      var oldCards = Array.prototype.slice.call(exampleHandList.querySelectorAll('[data-example-hand-card]'));
+      for (var oldCardIndex = 0; oldCardIndex < oldCards.length; oldCardIndex++) {
+        oldCards[oldCardIndex].remove();
+      }
       if (exampleHandCards.length === 0) {
+        if (exampleHandFreshSlot) exampleHandFreshSlot.classList.add('hidden');
         if (exampleHandEmpty) exampleHandEmpty.classList.remove('hidden');
         return;
       }
 
       if (exampleHandEmpty) exampleHandEmpty.classList.add('hidden');
+      var renderedCards = 0;
       for (var i = 0; i < exampleHandCards.length; i++) {
         var card = exampleHandCards[i] || {};
         var name = normalizeName(card.name);
@@ -504,7 +528,9 @@
             };
           })(name, card.cardMeta || null),
         });
-        exampleHandList.appendChild(tile.node);
+        tile.node.setAttribute('data-example-hand-card', '');
+        exampleHandList.insertBefore(tile.node, exampleHandFreshSlot || null);
+        renderedCards++;
 
         if (!normalizeName(card.imageURI || '')) {
           (function (localTile, localName, localRenderToken) {
@@ -517,7 +543,10 @@
         }
       }
 
-      if (exampleHandList.children.length === 0 && exampleHandEmpty) {
+      if (exampleHandFreshSlot) {
+        exampleHandFreshSlot.classList.toggle('hidden', renderedCards === 0);
+      }
+      if (renderedCards === 0 && exampleHandEmpty) {
         exampleHandEmpty.classList.remove('hidden');
       }
     }
@@ -585,17 +614,30 @@
       }).sort().join('\n');
     }
 
-    function drawExampleHand() {
+    function announceExampleHand(cardCount) {
+      if (!exampleHandStatus) return;
+      exampleHandStatus.textContent = '';
+      window.requestAnimationFrame(function () {
+        exampleHandStatus.textContent = cardCount === 7
+          ? 'A new seven-card example hand is ready.'
+          : 'A new example hand of ' + String(cardCount) + ' cards is ready.';
+      });
+    }
+
+    function drawExampleHand(announce) {
       var pool = isGuest ? buildGuestMainboardPool() : buildSignedMainboardPool();
       exampleHandSignature = exampleHandPoolSignature(pool);
       if (!Array.isArray(pool) || pool.length === 0) {
         renderExampleHand([]);
+        if (announce) announceExampleHand(0);
         return;
       }
 
       var sampled = pool.slice();
       randomizeOrder(sampled);
-      renderExampleHand(sampled.slice(0, Math.min(7, sampled.length)));
+      var nextHand = sampled.slice(0, Math.min(7, sampled.length));
+      renderExampleHand(nextHand);
+      if (announce) announceExampleHand(nextHand.length);
     }
 
     function syncExampleHandForMainboard(force) {
@@ -607,11 +649,13 @@
         renderExampleHand(reconcileExampleHandWithPool(pool));
         return;
       }
-      drawExampleHand();
+      drawExampleHand(false);
     }
 
     if (exampleHandFreshBtn) {
-      exampleHandFreshBtn.addEventListener('click', drawExampleHand);
+      exampleHandFreshBtn.addEventListener('click', function () {
+        drawExampleHand(true);
+      });
     }
 
     function countValue(id) {
@@ -682,15 +726,17 @@
 
       return {
         commanderName: normalizeName(savedDeckSeed.commanderName || commanderName || ''),
+        commanderPrintID: normalizeName(savedDeckSeed.commanderPrintID || commanderPrintID || ''),
         format: normalizeGuestFormat(savedDeckSeed.format || deckFormat),
         commanderCandidates: Array.isArray(savedDeckSeed.commanderCandidates) ? savedDeckSeed.commanderCandidates.slice() : [],
-        name: guestDeckName,
+        name: normalizeDeckName(savedDeckSeed.name || guestDeckName),
         description: String(savedDeckSeed.description || '').trim(),
         tags: String(savedDeckSeed.tags || '').trim(),
         cards: Object.assign({}, (savedDeckSeed.cards && typeof savedDeckSeed.cards === 'object') ? savedDeckSeed.cards : {}),
         sideboardCards: Object.assign({}, (savedDeckSeed.sideboardCards && typeof savedDeckSeed.sideboardCards === 'object') ? savedDeckSeed.sideboardCards : {}),
         maybeCards: Object.assign({}, (savedDeckSeed.maybeCards && typeof savedDeckSeed.maybeCards === 'object') ? savedDeckSeed.maybeCards : {}),
-        cardMeta: Object.assign({}, (savedDeckSeed.cardMeta && typeof savedDeckSeed.cardMeta === 'object') ? savedDeckSeed.cardMeta : {})
+        cardMeta: Object.assign({}, (savedDeckSeed.cardMeta && typeof savedDeckSeed.cardMeta === 'object') ? savedDeckSeed.cardMeta : {}),
+        boardCardMeta: Object.assign({}, (savedDeckSeed.boardCardMeta && typeof savedDeckSeed.boardCardMeta === 'object') ? savedDeckSeed.boardCardMeta : {})
       };
     }
 
@@ -706,11 +752,13 @@
     var key = isSandboxDraft ? 'manatomb.draftDeck.sandbox' : 'manatomb.draftDeck';
     var returnKey = key + '.playtestReturn';
     var deckFormat = {{ toJSON .Data.Deck.Format }};
-    var allowsCommanderCardAction = {{ if eq .Data.Deck.Format "Commander" }}true{{ else }}false{{ end }};
+    var allowsCommanderCardAction = {{ if formatRequiresCommander .Data.Deck.Format }}true{{ else }}false{{ end }};
     var savedDeckID = savedDeckSeed && Number(savedDeckSeed.id || 0) > 0 ? Number(savedDeckSeed.id || 0) : 0;
 
     var nameEl = document.getElementById('guest-deck-name');
-    var guestDeckName = 'New Guest Deck';
+    var deckEditorHeading = document.getElementById('deck-editor-heading');
+    var guestDeckNameInput = document.getElementById('guest-deck-name-input');
+    var guestDeckName = normalizeDeckName((savedDeckSeed && savedDeckSeed.name) || '');
     var descEl = document.getElementById('deck-overview-notes');
     var descEmptyEl = document.getElementById('guest-deck-desc-empty');
     var guestFormatField = document.getElementById('deck-overview-format');
@@ -731,17 +779,17 @@
     var addStatus = document.getElementById('deck-add-status');
     var quickBuildWrap = document.getElementById('deck-quick-build-wrap');
     var quickBuildBtn = document.getElementById('deck-quick-build');
+    var emptyStateTitleEl = document.getElementById('deck-empty-state-title');
+    var quickBuildCopyEl = document.getElementById('deck-quick-build-copy');
     var quickBuildSummaryEl = document.getElementById('deck-quick-build-summary');
-    var playtestBtn = document.getElementById('guest-playtest');
-    var guestLoginSaveLink = document.getElementById('guest-login-to-save');
-    var guestSignupSaveLink = document.getElementById('guest-signup-to-save');
-    var guestPanelLoginSaveLink = document.getElementById('guest-panel-login-to-save');
-    var guestPanelSignupSaveLink = document.getElementById('guest-panel-signup-to-save');
+    var playtestBtn = document.getElementById('deck-analysis-playtest');
+    var guestHeaderAuthSaveLink = document.querySelector('[data-guest-auth-save-link]');
+    var guestTagsField = document.getElementById('deck-overview-tags-hidden');
     var deckMenuOpenBtn = document.getElementById('deck-menu-open');
     var deckMenuOverlay = document.getElementById('deck-menu-overlay');
     var deckMenuCloseBtn = document.getElementById('deck-menu-close');
     var deckMenuNameInput = document.getElementById('deck-menu-name-input');
-    var deckMenuNameSaveBtn = document.getElementById('deck-menu-name-save');
+    var deckMenuTitle = document.getElementById('deck-menu-title');
     var deckMenuCopyBtn = document.getElementById('deck-menu-copy');
     var deckMenuExportTxtBtn = document.getElementById('deck-menu-export-txt');
     var deckMenuExportCsvBtn = document.getElementById('deck-menu-export-csv');
@@ -751,9 +799,14 @@
     var commanderTopArtWrap = topCommanderArtWrap;
     var commanderTopArt = topCommanderArtImg;
     var deckCountLabel = document.getElementById('deck-count-label');
+    var deckUndoWrap = document.getElementById('deck-undo');
+    var deckUndoMessage = document.getElementById('deck-undo-message');
+    var deckUndoButton = document.getElementById('deck-undo-action');
     var deckFilterField = document.getElementById('deck-filter-query');
+    var deckDisplayOptions = document.getElementById('deck-display-options');
     var deckGroupModeField = document.getElementById('deck-group-mode');
     var deckSortModeField = document.getElementById('deck-sort-mode');
+    var deckSortDirectionButton = document.getElementById('deck-sort-direction');
     var deckViewModeField = document.getElementById('deck-view-mode');
     var deckBoardTabButtons = Array.prototype.slice.call(document.querySelectorAll('[data-deck-board-tab]'));
     var savedDeckNameEl = document.getElementById('saved-deck-name');
@@ -761,14 +814,26 @@
     var maybeCountLabel = document.getElementById('guest-maybeboard-count-label');
     var guestAnalyticsStatus = document.getElementById('deck-analytics-status');
     var analyticsStatButtons = Array.prototype.slice.call(document.querySelectorAll('[data-analytics-stat]'));
+    var analyticsStatExplorer = document.getElementById('deck-stat-explorer');
     var analyticsCardListPanel = document.getElementById('deck-analytics-card-list-panel');
     var analyticsCardListTitle = document.getElementById('deck-analytics-card-list-title');
     var analyticsCardList = document.getElementById('deck-analytics-card-list');
     var analyticsCardListClose = document.getElementById('deck-analytics-card-list-close');
+    var manaLockedPanel = document.getElementById('deck-mana-locked-panel');
+    var manaLockedTitle = document.getElementById('deck-mana-locked-title');
+    var manaLockedSummary = document.getElementById('deck-mana-locked-summary');
+    var manaLockedList = document.getElementById('deck-mana-locked-list');
+    var manaLockedClose = document.getElementById('deck-mana-locked-close');
     var currentDeckAnalytics = savedDeckSeed && savedDeckSeed.analytics && typeof savedDeckSeed.analytics === 'object' ? savedDeckSeed.analytics : null;
     var activeAnalyticsStatKey = '';
+    var activeManaSelection = null;
     var deckStackLayoutFrame = 0;
     var deckStackResizeBound = false;
+    var deckStackResizeObserver = null;
+    var deckStackObservedWidth = 0;
+    var deckUndoAction = null;
+    var deckUndoTimer = 0;
+    var deckUndoBusy = false;
     var saveInProgress = false;
     var shouldAutoSave = false;
     var analyticsTimer = null;
@@ -782,10 +847,12 @@
     var guestMetaAttempts = {};
     var deckGroupModeKey = 'manatomb.deckEditor.groupMode';
     var deckSortModeKey = 'manatomb.deckEditor.sortMode';
+    var deckSortDirectionKey = 'manatomb.deckEditor.sortDirection';
     var deckViewModeKey = 'manatomb.deckEditor.viewMode';
     var deckBoardModeKey = 'manatomb.deckEditor.boardMode';
     var deckGroupMode = loadDeckGroupMode();
     var deckSortMode = loadDeckSortMode();
+    var deckSortDirection = loadDeckSortDirection();
     var deckViewMode = loadDeckViewMode();
     var deckBoardMode = loadDeckBoardMode();
     var deckFilterQuery = normalizeName(deckFilterField ? deckFilterField.value : '').toLowerCase();
@@ -800,9 +867,11 @@
     if (deckSortModeField) {
       deckSortModeField.value = deckSortMode;
     }
+    syncDeckSortDirectionControl();
     if (deckViewModeField) {
       deckViewModeField.value = deckViewMode;
     }
+    syncDeckViewAvailability();
     setDeckAddZone(deckBoardMode);
     syncDeckBoardTabs();
     if (addForm) {
@@ -830,10 +899,17 @@
         }
 
         var nextCommander = normalizeName(commanderName);
-        if (nextFormat === 'Commander' && nextCommander) {
+        var nextCommanderPrintID = normalizeName(commanderPrintID);
+        if (formatUsesCommander(nextFormat) && nextCommander) {
           nextURL.searchParams.set('commander_name', nextCommander);
+          if (nextCommanderPrintID) {
+            nextURL.searchParams.set('commander_print_id', nextCommanderPrintID);
+          } else {
+            nextURL.searchParams.delete('commander_print_id');
+          }
         } else {
           nextURL.searchParams.delete('commander_name');
+          nextURL.searchParams.delete('commander_print_id');
         }
 
         return nextURL.pathname + (nextURL.search || '');
@@ -849,13 +925,33 @@
       var loginHref = '/login?next=' + encodeURIComponent(next);
       var signupHref = '/signup?next=' + encodeURIComponent(next);
 
-      if (guestLoginSaveLink) guestLoginSaveLink.href = loginHref;
-      if (guestSignupSaveLink) guestSignupSaveLink.href = signupHref;
-      if (guestPanelLoginSaveLink) guestPanelLoginSaveLink.href = loginHref;
-      if (guestPanelSignupSaveLink) guestPanelSignupSaveLink.href = signupHref;
+      if (guestHeaderAuthSaveLink) guestHeaderAuthSaveLink.href = loginHref;
+    }
+
+    function persistGuestOverviewBeforeAuth() {
+      if (!isGuest || isSignedIn) return;
+
+      var dd = loadDraft() || {
+        commanderName: commanderName,
+        cards: {},
+        sideboardCards: {},
+        maybeCards: {},
+        cardMeta: {}
+      };
+      dd.description = String(descEl ? descEl.value : (dd.description || '')).trim();
+      dd.tags = String(guestTagsField ? guestTagsField.value : (dd.tags || '')).trim();
+      dd.format = normalizeGuestFormat(guestFormatField ? guestFormatField.value : (dd.format || deckFormat));
+      saveDraft(dd);
+    }
+
+    function bindGuestAuthStatePreservation(link) {
+      if (!link) return;
+      link.addEventListener('pointerdown', persistGuestOverviewBeforeAuth);
+      link.addEventListener('click', persistGuestOverviewBeforeAuth);
     }
 
     syncGuestAuthSaveLinks();
+    bindGuestAuthStatePreservation(guestHeaderAuthSaveLink);
 
     if (shouldResetDraft) {
       try {
@@ -904,36 +1000,65 @@
         if (!d.sideboardCards || typeof d.sideboardCards !== 'object') d.sideboardCards = {};
         if (!d.maybeCards || typeof d.maybeCards !== 'object') d.maybeCards = {};
         if (!d.cardMeta || typeof d.cardMeta !== 'object') d.cardMeta = {};
+        if (!d.boardCardMeta || typeof d.boardCardMeta !== 'object') d.boardCardMeta = {};
+        if (!d.boardCardMeta.main || typeof d.boardCardMeta.main !== 'object') d.boardCardMeta.main = {};
+        if (!d.boardCardMeta.side || typeof d.boardCardMeta.side !== 'object') d.boardCardMeta.side = {};
+        if (!d.boardCardMeta.maybe || typeof d.boardCardMeta.maybe !== 'object') d.boardCardMeta.maybe = {};
         if (typeof d.tags !== 'string') d.tags = '';
+        guestDeckName = normalizeDeckName(d.name || guestDeckName);
         d.name = guestDeckName;
 
         var urlCommander = normalizeName(commanderName);
+        var urlCommanderPrintID = normalizeName(commanderPrintID);
         var draftCommander = normalizeName(d.commanderName || '');
+        var draftCommanderPrintID = normalizeName(d.commanderPrintID || '');
         if (!d.format) {
-          d.format = draftCommander ? 'Commander' : (deckFormat === 'Commander' ? 'Commander' : 'Sandbox');
+          d.format = draftCommander ? 'Commander' : normalizeGuestFormat(deckFormat);
         }
-        if (String(d.format || '') !== 'Commander') {
-          d.format = 'Sandbox';
-        }
-        if (shouldResetDraft && deckFormat === 'Commander') {
-          d.format = 'Commander';
+        d.format = normalizeGuestFormat(d.format);
+        if (shouldResetDraft) {
+          d.format = normalizeGuestFormat(deckFormat);
         }
         if (urlCommander && draftCommander && urlCommander.toLowerCase() !== draftCommander.toLowerCase()) {
           if (consumedPlaytestReturn || shouldAutoSave || isSignedIn) {
             // During auth-save flows, prefer the draft we already have over URL commander.
             commanderName = draftCommander;
+            commanderPrintID = draftCommanderPrintID;
           } else {
             return null;
           }
         } else if (!draftCommander && urlCommander) {
           d.commanderName = urlCommander;
+          d.commanderPrintID = urlCommanderPrintID;
           draftCommander = urlCommander;
+          draftCommanderPrintID = urlCommanderPrintID;
         } else if (draftCommander && !urlCommander) {
           commanderName = draftCommander;
+          commanderPrintID = draftCommanderPrintID;
+        } else if (draftCommander && urlCommander && draftCommander.toLowerCase() === urlCommander.toLowerCase()) {
+          if (draftCommanderPrintID) {
+            commanderPrintID = draftCommanderPrintID;
+          } else if (urlCommanderPrintID) {
+            d.commanderPrintID = urlCommanderPrintID;
+            draftCommanderPrintID = urlCommanderPrintID;
+          }
         }
-        if (shouldResetDraft && deckFormat === 'Commander' && urlCommander) {
+        if (shouldResetDraft && formatUsesCommander(deckFormat) && urlCommander) {
           d.commanderName = urlCommander;
+          d.commanderPrintID = urlCommanderPrintID;
           commanderName = urlCommander;
+          commanderPrintID = urlCommanderPrintID;
+        }
+        if (!formatUsesCommander(d.format) || !normalizeName(d.commanderName || '')) {
+          d.commanderPrintID = '';
+          commanderPrintID = '';
+        } else if (!normalizeName(d.commanderPrintID || '')) {
+          var commanderMeta = draftMetaForCard(d, d.commanderName);
+          var legacyPrintID = normalizeName(commanderMeta && (commanderMeta.preferredPrintID || commanderMeta.printID) || '');
+          if (legacyPrintID) {
+            d.commanderPrintID = legacyPrintID;
+            commanderPrintID = legacyPrintID;
+          }
         }
 
         if (!Array.isArray(d.commanderCandidates)) d.commanderCandidates = [];
@@ -962,7 +1087,93 @@
       if (addZoneField) {
         addZoneField.value = zone;
       }
+      var boardLabel = deckBoardLabel(zone);
+      if (addInput) {
+        addInput.placeholder = 'Search cards to add to ' + boardLabel;
+      }
       return zone;
+    }
+
+    function clearDeckUndo() {
+      if (deckUndoTimer) {
+        window.clearTimeout(deckUndoTimer);
+        deckUndoTimer = 0;
+      }
+      deckUndoAction = null;
+      deckUndoBusy = false;
+      if (deckUndoWrap) deckUndoWrap.classList.add('hidden');
+      if (deckUndoMessage) deckUndoMessage.textContent = '';
+      if (deckUndoButton) {
+        deckUndoButton.disabled = false;
+        deckUndoButton.textContent = 'Undo';
+      }
+    }
+
+    function scheduleDeckUndoDismiss() {
+      if (!deckUndoAction || deckUndoBusy) return;
+      if (deckUndoTimer) window.clearTimeout(deckUndoTimer);
+      deckUndoTimer = window.setTimeout(function () {
+        clearDeckUndo();
+      }, 8000);
+    }
+
+    function showDeckUndo(message, action) {
+      clearDeckUndo();
+      if (!deckUndoWrap || !deckUndoMessage || !deckUndoButton || typeof action !== 'function') return;
+      deckUndoAction = action;
+      deckUndoMessage.textContent = normalizeName(message);
+      deckUndoWrap.classList.remove('hidden');
+      scheduleDeckUndoDismiss();
+    }
+
+    if (deckUndoWrap) {
+      deckUndoWrap.addEventListener('mouseenter', function () {
+        if (deckUndoTimer) {
+          window.clearTimeout(deckUndoTimer);
+          deckUndoTimer = 0;
+        }
+      });
+      deckUndoWrap.addEventListener('mouseleave', scheduleDeckUndoDismiss);
+      deckUndoWrap.addEventListener('focusin', function () {
+        if (deckUndoTimer) {
+          window.clearTimeout(deckUndoTimer);
+          deckUndoTimer = 0;
+        }
+      });
+      deckUndoWrap.addEventListener('focusout', function (event) {
+        if (event.relatedTarget && deckUndoWrap.contains(event.relatedTarget)) return;
+        scheduleDeckUndoDismiss();
+      });
+    }
+
+    if (deckUndoButton) {
+      deckUndoButton.addEventListener('click', async function () {
+        if (!deckUndoAction || deckUndoBusy) return;
+        var action = deckUndoAction;
+        deckUndoBusy = true;
+        if (deckUndoTimer) {
+          window.clearTimeout(deckUndoTimer);
+          deckUndoTimer = 0;
+        }
+        deckUndoButton.disabled = true;
+        deckUndoButton.textContent = 'Undoing…';
+        try {
+          var restored = await action();
+          if (restored === false) throw new Error('The deck changed before it could be restored.');
+          clearDeckUndo();
+          if (addStatus) {
+            addStatus.textContent = 'Change undone.';
+            window.setTimeout(function () {
+              if (addStatus && addStatus.textContent === 'Change undone.') addStatus.textContent = '';
+            }, 1800);
+          }
+        } catch (error) {
+          clearDeckUndo();
+          if (addStatus) {
+            addStatus.textContent = normalizeName(error && error.message ? error.message : 'Could not undo that change.');
+          }
+        }
+      });
     }
 
     function loadDeckBoardMode() {
@@ -992,15 +1203,20 @@
         var selected = board === normalizeDeckBoardMode(deckBoardMode);
         btn.classList.toggle('mt-board-tab--active', selected);
         btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+        btn.setAttribute('tabindex', selected ? '0' : '-1');
       }
     }
 
     function normalizeDeckGroupMode(value) {
-      return deckBrowser.normalizeGroup(value, 'none');
+      return deckBrowser.normalizeGroup(value, 'type');
     }
 
     function normalizeDeckSortMode(value) {
       return deckBrowser.normalizeSort(value);
+    }
+
+    function normalizeDeckSortDirection(value) {
+      return deckBrowser.normalizeSortDirection(value);
     }
 
     function normalizeDeckViewMode(value) {
@@ -1009,9 +1225,10 @@
 
     function loadDeckGroupMode() {
       try {
-        return normalizeDeckGroupMode(localStorage.getItem(deckGroupModeKey));
+        var storedGroupMode = localStorage.getItem(deckGroupModeKey);
+        return storedGroupMode ? normalizeDeckGroupMode(storedGroupMode) : 'type';
       } catch (e) {
-        return 'none';
+        return 'type';
       }
     }
 
@@ -1025,14 +1242,16 @@
       } catch (e) {
         // ignore storage failures
       }
+      syncDeckViewAvailability();
       return deckGroupMode;
     }
 
     function loadDeckSortMode() {
       try {
-        return normalizeDeckSortMode(localStorage.getItem(deckSortModeKey));
+        var storedSortMode = localStorage.getItem(deckSortModeKey);
+        return storedSortMode ? normalizeDeckSortMode(storedSortMode) : 'mv';
       } catch (e) {
-        return 'alphabet';
+        return 'mv';
       }
     }
 
@@ -1049,16 +1268,60 @@
       return deckSortMode;
     }
 
-    function loadDeckViewMode() {
+    function loadDeckSortDirection() {
       try {
-        return normalizeDeckViewMode(localStorage.getItem(deckViewModeKey));
+        return normalizeDeckSortDirection(localStorage.getItem(deckSortDirectionKey));
       } catch (e) {
-        return 'stacks';
+        return 'asc';
+      }
+    }
+
+    function persistDeckSortDirection(value) {
+      deckSortDirection = normalizeDeckSortDirection(value);
+      try {
+        localStorage.setItem(deckSortDirectionKey, deckSortDirection);
+      } catch (e) {
+        // ignore storage failures
+      }
+      syncDeckSortDirectionControl();
+      return deckSortDirection;
+    }
+
+    function syncDeckSortDirectionControl() {
+      if (!deckSortDirectionButton) return;
+      var descending = normalizeDeckSortDirection(deckSortDirection) === 'desc';
+      var label = descending ? 'Sort direction: descending' : 'Sort direction: ascending';
+      deckSortDirectionButton.setAttribute('aria-label', label);
+      deckSortDirectionButton.setAttribute('aria-pressed', descending ? 'true' : 'false');
+      deckSortDirectionButton.title = descending
+        ? 'Descending; switch to ascending'
+        : 'Ascending; switch to descending';
+      var icon = deckSortDirectionButton.querySelector('[aria-hidden="true"]');
+      if (icon) icon.textContent = descending ? '↓' : '↑';
+    }
+
+    function loadDeckViewMode() {
+      var freshView = 'stacks';
+      try {
+        if (window.matchMedia && window.matchMedia('(max-width: 759px)').matches) {
+          freshView = 'text';
+        }
+      } catch (mediaError) {
+        freshView = 'stacks';
+      }
+      try {
+        var storedViewMode = localStorage.getItem(deckViewModeKey);
+        return storedViewMode ? normalizeDeckViewMode(storedViewMode) : freshView;
+      } catch (e) {
+        return freshView;
       }
     }
 
     function persistDeckViewMode(value) {
       deckViewMode = normalizeDeckViewMode(value);
+      if (normalizeDeckGroupMode(deckGroupMode) === 'none' && deckViewMode === 'stacks') {
+        deckViewMode = 'grid';
+      }
       if (deckViewModeField) {
         deckViewModeField.value = deckViewMode;
       }
@@ -1068,6 +1331,19 @@
         // ignore storage failures
       }
       return deckViewMode;
+    }
+
+    function syncDeckViewAvailability() {
+      if (!deckViewModeField) return;
+      var stacksOption = deckViewModeField.querySelector('option[value="stacks"]');
+      var ungrouped = normalizeDeckGroupMode(deckGroupMode) === 'none';
+      if (stacksOption) {
+        stacksOption.disabled = ungrouped;
+        stacksOption.title = ungrouped ? 'Choose a grouping to use Stacks.' : '';
+      }
+      if (ungrouped && deckViewMode === 'stacks') {
+        persistDeckViewMode('grid');
+      }
     }
 
     function deckBrowserCard(cardMeta, cardName) {
@@ -1136,14 +1412,16 @@
       return deckBrowser.compareCards(
         deckBrowser.adaptEditorRow(a),
         deckBrowser.adaptEditorRow(b),
-        deckSortMode
+        deckSortMode,
+        deckSortDirection
       );
     }
 
     function groupedDeckSections(rows) {
       return deckBrowser.groupRows(rows, {
         group: deckGroupMode,
-        sort: deckSortMode
+        sort: deckSortMode,
+        direction: deckSortDirection
       });
     }
 
@@ -1165,12 +1443,18 @@
       return deckBrowser.filterRows(rows, deckFilterQuery);
     }
 
-    function appendDeckGroupHeader(name, qty) {
-      if (!listEl || !name) return;
-      var li = document.createElement('li');
-      li.className = 'py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400';
-      li.textContent = name + ' (' + String(qty) + ')';
-      listEl.appendChild(li);
+    function emptyDeckBoardMessage(rows) {
+      if (Array.isArray(rows) && rows.length > 0) {
+        return deckFilterQuery ? 'No matches. Try a different card filter.' : 'No cards to show.';
+      }
+      if (deckBoardMode === 'side') return 'No sideboard cards. Add directly here or move cards over from Main.';
+      if (deckBoardMode === 'maybe') return 'Nothing under consideration yet. Use the Maybeboard for cards you may want to add later.';
+      return 'Search above to add your first card.';
+    }
+
+    function syncDeckDisplayOptions(rows) {
+      if (!deckDisplayOptions) return;
+      deckDisplayOptions.classList.toggle('hidden', !Array.isArray(rows) || rows.length === 0);
     }
 
     function setDeckListViewMode(viewMode) {
@@ -1178,7 +1462,7 @@
       if (!listEl) return normalized;
       var grouped = normalizeDeckGroupMode(deckGroupMode) !== 'none' && normalized !== 'table';
       listEl.className = 'mt-deck-view-root mt-deck-view-root--' + normalized + (grouped ? ' mt-deck-view-root--grouped' : '');
-      if (!(grouped && normalized === 'stacks')) {
+      if (!(grouped && (normalized === 'stacks' || normalized === 'text'))) {
         resetGroupedStackLayout();
       }
       return normalized;
@@ -1228,6 +1512,7 @@
       listEl.style.position = '';
       listEl.style.height = '';
       listEl.removeAttribute('data-stack-layout-locked');
+      listEl.removeAttribute('data-stack-layout-pending');
 
       var sections = groupedStackSections();
       for (var i = 0; i < sections.length; i++) {
@@ -1236,7 +1521,9 @@
     }
 
     function lockGroupedStackLayout() {
-      if (!listEl || !listEl.classList.contains('mt-deck-view-root--stacks') || !listEl.classList.contains('mt-deck-view-root--grouped')) {
+      if (!listEl ||
+          !listEl.classList.contains('mt-deck-view-root--grouped') ||
+          (!listEl.classList.contains('mt-deck-view-root--stacks') && !listEl.classList.contains('mt-deck-view-root--text'))) {
         resetGroupedStackLayout();
         return;
       }
@@ -1244,12 +1531,19 @@
       var sections = groupedStackSections();
       if (sections.length === 0) {
         resetGroupedStackLayout();
-        return;
+        return false;
+      }
+
+      var availableWidth = listEl.getBoundingClientRect().width;
+      if (!Number.isFinite(availableWidth) || availableWidth < 1) {
+        listEl.setAttribute('data-stack-layout-pending', '1');
+        return false;
       }
 
       listEl.style.position = '';
       listEl.style.height = '';
       listEl.removeAttribute('data-stack-layout-locked');
+      listEl.removeAttribute('data-stack-layout-pending');
 
       for (var i = 0; i < sections.length; i++) {
         clearGroupedStackSectionLayout(sections[i]);
@@ -1260,9 +1554,8 @@
       if (!Number.isFinite(rowGap) || rowGap < 0) rowGap = 18;
       var columnGap = parseFloat(rootStyle.columnGap || rootStyle.gap || '0');
       if (!Number.isFinite(columnGap) || columnGap < 0) columnGap = 24;
-      var availableWidth = listEl.clientWidth || listEl.getBoundingClientRect().width || 196;
-      var firstBody = sections[0].querySelector('.mt-deck-view-section__body--stacks');
-      var minColumnWidth = Math.max(196, firstBody ? firstBody.offsetWidth : 0);
+      var textLayout = listEl.classList.contains('mt-deck-view-root--text');
+      var minColumnWidth = textLayout ? 304 : 196;
       var columns = groupedStackColumnCount(availableWidth, columnGap, minColumnWidth, sections.length);
       var columnWidth = columns > 0 ? (availableWidth - (columnGap * (columns - 1))) / columns : availableWidth;
       if (!Number.isFinite(columnWidth) || columnWidth < minColumnWidth) {
@@ -1299,6 +1592,7 @@
       }
 
       listEl.style.height = String(Math.max(maxHeight - rowGap, 0)) + 'px';
+      return true;
     }
 
     function scheduleGroupedStackLayoutLock() {
@@ -1313,11 +1607,28 @@
       if (!deckStackResizeBound) {
         deckStackResizeBound = true;
         window.addEventListener('resize', function () {
-          if (!listEl || !listEl.classList.contains('mt-deck-view-root--stacks') || !listEl.classList.contains('mt-deck-view-root--grouped')) return;
+          if (!listEl ||
+              !listEl.classList.contains('mt-deck-view-root--grouped') ||
+              (!listEl.classList.contains('mt-deck-view-root--stacks') && !listEl.classList.contains('mt-deck-view-root--text'))) return;
           scheduleGroupedStackLayoutLock();
         });
       }
+      if (!deckStackResizeObserver && typeof window.ResizeObserver === 'function') {
+        deckStackResizeObserver = new window.ResizeObserver(function () {
+          if (!listEl) return;
+          var nextWidth = listEl.getBoundingClientRect().width;
+          if (!Number.isFinite(nextWidth)) return;
+          var widthChanged = Math.abs(nextWidth - deckStackObservedWidth) >= 0.5;
+          deckStackObservedWidth = nextWidth;
+          if (nextWidth < 1 || !widthChanged ||
+              !listEl.classList.contains('mt-deck-view-root--grouped') ||
+              (!listEl.classList.contains('mt-deck-view-root--stacks') && !listEl.classList.contains('mt-deck-view-root--text'))) return;
+          scheduleGroupedStackLayoutLock();
+        });
+        deckStackResizeObserver.observe(listEl);
+      }
     }
+    window.mtDeckRefreshCardLayout = scheduleGroupedStackLayoutLock;
 
     function createDeckSectionContainer(name, qty, viewMode) {
       if (!listEl) return null;
@@ -1567,13 +1878,19 @@
       return btn;
     }
 
-    function createDeckBoardMoveControl(row, cardMeta, moveBoard) {
+    function createDeckBoardMoveControl(row, cardMeta, moveBoard, includeCurrent) {
       var wrap = document.createElement('div');
       wrap.className = 'mt-deck-board-switch';
       wrap.setAttribute('aria-label', 'Move card');
-      wrap.appendChild(createDeckBoardMoveButton('M', 'main', row, cardMeta, moveBoard));
-      wrap.appendChild(createDeckBoardMoveButton('S', 'side', row, cardMeta, moveBoard));
-      wrap.appendChild(createDeckBoardMoveButton('May', 'maybe', row, cardMeta, moveBoard));
+      var currentBoard = normalizeDeckBoardMode(deckBoardMode);
+      [
+        { label: 'M', board: 'main' },
+        { label: 'S', board: 'side' },
+        { label: 'May', board: 'maybe' }
+      ].forEach(function (item) {
+        if (includeCurrent === false && item.board === currentBoard) return;
+        wrap.appendChild(createDeckBoardMoveButton(item.label, item.board, row, cardMeta, moveBoard));
+      });
       return wrap;
     }
 
@@ -1592,9 +1909,9 @@
       var cardMeta = row.cardMeta || {};
       var config = options || {};
       var cluster = document.createElement('div');
-      cluster.className = 'mt-deck-action-cluster';
+      cluster.className = 'mt-deck-action-cluster' + (config.vertical ? ' mt-deck-action-cluster--vertical' : '');
       if (config.includeBoardSwitch !== false) {
-        cluster.appendChild(createDeckBoardMoveControl(row, cardMeta, moveBoard));
+        cluster.appendChild(createDeckBoardMoveControl(row, cardMeta, moveBoard, config.includeCurrentBoard !== false));
       }
       cluster.appendChild(createDeckQuantityButton('-', row.cardName, cardMeta, -1, adjustQuantity));
       cluster.appendChild(createActionMenu(row.cardName, cardMeta));
@@ -1615,7 +1932,7 @@
 
       var title = createCardViewButton(
         String(row.qty) + 'x ' + row.cardName,
-        'mt-list-row__title text-left transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200',
+        'mt-list-row__title',
         function () {
           openWorkbenchCardView(row.cardName, cardMeta);
         }
@@ -1641,6 +1958,10 @@
 
       node.appendChild(left);
       node.appendChild(right);
+      node.addEventListener('click', function (event) {
+        if (event.target && event.target.closest('button, a, input, select, textarea, summary, details')) return;
+        openWorkbenchCardView(row.cardName, cardMeta);
+      });
       return node;
     }
 
@@ -1661,7 +1982,7 @@
 
       var media = document.createElement('button');
       media.type = 'button';
-      media.className = 'mt-deck-art-card__media block w-full border-0 bg-transparent p-0 text-left focus:outline-none focus:ring-2 focus:ring-sky-400';
+      media.className = 'mt-deck-art-card__media block w-full border-0 bg-transparent p-0 text-left';
       media.addEventListener('click', function () {
         openWorkbenchCardView(row.cardName, cardMeta, {
           imageURI: imageURI,
@@ -1673,6 +1994,9 @@
         img.className = 'mt-deck-art-card__img';
         img.src = imageURI;
         img.alt = row.cardName + ' art';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.draggable = false;
         media.appendChild(img);
       } else {
         var fallback = document.createElement('div');
@@ -1688,7 +2012,10 @@
       var toolbar = document.createElement('div');
       var useSideToolbar = viewMode === 'stacks' || viewMode === 'grid';
       toolbar.className = 'mt-art-card__toolbar ' + (useSideToolbar ? 'mt-art-card__toolbar--side' : 'mt-art-card__toolbar--top');
-      var actionCluster = createDeckActionCluster(row, createActionMenu, adjustQuantity, moveBoard);
+      var actionCluster = createDeckActionCluster(row, createActionMenu, adjustQuantity, moveBoard, {
+        vertical: useSideToolbar,
+        includeCurrentBoard: !useSideToolbar,
+      });
       var actionMenu = actionCluster.querySelector('[data-card-action-menu]');
       if (actionMenu && actionMenu.classList && (viewMode === 'stacks' || viewMode === 'grid')) {
         actionMenu.classList.add('mt-action-menu--card');
@@ -1704,7 +2031,7 @@
 
       var title = createCardViewButton(
         row.cardName,
-        'mt-art-card__title text-left transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200',
+        'mt-art-card__title',
         function () {
           openWorkbenchCardView(row.cardName, cardMeta, {
             imageURI: imageURI,
@@ -1737,6 +2064,7 @@
       if (groupMode !== 'mv') columns.push({ key: 'mv', label: 'MV' });
       if (groupMode !== 'type') columns.push({ key: 'type', label: 'Type' });
       if (groupMode !== 'price') columns.push({ key: 'price', label: 'Price' });
+      columns.push({ key: 'actions', label: '', ariaLabel: 'Card actions' });
 
       var table = document.createElement('table');
       table.className = 'mt-deck-table';
@@ -1746,6 +2074,8 @@
       columns.forEach(function (column) {
         var th = document.createElement('th');
         th.textContent = column.label;
+        th.setAttribute('data-column', column.key);
+        if (column.ariaLabel) th.setAttribute('aria-label', column.ariaLabel);
         headRow.appendChild(th);
       });
       thead.appendChild(headRow);
@@ -1754,7 +2084,12 @@
       var tbody = document.createElement('tbody');
       function submitTableQuantity(row, cardMeta, input) {
         if (!input) return;
-        var nextQty = Math.floor(Number(input.value || 0));
+        var rawQty = String(input.value || '').trim();
+        if (!rawQty) {
+          input.value = String(row.qty);
+          return;
+        }
+        var nextQty = Math.floor(Number(rawQty));
         if (!Number.isFinite(nextQty) || nextQty < 0) {
           input.value = String(row.qty);
           return;
@@ -1769,6 +2104,7 @@
 
       function appendCell(tr, row, cardMeta, column) {
         var td = document.createElement('td');
+        td.setAttribute('data-column', column.key);
         if (column.key === 'qty') {
           td.className = 'mt-deck-table__qty';
           var qtyInput = document.createElement('input');
@@ -1793,7 +2129,7 @@
           var name = (function (localName, localMeta) {
             return createCardViewButton(
               localName,
-              'mt-deck-table__name text-left transition-colors hover:text-sky-200 focus:outline-none focus:text-sky-200',
+              'mt-deck-table__name',
               function () {
                 openWorkbenchCardView(localName, localMeta);
               }
@@ -1877,6 +2213,12 @@
             appendCell(tr, row, cardMeta, columns[c]);
           }
           attachRowActionMenu(tr, row, cardMeta);
+          tr.addEventListener('click', (function (localName, localMeta) {
+            return function (event) {
+              if (event.target && event.target.closest('button, a, input, select, textarea, summary, details')) return;
+              openWorkbenchCardView(localName, localMeta);
+            };
+          })(row.cardName, cardMeta));
           tbody.appendChild(tr);
         }
       }
@@ -1929,7 +2271,15 @@
       }
 
       var totalHeight = ((cards.length - 1) * collapsedStep) + cardHeight + 2;
-      container.style.height = String(totalHeight) + 'px';
+      if (normalizedExpandedIndex >= 0 && normalizedExpandedIndex < cards.length - 1) {
+        totalHeight += extraSpace;
+      }
+      var nextHeight = String(totalHeight) + 'px';
+      var heightChanged = container.style.height !== nextHeight;
+      container.style.height = nextHeight;
+      if (heightChanged && listEl && listEl.classList.contains('mt-deck-view-root--grouped')) {
+        scheduleGroupedStackLayoutLock();
+      }
     }
 
     function bindDeckStackSection(container) {
@@ -1939,7 +2289,8 @@
       var cards = Array.prototype.slice.call(container.querySelectorAll('.mt-deck-art-card'));
       if (cards.length === 0) return;
       var hoverScope = container;
-      var moveScope = listEl && listEl.contains(container) ? listEl : hoverScope;
+      var moveScope = hoverScope;
+      var moveEventName = window.PointerEvent ? 'pointermove' : 'mousemove';
       var pendingFrame = 0;
       var lastPointerIndex = -1;
       var collapsedStep = 40;
@@ -2032,8 +2383,7 @@
 
       function handleStackPointerMove(event) {
         if (!container.isConnected) {
-          moveScope.removeEventListener('pointermove', handleStackPointerMove);
-          moveScope.removeEventListener('mousemove', handleStackPointerMove);
+          moveScope.removeEventListener(moveEventName, handleStackPointerMove);
           hoverScope.removeEventListener('mouseleave', handleStackMouseLeave);
           return;
         }
@@ -2048,8 +2398,20 @@
         scheduleStackLayout(pinnedIndex >= 0 ? pinnedIndex : -1);
       }
 
-      moveScope.addEventListener('pointermove', handleStackPointerMove);
-      moveScope.addEventListener('mousemove', handleStackPointerMove);
+      container.addEventListener('focusout', function (event) {
+        if (event.relatedTarget && container.contains(event.relatedTarget)) return;
+        window.requestAnimationFrame(function () {
+          if (!container.isConnected || container.contains(document.activeElement)) return;
+          var pinnedIndex = openMenuStackIndex();
+          if (pinnedIndex >= 0) {
+            scheduleStackLayout(pinnedIndex);
+          } else if (!hoverScope.matches(':hover')) {
+            scheduleStackLayout(-1);
+          }
+        });
+      });
+
+      moveScope.addEventListener(moveEventName, handleStackPointerMove);
       hoverScope.addEventListener('mouseleave', handleStackMouseLeave);
 
       layoutDeckStackSection(container, -1);
@@ -2057,9 +2419,28 @@
 
     function renderDeckSections(rows, createActionMenu, adjustQuantity, moveBoard, setQuantity) {
       if (!listEl) return;
+      var focusedControlLabel = '';
+      if (document.activeElement && listEl.contains(document.activeElement)) {
+        focusedControlLabel = normalizeName(document.activeElement.getAttribute('aria-label') || '');
+      }
+
+      function restoreFocusedControl() {
+        if (!focusedControlLabel) return;
+        window.requestAnimationFrame(function () {
+          if (!listEl) return;
+          var controls = listEl.querySelectorAll('[aria-label]');
+          for (var controlIndex = 0; controlIndex < controls.length; controlIndex++) {
+            if (normalizeName(controls[controlIndex].getAttribute('aria-label') || '') !== focusedControlLabel) continue;
+            controls[controlIndex].focus();
+            break;
+          }
+        });
+      }
+
       closeOpenDeckActionMenus();
       rows = rows || [];
 
+      resetGroupedStackLayout();
       var sections = groupedDeckSections(rows);
       var viewMode = setDeckListViewMode(deckViewMode);
       listEl.innerHTML = '';
@@ -2073,6 +2454,7 @@
         tableSection.className = 'mt-deck-view-section mt-deck-view-section--table';
         tableSection.appendChild(createDeckTable(sections, createActionMenu, adjustQuantity, moveBoard, setQuantity));
         listEl.appendChild(tableSection);
+        restoreFocusedControl();
         return;
       }
 
@@ -2092,19 +2474,34 @@
           }
         }
 
-        if (viewMode === 'stacks') {
+        if (viewMode === 'stacks' && normalizeDeckGroupMode(deckGroupMode) !== 'none') {
           bindDeckStackSection(body);
         }
       }
 
-      if (viewMode === 'stacks' && normalizeDeckGroupMode(deckGroupMode) !== 'none') {
+      if ((viewMode === 'stacks' || viewMode === 'text') && normalizeDeckGroupMode(deckGroupMode) !== 'none') {
         scheduleGroupedStackLayoutLock();
       }
+      restoreFocusedControl();
     }
 
     function normalizeGuestFormat(value) {
-      return String(value || '') === 'Commander' ? 'Commander' : 'Sandbox';
+      var raw = normalizeName(value);
+      for (var i = 0; i < supportedDeckFormats.length; i++) {
+        if (String(supportedDeckFormats[i] || '').toLowerCase() === raw.toLowerCase()) {
+          return supportedDeckFormats[i];
+        }
+      }
+      for (var j = 0; j < supportedDeckFormats.length; j++) {
+        if (supportedDeckFormats[j] === deckFormat) return deckFormat;
+      }
+      return 'Commander';
     }
+
+    function formatUsesCommander(value) {
+      return !!commanderDeckFormats[normalizeGuestFormat(value)];
+    }
+    window.mtDeckFormatUsesCommander = formatUsesCommander;
 
     function ensureDraftCardMetaMap(d) {
       if (!d || typeof d !== 'object') return {};
@@ -2243,42 +2640,74 @@
 	      return merged.name ? merged : null;
 	    }
 
-    function draftMetaForCard(d, cardName) {
-      if (!d || !d.cardMeta || typeof d.cardMeta !== 'object') return null;
-      var direct = normalizeDraftCardMeta(d.cardMeta[cardName]);
-      if (direct) return direct;
+    function draftRawMetaForCard(metaByName, cardName) {
+      if (!metaByName || typeof metaByName !== 'object') return null;
+      var direct = metaByName[cardName];
+      if (direct && typeof direct === 'object') return direct;
       var key = normalizeName(cardName).toLowerCase();
       if (!key) return null;
-      var names = Object.keys(d.cardMeta);
+      var names = Object.keys(metaByName);
       for (var i = 0; i < names.length; i++) {
         if (normalizeName(names[i]).toLowerCase() === key) {
-          var normalized = normalizeDraftCardMeta(d.cardMeta[names[i]]);
-          if (normalized) return normalized;
+          var candidate = metaByName[names[i]];
+          if (candidate && typeof candidate === 'object') return candidate;
         }
       }
-	      return null;
-	    }
-	    window.mtDeckDraftMetaForCard = draftMetaForCard;
+      return null;
+    }
 
-	    function draftMetaForBoardCard(d, board, cardName) {
-	      var boardKey = normalizeDeckBoardMode(board);
-	      var boardMeta = d && d.boardCardMeta && typeof d.boardCardMeta === 'object' ? d.boardCardMeta[boardKey] : null;
-	      if (boardMeta && typeof boardMeta === 'object') {
-	        var direct = normalizeDraftCardMeta(boardMeta[cardName]);
-	        if (direct) return direct;
-	        var key = normalizeName(cardName).toLowerCase();
-	        if (key) {
-	          var names = Object.keys(boardMeta);
-	          for (var i = 0; i < names.length; i++) {
-	            if (normalizeName(names[i]).toLowerCase() === key) {
-	              var normalized = normalizeDraftCardMeta(boardMeta[names[i]]);
-	              if (normalized) return normalized;
-	            }
-	          }
-	        }
-	      }
-	      return draftMetaForCard(d, cardName);
-	    }
+    function draftMetaForCard(d, cardName) {
+      if (!d || !d.cardMeta || typeof d.cardMeta !== 'object') return null;
+      return normalizeDraftCardMeta(draftRawMetaForCard(d.cardMeta, cardName));
+    }
+    window.mtDeckDraftMetaForCard = draftMetaForCard;
+
+    function mergeDraftCardMeta(baseMeta, overrideMeta, overrideRawMeta) {
+      if (!baseMeta) return overrideMeta || null;
+      if (!overrideMeta) return baseMeta;
+      var merged = Object.assign({}, baseMeta);
+      var raw = overrideRawMeta && typeof overrideRawMeta === 'object' ? overrideRawMeta : {};
+      [
+        'cardID',
+        'name',
+        'manaCost',
+        'typeLine',
+        'oracleText',
+        'priceUSD',
+        'imageURI',
+        'preferredPrintID',
+        'printID',
+        'setCode',
+        'setName',
+        'collectorNumber',
+        'rarity',
+        'releasedAt',
+        'artist'
+      ].forEach(function (field) {
+        if (normalizeName(overrideMeta[field] || '')) {
+          merged[field] = overrideMeta[field];
+        }
+      });
+      if (Object.prototype.hasOwnProperty.call(raw, 'cmc')) {
+        merged.cmc = overrideMeta.cmc;
+      }
+      if (Object.prototype.hasOwnProperty.call(raw, 'isCommanderCandidate')) {
+        merged.isCommanderCandidate = overrideMeta.isCommanderCandidate;
+      }
+      if (Array.isArray(overrideMeta.faces) && overrideMeta.faces.length > 0) {
+        merged.faces = overrideMeta.faces;
+      }
+      return merged;
+    }
+
+    function draftMetaForBoardCard(d, board, cardName) {
+      var baseMeta = draftMetaForCard(d, cardName);
+      var boardKey = normalizeDeckBoardMode(board);
+      var boardMeta = d && d.boardCardMeta && typeof d.boardCardMeta === 'object' ? d.boardCardMeta[boardKey] : null;
+      var boardRawMeta = draftRawMetaForCard(boardMeta, cardName);
+      var printingMeta = normalizeDraftCardMeta(boardRawMeta);
+      return mergeDraftCardMeta(baseMeta, printingMeta, boardRawMeta);
+    }
 
     function draftCardNameKey(cardMap, cardName) {
       if (!cardMap || typeof cardMap !== 'object') return '';
@@ -2300,6 +2729,10 @@
         if (!d.sideboardCards || typeof d.sideboardCards !== 'object') d.sideboardCards = {};
         if (!d.maybeCards || typeof d.maybeCards !== 'object') d.maybeCards = {};
         if (!d.cardMeta || typeof d.cardMeta !== 'object') d.cardMeta = {};
+        if (!d.boardCardMeta || typeof d.boardCardMeta !== 'object') d.boardCardMeta = {};
+        if (!d.boardCardMeta.main || typeof d.boardCardMeta.main !== 'object') d.boardCardMeta.main = {};
+        if (!d.boardCardMeta.side || typeof d.boardCardMeta.side !== 'object') d.boardCardMeta.side = {};
+        if (!d.boardCardMeta.maybe || typeof d.boardCardMeta.maybe !== 'object') d.boardCardMeta.maybe = {};
         if (typeof d.tags !== 'string') d.tags = '';
         var current = normalizeName(commanderName);
         var stored = normalizeName(d && d.commanderName ? d.commanderName : '');
@@ -2312,11 +2745,39 @@
           d.commanderName = '';
         }
         d.format = normalizeGuestFormat(d.format);
+        if (formatUsesCommander(d.format) && normalizeName(d.commanderName || '')) {
+          var commanderMeta = draftMetaForCard(d, d.commanderName);
+          var selectedCommanderPrintID = normalizeName(
+            d.commanderPrintID ||
+            commanderPrintID ||
+            (commanderMeta && (commanderMeta.preferredPrintID || commanderMeta.printID)) ||
+            ''
+          );
+          d.commanderPrintID = selectedCommanderPrintID;
+          commanderPrintID = selectedCommanderPrintID;
+        } else {
+          d.commanderPrintID = '';
+          commanderPrintID = '';
+        }
         d.name = guestDeckName;
         d.updatedAt = new Date().toISOString();
-        localStorage.setItem(key, JSON.stringify(d));
+        var encodedDraft = JSON.stringify(d);
+        localStorage.setItem(key, encodedDraft);
+        if (localStorage.getItem(key) !== encodedDraft) {
+          throw new Error('local draft verification failed');
+        }
+        syncGuestAuthSaveLinks();
+        if (guestOverviewStatus) {
+          guestOverviewStatus.textContent = '';
+          guestOverviewStatus.setAttribute('data-save-state', 'saved');
+        }
+        return true;
       } catch (e) {
-        // ignore
+        if (guestOverviewStatus) {
+          guestOverviewStatus.textContent = 'Could not save this draft on this device. Try again before leaving.';
+          guestOverviewStatus.setAttribute('data-save-state', 'error');
+        }
+        return false;
       }
     }
 
@@ -2767,6 +3228,7 @@
 
     function renderCommanderActionMenu(actions, keepOpen, showCandidates) {
       if (!commanderMenuSlot) return;
+      if (commanderActionTrigger) commanderActionTrigger.setAttribute('aria-expanded', 'false');
       commanderMenuSlot.innerHTML = '';
       if (!actions || typeof actions !== 'object') return;
       lastCommanderActions = actions;
@@ -2819,6 +3281,17 @@
       ]);
 
       var details = createSimpleDeckActionMenu(actionItems, 'mt-action-menu--commander', current ? 'Commander actions' : 'Select commander');
+      var summary = details.querySelector('summary');
+      if (summary) {
+        summary.innerHTML = '';
+        summary.setAttribute('aria-hidden', 'true');
+        summary.setAttribute('tabindex', '-1');
+      }
+      details.addEventListener('toggle', function () {
+        if (commanderActionTrigger) {
+          commanderActionTrigger.setAttribute('aria-expanded', details.open ? 'true' : 'false');
+        }
+      });
 
       commanderMenuSlot.appendChild(details);
       if (showCandidates) {
@@ -2834,7 +3307,7 @@
 
     window.mtDeckOpenCommanderPicker = function () {
       if (!lastCommanderActions) return;
-      renderCommanderActionMenu(lastCommanderActions, true, true);
+      renderCommanderActionMenu(lastCommanderActions, true, false);
     };
 
     function setGuestDeckStatus(message) {
@@ -2928,12 +3401,42 @@
 
     function renderQuickBuildState(d) {
       var eligible = quickBuildEligibleState(d);
+      var format = normalizeGuestFormat(d && d.format ? d.format : deckFormat);
+      var currentCommander = currentCommanderNameForState(d);
+      var mainEmpty = visibleNonCommanderQuantity((d && d.cards) || {}, currentCommander) === 0;
+      var showOnboarding = deckBoardMode === 'main' && !deckFilterQuery && mainEmpty;
+      var showQuickBuild = deckBoardMode === 'main' && (quickBuildBusy || eligible);
       if (quickBuildWrap) {
-        quickBuildWrap.classList.toggle('hidden', !(quickBuildBusy || eligible));
+        quickBuildWrap.classList.toggle('hidden', !(showOnboarding || showQuickBuild));
       }
       if (quickBuildBtn) {
         quickBuildBtn.disabled = quickBuildBusy || !eligible;
         quickBuildBtn.textContent = quickBuildBusy ? 'Building starter list…' : 'Quick Build';
+        quickBuildBtn.classList.toggle('hidden', !showQuickBuild);
+      }
+      if (emptyStateTitleEl && quickBuildCopyEl) {
+        if (format === 'Standard') {
+          emptyStateTitleEl.textContent = 'Start your Standard deck';
+          quickBuildCopyEl.textContent = 'Search above to add your first card. You’re building toward a 60-card mainboard.';
+        } else if (format === 'Sandbox') {
+          emptyStateTitleEl.textContent = 'Start with any card';
+          quickBuildCopyEl.textContent = 'Search above to add your first card. Sandbox has no deck-size or format restrictions.';
+        } else if (formatUsesCommander(format)) {
+          emptyStateTitleEl.textContent = currentCommander
+            ? 'Build around your commander'
+            : 'Choose a commander to begin';
+          quickBuildCopyEl.textContent = showQuickBuild && currentCommander
+            ? 'Search above, or create a starter built around ' + currentCommander + '.'
+            : (currentCommander
+              ? 'Search above to add your first card.'
+              : 'Open the commander card above to choose a legendary leader from this deck.');
+        } else {
+          emptyStateTitleEl.textContent = 'Start your ' + format + ' deck';
+          quickBuildCopyEl.textContent = 'Search above to add your first card.';
+        }
+      }
+      if (emptyEl && (showOnboarding || showQuickBuild)) {
+        emptyEl.classList.add('hidden');
       }
       if (!quickBuildBusy && eligible) {
         setQuickBuildSummary('');
@@ -2981,6 +3484,9 @@
           image_uri: meta.imageURI || '',
           faces: Array.isArray(meta.faces) ? meta.faces : []
         });
+        if (currentCommanderPrintForDraft(d)) {
+          return;
+        }
       }
 
       var cacheKey = current.toLowerCase();
@@ -3007,6 +3513,9 @@
       ensureDraftCardMetaMap(dd);
 
       var previousCommander = normalizeName(currentCommanderForDraft(dd));
+      var previousCommanderMeta = normalizeDraftCardMeta(
+        previousCommander ? draftMetaForCard(dd, previousCommander) : null
+      );
       var meta = draftMetaForCard(dd, picked);
       var resolved = null;
 
@@ -3028,6 +3537,8 @@
 
       commanderName = picked;
       dd.commanderName = commanderName;
+      commanderPrintID = normalizeName(meta.preferredPrintID || meta.printID || '');
+      dd.commanderPrintID = commanderPrintID;
 
       if (previousCommander && previousCommander.toLowerCase() !== commanderName.toLowerCase()) {
         var previousKey = draftCardNameKey(dd.cards, previousCommander);
@@ -3043,7 +3554,7 @@
           if (!canonicalKey) canonicalKey = previousCanonical;
           dd.cards[canonicalKey] = Number(dd.cards[canonicalKey] || 0) + 1;
 
-          var previousMeta = buildDraftCardMeta(previousResolved);
+          var previousMeta = previousCommanderMeta || buildDraftCardMeta(previousResolved);
           if (previousMeta) {
             dd.cardMeta[canonicalKey] = previousMeta;
           }
@@ -3113,6 +3624,15 @@
       return normalizeName(commanderName);
     }
 
+    function currentCommanderPrintForDraft(d) {
+      var current = currentCommanderForDraft(d);
+      if (!current) return '';
+      var explicit = normalizeName(d && d.commanderPrintID ? d.commanderPrintID : commanderPrintID);
+      if (explicit) return explicit;
+      var meta = draftMetaForCard(d, current);
+      return normalizeName(meta && (meta.preferredPrintID || meta.printID) || '');
+    }
+
     function setGuestFormat(nextFormat) {
       var format = normalizeGuestFormat(nextFormat);
       var dd = loadDraft() || { commanderName: commanderName, cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
@@ -3121,12 +3641,14 @@
       ensureDraftCardMetaMap(dd);
 
       var previousCommander = normalizeName(currentCommanderForDraft(dd));
-      if (format === 'Commander') {
-        if (normalizeGuestFormat(dd.format) !== 'Commander') {
+      if (formatUsesCommander(format)) {
+        if (!formatUsesCommander(dd.format)) {
           commanderName = '';
+          commanderPrintID = '';
           dd.commanderName = '';
+          dd.commanderPrintID = '';
         }
-        dd.format = 'Commander';
+        dd.format = format;
       } else {
         if (previousCommander) {
           var existingKey = draftCardNameKey(dd.cards, previousCommander);
@@ -3136,14 +3658,16 @@
           }
         }
         commanderName = '';
+        commanderPrintID = '';
         dd.commanderName = '';
-        dd.format = 'Sandbox';
+        dd.commanderPrintID = '';
+        dd.format = format;
       }
 
       if (guestFormatField) guestFormatField.value = dd.format;
       saveDraft(dd);
       render(dd);
-      if (guestOverviewStatus) guestOverviewStatus.textContent = 'Saved locally.';
+      if (guestOverviewStatus) guestOverviewStatus.textContent = '';
     }
 
     async function runGuestQuickBuild() {
@@ -3195,6 +3719,8 @@
         }
 
         commanderName = normalizeName(next.commanderName || commanderName);
+        commanderPrintID = normalizeName(next.commanderPrintID || currentCommanderPrintForDraft(dd));
+        next.commanderPrintID = commanderPrintID;
         next.name = guestDeckName;
         next.description = typeof next.description === 'string' ? next.description : String(dd.description || '');
         next.tags = typeof next.tags === 'string' ? next.tags : String(dd.tags || '');
@@ -3205,9 +3731,6 @@
         saveDraft(next);
         render(next);
         setGuestDeckStatus('Starter shell added. This is a playtest-ready first draft.');
-        if (guestOverviewStatus && out && out.summary && out.summary.explanation) {
-          guestOverviewStatus.textContent = out.summary.explanation;
-        }
       } catch (e) {
         setGuestDeckStatus(e && e.message ? e.message : 'Could not build a starter shell.');
       } finally {
@@ -3230,7 +3753,7 @@
       list.innerHTML = '';
       if (!Array.isArray(extras) || extras.length === 0) {
         var empty = document.createElement('li');
-        empty.className = 'text-slate-500';
+        empty.className = 'mt-deck-editor__empty';
         empty.textContent = 'None.';
         list.appendChild(empty);
         return;
@@ -3263,7 +3786,7 @@
 
       if (rendered === 0) {
         var fallback = document.createElement('li');
-        fallback.className = 'text-slate-500';
+        fallback.className = 'mt-deck-editor__empty';
         fallback.textContent = 'None.';
         list.appendChild(fallback);
       }
@@ -3392,6 +3915,11 @@
       analyticsCardListTitle.textContent = analyticsStatLabel(key);
       analyticsCardList.innerHTML = '';
       analyticsCardListPanel.classList.remove('hidden');
+      if (analyticsStatExplorer) analyticsStatExplorer.classList.add('is-expanded');
+      for (var buttonIndex = 0; buttonIndex < analyticsStatButtons.length; buttonIndex++) {
+        var buttonKey = analyticsStatButtons[buttonIndex].getAttribute('data-analytics-stat') || '';
+        analyticsStatButtons[buttonIndex].setAttribute('aria-expanded', buttonKey === key ? 'true' : 'false');
+      }
 
       var cards = analyticsStatCards(key);
       if (cards.length === 0) {
@@ -3436,6 +3964,180 @@
     function hideAnalyticsStatCardList() {
       activeAnalyticsStatKey = '';
       if (analyticsCardListPanel) analyticsCardListPanel.classList.add('hidden');
+      if (analyticsStatExplorer) analyticsStatExplorer.classList.remove('is-expanded');
+      for (var buttonIndex = 0; buttonIndex < analyticsStatButtons.length; buttonIndex++) {
+        analyticsStatButtons[buttonIndex].setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function analyticsManaStats(kind) {
+      if (!currentDeckAnalytics || typeof currentDeckAnalytics !== 'object') return [];
+      var key = kind === 'sources' ? 'mana_sources' : 'mana_pips';
+      var fallbackKey = kind === 'sources' ? 'manaSources' : 'manaPips';
+      var stats = currentDeckAnalytics[key] || currentDeckAnalytics[fallbackKey] || [];
+      return Array.isArray(stats) ? stats : [];
+    }
+
+    function normalizedManaStat(raw) {
+      raw = raw && typeof raw === 'object' ? raw : {};
+      var symbol = normalizeName(raw.symbol || raw.Symbol || '').toUpperCase();
+      if (['W', 'U', 'B', 'R', 'G', 'C'].indexOf(symbol) === -1) return null;
+      var count = Number(raw.count || raw.Count || 0);
+      if (!Number.isFinite(count) || count < 0) count = 0;
+      return {
+        symbol: symbol,
+        label: normalizeName(raw.label || raw.Label || '') || symbol,
+        imageURI: normalizeName(raw.image_uri || raw.imageURI || raw.ImageURI || '') || ('https://svgs.scryfall.io/card-symbols/' + symbol + '.svg'),
+        count: Math.round(count),
+        cards: Array.isArray(raw.cards || raw.Cards) ? (raw.cards || raw.Cards) : []
+      };
+    }
+
+    function manaStatForSelection(kind, symbol) {
+      var stats = analyticsManaStats(kind);
+      for (var i = 0; i < stats.length; i++) {
+        var stat = normalizedManaStat(stats[i]);
+        if (stat && stat.symbol === symbol) return stat;
+      }
+      return null;
+    }
+
+    function syncManaSegmentSelection() {
+      var segments = document.querySelectorAll('[data-mana-profile-segment]');
+      for (var i = 0; i < segments.length; i++) {
+        var isActive = !!activeManaSelection &&
+          segments[i].getAttribute('data-mana-profile-kind') === activeManaSelection.kind &&
+          segments[i].getAttribute('data-mana-profile-symbol') === activeManaSelection.symbol;
+        segments[i].setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      }
+    }
+
+    function closeManaLockedPanel() {
+      activeManaSelection = null;
+      if (manaLockedPanel) manaLockedPanel.classList.add('hidden');
+      if (manaLockedList) manaLockedList.innerHTML = '';
+      syncManaSegmentSelection();
+    }
+
+    function showManaLockedPanel(kind, symbol) {
+      var stat = manaStatForSelection(kind, symbol);
+      if (!stat || stat.count <= 0 || !manaLockedPanel || !manaLockedList) {
+        closeManaLockedPanel();
+        return;
+      }
+
+      activeManaSelection = { kind: kind, symbol: symbol };
+      var isSources = kind === 'sources';
+      if (manaLockedTitle) {
+        manaLockedTitle.textContent = stat.label + (isSources ? ' mana sources' : ' pips in costs');
+      }
+      if (manaLockedSummary) {
+        var cardCount = stat.cards.length;
+        manaLockedSummary.textContent = String(stat.count) + (isSources ? ' source' : ' pip') + (stat.count === 1 ? '' : 's') +
+          ' across ' + String(cardCount) + ' card' + (cardCount === 1 ? '' : 's') + '.';
+      }
+
+      manaLockedList.innerHTML = '';
+      for (var i = 0; i < stat.cards.length; i++) {
+        var card = stat.cards[i] || {};
+        var name = normalizeName(card.name || card.Name || '');
+        if (!name) continue;
+        var qty = Number(card.qty || card.Qty || 0);
+        if (!Number.isFinite(qty) || qty <= 0) qty = 1;
+
+        var item = document.createElement('li');
+        item.className = 'mt-analytics-card-list__item';
+        var title = document.createElement('strong');
+        title.textContent = String(qty) + ' ' + name;
+        item.appendChild(title);
+
+        var reason = normalizeName(card.reason || card.Reason || '');
+        if (reason) {
+          var meta = document.createElement('small');
+          meta.textContent = reason;
+          item.appendChild(meta);
+        }
+        manaLockedList.appendChild(item);
+      }
+
+      manaLockedPanel.classList.remove('hidden');
+      syncManaSegmentSelection();
+    }
+
+    function toggleManaLockedPanel(kind, symbol) {
+      if (activeManaSelection && activeManaSelection.kind === kind && activeManaSelection.symbol === symbol &&
+          manaLockedPanel && !manaLockedPanel.classList.contains('hidden')) {
+        closeManaLockedPanel();
+        return;
+      }
+      showManaLockedPanel(kind, symbol);
+    }
+
+    function renderManaProfile(kind, rawStats) {
+      var bar = document.querySelector('[data-mana-profile-bar="' + kind + '"]');
+      var legend = document.querySelector('[data-mana-profile-legend="' + kind + '"]');
+      var empty = document.querySelector('[data-mana-profile-empty="' + kind + '"]');
+      if (!bar || !legend) return;
+
+      bar.innerHTML = '';
+      legend.innerHTML = '';
+      var visible = [];
+      for (var i = 0; i < rawStats.length; i++) {
+        var stat = normalizedManaStat(rawStats[i]);
+        if (stat && stat.count > 0) visible.push(stat);
+      }
+      bar.classList.toggle('hidden', visible.length === 0);
+      legend.classList.toggle('hidden', visible.length === 0);
+      if (empty) empty.classList.toggle('hidden', visible.length !== 0);
+
+      for (var j = 0; j < visible.length; j++) {
+        var current = visible[j];
+        var segment = document.createElement('button');
+        segment.type = 'button';
+        segment.className = 'mt-deck-editor__mana-segment mt-deck-editor__mana-segment--' + current.symbol.toLowerCase();
+        segment.style.flexGrow = String(current.count);
+        segment.style.flexBasis = '0px';
+        segment.setAttribute('data-mana-profile-segment', '');
+        segment.setAttribute('data-mana-profile-kind', kind);
+        segment.setAttribute('data-mana-profile-symbol', current.symbol);
+        segment.setAttribute('aria-pressed', 'false');
+        segment.setAttribute('aria-label', current.label + ': ' + String(current.count) + (kind === 'sources' ? ' mana sources. Show cards.' : ' pips. Show cards.'));
+        segment.title = current.label + ': ' + String(current.count);
+        segment.addEventListener('click', function () {
+          toggleManaLockedPanel(
+            this.getAttribute('data-mana-profile-kind') || 'pips',
+            this.getAttribute('data-mana-profile-symbol') || ''
+          );
+        });
+        bar.appendChild(segment);
+
+        var legendItem = document.createElement('li');
+        var legendLabel = document.createElement('span');
+        var pip = document.createElement('img');
+        pip.src = current.imageURI;
+        pip.alt = '';
+        pip.loading = 'lazy';
+        legendLabel.appendChild(pip);
+        legendLabel.appendChild(document.createTextNode(current.label));
+        var legendCount = document.createElement('strong');
+        legendCount.textContent = String(current.count);
+        legendItem.appendChild(legendLabel);
+        legendItem.appendChild(legendCount);
+        legend.appendChild(legendItem);
+      }
+    }
+
+    function renderManaProfiles(analytics) {
+      analytics = analytics && typeof analytics === 'object' ? analytics : {};
+      var pips = analytics.mana_pips || analytics.manaPips || [];
+      var sources = analytics.mana_sources || analytics.manaSources || [];
+      renderManaProfile('pips', Array.isArray(pips) ? pips : []);
+      renderManaProfile('sources', Array.isArray(sources) ? sources : []);
+      if (activeManaSelection) {
+        showManaLockedPanel(activeManaSelection.kind, activeManaSelection.symbol);
+      } else {
+        syncManaSegmentSelection();
+      }
     }
 
     function renderPowerEstimate(power) {
@@ -3447,65 +4149,15 @@
       }
 
       panel.classList.remove('hidden');
-      setAnalyticsField('deck-power-bracket', Number(power.bracket || 0) || '-');
+      var bracket = Number(power.bracket || 0) || 0;
+      setAnalyticsField('deck-power-bracket', bracket || '-');
       setAnalyticsField('deck-power-label', normalizeName(power.bracket_label || '') || 'Commander');
-      setAnalyticsField('deck-power-summary', normalizeName(power.summary || '') || 'Add cards to refine this estimate.');
-      setAnalyticsField('deck-power-game-changers', Number(power.game_changer_count || 0));
-      setAnalyticsField('deck-power-land-denial', Number(power.mass_land_denial_count || 0));
-      setAnalyticsField('deck-power-extra-turns', Number(power.extra_turn_count || 0));
-      setAnalyticsField('deck-power-combos', Number(power.compact_combo_count || 0));
 
-      var list = document.getElementById('deck-power-signals-list');
-      if (!list) return;
-      list.innerHTML = '';
-      var signals = Array.isArray(power.signals) ? power.signals : [];
-      for (var i = 0; i < signals.length; i++) {
-        var signal = signals[i] || {};
-        var tone = normalizeName(signal.tone || 'info').toLowerCase();
-        if (['good', 'warn', 'alert', 'info'].indexOf(tone) === -1) tone = 'info';
-
-        var item = document.createElement('li');
-        item.className = 'mt-power-signal mt-power-signal--' + tone;
-
-        var label = document.createElement('span');
-        label.className = 'mt-power-signal__label';
-        label.textContent = normalizeName(signal.label || '') || 'Signal';
-        item.appendChild(label);
-
-        var value = document.createElement('strong');
-        value.className = 'mt-power-signal__value';
-        value.textContent = normalizeName(signal.value || '') || '0';
-        item.appendChild(value);
-
-        var detail = normalizeName(signal.detail || '');
-        if (detail) {
-          var small = document.createElement('small');
-          small.className = 'mt-power-signal__detail';
-          small.textContent = detail;
-          item.appendChild(small);
-        }
-
-        var cards = Array.isArray(signal.cards) ? signal.cards.map(normalizeName).filter(Boolean) : [];
-        if (cards.length > 0) {
-          var cardList = document.createElement('ul');
-          cardList.className = 'mt-power-signal__cards';
-          for (var c = 0; c < cards.length; c++) {
-            var cardItem = document.createElement('li');
-            cardItem.textContent = cards[c];
-            cardList.appendChild(cardItem);
-          }
-          item.appendChild(cardList);
-        }
-
-        list.appendChild(item);
-      }
-
-      if (list.children.length === 0) {
-        var empty = document.createElement('li');
-        empty.className = 'mt-power-signal mt-power-signal--info';
-        empty.innerHTML = '<span class="mt-power-signal__label">Signals</span><strong class="mt-power-signal__value">Pending</strong><small class="mt-power-signal__detail">Add cards to estimate bracket pressure.</small>';
-        list.appendChild(empty);
-      }
+      var confidence = normalizeName(power.confidence || '').toLowerCase();
+      var confidenceLabel = 'Full-deck estimate';
+      if (confidence === 'low') confidenceLabel = 'Early estimate';
+      else if (confidence === 'medium') confidenceLabel = 'Developing estimate';
+      setAnalyticsField('deck-power-confidence', confidenceLabel);
     }
 
     function renderAnalytics(a) {
@@ -3541,6 +4193,7 @@
       renderGuideChecks(a.guide_checks || []);
       renderGuideWarnings(a.validation_warnings || []);
       renderPowerEstimate(a.power_estimate || null);
+      renderManaProfiles(a);
       if (activeAnalyticsStatKey && analyticsCardListPanel && !analyticsCardListPanel.classList.contains('hidden')) {
         renderAnalyticsStatCardList(activeAnalyticsStatKey);
       }
@@ -3549,11 +4202,19 @@
 
     for (var analyticsButtonIndex = 0; analyticsButtonIndex < analyticsStatButtons.length; analyticsButtonIndex++) {
       analyticsStatButtons[analyticsButtonIndex].addEventListener('click', function () {
-        renderAnalyticsStatCardList(this.getAttribute('data-analytics-stat') || 'all');
+        var key = this.getAttribute('data-analytics-stat') || 'all';
+        if (activeAnalyticsStatKey === key && analyticsCardListPanel && !analyticsCardListPanel.classList.contains('hidden')) {
+          hideAnalyticsStatCardList();
+          return;
+        }
+        renderAnalyticsStatCardList(key);
       });
     }
     if (analyticsCardListClose) {
       analyticsCardListClose.addEventListener('click', hideAnalyticsStatCardList);
+    }
+    if (manaLockedClose) {
+      manaLockedClose.addEventListener('click', closeManaLockedPanel);
     }
 
     function deckAnalyticsPayload(d) {
@@ -3569,7 +4230,7 @@
       });
 
       return {
-        format: (d && d.format) ? d.format : (deckFormat === 'Commander' ? 'Commander' : 'Sandbox'),
+        format: normalizeGuestFormat((d && d.format) ? d.format : deckFormat),
         commander_name: currentCommanderForDraft(d),
         cards: cards,
       };
@@ -3602,7 +4263,7 @@
         }).then(function (analytics) {
           if (reqToken !== analyticsRequestToken) return;
           renderAnalytics(analytics);
-          if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = 'Live';
+          if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = '';
         }).catch(function () {
           if (reqToken !== analyticsRequestToken) return;
           if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = 'Unavailable';
@@ -3610,59 +4271,133 @@
       }, 220);
     }
 
+    function guestBoardUndoState(d, board, cardName) {
+      var normalizedBoard = normalizeDeckBoardMode(board);
+      var map = draftBoardMap(d, normalizedBoard);
+      var keyForCard = draftCardNameKey(map, cardName);
+      var quantity = Number(keyForCard ? map[keyForCard] : 0);
+      if (!Number.isFinite(quantity) || quantity < 0) quantity = 0;
+      return {
+        board: normalizedBoard,
+        quantity: quantity
+      };
+    }
+
+    function restoreGuestBoardUndoStates(cardName, expectedStates, restoreStates) {
+      var latest = loadDraft();
+      if (!latest) return false;
+      ensureDraftCardMetaMap(latest);
+
+      for (var i = 0; i < expectedStates.length; i++) {
+        var current = guestBoardUndoState(latest, expectedStates[i].board, cardName);
+        if (current.quantity !== expectedStates[i].quantity) return false;
+      }
+
+      for (var j = 0; j < restoreStates.length; j++) {
+        var state = restoreStates[j];
+        var map = draftBoardMap(latest, state.board);
+        var existingKey = draftCardNameKey(map, cardName);
+        if (state.quantity <= 0) {
+          if (existingKey) delete map[existingKey];
+        } else {
+          map[existingKey || cardName] = state.quantity;
+        }
+      }
+
+      if (!saveDraft(latest)) return false;
+      render(latest);
+      return true;
+    }
+
     function adjustGuestBoardCardQuantity(board, cardName, delta) {
       var name = normalizeName(cardName);
       var step = Number(delta || 0);
       if (!name || !Number.isFinite(step) || step === 0) return;
+      if (!deckUndoBusy) clearDeckUndo();
 
       var dd = loadDraft() || { commanderName: commanderName, cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
       ensureDraftCardMetaMap(dd);
 
-      var map = draftBoardMap(dd, board);
-      var nextQty = Number(map[name] || 0) + step;
+      var targetBoard = normalizeDeckBoardMode(board);
+      var before = guestBoardUndoState(dd, targetBoard, name);
+      var map = draftBoardMap(dd, targetBoard);
+      var existingKey = draftCardNameKey(map, name);
+      var nextQty = before.quantity + step;
       if (!Number.isFinite(nextQty) || nextQty <= 0) {
-        delete map[name];
+        if (existingKey) delete map[existingKey];
+        nextQty = 0;
       } else {
-        map[name] = nextQty;
+        map[existingKey || name] = nextQty;
       }
 
-      saveDraft(dd);
+      if (!saveDraft(dd)) return;
       render(dd);
+      if (step < 0 && nextQty < before.quantity) {
+        var after = { board: targetBoard, quantity: nextQty };
+        showDeckUndo('Removed ' + name + '.', function () {
+          return restoreGuestBoardUndoStates(name, [after], [before]);
+        });
+      }
     }
 
 	    function setGuestBoardCardQuantity(board, cardName, quantity) {
 	      var name = normalizeName(cardName);
 	      var nextQty = Math.floor(Number(quantity || 0));
 	      if (!name || !Number.isFinite(nextQty) || nextQty < 0) return;
+      if (!deckUndoBusy) clearDeckUndo();
 
       var dd = loadDraft() || { commanderName: commanderName, cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
       ensureDraftCardMetaMap(dd);
 
-      var map = draftBoardMap(dd, board);
+      var targetBoard = normalizeDeckBoardMode(board);
+      var before = guestBoardUndoState(dd, targetBoard, name);
+      var map = draftBoardMap(dd, targetBoard);
+      var existingKey = draftCardNameKey(map, name);
       if (nextQty <= 0) {
-        delete map[name];
+        if (existingKey) delete map[existingKey];
       } else {
-        map[name] = nextQty;
+        map[existingKey || name] = nextQty;
       }
 
-      saveDraft(dd);
+      if (!saveDraft(dd)) return;
       render(dd);
+      if (nextQty < before.quantity) {
+        var after = { board: targetBoard, quantity: nextQty };
+        var removed = before.quantity - nextQty;
+        showDeckUndo(
+          'Removed ' + String(removed) + (removed === 1 ? ' copy of ' : ' copies of ') + name + '.',
+          function () {
+            return restoreGuestBoardUndoStates(name, [after], [before]);
+          }
+        );
+      }
     }
 
-    function applyGuestCardVersion(cardName, cardMeta, version) {
+    function applyGuestCardVersion(cardName, cardMeta, version, board) {
       var name = normalizeName(cardName);
       var nextMeta = buildDraftCardMetaFromVersion(name, cardMeta, version);
       if (!name || !nextMeta) return;
 
       var dd = loadDraft() || { commanderName: commanderName, cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
       ensureDraftCardMetaMap(dd);
+      if (!dd.boardCardMeta || typeof dd.boardCardMeta !== 'object') dd.boardCardMeta = {};
+      var boardKey = normalizeDeckBoardMode(board || deckBoardMode);
+      if (!dd.boardCardMeta[boardKey] || typeof dd.boardCardMeta[boardKey] !== 'object') {
+        dd.boardCardMeta[boardKey] = {};
+      }
       dd.cardMeta[name] = nextMeta;
+      dd.boardCardMeta[boardKey][name] = nextMeta;
       if (nextMeta.name && nextMeta.name.toLowerCase() !== name.toLowerCase()) {
         dd.cardMeta[nextMeta.name] = nextMeta;
+        dd.boardCardMeta[boardKey][nextMeta.name] = nextMeta;
       }
       if (nextMeta.imageURI) {
         guestPreviewCache[name.toLowerCase()] = nextMeta.imageURI;
         if (nextMeta.name) guestPreviewCache[nextMeta.name.toLowerCase()] = nextMeta.imageURI;
+      }
+      if (name.toLowerCase() === currentCommanderForDraft(dd).toLowerCase()) {
+        commanderPrintID = normalizeName(nextMeta.preferredPrintID || nextMeta.printID || '');
+        dd.commanderPrintID = commanderPrintID;
       }
 
       saveDraft(dd);
@@ -3670,7 +4405,7 @@
       setGuestDeckStatus('Version updated.');
     }
 
-    function openGuestCardVersionPicker(cardName, cardMeta) {
+    function openGuestCardVersionPicker(cardName, cardMeta, board) {
       var meta = normalizeDraftCardMeta(cardMeta) || {};
       openWorkbenchCardView(cardName, meta, {
         detailMode: 'versions',
@@ -3678,7 +4413,7 @@
         printID: meta.printID || meta.preferredPrintID || '',
         versionContext: {
           onSelect: function (version) {
-            applyGuestCardVersion(cardName, meta, version);
+            applyGuestCardVersion(cardName, meta, version, board);
           }
         }
       });
@@ -3699,24 +4434,47 @@
     function moveGuestCardQuantityBetweenBoards(fromBoard, toBoard, cardName, quantity) {
       var name = normalizeName(cardName);
       if (!name) return;
+      if (!deckUndoBusy) clearDeckUndo();
 
       var dd = loadDraft() || { commanderName: commanderName, cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
       ensureDraftCardMetaMap(dd);
 
-      var fromMap = draftBoardMap(dd, fromBoard);
-      var toMap = draftBoardMap(dd, toBoard);
-      var current = Number(fromMap[name] || 0);
+      var sourceBoard = normalizeDeckBoardMode(fromBoard);
+      var targetBoard = normalizeDeckBoardMode(toBoard);
+      if (sourceBoard === targetBoard) return;
+      var beforeSource = guestBoardUndoState(dd, sourceBoard, name);
+      var beforeTarget = guestBoardUndoState(dd, targetBoard, name);
+      var fromMap = draftBoardMap(dd, sourceBoard);
+      var toMap = draftBoardMap(dd, targetBoard);
+      var sourceKey = draftCardNameKey(fromMap, name);
+      var targetKey = draftCardNameKey(toMap, name);
+      var current = beforeSource.quantity;
       if (!Number.isFinite(current) || current <= 0) return;
       var moveQty = Math.floor(Number(quantity || 0));
       if (!Number.isFinite(moveQty) || moveQty <= 0 || moveQty > current) {
         moveQty = current;
       }
-      fromMap[name] = current - moveQty;
-      if (fromMap[name] <= 0) delete fromMap[name];
-      toMap[name] = Number(toMap[name] || 0) + moveQty;
+      var sourceAfterQty = current - moveQty;
+      var targetAfterQty = beforeTarget.quantity + moveQty;
+      if (sourceAfterQty <= 0) {
+        if (sourceKey) delete fromMap[sourceKey];
+      } else {
+        fromMap[sourceKey || name] = sourceAfterQty;
+      }
+      toMap[targetKey || name] = targetAfterQty;
 
-      saveDraft(dd);
+      if (!saveDraft(dd)) return;
       render(dd);
+      var afterStates = [
+        { board: sourceBoard, quantity: sourceAfterQty },
+        { board: targetBoard, quantity: targetAfterQty }
+      ];
+      showDeckUndo(
+        'Moved ' + (moveQty > 1 ? String(moveQty) + ' copies of ' : '') + name + ' to ' + deckBoardLabel(targetBoard) + '.',
+        function () {
+          return restoreGuestBoardUndoStates(name, afterStates, [beforeSource, beforeTarget]);
+        }
+      );
     }
 
     function moveGuestCardToMaybe(cardName) {
@@ -3806,7 +4564,9 @@
       d = d || { commanderName: commanderName, commanderCandidates: [], cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
       ensureDraftCardMetaMap(d);
       d.format = normalizeGuestFormat(d.format);
-      allowsCommanderCardAction = d.format === 'Commander';
+      guestDeckName = normalizeDeckName(d.name || guestDeckName);
+      d.name = guestDeckName;
+      allowsCommanderCardAction = formatUsesCommander(d.format);
       if (guestFormatField) guestFormatField.value = d.format;
       if (window.mtDeckSetOverviewFormat) window.mtDeckSetOverviewFormat(allowsCommanderCardAction);
       if (window.mtDeckSetOverviewTags) window.mtDeckSetOverviewTags(d.tags || '');
@@ -3814,6 +4574,10 @@
 
       // Name/description hydration (if present)
       if (nameEl) nameEl.textContent = guestDeckName;
+      if (deckEditorHeading) deckEditorHeading.textContent = 'Edit ' + guestDeckName;
+      if (guestDeckNameInput && document.activeElement !== guestDeckNameInput) {
+        guestDeckNameInput.value = guestDeckName;
+      }
       if (descEl) {
         var hasDesc = !!(d.description && d.description.trim());
         if (String(descEl.tagName || '').toUpperCase() === 'TEXTAREA') {
@@ -3842,7 +4606,7 @@
           {
             label: 'Change Version',
             onClick: function () {
-              openGuestCardVersionPicker(cardName, cardMeta);
+              openGuestCardVersionPicker(cardName, cardMeta, currentBoard);
             }
           },
           {
@@ -3864,7 +4628,7 @@
         appendCommanderCardActionItems(items, cardName, cardMeta, currentBoard, function () {
           setGuestCommander(cardName);
         });
-        return createSimpleDeckActionMenu(items, '', 'Card actions');
+        return createSimpleDeckActionMenu(items, '', 'Card actions for ' + cardName);
       }
 
       var entries = Object.entries(d.cards || {});
@@ -3925,6 +4689,7 @@
       if (deckBoardMode === 'side') activeRows = sideboardRows;
       if (deckBoardMode === 'maybe') activeRows = maybeDeckRows;
       var visibleActiveRows = filterDeckRows(activeRows);
+      syncDeckDisplayOptions(activeRows);
       renderDeckSections(visibleActiveRows, function (cardName, cardMeta) {
         return createGuestCardActionMenu(cardName, cardMeta, deckBoardMode);
       }, function (cardName, cardMeta, delta) {
@@ -3936,7 +4701,7 @@
       });
 
       if (emptyEl) {
-        emptyEl.textContent = activeRows.length === 0 ? 'Empty.' : 'No matches.';
+        emptyEl.textContent = emptyDeckBoardMessage(activeRows);
         emptyEl.classList.toggle('hidden', visibleActiveRows.length !== 0);
       }
       if (maybeEmptyEl) maybeEmptyEl.classList.add('hidden');
@@ -3960,7 +4725,7 @@
           openWorkbenchCardView(cardName, cardMeta);
         },
         changeVersion: function (cardName, cardMeta) {
-          openGuestCardVersionPicker(cardName, cardMeta);
+          openGuestCardVersionPicker(cardName, cardMeta, 'main');
         },
         moveToBoard: function (cardName, cardMeta, targetBoard) {
           moveGuestCardQuantityBetweenBoards('main', targetBoard, cardName, 1);
@@ -3982,7 +4747,7 @@
         },
         changeVersion: function () {
           var current = currentCommanderForDraft(d);
-          openGuestCardVersionPicker(current, draftMetaForCard(d, current));
+          openGuestCardVersionPicker(current, draftMetaForCard(d, current), draftBoardForCard(d, current) || 'main');
         },
         moveBoards: function () {
           var current = currentCommanderForDraft(loadDraft() || d);
@@ -4058,11 +4823,27 @@
       var savedOverviewTimer = null;
       var savedOverviewPayload = null;
       var savedCommanderDetailCache = {};
+      var deckMenuReturnFocus = null;
 
       function setDeckMenuOpen(open) {
         if (!deckMenuOverlay) return;
         deckMenuOverlay.classList.toggle('hidden', !open);
         deckMenuOverlay.classList.toggle('flex', !!open);
+        deckMenuOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+        if (deckMenuOpenBtn) deckMenuOpenBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        document.body.classList.toggle('mt-deck-dialog-open', !!open);
+        if (open) {
+          deckMenuReturnFocus = document.activeElement;
+          window.setTimeout(function () {
+            var first = deckMenuOverlay.querySelector('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+            var panel = deckMenuOverlay.querySelector('.mt-deck-editor__menu');
+            if (first) first.focus();
+            else if (panel) panel.focus();
+          }, 0);
+        } else if (deckMenuReturnFocus && typeof deckMenuReturnFocus.focus === 'function') {
+          deckMenuReturnFocus.focus();
+          deckMenuReturnFocus = null;
+        }
         if (!open && deckMenuStatus) {
           deckMenuStatus.textContent = '';
         }
@@ -4107,6 +4888,48 @@
         }
       }
 
+      function savedBoardUndoState(d, board, cardName) {
+        var normalizedBoard = normalizeDeckBoardMode(board);
+        var quantities = draftBoardMap(d, normalizedBoard);
+        var quantityKey = draftCardNameKey(quantities, cardName);
+        var quantity = Number(quantityKey ? quantities[quantityKey] : 0);
+        if (!Number.isFinite(quantity) || quantity < 0) quantity = 0;
+
+        var preferredPrintID = '';
+        var boardMeta = d && d.boardCardMeta && typeof d.boardCardMeta === 'object'
+          ? d.boardCardMeta[normalizedBoard]
+          : null;
+        if (boardMeta && typeof boardMeta === 'object') {
+          var metaKey = draftCardNameKey(boardMeta, cardName);
+          var rawMeta = metaKey ? boardMeta[metaKey] : null;
+          if (rawMeta && typeof rawMeta === 'object') {
+            preferredPrintID = normalizeName(rawMeta.preferredPrintID || '');
+          }
+        }
+
+        return {
+          board: normalizedBoard,
+          quantity: quantity,
+          preferred_print_id: quantity > 0 ? preferredPrintID : ''
+        };
+      }
+
+      function showSavedDeckUndo(message, cardID, cardName, beforeStates, afterStates) {
+        var oracleID = normalizeName(cardID);
+        if (!oracleID || !Array.isArray(beforeStates) || !Array.isArray(afterStates)) return;
+        showDeckUndo(message, async function () {
+          var params = new URLSearchParams();
+          params.set('action', 'undo_card_change');
+          params.set('card_id', oracleID);
+          params.set('expected_states', JSON.stringify(afterStates));
+          params.set('restore_states', JSON.stringify(beforeStates));
+          var next = await postSavedMutation('/decks/' + savedDraft.id, params);
+          commanderName = currentSavedCommander(next);
+          renderSaved(next);
+          return true;
+        });
+      }
+
       function currentSavedCommander(d) {
         if (d && typeof d === 'object') {
           return normalizeName(d.commanderName || '');
@@ -4115,71 +4938,52 @@
       }
 
       function buildDecklistText(d) {
-        var lines = [];
-        var commanderForCopy = currentSavedCommander(d);
-        if (d && d.format === 'Commander') {
-          lines.push('Commander:');
-          if (commanderForCopy) {
-            lines.push('1 ' + commanderForCopy);
-          }
-          lines.push('');
+        var deckName = normalizeName((d && d.name) || 'Untitled Deck');
+        var format = normalizeGuestFormat(d && d.format);
+        var lines = ['Name: ' + deckName, 'Format: ' + format, ''];
+        var rows = deckExportRows(d);
+
+        function textIdentity(row) {
+          var meta = row.meta || {};
+          var value = row.name;
+          var setCode = normalizeName(meta.setCode || '');
+          var collectorNumber = normalizeName(meta.collectorNumber || '');
+          var printID = normalizeName(meta.printID || meta.preferredPrintID || '');
+          if (setCode && collectorNumber) value += ' (' + setCode.toUpperCase() + ') ' + collectorNumber;
+          if (printID) value += ' {scryfall:' + printID + '}';
+          return String(row.qty) + ' ' + value;
         }
 
-        var entries = Object.entries((d && d.cards) || {});
-        entries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
-        lines.push('Mainboard:');
-        var renderedMainboard = false;
-        entries.forEach(function (pair) {
-          var cardName = normalizeName(pair[0]);
-          var qty = Number(pair[1] || 0);
-          if (!cardName || !Number.isFinite(qty) || qty <= 0) return;
-          if (commanderForCopy && cardName.toLowerCase() === commanderForCopy.toLowerCase()) {
-            qty -= 1;
-          }
-          if (qty <= 0) return;
-          renderedMainboard = true;
-          lines.push(qty + ' ' + cardName);
+        ['Commander', 'Mainboard', 'Sideboard', 'Maybeboard'].forEach(function (board) {
+          var boardRows = rows.filter(function (row) { return row.board === board; });
+          if (!boardRows.length && board !== 'Mainboard' && !(board === 'Commander' && formatUsesCommander(format))) return;
+          if (lines[lines.length - 1] !== '') lines.push('');
+          lines.push(board + ':');
+          boardRows.forEach(function (row) { lines.push(textIdentity(row)); });
         });
-        if (!renderedMainboard) lines.push('');
 
-        var sideboardEntries = Object.entries((d && d.sideboardCards) || {});
-        sideboardEntries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
-        if (sideboardEntries.length > 0) {
-          lines.push('');
-          lines.push('Sideboard:');
-          sideboardEntries.forEach(function (pair) {
-            var cardName = normalizeName(pair[0]);
-            var qty = Number(pair[1] || 0);
-            if (!cardName || !Number.isFinite(qty) || qty <= 0) return;
-            lines.push(qty + ' ' + cardName);
-          });
-        }
-
-        var maybeEntries = Object.entries((d && d.maybeCards) || {});
-        maybeEntries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
-        if (maybeEntries.length > 0) {
-          lines.push('');
-          lines.push('Maybeboard:');
-          maybeEntries.forEach(function (pair) {
-            var cardName = normalizeName(pair[0]);
-            var qty = Number(pair[1] || 0);
-            if (!cardName || !Number.isFinite(qty) || qty <= 0) return;
-            lines.push(qty + ' ' + cardName);
-          });
-        }
-
-        return lines.join('\n');
+        return lines.join('\n').trim() + '\n';
       }
 
       function deckExportRows(d) {
         var rows = [];
         var commanderForExport = currentSavedCommander(d);
-        if (d && d.format === 'Commander' && commanderForExport) {
+        if (d && formatUsesCommander(d.format) && commanderForExport) {
+          var commanderMeta = Object.assign({}, draftMetaForCard(d, commanderForExport) || {});
+          var commanderExportPrintID = currentCommanderPrintForDraft(d);
+          if (commanderExportPrintID) {
+            commanderMeta.preferredPrintID = commanderExportPrintID;
+            commanderMeta.printID = commanderExportPrintID;
+            // The exact ID is authoritative. Avoid pairing it with stale
+            // default-print set metadata if the commander version changed.
+            commanderMeta.setCode = '';
+            commanderMeta.collectorNumber = '';
+          }
           rows.push({
             board: 'Commander',
             qty: 1,
             name: commanderForExport,
-            meta: draftMetaForCard(d, commanderForExport) || {}
+            meta: commanderMeta
           });
         }
 
@@ -4220,7 +5024,9 @@
 
       function buildDecklistCSV(d) {
         var rows = deckExportRows(d);
-        var lines = [['Board', 'Quantity', 'Name', 'Set', 'Collector Number', 'Print ID'].map(csvCell).join(',')];
+        var deckName = normalizeName((d && d.name) || 'Untitled Deck');
+        var format = normalizeGuestFormat(d && d.format);
+        var lines = [['Board', 'Quantity', 'Name', 'Set', 'Collector Number', 'Print ID', 'Deck Name', 'Format'].map(csvCell).join(',')];
         rows.forEach(function (row) {
           var meta = row.meta || {};
           lines.push([
@@ -4229,7 +5035,9 @@
             row.name,
             normalizeName(meta.setCode || ''),
             normalizeName(meta.collectorNumber || ''),
-            normalizeName(meta.printID || meta.preferredPrintID || '')
+            normalizeName(meta.printID || meta.preferredPrintID || ''),
+            deckName,
+            format
           ].map(csvCell).join(','));
         });
         return lines.join('\n');
@@ -4283,6 +5091,10 @@
           deckMenuNameInput.focus();
           return;
         }
+        if (savedDraft && nextName === normalizeName(savedDraft.name || '')) {
+          if (guestOverviewStatus) guestOverviewStatus.textContent = 'Changes save automatically.';
+          return;
+        }
 
         var params = new URLSearchParams();
         params.set('id', String(savedDraft.id));
@@ -4292,8 +5104,10 @@
           var next = await postSavedMutation('/decks/settings', params);
           renderSaved(next);
           setDeckMenuStatus('Deck name updated.');
+          if (guestOverviewStatus) guestOverviewStatus.textContent = 'Deck name saved.';
         } catch (e) {
           setDeckMenuStatus(e && e.message ? e.message : 'Could not update deck name.');
+          if (guestOverviewStatus) guestOverviewStatus.textContent = 'Could not save the deck name.';
         }
       }
 
@@ -4343,6 +5157,9 @@
             image_uri: meta.imageURI || '',
             faces: Array.isArray(meta.faces) ? meta.faces : []
           });
+          if (normalizeName(d && d.commanderPrintID ? d.commanderPrintID : '')) {
+            return;
+          }
         }
 
         var cacheKey = current.toLowerCase();
@@ -4385,9 +5202,12 @@
       }
 
       async function adjustSavedCardQuantity(cardMeta, delta, board, cardName) {
+        if (!deckUndoBusy) clearDeckUndo();
+        var displayName = normalizeName(cardName || (cardMeta && cardMeta.name) || '');
         var actionCardID = await savedCardIDForAction(cardMeta, cardName || (cardMeta && cardMeta.name) || '');
         if (!actionCardID) return;
         var targetBoard = normalizeDeckBoardMode(board || 'main');
+        var beforeState = savedBoardUndoState(savedDraft, targetBoard, displayName);
         try {
           var params = new URLSearchParams();
           params.set(boardCardIDParam(targetBoard), actionCardID);
@@ -4397,17 +5217,30 @@
           var next = await postSavedMutation('/decks/' + savedDraft.id, params);
           commanderName = currentSavedCommander(next);
           renderSaved(next);
+          var afterState = savedBoardUndoState(next, targetBoard, displayName);
+          if (Number(delta || 0) < 0 && afterState.quantity < beforeState.quantity) {
+            showSavedDeckUndo(
+              'Removed ' + displayName + '.',
+              actionCardID,
+              displayName,
+              [beforeState],
+              [afterState]
+            );
+          }
         } catch (e) {
           setSavedStatus(e && e.message ? e.message : 'Could not update card.');
         }
       }
 
       async function setSavedCardQuantity(cardMeta, quantity, board, cardName) {
+        if (!deckUndoBusy) clearDeckUndo();
+        var displayName = normalizeName(cardName || (cardMeta && cardMeta.name) || '');
         var actionCardID = await savedCardIDForAction(cardMeta, cardName || (cardMeta && cardMeta.name) || '');
         if (!actionCardID) return;
         var targetBoard = normalizeDeckBoardMode(board || 'main');
         var nextQty = Math.floor(Number(quantity || 0));
         if (!Number.isFinite(nextQty) || nextQty < 0) return;
+        var beforeState = savedBoardUndoState(savedDraft, targetBoard, displayName);
         try {
           var params = new URLSearchParams();
           params.set(boardCardIDParam(targetBoard), actionCardID);
@@ -4416,17 +5249,34 @@
           var next = await postSavedMutation('/decks/' + savedDraft.id, params);
           commanderName = currentSavedCommander(next);
           renderSaved(next);
+          var afterState = savedBoardUndoState(next, targetBoard, displayName);
+          if (afterState.quantity < beforeState.quantity) {
+            var removed = beforeState.quantity - afterState.quantity;
+            showSavedDeckUndo(
+              'Removed ' + String(removed) + (removed === 1 ? ' copy of ' : ' copies of ') + displayName + '.',
+              actionCardID,
+              displayName,
+              [beforeState],
+              [afterState]
+            );
+          }
         } catch (e) {
           setSavedStatus(e && e.message ? e.message : 'Could not update card.');
         }
       }
 
 	      async function moveSavedCardBetweenBoards(cardMeta, fromBoard, toBoard, cardName, quantity) {
+        if (!deckUndoBusy) clearDeckUndo();
+        var displayName = normalizeName(cardName || (cardMeta && cardMeta.name) || '');
 	        var actionCardID = await savedCardIDForAction(cardMeta, cardName || (cardMeta && cardMeta.name) || '');
 	        if (!actionCardID) return;
         var sourceBoard = normalizeDeckBoardMode(fromBoard || 'main');
         var targetBoard = normalizeDeckBoardMode(toBoard || 'main');
         if (sourceBoard === targetBoard) return;
+        var beforeStates = [
+          savedBoardUndoState(savedDraft, sourceBoard, displayName),
+          savedBoardUndoState(savedDraft, targetBoard, displayName)
+        ];
         try {
           var params = new URLSearchParams();
           params.set(boardCardIDParam(sourceBoard), actionCardID);
@@ -4441,12 +5291,27 @@
           var next = await postSavedMutation('/decks/' + savedDraft.id, params);
           commanderName = currentSavedCommander(next);
           renderSaved(next);
+          var afterStates = [
+            savedBoardUndoState(next, sourceBoard, displayName),
+            savedBoardUndoState(next, targetBoard, displayName)
+          ];
+          var moved = Math.max(0, beforeStates[0].quantity - afterStates[0].quantity);
+          if (moved > 0) {
+            showSavedDeckUndo(
+              'Moved ' + (moved > 1 ? String(moved) + ' copies of ' : '') + displayName + ' to ' + deckBoardLabel(targetBoard) + '.',
+              actionCardID,
+              displayName,
+              beforeStates,
+              afterStates
+            );
+          }
         } catch (e) {
 	          setSavedStatus(e && e.message ? e.message : 'Could not move card.');
 	        }
 	      }
 
 	      async function setSavedCardVersion(cardMeta, board, cardName, version) {
+        if (!deckUndoBusy) clearDeckUndo();
 	        var meta = normalizeDraftCardMeta(cardMeta) || {};
 	        var actionCardID = await savedCardIDForAction(meta, cardName || meta.name || '');
 	        var printID = normalizeName(version && (version.scryfall_id || version.scryfallID || version.printID || version.print_id) || '');
@@ -4484,22 +5349,22 @@
 	      async function applySavedCommanderVersion(cardName, cardMeta, version) {
 	        var current = normalizeName(cardName);
 	        if (!current) return;
-	        var targetBoard = draftBoardForCard(savedDraft, current) || 'main';
 	        var meta = normalizeDraftCardMeta(cardMeta) || draftMetaForCard(savedDraft, current) || {};
-	        if (!draftBoardForCard(savedDraft, current)) {
-	          try {
-	            var params = new URLSearchParams();
-	            params.set('card_name', current);
-	            params.set('zone', 'main');
-	            var next = await postSavedMutation('/decks/' + savedDraft.id, params);
-	            savedDraft = normalizeSavedState(next);
-	            meta = draftMetaForBoardCard(savedDraft, 'main', current) || draftMetaForCard(savedDraft, current) || meta;
-	          } catch (e) {
-	            setSavedStatus(e && e.message ? e.message : 'Could not add commander card.');
-	            return;
-	          }
+	        var actionCardID = await savedCardIDForAction(meta, current);
+	        var printID = normalizeName(version && (version.scryfall_id || version.scryfallID || version.printID || version.print_id) || '');
+	        if (!actionCardID || !printID) return;
+	        try {
+	          var params = new URLSearchParams();
+	          params.set('card_id', actionCardID);
+	          params.set('action', 'set_commander_print');
+	          params.set('print_id', printID);
+	          var next = await postSavedMutation('/decks/' + savedDraft.id, params);
+	          commanderName = currentSavedCommander(next);
+	          renderSaved(next);
+	          setSavedStatus('Commander version updated.');
+	        } catch (e) {
+	          setSavedStatus(e && e.message ? e.message : 'Could not update commander version.');
 	        }
-	        await setSavedCardVersion(meta, targetBoard, current, version);
 	      }
 
 	      function openSavedCommanderVersionPicker(cardName, cardMeta) {
@@ -4520,6 +5385,7 @@
 	      async function submitSavedAddCard(raw, zone) {
 	        var value = normalizeName(raw);
         if (!value) return;
+        if (!deckUndoBusy) clearDeckUndo();
         var targetZone = normalizeDeckBoardMode(zone || deckBoardMode || 'main');
         try {
           var params = new URLSearchParams();
@@ -4565,9 +5431,6 @@
           setQuickBuildSummary(out && out.summary && out.summary.explanation ? out.summary.explanation : '');
           renderSaved(next);
           setSavedStatus('Starter shell added. This is a playtest-ready first draft.');
-          if (guestOverviewStatus && out && out.summary && out.summary.explanation) {
-            guestOverviewStatus.textContent = out.summary.explanation;
-          }
         } catch (e) {
           setSavedStatus(e && e.message ? e.message : 'Could not build a starter shell.');
         } finally {
@@ -4613,7 +5476,7 @@
         d = normalizeSavedState(d);
         savedDraft = d;
         commanderName = currentSavedCommander(d);
-        allowsCommanderCardAction = d.format === 'Commander';
+        allowsCommanderCardAction = formatUsesCommander(d.format);
         if (window.mtDeckSetOverviewFormat) window.mtDeckSetOverviewFormat(allowsCommanderCardAction);
         if (window.mtDeckSetOverviewTags) window.mtDeckSetOverviewTags(d.tags || '');
         if (guestFormatField) guestFormatField.value = d.format;
@@ -4658,7 +5521,7 @@
           appendCommanderCardActionItems(items, cardName, cardMeta, currentBoard, function () {
             setSavedCommander(cardName);
           });
-          return createSimpleDeckActionMenu(items, '', 'Card actions');
+          return createSimpleDeckActionMenu(items, '', 'Card actions for ' + cardName);
         }
 
         for (var i = 0; i < entries.length; i++) {
@@ -4717,6 +5580,7 @@
         if (deckBoardMode === 'side') activeRows = sideboardRows;
         if (deckBoardMode === 'maybe') activeRows = maybeDeckRows;
         var visibleActiveRows = filterDeckRows(activeRows);
+        syncDeckDisplayOptions(activeRows);
         renderDeckSections(visibleActiveRows, function (cardName, cardMeta) {
           return createSavedCardActionMenu(cardName, cardMeta, deckBoardMode);
         }, function (cardName, cardMeta, delta) {
@@ -4728,16 +5592,18 @@
         });
 
         if (emptyEl) {
-          emptyEl.textContent = activeRows.length === 0 ? 'Empty.' : 'No matches.';
+          emptyEl.textContent = emptyDeckBoardMessage(activeRows);
           emptyEl.classList.toggle('hidden', visibleActiveRows.length !== 0);
         }
         if (deckCountLabel) deckCountLabel.textContent = String(totalCards);
         if (sideboardCountLabel) sideboardCountLabel.textContent = String(sideboardCardsTotal);
         if (maybeCountLabel) maybeCountLabel.textContent = String(maybeCardsTotal);
         syncDeckBoardTabs();
-        if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = 'Live';
+        if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = '';
         if (d.analytics) renderAnalytics(d.analytics);
         if (savedDeckNameEl) savedDeckNameEl.textContent = d.name || 'Deck';
+        if (deckEditorHeading) deckEditorHeading.textContent = 'Edit ' + (d.name || 'Deck');
+        if (deckMenuTitle) deckMenuTitle.textContent = d.name || 'Deck';
         if (deckMenuNameInput) deckMenuNameInput.value = d.name || '';
         if (deckMenuVisibilityBtn) {
           deckMenuVisibilityBtn.textContent = d.isPublic ? 'Set Private' : 'Set Public';
@@ -4833,6 +5699,33 @@
             setDeckMenuOpen(false);
           }
         });
+        deckMenuOverlay.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            setDeckMenuOpen(false);
+            return;
+          }
+          if (event.key !== 'Tab') return;
+
+          var focusable = Array.prototype.slice.call(deckMenuOverlay.querySelectorAll(
+            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )).filter(function (node) {
+            return !node.hidden && node.offsetParent !== null;
+          });
+          if (!focusable.length) {
+            event.preventDefault();
+            return;
+          }
+          var first = focusable[0];
+          var last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        });
       }
       if (deckMenuCopyBtn) {
         deckMenuCopyBtn.addEventListener('click', function () {
@@ -4849,17 +5742,15 @@
           exportSavedDeck('csv');
         });
       }
-      if (deckMenuNameSaveBtn) {
-        deckMenuNameSaveBtn.addEventListener('click', function () {
-          saveSavedDeckName();
-        });
-      }
       if (deckMenuNameInput) {
         deckMenuNameInput.addEventListener('keydown', function (event) {
           if (event.key === 'Enter') {
             event.preventDefault();
-            saveSavedDeckName();
+            deckMenuNameInput.blur();
           }
+        });
+        deckMenuNameInput.addEventListener('blur', function () {
+          saveSavedDeckName();
         });
       }
       if (deckMenuVisibilityBtn) {
@@ -4888,6 +5779,12 @@
       if (deckSortModeField) {
         deckSortModeField.addEventListener('change', function () {
           persistDeckSortMode(deckSortModeField.value);
+          renderSaved(savedDraft);
+        });
+      }
+      if (deckSortDirectionButton) {
+        deckSortDirectionButton.addEventListener('click', function () {
+          persistDeckSortDirection(deckSortDirection === 'desc' ? 'asc' : 'desc');
           renderSaved(savedDraft);
         });
       }
@@ -4934,7 +5831,8 @@
     if (!draft) {
       draft = guestWorkspaceSeedDraft() || {
         commanderName: commanderName,
-        format: deckFormat === 'Commander' ? 'Commander' : 'Sandbox',
+        commanderPrintID: commanderPrintID,
+        format: normalizeGuestFormat(deckFormat),
         commanderCandidates: [],
         name: guestDeckName,
         description: '',
@@ -4948,14 +5846,48 @@
     }
 
     var normalizedDraftCommander = normalizeName(draft.commanderName || '');
+    var normalizedDraftCommanderPrintID = normalizeName(draft.commanderPrintID || '');
     if (!commanderName && normalizedDraftCommander) {
       commanderName = normalizedDraftCommander;
+      commanderPrintID = normalizedDraftCommanderPrintID;
     } else if (commanderName && !normalizedDraftCommander) {
       draft.commanderName = commanderName;
+      draft.commanderPrintID = commanderPrintID;
       saveDraft(draft);
+    } else if (normalizedDraftCommander) {
+      commanderPrintID = normalizedDraftCommanderPrintID || commanderPrintID;
     }
 
     render(draft);
+
+    function commitGuestDeckName() {
+      if (!guestDeckNameInput) return;
+      var nextName = normalizeDeckName(guestDeckNameInput.value);
+      guestDeckName = nextName;
+      guestDeckNameInput.value = nextName;
+      if (nameEl) nameEl.textContent = nextName;
+      if (deckEditorHeading) deckEditorHeading.textContent = 'Edit ' + nextName;
+
+      var currentDraft = loadDraft() || draft;
+      guestDeckName = nextName;
+      currentDraft.name = nextName;
+      saveDraft(currentDraft);
+      draft = currentDraft;
+      if (guestOverviewStatus) guestOverviewStatus.textContent = '';
+    }
+
+    if (guestDeckNameInput) {
+      guestDeckNameInput.addEventListener('input', function () {
+        if (nameEl) nameEl.textContent = normalizeName(guestDeckNameInput.value) || normalizeDeckName('');
+      });
+      guestDeckNameInput.addEventListener('blur', commitGuestDeckName);
+      guestDeckNameInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          guestDeckNameInput.blur();
+        }
+      });
+    }
 
     if (deckGroupModeField) {
       deckGroupModeField.addEventListener('change', function () {
@@ -4966,6 +5898,12 @@
     if (deckSortModeField) {
       deckSortModeField.addEventListener('change', function () {
         persistDeckSortMode(deckSortModeField.value);
+        render(loadDraft() || draft);
+      });
+    }
+    if (deckSortDirectionButton) {
+      deckSortDirectionButton.addEventListener('click', function () {
+        persistDeckSortDirection(deckSortDirection === 'desc' ? 'asc' : 'desc');
         render(loadDraft() || draft);
       });
     }
@@ -5050,6 +5988,7 @@
         dd.cards = dd.cards || {};
         dd.maybeCards = dd.maybeCards || {};
         ensureDraftCardMetaMap(dd);
+        clearDeckUndo();
 
         // Use canonical name so we don't store duplicates with different casing.
         if (zone === 'maybe') {
@@ -5092,7 +6031,7 @@
         var dd = loadDraft() || { commanderName: commanderName, cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
         var commanderForCopy = currentCommanderForDraft(dd);
         var lines = [];
-        if (normalizeGuestFormat(dd.format || deckFormat) === 'Commander') {
+        if (formatUsesCommander(dd.format || deckFormat)) {
           lines.push('Commander:');
           if (commanderForCopy) {
             lines.push('1 ' + commanderForCopy);
@@ -5161,28 +6100,55 @@
       });
     }
 
+    function draftRowsForBoard(draft, board, quantities) {
+      return Object.entries(quantities || {}).map(function (pair) {
+        var name = pair[0];
+        var qty = pair[1];
+        var meta = draftMetaForBoardCard(draft, board, name) || {};
+        return {
+          name: name,
+          oracle_id: normalizeName(meta.cardID || meta.oracleID || ''),
+          qty: qty,
+          preferred_print_id: normalizeName(meta.preferredPrintID || meta.printID || ''),
+          set_code: normalizeName(meta.setCode || ''),
+          collector_number: normalizeName(meta.collectorNumber || '')
+        };
+      }).filter(function (item) {
+        return item && item.name && item.qty && item.qty > 0;
+      });
+    }
+
+    function draftCardMetaForBoard(draft, board, quantities) {
+      var out = {};
+      Object.keys(quantities || {}).forEach(function (name) {
+        var meta = draftMetaForBoardCard(draft, board, name);
+        if (meta) out[name] = meta;
+      });
+      return out;
+    }
+
     function launchGuestPlaytest() {
       var dd = loadDraft() || { commanderName: commanderName, cards: {}, sideboardCards: {}, maybeCards: {}, cardMeta: {} };
+      guestDeckName = normalizeDeckName(guestDeckNameInput ? guestDeckNameInput.value : guestDeckName);
+      dd.name = guestDeckName;
+      dd.description = String(descEl ? descEl.value : (dd.description || '')).trim();
+      dd.tags = String(guestTagsField ? guestTagsField.value : (dd.tags || '')).trim();
+      dd.format = normalizeGuestFormat(guestFormatField ? guestFormatField.value : (dd.format || deckFormat));
+      saveDraft(dd);
       var commanderForPlaytest = currentCommanderForDraft(dd);
-      var cards = Object.entries(dd.cards || {}).map(function (pair) {
-        return { name: pair[0], qty: pair[1] };
-      }).filter(function (x) {
-        return x && x.name && x.qty && x.qty > 0;
-      });
-      var maybeCards = Object.entries(dd.maybeCards || {}).map(function (pair) {
-        return { name: pair[0], qty: pair[1] };
-      }).filter(function (x) {
-        return x && x.name && x.qty && x.qty > 0;
-      });
-      var sideboardCards = Object.entries(dd.sideboardCards || {}).map(function (pair) {
-        return { name: pair[0], qty: pair[1] };
-      }).filter(function (x) {
-        return x && x.name && x.qty && x.qty > 0;
-      });
+      var cards = draftRowsForBoard(dd, 'main', dd.cards);
+      var maybeCards = draftRowsForBoard(dd, 'maybe', dd.maybeCards);
+      var sideboardCards = draftRowsForBoard(dd, 'side', dd.sideboardCards);
+      var playtestCardMeta = Object.assign(
+        {},
+        (dd.cardMeta && typeof dd.cardMeta === 'object') ? dd.cardMeta : {},
+        draftCardMetaForBoard(dd, 'main', dd.cards)
+      );
 
       var payload = {
         commander_name: commanderForPlaytest,
-        format: dd.format || (deckFormat === 'Commander' ? 'Commander' : 'Sandbox'),
+        commander_print_id: currentCommanderPrintForDraft(dd),
+        format: normalizeGuestFormat(dd.format || deckFormat),
         name: guestDeckName,
         description: dd.description || '',
         tags: dd.tags || '',
@@ -5190,7 +6156,8 @@
         sideboard_cards: sideboardCards,
         maybe_cards: maybeCards,
         commander_candidates: Array.isArray(dd.commanderCandidates) ? dd.commanderCandidates : [],
-        card_meta: (dd.cardMeta && typeof dd.cardMeta === 'object') ? dd.cardMeta : {},
+        card_meta: playtestCardMeta,
+        board_card_meta: (dd.boardCardMeta && typeof dd.boardCardMeta === 'object') ? dd.boardCardMeta : {},
         sandbox: isSandboxDraft,
       };
 
@@ -5208,7 +6175,7 @@
       form.submit();
     }
 
-    if (playtestBtn) {
+    if (isGuest && playtestBtn) {
       playtestBtn.addEventListener('click', launchGuestPlaytest);
     }
     if (quickBuildBtn) {
@@ -5227,40 +6194,35 @@
       }
 
       var commanderForSave = currentCommanderForDraft(dd);
-      var cards = Object.entries(dd.cards || {}).map(function (pair) {
-        return { name: pair[0], qty: pair[1] };
-      }).filter(function (x) {
-        return x && x.name && x.qty && x.qty > 0;
-      });
-      var sideboardCards = Object.entries(dd.sideboardCards || {}).map(function (pair) {
-        return { name: pair[0], qty: pair[1] };
-      }).filter(function (x) {
-        return x && x.name && x.qty && x.qty > 0;
-      });
-      var maybeCards = Object.entries(dd.maybeCards || {}).map(function (pair) {
-        return { name: pair[0], qty: pair[1] };
-      }).filter(function (x) {
-        return x && x.name && x.qty && x.qty > 0;
-      });
-      if (cards.length === 0 && sideboardCards.length === 0 && maybeCards.length === 0) {
+      var cards = draftRowsForBoard(dd, 'main', dd.cards);
+      var sideboardCards = draftRowsForBoard(dd, 'side', dd.sideboardCards);
+      var maybeCards = draftRowsForBoard(dd, 'maybe', dd.maybeCards);
+      if (!commanderForSave && cards.length === 0 && sideboardCards.length === 0 && maybeCards.length === 0) {
         if (copyStatus) copyStatus.textContent = 'Add cards before saving this deck.';
+        if (guestOverviewStatus) guestOverviewStatus.textContent = 'Add a card before saving this deck.';
         return false;
       }
 
       var payload = {
-        format: dd.format || (deckFormat === 'Commander' ? 'Commander' : 'Sandbox'),
+        format: normalizeGuestFormat(dd.format || deckFormat),
         commander_name: commanderForSave,
-        name: dd.name || commanderForSave || 'Imported Deck',
+        commander_print_id: currentCommanderPrintForDraft(dd),
+        name: normalizeDeckName(dd.name),
         description: dd.description || '',
         tags: dd.tags || '',
         cards: cards,
         sideboard_cards: sideboardCards,
         maybe_cards: maybeCards,
+        card_meta: (dd.cardMeta && typeof dd.cardMeta === 'object') ? dd.cardMeta : {},
       };
 
       saveInProgress = true;
       try {
         if (copyStatus) copyStatus.textContent = 'Saving…';
+        if (guestOverviewStatus) {
+          guestOverviewStatus.textContent = 'Saving deck…';
+          guestOverviewStatus.setAttribute('data-save-state', 'saving');
+        }
 
         var res = await fetch('/decks/import/save', {
           method: 'POST',
@@ -5269,21 +6231,52 @@
         });
 
         if (!res.ok) {
-          if (copyStatus) copyStatus.textContent = 'Could not save deck. Please try again.';
+          var failureMessage = 'Could not save deck. Please try again.';
+          try {
+            var failure = await res.json();
+            if (failure && failure.error) failureMessage = failure.error;
+            if (failure && Array.isArray(failure.unresolved) && failure.unresolved.length) {
+              failureMessage += ' ' + failure.unresolved.slice(0, 2).join(' ');
+            }
+          } catch (parseError) {
+            // Keep the concise fallback message.
+          }
+          if (copyStatus) copyStatus.textContent = failureMessage;
+          if (guestOverviewStatus) {
+            guestOverviewStatus.textContent = failureMessage;
+            guestOverviewStatus.setAttribute('data-save-state', 'error');
+          }
           return false;
         }
 
         var out = await res.json();
         if (out && out.deck_id) {
           try { localStorage.removeItem(key); } catch (e) {}
+          try {
+            var cleaned = new URL(window.location.href);
+            cleaned.searchParams.delete('save_guest');
+            if (window.history && window.history.replaceState) {
+              window.history.replaceState({}, '', cleaned.pathname + cleaned.search);
+            }
+          } catch (cleanupError) {
+            // Redirecting to the saved deck does not depend on URL cleanup.
+          }
           window.location.href = '/decks/' + out.deck_id;
           return true;
         }
 
         if (copyStatus) copyStatus.textContent = 'Saved, but did not receive a deck id.';
+        if (guestOverviewStatus) {
+          guestOverviewStatus.textContent = 'Saved, but the deck could not be opened. Try again.';
+          guestOverviewStatus.setAttribute('data-save-state', 'error');
+        }
         return false;
       } catch (e) {
         if (copyStatus) copyStatus.textContent = 'Could not save deck. Please try again.';
+        if (guestOverviewStatus) {
+          guestOverviewStatus.textContent = 'Could not save deck. Please try again.';
+          guestOverviewStatus.setAttribute('data-save-state', 'error');
+        }
         return false;
       } finally {
         saveInProgress = false;
@@ -5302,15 +6295,6 @@
 
     if (isSignedIn && shouldAutoSave) {
       if (copyStatus) copyStatus.textContent = 'Signed in. Saving imported local deck…';
-      try {
-        var cleaned = new URL(window.location.href);
-        cleaned.searchParams.delete('save_guest');
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState({}, '', cleaned.pathname + cleaned.search);
-        }
-      } catch (e) {
-        // ignore URL cleanup errors
-      }
       importDraftToAccount();
     }
   });

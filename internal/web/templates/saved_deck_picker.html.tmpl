@@ -1,70 +1,63 @@
 {{ define "saved_deck_picker" }}
   {{ $ctx := .Data }}
   {{ if .CurrentUser }}
-    <div id="saved-deck-picker-modal" class="mt-modal hidden" data-saved-deck-picker-modal>
-      <div class="mt-modal-panel max-w-2xl">
-        <button type="button" class="absolute top-3 right-3 mt-btn mt-btn--secondary text-xs !px-3 !py-2" data-close-deck-picker>
-          Close
-        </button>
+    <div id="saved-deck-picker-modal"
+         class="mt-modal mt-saved-deck-picker-modal hidden"
+         data-saved-deck-picker-modal
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="saved-deck-picker-title"
+         aria-describedby="saved-deck-picker-description">
+      <div class="mt-modal-panel mt-saved-deck-picker" tabindex="-1">
+        <button type="button" class="mt-saved-deck-picker__close" data-close-deck-picker aria-label="Close saved deck picker">&times;</button>
 
-        <div class="space-y-4">
-          <div class="space-y-1">
-            <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Add To Saved Deck</p>
-            <h3 class="text-xl font-semibold text-slate-50" data-deck-picker-card-name>Select a deck</h3>
-            <p class="text-sm text-slate-400">Choose which saved deck should receive this card. Cards are added to the mainboard for this flow.</p>
-          </div>
+        <header class="mt-saved-deck-picker__header">
+          <h3 id="saved-deck-picker-title" data-deck-picker-card-name>Select a deck</h3>
+          <p id="saved-deck-picker-description">Add this card to the mainboard of one of your saved decks.</p>
+        </header>
 
-          <label class="block text-sm text-slate-200">
-            <span class="mt-field-label">Find a deck</span>
-            <input type="text"
-                   class="mt-control"
-                   placeholder="Search by deck name, commander, or format"
-                   data-deck-picker-search>
-          </label>
+        <label class="mt-saved-deck-picker__search">
+          <span class="mt-field-label">Find a deck</span>
+          <input type="search"
+                 class="mt-control"
+                 placeholder="Deck name, commander, or format"
+                 autocomplete="off"
+                 data-deck-picker-search>
+        </label>
 
-          <p data-deck-picker-status class="hidden rounded-xl border px-3 py-2 text-sm"></p>
+        <p data-deck-picker-status class="mt-saved-deck-picker__status" hidden role="status"></p>
 
-          <div data-deck-picker-empty class="hidden rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-400">
-            No saved decks match that search.
-          </div>
+        <div data-deck-picker-empty class="mt-saved-deck-picker__empty" hidden>
+          No saved decks match that search.
+        </div>
 
-          <div data-deck-picker-no-decks class="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-4 text-sm text-slate-400 {{ if $ctx.SavedDecks }}hidden{{ end }}">
-            <p>You do not have any saved decks yet.</p>
-            <div class="pt-3">
-              <a href="/decks/new" class="mt-btn mt-btn--primary mt-btn--sm">Create a Deck</a>
-            </div>
-          </div>
+        <div data-deck-picker-no-decks class="mt-saved-deck-picker__empty {{ if $ctx.SavedDecks }}hidden{{ end }}">
+          <p>You do not have any saved decks yet.</p>
+          <a href="/decks/new" class="mt-btn mt-btn--primary mt-btn--sm">Build a Deck</a>
+        </div>
 
-          <div class="max-h-[26rem] space-y-3 overflow-y-auto" data-deck-picker-list>
-            {{ range $ctx.SavedDecks }}
-              <button type="button"
-                      class="w-full rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-4 text-left transition-colors hover:border-slate-600 hover:bg-slate-900/80"
-                      data-deck-picker-option
-                      data-deck-id="{{ .ID }}"
-                      data-deck-name="{{ .Name }}"
-                      data-commander-name="{{ .CommanderName }}"
-                      data-format="{{ .Format }}">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div class="space-y-2 min-w-0">
-                    <p class="text-sm font-semibold text-slate-100">{{ .Name }}</p>
-                    {{ if .Description }}
-                      <p class="text-xs text-slate-500 line-clamp-2">{{ .Description }}</p>
-                    {{ end }}
-                    <div class="flex flex-wrap gap-2">
-                      <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
-                      <span class="mt-chip">{{ if .CommanderName }}Commander: {{ .CommanderName }}{{ else }}No commander{{ end }}</span>
-                      <span class="mt-chip">{{ if .IsPublic }}Public{{ else }}Private{{ end }}</span>
-                      {{ if .PowerBracket }}
-                        <span class="mt-chip">Power: {{ .PowerBracket }}</span>
-                      {{ end }}
-                    </div>
-                  </div>
-
-                  <span class="mt-btn mt-btn--primary mt-btn--sm">Add Card</span>
-                </div>
-              </button>
-            {{ end }}
-          </div>
+        <div class="mt-saved-deck-picker__list" data-deck-picker-list>
+          {{ range $ctx.SavedDecks }}
+            <button type="button"
+                    class="mt-saved-deck-picker__option"
+                    data-deck-picker-option
+                    data-deck-id="{{ .ID }}"
+                    data-deck-name="{{ .Name }}"
+                    data-commander-name="{{ .CommanderName }}"
+                    data-format="{{ .Format }}">
+              <span class="mt-saved-deck-picker__option-copy">
+                <strong>{{ .Name }}</strong>
+                {{ if .Description }}<span class="mt-saved-deck-picker__description">{{ .Description }}</span>{{ end }}
+                <span class="mt-saved-deck-picker__meta">
+                  <span>{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
+                  <span>{{ if .CommanderName }}{{ .CommanderName }}{{ else }}No commander{{ end }}</span>
+                  <span>{{ if .IsPublic }}Public{{ else }}Private{{ end }}</span>
+                  {{ if .PowerBracket }}<span>{{ .PowerBracket }}</span>{{ end }}
+                </span>
+              </span>
+              <span class="mt-saved-deck-picker__add">Add <span aria-hidden="true">&rarr;</span></span>
+            </button>
+          {{ end }}
         </div>
       </div>
     </div>

@@ -1,19 +1,18 @@
 {{ define "not_found" }}
   {{ template "layout_header" . }}
 
-  <main class="max-w-3xl mx-auto px-4 py-14">
-    <section class="mt-panel p-8 text-center space-y-5">
-      <div class="space-y-2">
-        <p class="mt-kicker">404</p>
-        <h1 class="text-3xl font-bold text-slate-100">Page not found.</h1>
-      </div>
+  <div class="mt-static-page mt-static-page--message">
+    <section class="mt-static-message" aria-labelledby="not-found-title">
+      <p class="mt-static-status">404</p>
+      <h1 id="not-found-title" class="mt-static-title">Page not found.</h1>
+      <p class="mt-static-lede">The page may have moved, or the link may be out of date.</p>
 
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-        <button type="button" onclick="window.history.back()" class="mt-btn mt-btn--secondary">Back</button>
-        <a href="/" class="mt-btn mt-btn--primary">Home</a>
+      <div class="mt-static-actions" aria-label="Page recovery">
+        <button type="button" onclick="window.history.back()" class="mt-btn mt-btn--secondary">Go back</button>
+        <a href="/" class="mt-btn mt-btn--primary">Return home</a>
       </div>
     </section>
-  </main>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

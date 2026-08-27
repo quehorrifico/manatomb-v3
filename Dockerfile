@@ -23,10 +23,9 @@ WORKDIR /app
 # Copy binary from build stage
 COPY --from=build /app/manatomb /app/manatomb
 
-# Copy templates (and any other assets your app loads from disk)
-COPY --from=build /app/internal/web/templates /app/internal/web/templates
-
 ENV PORT=8080
 EXPOSE 8080
+
+USER 65532:65532
 
 ENTRYPOINT ["/app/manatomb"]

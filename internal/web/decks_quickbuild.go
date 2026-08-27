@@ -215,7 +215,7 @@ func (a *App) handleGuestDeckQuickBuild(w http.ResponseWriter, r *http.Request, 
 
 	deckName := strings.TrimSpace(req.Name)
 	if deckName == "" {
-		deckName = "New Guest Deck"
+		deckName = randomDeckName()
 	}
 	mergedTags := mergeQuickBuildTags(req.Tags, result.Summary)
 

@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"manatomb/app/internal/account"
 	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
 )
@@ -56,6 +55,16 @@ func (a *App) HandleDeckList(w http.ResponseWriter, r *http.Request) {
 		if commanderName != "" {
 			if c, ok := commanderCards[strings.ToLower(commanderName)]; ok {
 				applyCommanderCardMetaToDeckItem(&item, c)
+				if strings.TrimSpace(d.CommanderPrintID) != "" {
+					if selected, selectedErr := cards.GetCardPrintingByID(
+						r.Context(),
+						a.DB,
+						c.OracleID,
+						d.CommanderPrintID,
+					); selectedErr == nil {
+						applyCommanderPrintingMetaToDeckItem(&item, selected)
+					}
+				}
 			}
 			// If lookup misses or has no image, we just show the placeholder in the UI.
 		}
@@ -106,8 +115,8 @@ func (a *App) HandleDeckImportShow(w http.ResponseWriter, r *http.Request) {
 	flash := readFlash(w, r)
 	user := CurrentUser(r)
 
-	a.renderDeckNew(w, user, flash, "", deckNewPageData{
-		Mode: "import",
+	a.renderDeckImport(w, user, flash, "", deckImportPageData{
+		Step: "paste",
 	})
 }
 
@@ -126,6 +135,7 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.Form.Get("name"))
 	desc := strings.TrimSpace(r.Form.Get("description"))
 	commander := strings.TrimSpace(r.Form.Get("commander_name"))
+	commanderPrintID := strings.TrimSpace(r.Form.Get("commander_print_id"))
 	format := defaultDeckFormat(r.Form.Get("format"), commander, normalizeDeckBuilderMode(r.Form.Get("mode")))
 	powerBracket := defaultDeckPowerBracket(r.Form.Get("power_bracket"), format)
 
@@ -154,14 +164,16 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 
 	if !decks.FormatRequiresCommander(format) {
 		commander = ""
+		commanderPrintID = ""
 	}
 
 	d, err := decks.CreateDeckWithOptions(r.Context(), a.DB, user.ID, decks.DeckInput{
-		Name:          name,
-		Description:   desc,
-		Format:        format,
-		CommanderName: commander,
-		PowerBracket:  powerBracket,
+		Name:             name,
+		Description:      desc,
+		Format:           format,
+		CommanderName:    commander,
+		CommanderPrintID: commanderPrintID,
+		PowerBracket:     powerBracket,
 	})
 	if err != nil {
 		// Use our pretty 500 page + logging
@@ -179,27 +191,41 @@ func (a *App) HandleDeckWorkbench(w http.ResponseWriter, r *http.Request) {
 	user := CurrentUser(r)
 
 	commanderName := strings.TrimSpace(r.URL.Query().Get("commander_name"))
+	commanderPrintID := strings.TrimSpace(r.URL.Query().Get("commander_print_id"))
 	format := defaultDeckFormat(r.URL.Query().Get("format"), commanderName, normalizeDeckBuilderMode(r.URL.Query().Get("mode")))
 	isSandbox := strings.TrimSpace(r.URL.Query().Get("sandbox")) == "1"
-	deckName := "New Guest Deck"
+	if !decks.FormatRequiresCommander(format) || commanderName == "" {
+		commanderPrintID = ""
+	}
+	deckName := randomDeckName()
 
 	// Fake deck object (ID=0) so the template can render.
 	fakeDeck := &decks.Deck{
-		ID:            0,
-		UserID:        0,
-		Name:          deckName,
-		Description:   "",
-		Format:        format,
-		CommanderName: commanderName,
+		ID:               0,
+		UserID:           0,
+		Name:             deckName,
+		Description:      "",
+		Format:           format,
+		CommanderName:    commanderName,
+		CommanderPrintID: commanderPrintID,
 	}
 
 	var commanderCard *cards.Card
 	if decks.FormatRequiresCommander(format) {
 		commanderCard = a.lookupCommanderCard(r.Context(), commanderName)
+		if commanderCard != nil && commanderPrintID != "" {
+			if selected, selectedErr := cards.GetCardPrintingByID(r.Context(), a.DB, commanderCard.OracleID, commanderPrintID); selectedErr == nil {
+				commanderCard = selected
+			} else {
+				commanderPrintID = ""
+				fakeDeck.CommanderPrintID = ""
+			}
+		}
 	}
 
 	data := TemplateData{
 		CurrentUser: user, // may be nil; template handles local workbench mode
+		Meta:        deckWorkspacePageMeta(fakeDeck),
 		Data: deckPageData{
 			Deck:                  fakeDeck,
 			DeckCards:             nil,
@@ -223,6 +249,13 @@ func (a *App) HandleDeckWorkbench(w http.ResponseWriter, r *http.Request) {
 			),
 			WorkbenchMode:    true,
 			WorkbenchSandbox: isSandbox,
+			GuestAuthNextPath: deckWorkbenchPath(deckWorkbenchOptions{
+				Format:           format,
+				CommanderName:    commanderName,
+				CommanderPrintID: commanderPrintID,
+				Sandbox:          isSandbox,
+				SaveWorkbench:    true,
+			}),
 		},
 		Flash:      flash,
 		WideLayout: true,
@@ -231,52 +264,22 @@ func (a *App) HandleDeckWorkbench(w http.ResponseWriter, r *http.Request) {
 	a.Renderer.Render(w, "deck_show", data)
 }
 
-func (a *App) createSavedBuilderDeck(w http.ResponseWriter, r *http.Request, user *account.User, format, commanderName string) {
-	if user == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-
-	format = defaultDeckFormat(format, commanderName, "")
-	commanderName = strings.TrimSpace(commanderName)
-	if !decks.FormatRequiresCommander(format) {
-		commanderName = ""
-	}
-
-	created, err := decks.CreateDeckWithOptions(r.Context(), a.DB, user.ID, decks.DeckInput{
-		Name:          "New Deck",
-		Description:   "",
-		Format:        format,
-		CommanderName: commanderName,
-	})
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
-
-	setFlash(w, "Deck created.")
-	http.Redirect(w, r, "/decks/"+strconv.FormatInt(created.ID, 10), http.StatusSeeOther)
-}
-
 // HandleDeckWorkbenchAliasRedirect keeps older local-builder paths working while
 // the canonical route is /decks/new/workbench.
 func (a *App) HandleDeckWorkbenchAliasRedirect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, deckWorkbenchPath(deckWorkbenchOptions{
-		Format:        r.URL.Query().Get("format"),
-		CommanderName: r.URL.Query().Get("commander_name"),
-		Sandbox:       strings.TrimSpace(r.URL.Query().Get("sandbox")) == "1",
-		SaveWorkbench: strings.TrimSpace(r.URL.Query().Get("save_guest")) == "1",
-		Reset:         strings.TrimSpace(r.URL.Query().Get("reset")) == "1",
+		Format:           r.URL.Query().Get("format"),
+		CommanderName:    r.URL.Query().Get("commander_name"),
+		CommanderPrintID: r.URL.Query().Get("commander_print_id"),
+		Sandbox:          strings.TrimSpace(r.URL.Query().Get("sandbox")) == "1",
+		SaveWorkbench:    strings.TrimSpace(r.URL.Query().Get("save_guest")) == "1",
+		Reset:            strings.TrimSpace(r.URL.Query().Get("reset")) == "1",
 	}), http.StatusSeeOther)
 }
 
 func (a *App) HandleDeckSandboxRedirect(w http.ResponseWriter, r *http.Request) {
-	if user := CurrentUser(r); user != nil {
-		a.createSavedBuilderDeck(w, r, user, "Sandbox", "")
-		return
-	}
-
 	http.Redirect(w, r, deckWorkbenchPath(deckWorkbenchOptions{
+		Format:  "Sandbox",
 		Sandbox: true,
 		Reset:   true,
 	}), http.StatusSeeOther)
@@ -293,6 +296,7 @@ func (a *App) HandleDeckCommanderSelect(w http.ResponseWriter, r *http.Request) 
 	}
 
 	commander := strings.TrimSpace(r.FormValue("commander_name"))
+	commanderPrintID := strings.TrimSpace(r.FormValue("commander_print_id"))
 	returnTo := canonicalizeLocalReturnPath(r.FormValue("return_to"), "/decks/new/commander/")
 	if commander == "" {
 		// No commander provided - send user back to search with a friendly message.
@@ -303,11 +307,12 @@ func (a *App) HandleDeckCommanderSelect(w http.ResponseWriter, r *http.Request) 
 
 	if isDeckSettingsPath(returnTo) {
 		next := mergeLocalReturnPath(returnTo, "/decks/settings", map[string]string{
-			"commander_name": commander,
+			"commander_name":     commander,
+			"commander_print_id": commanderPrintID,
 		})
 		http.Redirect(w, r, next, http.StatusSeeOther)
 		return
 	}
 
-	a.startCommanderDeck(w, r, commander)
+	a.startCommanderDeck(w, r, commander, commanderPrintID)
 }

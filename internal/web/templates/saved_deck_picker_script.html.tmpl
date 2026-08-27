@@ -14,20 +14,7 @@
         if (!pageStatus || !pageStatusText) return;
 
         pageStatus.hidden = false;
-        pageStatus.classList.remove(
-          "border-emerald-500/40",
-          "bg-emerald-500/10",
-          "text-emerald-100",
-          "border-rose-500/40",
-          "bg-rose-500/10",
-          "text-rose-100"
-        );
-
-        if (kind === "error") {
-          pageStatus.classList.add("border-rose-500/40", "bg-rose-500/10", "text-rose-100");
-        } else {
-          pageStatus.classList.add("border-emerald-500/40", "bg-emerald-500/10", "text-emerald-100");
-        }
+		pageStatus.dataset.status = kind === "error" ? "error" : "success";
 
         pageStatusText.textContent = message || "";
         if (pageStatusLink && href) {
@@ -35,7 +22,7 @@
           pageStatusLink.textContent = linkLabel || "Open deck";
           pageStatusLink.classList.remove("hidden");
         } else if (pageStatusLink) {
-          pageStatusLink.href = "#";
+          pageStatusLink.removeAttribute("href");
           pageStatusLink.textContent = "Open deck";
           pageStatusLink.classList.add("hidden");
         }
@@ -54,38 +41,21 @@
       var pickerTriggers = Array.from(document.querySelectorAll("[data-open-deck-picker]"));
       var activeCardName = "";
       var activePickerButton = null;
+	  var previousFocus = null;
+      var previousBodyOverflow = "";
 
       function setPickerStatus(kind, message) {
         if (!pickerStatus) return;
         if (!message) {
           pickerStatus.hidden = true;
           pickerStatus.textContent = "";
-          pickerStatus.classList.remove(
-            "border-rose-500/40",
-            "bg-rose-500/10",
-            "text-rose-100",
-            "border-sky-500/40",
-            "bg-sky-500/10",
-            "text-sky-100"
-          );
+		  delete pickerStatus.dataset.status;
           return;
         }
 
         pickerStatus.hidden = false;
         pickerStatus.textContent = message;
-        pickerStatus.classList.remove(
-          "border-rose-500/40",
-          "bg-rose-500/10",
-          "text-rose-100",
-          "border-sky-500/40",
-          "bg-sky-500/10",
-          "text-sky-100"
-        );
-        if (kind === "error") {
-          pickerStatus.classList.add("border-rose-500/40", "bg-rose-500/10", "text-rose-100");
-        } else {
-          pickerStatus.classList.add("border-sky-500/40", "bg-sky-500/10", "text-sky-100");
-        }
+		pickerStatus.dataset.status = kind === "error" ? "error" : "info";
       }
 
       function filterDecks() {
@@ -122,23 +92,29 @@
         if (pickerSearch) {
           pickerSearch.value = "";
         }
-        filterDecks();
+		filterDecks();
+		document.body.style.overflow = previousBodyOverflow;
+		if (previousFocus && document.contains(previousFocus)) previousFocus.focus({ preventScroll: true });
+		previousFocus = null;
       }
 
-      function openPicker(cardName) {
+	  function openPicker(cardName, trigger) {
         activeCardName = trimValue(cardName);
         if (!activeCardName) return;
+		previousFocus = trigger || document.activeElement;
+        previousBodyOverflow = document.body.style.overflow;
         if (pickerCardName) {
           pickerCardName.textContent = activeCardName;
         }
         setPickerStatus("", "");
         pickerModal.classList.remove("hidden");
+        document.body.style.overflow = "hidden";
         if (pickerSearch) {
           pickerSearch.value = "";
         }
         filterDecks();
         if (pickerSearch && !pickerSearch.disabled) {
-          pickerSearch.focus();
+          pickerSearch.focus({ preventScroll: true });
         }
       }
 
@@ -158,11 +134,12 @@
       async function addCardToDeck(button) {
         if (!button || !activeCardName) return;
 
+		var cardName = activeCardName;
         var deckID = trimValue(button.dataset.deckId);
         var deckName = trimValue(button.dataset.deckName) || "deck";
         if (!deckID) return;
 
-        setPickerStatus("info", "Adding " + activeCardName + " to " + deckName + "...");
+		setPickerStatus("info", "Adding " + cardName + " to " + deckName + "...");
         if (activePickerButton && activePickerButton !== button) {
           activePickerButton.disabled = false;
         }
@@ -170,7 +147,7 @@
         button.disabled = true;
 
         var body = new URLSearchParams();
-        body.set("card_name", activeCardName);
+		body.set("card_name", cardName);
 
         try {
           var res = await fetch("/decks/" + encodeURIComponent(deckID), {
@@ -188,7 +165,7 @@
           }
 
           closePicker();
-          setPageStatus("success", "Added " + activeCardName + " to " + deckName + ".", "/decks/" + encodeURIComponent(deckID), "Open deck");
+		  setPageStatus("success", "Added " + cardName + " to " + deckName + ".", "/decks/" + encodeURIComponent(deckID), "Open deck");
         } catch (error) {
           setPickerStatus("error", error && error.message ? error.message : "Could not add card to that deck.");
         } finally {
@@ -205,7 +182,7 @@
               modalToClose.classList.add("hidden");
             }
           }
-          openPicker(button.getAttribute("data-card-name"));
+		  openPicker(button.getAttribute("data-card-name"), button);
         });
       });
 

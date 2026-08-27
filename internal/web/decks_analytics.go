@@ -51,6 +51,8 @@ type deckAnalyticsData struct {
 	StatCards             map[string][]deckRoleCard `json:"stat_cards,omitempty"`
 	GuideChecks           []deckGuideCheck          `json:"guide_checks,omitempty"`
 	ValidationWarnings    []string                  `json:"validation_warnings,omitempty"`
+	ManaPips              []deckManaColorStat       `json:"mana_pips"`
+	ManaSources           []deckManaColorStat       `json:"mana_sources"`
 	PowerEstimate         deckPowerEstimate         `json:"power_estimate"`
 }
 
@@ -72,6 +74,14 @@ type deckRoleCard struct {
 	TypeLine   string   `json:"type_line,omitempty"`
 	Categories []string `json:"categories,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
+}
+
+type deckManaColorStat struct {
+	Symbol   string         `json:"symbol"`
+	Label    string         `json:"label"`
+	ImageURI string         `json:"image_uri"`
+	Count    int            `json:"count"`
+	Cards    []deckRoleCard `json:"cards,omitempty"`
 }
 
 type deckPowerEstimate struct {
@@ -115,6 +125,7 @@ type deckGuideCheck struct {
 
 type deckAnalyticsCardInput struct {
 	Name       string
+	ManaCost   string
 	TypeLine   string
 	OracleText string
 	AllParts   string
@@ -150,6 +161,7 @@ func computeDeckAnalyticsFromDeckCards(format, commanderName string, deckCards [
 	for _, dc := range deckCards {
 		rows = append(rows, deckAnalyticsCardInput{
 			Name:       strings.TrimSpace(dc.CardName),
+			ManaCost:   strings.TrimSpace(dc.ManaCost),
 			TypeLine:   strings.TrimSpace(dc.TypeLine),
 			OracleText: strings.TrimSpace(dc.OracleText),
 			AllParts:   strings.TrimSpace(dc.AllPartsJSON),
@@ -176,7 +188,12 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 	extraCounts := make(map[string]int)
 	categoryCounts := make(map[string]int)
 	categoryCards := make(map[string][]deckRoleCard)
+	manaPipCounts := make(map[string]int)
+	manaPipCards := make(map[string][]deckRoleCard)
+	manaSourceCounts := make(map[string]int)
+	manaSourceCards := make(map[string][]deckRoleCard)
 	powerRows := make([]deckPowerCardInput, 0, len(rows))
+	deckColors := deckAnalyticsColorIdentity(rows)
 
 	for _, row := range rows {
 		name := strings.TrimSpace(row.Name)
@@ -323,6 +340,21 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 			Categories: deckRoleCategoryLabels(roleCategories),
 			Reason:     deckRoleCardReason(roleCategories),
 		}
+		for symbol, pipsPerCard := range manaCostColorPips(row.ManaCost) {
+			if pipsPerCard <= 0 {
+				continue
+			}
+			manaPipCounts[symbol] += pipsPerCard * qty
+			pipCard := roleCard
+			pipCard.Reason = manaPipReason(symbol, pipsPerCard)
+			manaPipCards[symbol] = append(manaPipCards[symbol], pipCard)
+		}
+		for symbol := range manaColorsProducedByCard(row, deckColors) {
+			manaSourceCounts[symbol] += qty
+			sourceCard := roleCard
+			sourceCard.Reason = "Can produce " + strings.ToLower(manaColorLabel(symbol))
+			manaSourceCards[symbol] = append(manaSourceCards[symbol], sourceCard)
+		}
 		appendDeckStatCard(out.StatCards, "all", roleCard)
 		if isLand {
 			appendDeckStatCard(out.StatCards, "lands", roleCard)
@@ -371,11 +403,142 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 	}
 	out.DeckExtras = orderedDeckExtras(extraCounts)
 	out.CategoryBreakdown = orderedDeckRoleCategories(categoryCounts, categoryCards)
+	out.ManaPips = orderedDeckManaColorStats(manaPipCounts, manaPipCards)
+	out.ManaSources = orderedDeckManaColorStats(manaSourceCounts, manaSourceCards)
 	sortDeckStatCards(out.StatCards)
 	out.GuideChecks = buildDeckGuideChecks(format, out)
 	out.ValidationWarnings = buildDeckValidationWarnings(format, commanderName, rows, out)
 	out.PowerEstimate = buildDeckPowerEstimate(format, commanderName, powerRows, out)
 
+	return out
+}
+
+var deckAnalyticsManaColorOrder = []string{"W", "U", "B", "R", "G", "C"}
+
+func deckAnalyticsColorIdentity(rows []deckAnalyticsCardInput) map[string]bool {
+	out := make(map[string]bool)
+	for _, row := range rows {
+		upper := strings.ToUpper(strings.TrimSpace(row.ColorID))
+		for _, symbol := range deckAnalyticsManaColorOrder[:5] {
+			if strings.Contains(upper, symbol) {
+				out[symbol] = true
+			}
+		}
+	}
+	return out
+}
+
+func manaSymbolsInText(raw string) map[string]int {
+	out := make(map[string]int)
+	upper := strings.ToUpper(raw)
+	for cursor := 0; cursor < len(upper); {
+		startOffset := strings.IndexByte(upper[cursor:], '{')
+		if startOffset < 0 {
+			break
+		}
+		start := cursor + startOffset
+		endOffset := strings.IndexByte(upper[start+1:], '}')
+		if endOffset < 0 {
+			break
+		}
+		end := start + 1 + endOffset
+		token := upper[start+1 : end]
+		seenInSymbol := make(map[string]bool)
+		for _, part := range strings.Split(token, "/") {
+			part = strings.TrimSpace(part)
+			switch part {
+			case "W", "U", "B", "R", "G", "C":
+				if !seenInSymbol[part] {
+					out[part]++
+					seenInSymbol[part] = true
+				}
+			}
+		}
+		cursor = end + 1
+	}
+	return out
+}
+
+func manaCostColorPips(manaCost string) map[string]int {
+	return manaSymbolsInText(strings.TrimSpace(manaCost))
+}
+
+func manaColorsProducedByCard(row deckAnalyticsCardInput, deckColors map[string]bool) map[string]bool {
+	out := make(map[string]bool)
+	typeLine := strings.ToLower(strings.TrimSpace(row.TypeLine))
+	for landType, symbol := range map[string]string{
+		"plains":   "W",
+		"island":   "U",
+		"swamp":    "B",
+		"mountain": "R",
+		"forest":   "G",
+	} {
+		if strings.Contains(typeLine, landType) {
+			out[symbol] = true
+		}
+	}
+	if strings.Contains(typeLine, "land") && strings.EqualFold(strings.TrimSpace(row.Name), "Wastes") {
+		out["C"] = true
+	}
+
+	for _, line := range strings.Split(strings.TrimSpace(row.OracleText), "\n") {
+		lower := strings.ToLower(line)
+		searchFrom := 0
+		for searchFrom < len(lower) {
+			addOffset := strings.Index(lower[searchFrom:], "add ")
+			if addOffset < 0 {
+				break
+			}
+			addAt := searchFrom + addOffset
+			fragment := line[addAt:]
+			fragmentLower := lower[addAt:]
+			for symbol := range manaSymbolsInText(fragment) {
+				out[symbol] = true
+			}
+
+			switch {
+			case strings.Contains(fragmentLower, "commander's color identity"):
+				for symbol := range deckColors {
+					out[symbol] = true
+				}
+			case strings.Contains(fragmentLower, "mana of any type"):
+				for _, symbol := range deckAnalyticsManaColorOrder {
+					out[symbol] = true
+				}
+			case strings.Contains(fragmentLower, "mana of any color"),
+				strings.Contains(fragmentLower, "combination of colors"):
+				for _, symbol := range deckAnalyticsManaColorOrder[:5] {
+					out[symbol] = true
+				}
+			}
+
+			searchFrom = addAt + len("add ")
+		}
+	}
+	return out
+}
+
+func manaPipReason(symbol string, count int) string {
+	label := manaColorLabel(symbol)
+	if count == 1 {
+		return label + " pip"
+	}
+	return fmt.Sprintf("%d %s pips", count, strings.ToLower(label))
+}
+
+func orderedDeckManaColorStats(counts map[string]int, cardsByColor map[string][]deckRoleCard) []deckManaColorStat {
+	out := make([]deckManaColorStat, 0, len(deckAnalyticsManaColorOrder))
+	for _, symbol := range deckAnalyticsManaColorOrder {
+		cardsForColor := append([]deckRoleCard(nil), cardsByColor[symbol]...)
+		sortDeckRoleCards(cardsForColor)
+		out = append(out, deckManaColorStat{
+			Symbol:   symbol,
+			Label:    manaColorLabel(symbol),
+			ImageURI: "https://svgs.scryfall.io/card-symbols/" + symbol + ".svg",
+			Count:    counts[symbol],
+			Cards:    cardsForColor,
+		})
+	}
 	return out
 }
 
@@ -1654,6 +1817,7 @@ func (a *App) buildWorkbenchDeckAnalytics(r *http.Request, format, commanderName
 
 		rows = append(rows, deckAnalyticsCardInput{
 			Name:       strings.TrimSpace(dbCard.Name),
+			ManaCost:   strings.TrimSpace(dbCard.ManaCost),
 			TypeLine:   strings.TrimSpace(dbCard.TypeLine),
 			OracleText: strings.TrimSpace(dbCard.OracleText),
 			AllParts:   strings.TrimSpace(dbCard.AllPartsJSON),

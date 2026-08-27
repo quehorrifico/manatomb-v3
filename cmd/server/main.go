@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	"manatomb/app/internal/account"
@@ -57,7 +61,7 @@ func ensureTables(ctx context.Context, database *sql.DB) error {
 func methodSwitch(get, post http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-		case http.MethodGet:
+		case http.MethodGet, http.MethodHead:
 			if get != nil {
 				get(w, r)
 				return
@@ -68,6 +72,14 @@ func methodSwitch(get, post http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 		}
+		allowed := make([]string, 0, 3)
+		if get != nil {
+			allowed = append(allowed, http.MethodGet, http.MethodHead)
+		}
+		if post != nil {
+			allowed = append(allowed, http.MethodPost)
+		}
+		w.Header().Set("Allow", strings.Join(allowed, ", "))
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
@@ -80,18 +92,22 @@ func registerMethodRoutes(mux *http.ServeMux, routes []methodRoute) {
 
 func registerHomeAndAuthRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/", app.HandleHome)
-	mux.HandleFunc("/logout", app.HandleLogout)
+	mux.HandleFunc("/robots.txt", app.HandleRobotsTXT)
+	mux.HandleFunc("/sitemap.xml", app.HandleSitemapXML)
 	mux.HandleFunc("/healthz", app.HandleHealthz)
+	mux.HandleFunc("/changelog", app.HandleChangelog)
 	mux.HandleFunc("/privacy", app.HandlePrivacy)
 	mux.HandleFunc("/terms", app.HandleTerms)
 	mux.HandleFunc("/users/", app.HandleProfileShow)
 
 	registerMethodRoutes(mux, []methodRoute{
+		{pattern: "/logout", post: app.HandleLogout},
 		{pattern: "/signup", get: app.HandleSignupShow, post: app.HandleSignupPost},
 		{pattern: "/login", get: app.HandleLoginShow, post: app.HandleLoginPost},
 		{pattern: "/forgot-password", get: app.HandleForgotPasswordShow, post: app.HandleForgotPasswordPost},
 		{pattern: "/reset-password", get: app.HandleResetPasswordShow, post: app.HandleResetPasswordPost},
 		{pattern: "/profile/avatar", post: app.HandleProfileAvatarPost},
+		{pattern: "/profile/art", post: app.HandleProfileArtPost},
 		{pattern: "/cards/favorites/printing", post: app.HandleCardPrintingFavoritePost},
 		{pattern: "/games/guess-card", get: app.HandleGuessCardShow, post: app.HandleGuessCardPost},
 		{pattern: "/games/spellify", get: app.HandleSpellifyShow, post: app.HandleSpellifyPost},
@@ -140,6 +156,7 @@ func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 	registerMethodRoutes(mux, []methodRoute{
 		{pattern: "/decks/new", get: app.HandleDeckNewShow, post: app.HandleDeckNewPost},
 		{pattern: "/decks/new/commander", get: app.HandleDeckNewCommanderRedirect, post: app.HandleDeckCommanderSelect},
+		{pattern: "/decks/new/commander/more", get: app.HandleDeckNewCommanderMore},
 		{pattern: "/decks/new/commander/create", post: app.HandleDeckCommanderSelect},
 		{pattern: "/decks/import", get: app.HandleDeckImportShow, post: app.HandleDeckImportText},
 		{pattern: "/decks/settings", get: app.HandleDeckEditShow, post: app.HandleDeckEditPost},
@@ -186,6 +203,7 @@ func wrapMiddleware(app *web.App, handler http.Handler) http.Handler {
 	handler = app.WithUserMiddleware(handler)
 	handler = app.WithRateLimitMiddleware(handler)
 	handler = app.WithRecoveryMiddleware(handler)
+	handler = app.WithSecurityHeadersMiddleware(handler)
 	return handler
 }
 
@@ -227,7 +245,7 @@ func run(opts runOptions) error {
 
 	app := &web.App{
 		DB:                  database,
-		Renderer:            web.NewRenderer(),
+		Renderer:            web.NewRenderer(cfg.PublicBaseURL),
 		SessionCookieSecure: cfg.SessionCookieSecure,
 		PublicBaseURL:       cfg.PublicBaseURL,
 		TrustedProxyHops:    cfg.TrustedProxyHops,
@@ -254,7 +272,27 @@ func run(opts runOptions) error {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	return server.ListenAndServe()
+
+	shutdownSignal, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
+	shutdownResult := make(chan error, 1)
+	go func() {
+		<-shutdownSignal.Done()
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		shutdownResult <- server.Shutdown(shutdownContext)
+	}()
+
+	serveErr := server.ListenAndServe()
+	if shutdownSignal.Err() != nil {
+		if shutdownErr := <-shutdownResult; shutdownErr != nil {
+			return fmt.Errorf("graceful server shutdown: %w", shutdownErr)
+		}
+	}
+	if errors.Is(serveErr, http.ErrServerClosed) {
+		return nil
+	}
+	return serveErr
 }
 
 func main() {

@@ -28,13 +28,16 @@ type CardSearchParams struct {
 	Stat           string
 	StatOperator   string
 	StatValue      *float64
+	StatFilters    []CardStatFilter
 	StatMin        *float64
 	StatMax        *float64
 	PriceOperator  string
 	PriceValue     *float64
+	PriceFilters   []CardPriceFilter
 	PriceUSDMin    *float64
 	PriceUSDMax    *float64
 	Rarity         string
+	Rarities       []string
 	SetQuery       string
 	ArtistQuery    string
 	Layout         string
@@ -44,7 +47,21 @@ type CardSearchParams struct {
 	Sort           string
 	SortDirection  string
 	Limit          int
+	Page           int
 	AllMatches     bool
+}
+
+// CardSearchOutcome carries both the matching cards and metadata about how the
+// name query resolved. Pagination metadata is included here so callers can
+// preserve one search API as result paging is introduced.
+type CardSearchOutcome struct {
+	Cards             []Card
+	ExactNameMatch    bool
+	Total             int
+	Page              int
+	PageSize          int
+	TotalPages        int
+	MatchingPrintings bool
 }
 
 type NameResolution struct {
@@ -56,6 +73,17 @@ type NameResolution struct {
 type CardTypeFilter struct {
 	Value   string
 	Negated bool
+}
+
+type CardStatFilter struct {
+	Stat     string
+	Operator string
+	Value    float64
+}
+
+type CardPriceFilter struct {
+	Operator string
+	Value    float64
 }
 
 func normalizeColorFilters(colors []string) []string {
@@ -154,6 +182,23 @@ func normalizeRarityFilter(raw string) string {
 	default:
 		return ""
 	}
+}
+
+func normalizeRarityFilters(raw []string) []string {
+	seen := make(map[string]struct{}, len(raw))
+	out := make([]string, 0, len(raw))
+	for _, value := range raw {
+		normalized := normalizeRarityFilter(value)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out
 }
 
 func normalizeLayoutFilter(raw string) string {
@@ -309,8 +354,20 @@ func decodeCardFacesJSON(raw string) []CardFace {
 	return faces
 }
 
+func decodeLegalitiesJSON(raw string) map[string]string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return map[string]string{}
+	}
+	var legalities map[string]string
+	if err := json.Unmarshal([]byte(raw), &legalities); err != nil {
+		return map[string]string{}
+	}
+	return normalizeLegalities(legalities)
+}
+
 func scanCanonicalCard(
-	oracleID, name, manaCost, typeLine, oracleText, flavorText, imageURI, artCropURI string,
+	printingID, oracleID, name, manaCost, typeLine, oracleText, flavorText, imageURI, artCropURI string,
 	colors, colorIdentity []string,
 	cmc float64,
 	power, toughness, loyalty string,
@@ -320,10 +377,10 @@ func scanCanonicalCard(
 	isCommanderCandidate bool,
 	priceUSD, artist string,
 	edhrecRank int,
-	scryfallURI, setCode, setName, collectorNumber, rarity, releasedAt, lang, facesJSON string,
+	scryfallURI, setCode, setName, collectorNumber, rarity, releasedAt, lang, facesJSON, legalitiesJSON string,
 ) Card {
 	return Card{
-		ID:                   strings.TrimSpace(oracleID),
+		ID:                   strings.TrimSpace(printingID),
 		OracleID:             strings.TrimSpace(oracleID),
 		Name:                 strings.TrimSpace(name),
 		ManaCost:             strings.TrimSpace(manaCost),
@@ -341,6 +398,7 @@ func scanCanonicalCard(
 		Layout:               strings.TrimSpace(layout),
 		LegalAnywhere:        legalAnywhere,
 		CommanderLegal:       commanderLegal,
+		Legalities:           decodeLegalitiesJSON(legalitiesJSON),
 		IsCommanderCandidate: isCommanderCandidate,
 		PriceUSD:             strings.TrimSpace(priceUSD),
 		Artist:               strings.TrimSpace(artist),
@@ -359,12 +417,13 @@ func scanCanonicalCard(
 func canonicalCardSelectSQL() string {
 	return `
 		SELECT
+			COALESCE(oc.default_print_id::text, '') AS id,
 			oc.oracle_id::text,
 			oc.name,
 			COALESCE(oc.mana_cost, '') AS mana_cost,
 			COALESCE(oc.type_line, '') AS type_line,
 			COALESCE(oc.oracle_text, '') AS oracle_text,
-			COALESCE(oc.flavor_text, '') AS flavor_text,
+			COALESCE(cp.flavor_text, '') AS flavor_text,
 			COALESCE(oc.default_image_uri, '') AS image_uri,
 			COALESCE(cp.image_uris->>'art_crop', oc.default_image_uri, '') AS art_crop_uri,
 			COALESCE(oc.colors, ARRAY[]::text[]) AS colors,
@@ -387,7 +446,12 @@ func canonicalCardSelectSQL() string {
 			COALESCE(cp.rarity, '') AS rarity,
 			COALESCE(to_char(oc.default_released_at, 'YYYY-MM-DD'), '') AS released_at,
 			COALESCE(cp.lang, 'en') AS lang,
-			COALESCE(oc.card_faces::text, '')
+			COALESCE(
+				NULLIF(cp.card_faces_json::text, '[]'),
+				oc.card_faces::text,
+				'[]'
+			),
+			COALESCE(oc.legalities, '{}'::jsonb)::text AS legalities_json
 		FROM oracle_cards oc
 		LEFT JOIN card_prints cp ON cp.scryfall_id = oc.default_print_id
 	`
@@ -478,7 +542,12 @@ func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []an
 	typeFilters = normalizeCardTypeFilters(typeFilters)
 	colorFilters, colorlessOnly := splitColorFilters(params.Colors)
 	colorMode := normalizeColorMatchMode(params.ColorMode)
-	rarity := normalizeRarityFilter(params.Rarity)
+	rarities := normalizeRarityFilters(params.Rarities)
+	if len(rarities) == 0 {
+		if rarity := normalizeRarityFilter(params.Rarity); rarity != "" {
+			rarities = []string{rarity}
+		}
+	}
 	setQuery := strings.TrimSpace(params.SetQuery)
 	artistQuery := strings.TrimSpace(params.ArtistQuery)
 	layout := normalizeLayoutFilter(params.Layout)
@@ -574,38 +643,61 @@ func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []an
 		args = append(args, pq.Array(colorFilters))
 		argN++
 	}
-	if statValue != nil {
-		clauses = append(clauses, cardStatColumn(stat)+" "+cardStatOperatorSQL(statOperator)+" $"+fmt.Sprint(argN))
-		args = append(args, *statValue)
-		argN++
-	} else if statMin != nil {
-		clauses = append(clauses, cardStatColumn(stat)+" >= $"+fmt.Sprint(argN))
-		args = append(args, *statMin)
-		argN++
-	}
-	if statValue == nil && statMax != nil {
-		clauses = append(clauses, cardStatColumn(stat)+" <= $"+fmt.Sprint(argN))
-		args = append(args, *statMax)
-		argN++
+	if len(params.StatFilters) > 0 {
+		for _, filter := range params.StatFilters {
+			clauses = append(
+				clauses,
+				cardStatColumn(filter.Stat)+" "+cardStatOperatorSQL(filter.Operator)+" $"+fmt.Sprint(argN),
+			)
+			args = append(args, filter.Value)
+			argN++
+		}
+	} else {
+		if statValue != nil {
+			clauses = append(clauses, cardStatColumn(stat)+" "+cardStatOperatorSQL(statOperator)+" $"+fmt.Sprint(argN))
+			args = append(args, *statValue)
+			argN++
+		} else if statMin != nil {
+			clauses = append(clauses, cardStatColumn(stat)+" >= $"+fmt.Sprint(argN))
+			args = append(args, *statMin)
+			argN++
+		}
+		if statValue == nil && statMax != nil {
+			clauses = append(clauses, cardStatColumn(stat)+" <= $"+fmt.Sprint(argN))
+			args = append(args, *statMax)
+			argN++
+		}
 	}
 	priceExpr := "NULLIF(regexp_replace(COALESCE(oc.default_price_usd, ''), '[^0-9.]', '', 'g'), '')::double precision"
-	if priceValue != nil {
-		clauses = append(clauses, priceExpr+" "+cardStatOperatorSQL(priceOperator)+" $"+fmt.Sprint(argN))
-		args = append(args, *priceValue)
-		argN++
-	} else if params.PriceUSDMin != nil {
-		clauses = append(clauses, priceExpr+" >= $"+fmt.Sprint(argN))
-		args = append(args, *params.PriceUSDMin)
-		argN++
+	if len(params.PriceFilters) > 0 {
+		for _, filter := range params.PriceFilters {
+			clauses = append(clauses, priceExpr+" "+cardStatOperatorSQL(filter.Operator)+" $"+fmt.Sprint(argN))
+			args = append(args, filter.Value)
+			argN++
+		}
+	} else {
+		if priceValue != nil {
+			clauses = append(clauses, priceExpr+" "+cardStatOperatorSQL(priceOperator)+" $"+fmt.Sprint(argN))
+			args = append(args, *priceValue)
+			argN++
+		} else if params.PriceUSDMin != nil {
+			clauses = append(clauses, priceExpr+" >= $"+fmt.Sprint(argN))
+			args = append(args, *params.PriceUSDMin)
+			argN++
+		}
+		if priceValue == nil && params.PriceUSDMax != nil {
+			clauses = append(clauses, priceExpr+" <= $"+fmt.Sprint(argN))
+			args = append(args, *params.PriceUSDMax)
+			argN++
+		}
 	}
-	if priceValue == nil && params.PriceUSDMax != nil {
-		clauses = append(clauses, priceExpr+" <= $"+fmt.Sprint(argN))
-		args = append(args, *params.PriceUSDMax)
-		argN++
-	}
-	if rarity != "" {
+	if len(rarities) == 1 {
 		clauses = append(clauses, "lower(COALESCE(cp.rarity, '')) = $"+fmt.Sprint(argN))
-		args = append(args, rarity)
+		args = append(args, rarities[0])
+		argN++
+	} else if len(rarities) > 1 {
+		clauses = append(clauses, "lower(COALESCE(cp.rarity, '')) = ANY($"+fmt.Sprint(argN)+"::text[])")
+		args = append(args, pq.Array(rarities))
 		argN++
 	}
 	if setQuery != "" {
@@ -634,16 +726,17 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 	out := make([]Card, 0, limit)
 	for rows.Next() {
 		var (
-			oracleID, name, manaCost, typeLine, oracleText, flavorText, imageURI string
-			artCropURI, power, toughness, loyalty                                string
-			layout, priceUSD, artist, scryfallURI, setCode, setName              string
-			collectorNumber, rarity, releasedAt, lang, facesJSON                 string
-			colors, colorIdentity                                                []string
-			cmc                                                                  float64
-			legalAnywhere, commanderLegal, isCommanderCandidate                  bool
-			edhrecRank                                                           int
+			printingID, oracleID, name, manaCost, typeLine, oracleText, flavorText, imageURI string
+			artCropURI, power, toughness, loyalty                                            string
+			layout, priceUSD, artist, scryfallURI, setCode, setName                          string
+			collectorNumber, rarity, releasedAt, lang, facesJSON, legalitiesJSON             string
+			colors, colorIdentity                                                            []string
+			cmc                                                                              float64
+			legalAnywhere, commanderLegal, isCommanderCandidate                              bool
+			edhrecRank                                                                       int
 		)
 		if err := rows.Scan(
+			&printingID,
 			&oracleID,
 			&name,
 			&manaCost,
@@ -673,10 +766,12 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			&releasedAt,
 			&lang,
 			&facesJSON,
+			&legalitiesJSON,
 		); err != nil {
 			return nil, err
 		}
 		out = append(out, scanCanonicalCard(
+			printingID,
 			oracleID,
 			name,
 			manaCost,
@@ -706,6 +801,7 @@ func scanCanonicalCards(rows *sql.Rows, limit int) ([]Card, error) {
 			releasedAt,
 			lang,
 			facesJSON,
+			legalitiesJSON,
 		))
 	}
 	if err := rows.Err(); err != nil {
@@ -785,9 +881,70 @@ func GetCardByOracleID(ctx context.Context, db *sql.DB, oracleID string) (*Card,
 	return &out[0], nil
 }
 
-// SearchCards first returns one exact normalized-name match when present.
-// If no exact match exists, it returns fuzzy matches ordered by closeness.
-func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Card, error) {
+func countCardSearchMatches(
+	ctx context.Context,
+	db *sql.DB,
+	plan cardSearchSourcePlan,
+	whereSQL string,
+	args []any,
+) (int, error) {
+	var total int
+	err := db.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*) `+plan.CountFromSQL+` WHERE `+whereSQL+plan.FilterSQL,
+		args...,
+	).Scan(&total)
+	return total, err
+}
+
+func completedCardSearchOutcome(
+	found []Card,
+	exactNameMatch bool,
+	matchingPrintings bool,
+	window cardSearchPageWindow,
+) CardSearchOutcome {
+	return CardSearchOutcome{
+		Cards:             found,
+		ExactNameMatch:    exactNameMatch,
+		Total:             window.Total,
+		Page:              window.Page,
+		PageSize:          window.PageSize,
+		TotalPages:        window.TotalPages,
+		MatchingPrintings: matchingPrintings,
+	}
+}
+
+func unpagedCardSearchOutcome(found []Card, exactNameMatch, matchingPrintings bool) CardSearchOutcome {
+	totalPages := 0
+	if len(found) > 0 {
+		totalPages = 1
+	}
+	return CardSearchOutcome{
+		Cards:             found,
+		ExactNameMatch:    exactNameMatch,
+		Total:             len(found),
+		Page:              1,
+		PageSize:          len(found),
+		TotalPages:        totalPages,
+		MatchingPrintings: matchingPrintings,
+	}
+}
+
+func exactCardSearchOutcome(found []Card, limit int, matchingPrintings bool) CardSearchOutcome {
+	return completedCardSearchOutcome(
+		found,
+		len(found) > 0,
+		matchingPrintings,
+		normalizeCardSearchPage(1, limit, len(found)),
+	)
+}
+
+// SearchCardsWithOutcome first returns one exact normalized-name match when
+// present. If no exact match exists, it returns a counted, server-side page of
+// fuzzy matches. Printing-specific filters select one deterministic matching
+// printing per oracle card; ordinary name/oracle searches retain the canonical
+// default printing.
+func SearchCardsWithOutcome(ctx context.Context, db *sql.DB, params CardSearchParams) (CardSearchOutcome, error) {
 	limit, unlimited := cardSearchLimit(params)
 	scanCapacity := limit
 	if unlimited || scanCapacity < 1 {
@@ -797,92 +954,160 @@ func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Ca
 	query := strings.TrimSpace(params.Query)
 	if query == "" {
 		orderSQL := cardSearchOrderBySQL(params.Sort, params.SortDirection, false, false)
-		filterSQL, filterArgs := buildCardSearchFilters(params, 1)
-		sqlText := canonicalCardSelectSQL() + `
-			WHERE 1=1` + filterSQL + `
+		plan := buildCardSearchSourcePlan(params, 1)
+		sqlText := plan.SelectSQL + `
+			WHERE 1=1` + plan.FilterSQL + `
 			ORDER BY ` + orderSQL
-		args := filterArgs
-		if !unlimited {
-			sqlText += `
-			LIMIT $` + fmt.Sprint(len(filterArgs)+1)
-			args = append(args, limit)
+		args := append([]any(nil), plan.Args...)
+
+		if unlimited {
+			rows, err := db.QueryContext(ctx, sqlText, args...)
+			if err != nil {
+				return CardSearchOutcome{}, err
+			}
+			defer rows.Close()
+			found, err := scanCanonicalCards(rows, scanCapacity)
+			if err != nil {
+				return CardSearchOutcome{}, err
+			}
+			return unpagedCardSearchOutcome(found, false, plan.MatchingPrintings), nil
 		}
 
+		total, err := countCardSearchMatches(ctx, db, plan, "1=1", plan.Args)
+		if err != nil {
+			return CardSearchOutcome{}, err
+		}
+		window := normalizeCardSearchPage(params.Page, limit, total)
+		if total == 0 {
+			return completedCardSearchOutcome(nil, false, plan.MatchingPrintings, window), nil
+		}
+
+		sqlText += `
+			LIMIT $` + fmt.Sprint(len(plan.Args)+1) + `
+			OFFSET $` + fmt.Sprint(len(plan.Args)+2)
+		args = append(args, window.PageSize, window.Offset)
 		rows, err := db.QueryContext(ctx, sqlText, args...)
 		if err != nil {
-			return nil, err
+			return CardSearchOutcome{}, err
 		}
 		defer rows.Close()
-		return scanCanonicalCards(rows, scanCapacity)
+		found, err := scanCanonicalCards(rows, scanCapacity)
+		if err != nil {
+			return CardSearchOutcome{}, err
+		}
+		return completedCardSearchOutcome(found, false, plan.MatchingPrintings, window), nil
 	}
 
 	if params.NameExact {
 		exactParams := params
 		exactParams.Query = ""
-		filterSQL, filterArgs := buildCardSearchFilters(exactParams, 2)
-		exactSQL := canonicalCardSelectSQL() + `
-			WHERE oc.name_search = normalize_card_name($1)` + filterSQL + `
+		plan := buildCardSearchSourcePlan(exactParams, 2)
+		exactSQL := plan.SelectSQL + `
+			WHERE oc.name_search = normalize_card_name($1)` + plan.FilterSQL + `
 			ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
 			LIMIT 1
 		`
-		exactArgs := append([]any{query}, filterArgs...)
+		exactArgs := append([]any{query}, plan.Args...)
 		rows, err := db.QueryContext(ctx, exactSQL, exactArgs...)
 		if err != nil {
-			return nil, err
+			return CardSearchOutcome{}, err
 		}
 		defer rows.Close()
-		return scanCanonicalCards(rows, 1)
+		found, err := scanCanonicalCards(rows, 1)
+		if err != nil {
+			return CardSearchOutcome{}, err
+		}
+		return exactCardSearchOutcome(found, limit, plan.MatchingPrintings), nil
 	}
 
 	// 1) exact normalized match
 	exactParams := params
 	exactParams.Query = ""
-	filterSQL, filterArgs := buildCardSearchFilters(exactParams, 2)
-	exactSQL := canonicalCardSelectSQL() + `
-		WHERE oc.name_search = normalize_card_name($1)` + filterSQL + `
+	exactPlan := buildCardSearchSourcePlan(exactParams, 2)
+	exactSQL := exactPlan.SelectSQL + `
+		WHERE oc.name_search = normalize_card_name($1)` + exactPlan.FilterSQL + `
 		ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
 		LIMIT 1
 	`
-	exactArgs := append([]any{query}, filterArgs...)
+	exactArgs := append([]any{query}, exactPlan.Args...)
 	exactRows, err := db.QueryContext(ctx, exactSQL, exactArgs...)
 	if err != nil {
-		return nil, err
+		return CardSearchOutcome{}, err
 	}
 	exactCards, err := scanCanonicalCards(exactRows, 1)
 	exactRows.Close()
 	if err != nil {
-		return nil, err
+		return CardSearchOutcome{}, err
 	}
 	if len(exactCards) > 0 {
-		return exactCards, nil
+		return exactCardSearchOutcome(exactCards, limit, exactPlan.MatchingPrintings), nil
 	}
 
 	// 2) fuzzy list
 	normalizedQuery := NormalizeName(query)
 	if normalizedQuery == "" {
-		return nil, nil
+		return completedCardSearchOutcome(
+			nil,
+			false,
+			exactPlan.MatchingPrintings,
+			normalizeCardSearchPage(params.Page, limit, 0),
+		), nil
 	}
 
 	fuzzyParams := params
 	fuzzyParams.Query = ""
-	filterSQL, filterArgs = buildCardSearchFilters(fuzzyParams, 2)
+	fuzzyPlan := buildCardSearchSourcePlan(fuzzyParams, 2)
 	orderSQL := cardSearchOrderBySQL(params.Sort, params.SortDirection, true, true)
-	fuzzySQL := canonicalCardSelectSQL() + `
-		WHERE ` + cardNameSearchMatchSQL() + filterSQL + `
+	fuzzySQL := fuzzyPlan.SelectSQL + `
+		WHERE ` + cardNameSearchMatchSQL() + fuzzyPlan.FilterSQL + `
 		ORDER BY ` + orderSQL
-	fuzzyArgs := append([]any{normalizedQuery}, filterArgs...)
-	if !unlimited {
-		fuzzySQL += `
-		LIMIT $` + fmt.Sprint(len(filterArgs)+2)
-		fuzzyArgs = append(fuzzyArgs, limit)
+	fuzzyArgs := append([]any{normalizedQuery}, fuzzyPlan.Args...)
+
+	if unlimited {
+		rows, err := db.QueryContext(ctx, fuzzySQL, fuzzyArgs...)
+		if err != nil {
+			return CardSearchOutcome{}, err
+		}
+		defer rows.Close()
+		found, err := scanCanonicalCards(rows, scanCapacity)
+		if err != nil {
+			return CardSearchOutcome{}, err
+		}
+		return unpagedCardSearchOutcome(found, false, fuzzyPlan.MatchingPrintings), nil
 	}
 
+	total, err := countCardSearchMatches(ctx, db, fuzzyPlan, cardNameSearchMatchSQL(), fuzzyArgs)
+	if err != nil {
+		return CardSearchOutcome{}, err
+	}
+	window := normalizeCardSearchPage(params.Page, limit, total)
+	if total == 0 {
+		return completedCardSearchOutcome(nil, false, fuzzyPlan.MatchingPrintings, window), nil
+	}
+
+	fuzzySQL += `
+		LIMIT $` + fmt.Sprint(len(fuzzyPlan.Args)+2) + `
+		OFFSET $` + fmt.Sprint(len(fuzzyPlan.Args)+3)
+	fuzzyArgs = append(fuzzyArgs, window.PageSize, window.Offset)
 	rows, err := db.QueryContext(ctx, fuzzySQL, fuzzyArgs...)
+	if err != nil {
+		return CardSearchOutcome{}, err
+	}
+	defer rows.Close()
+	found, err := scanCanonicalCards(rows, scanCapacity)
+	if err != nil {
+		return CardSearchOutcome{}, err
+	}
+	return completedCardSearchOutcome(found, false, fuzzyPlan.MatchingPrintings, window), nil
+}
+
+// SearchCards keeps the original result-only API for existing callers.
+func SearchCards(ctx context.Context, db *sql.DB, params CardSearchParams) ([]Card, error) {
+	outcome, err := SearchCardsWithOutcome(ctx, db, params)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return scanCanonicalCards(rows, scanCapacity)
+	return outcome.Cards, nil
 }
 
 // RandomCard returns one sensible random card for discovery flows.
@@ -939,6 +1164,92 @@ func RandomTopCommanders(
 	`
 
 	rows, err := db.QueryContext(ctx, sqlText, maxEDHRecRank, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanCanonicalCards(rows, limit)
+}
+
+// RandomizedTopCommanderBatch returns one page from a deterministic shuffled
+// ordering of popular commander candidates. Reusing seed and passing the final
+// oracle ID from one batch as afterOracleID advances through that ordering
+// without reshuffling previously returned cards.
+func RandomizedTopCommanderBatch(
+	ctx context.Context,
+	db *sql.DB,
+	seed string,
+	afterOracleID string,
+	limit int,
+	maxEDHRecRank int,
+) ([]Card, error) {
+	seed = strings.TrimSpace(seed)
+	afterOracleID = strings.TrimSpace(afterOracleID)
+	if limit <= 0 {
+		limit = 8
+	}
+	if maxEDHRecRank <= 0 {
+		maxEDHRecRank = 1500
+	}
+
+	sqlText := canonicalCardSelectSQL() + `
+		WHERE oc.is_commander_candidate = TRUE
+		  AND oc.edhrec_rank IS NOT NULL
+		  AND oc.edhrec_rank > 0
+		  AND oc.edhrec_rank <= $2
+		  AND (
+			NULLIF($3::text, '') IS NULL
+			OR (
+				md5($1::text || oc.oracle_id::text),
+				oc.oracle_id
+			) > (
+				md5($1::text || NULLIF($3::text, '')::uuid::text),
+				NULLIF($3::text, '')::uuid
+			)
+		  )
+		ORDER BY md5($1::text || oc.oracle_id::text), oc.oracle_id ASC
+		LIMIT $4
+	`
+
+	rows, err := db.QueryContext(
+		ctx,
+		sqlText,
+		seed,
+		maxEDHRecRank,
+		afterOracleID,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanCanonicalCards(rows, limit)
+}
+
+// PopularCommanders returns strict commander candidates in stable EDHRec rank
+// order. It powers surfaces that promise a predictable popular list rather
+// than a shuffled set of ideas.
+func PopularCommanders(
+	ctx context.Context,
+	db *sql.DB,
+	limit int,
+) ([]Card, error) {
+	if limit <= 0 {
+		limit = 24
+	}
+	if limit > 48 {
+		limit = 48
+	}
+
+	sqlText := canonicalCardSelectSQL() + `
+		WHERE oc.is_commander_candidate = TRUE
+		  AND oc.edhrec_rank IS NOT NULL
+		  AND oc.edhrec_rank > 0
+		ORDER BY oc.edhrec_rank ASC, lower(oc.name) ASC, oc.oracle_id ASC
+		LIMIT $1
+	`
+
+	rows, err := db.QueryContext(ctx, sqlText, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1164,20 +1475,8 @@ func ListCardVersionsByName(ctx context.Context, db *sql.DB, name string, limit 
 	return ListCardVersionsByOracleID(ctx, db, card.OracleID, limit)
 }
 
-// ListCardVersionsByOracleID returns printings for an oracle card id, newest first.
-func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string, limit int) ([]Card, error) {
-	oracleID = strings.TrimSpace(oracleID)
-	if oracleID == "" {
-		return nil, ErrCardNotFound
-	}
-	if limit <= 0 {
-		limit = 120
-	}
-	if limit > 500 {
-		limit = 500
-	}
-
-	rows, err := db.QueryContext(ctx, `
+func cardPrintingSelectSQL() string {
+	return `
 		SELECT
 			cp.scryfall_id::text AS id,
 			oc.oracle_id::text AS oracle_id,
@@ -1186,7 +1485,7 @@ func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string
 			COALESCE(oc.mana_cost, '') AS mana_cost,
 			COALESCE(oc.type_line, '') AS type_line,
 			COALESCE(oc.oracle_text, '') AS oracle_text,
-			COALESCE(cp.flavor_text, COALESCE(oc.flavor_text, '')) AS flavor_text,
+			COALESCE(cp.flavor_text, '') AS flavor_text,
 			COALESCE(cp.image_uri, '') AS image_uri,
 			COALESCE(cp.image_uris->>'art_crop', cp.image_uri, '') AS art_crop_uri,
 			COALESCE(oc.colors, ARRAY[]::text[]) AS colors,
@@ -1212,10 +1511,130 @@ func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string
 				NULLIF(cp.card_faces_json::text, '[]'),
 				oc.card_faces::text,
 				'[]'
-			)
+			),
+			COALESCE(oc.legalities, '{}'::jsonb)::text AS legalities_json
 		FROM card_prints cp
 		JOIN oracle_cards oc
 		  ON oc.oracle_id = cp.oracle_id
+	`
+}
+
+type cardPrintingScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanCardPrinting(scanner cardPrintingScanner) (Card, error) {
+	var (
+		card                                                Card
+		facesJSON, legalitiesJSON                           string
+		colors, colorIdentity                               []string
+		legalAnywhere, commanderLegal, isCommanderCandidate bool
+	)
+	err := scanner.Scan(
+		&card.ID,
+		&card.OracleID,
+		&card.Lang,
+		&card.Name,
+		&card.ManaCost,
+		&card.TypeLine,
+		&card.OracleText,
+		&card.FlavorText,
+		&card.ImageURI,
+		&card.ArtCropURI,
+		pq.Array(&colors),
+		pq.Array(&colorIdentity),
+		&card.CMC,
+		&card.Power,
+		&card.Toughness,
+		&card.Loyalty,
+		&card.Layout,
+		&legalAnywhere,
+		&commanderLegal,
+		&isCommanderCandidate,
+		&card.PriceUSD,
+		&card.Artist,
+		&card.EDHRecRank,
+		&card.ScryfallURI,
+		&card.SetCode,
+		&card.SetName,
+		&card.CollectorNumber,
+		&card.Rarity,
+		&card.ReleasedAt,
+		&facesJSON,
+		&legalitiesJSON,
+	)
+	if err != nil {
+		return Card{}, err
+	}
+	card.Colors = colors
+	card.ColorIdentity = colorIdentity
+	card.LegalAnywhere = legalAnywhere
+	card.CommanderLegal = commanderLegal
+	card.Legalities = decodeLegalitiesJSON(legalitiesJSON)
+	card.IsCommanderCandidate = isCommanderCandidate
+	card.Faces = decodeCardFacesJSON(facesJSON)
+	return card, nil
+}
+
+// GetCardPrintingByID returns one exact printing when it belongs to oracleID.
+func GetCardPrintingByID(ctx context.Context, db *sql.DB, oracleID, scryfallID string) (*Card, error) {
+	oracleID = strings.TrimSpace(oracleID)
+	scryfallID = strings.TrimSpace(scryfallID)
+	if oracleID == "" || scryfallID == "" {
+		return nil, ErrCardNotFound
+	}
+
+	row := db.QueryRowContext(ctx, cardPrintingSelectSQL()+`
+		WHERE oc.oracle_id = $1::uuid
+		  AND cp.scryfall_id = $2::uuid
+		LIMIT 1
+	`, oracleID, scryfallID)
+	card, err := scanCardPrinting(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCardNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &card, nil
+}
+
+// GetCardPrintingByScryfallID returns an exact printing without requiring the
+// caller to already know its oracle card ID.
+func GetCardPrintingByScryfallID(ctx context.Context, db *sql.DB, scryfallID string) (*Card, error) {
+	scryfallID = strings.TrimSpace(scryfallID)
+	if scryfallID == "" {
+		return nil, ErrCardNotFound
+	}
+
+	row := db.QueryRowContext(ctx, cardPrintingSelectSQL()+`
+		WHERE cp.scryfall_id = $1::uuid
+		LIMIT 1
+	`, scryfallID)
+	card, err := scanCardPrinting(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCardNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &card, nil
+}
+
+// ListCardVersionsByOracleID returns printings for an oracle card id, newest first.
+func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string, limit int) ([]Card, error) {
+	oracleID = strings.TrimSpace(oracleID)
+	if oracleID == "" {
+		return nil, ErrCardNotFound
+	}
+	if limit <= 0 {
+		limit = 120
+	}
+	if limit > 500 {
+		limit = 500
+	}
+
+	rows, err := db.QueryContext(ctx, cardPrintingSelectSQL()+`
 		WHERE oc.oracle_id = $1::uuid
 		ORDER BY cp.released_at DESC NULLS LAST, cp.set_code ASC, cp.collector_number ASC
 		LIMIT $2
@@ -1227,83 +1646,11 @@ func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string
 
 	out := make([]Card, 0, limit)
 	for rows.Next() {
-		var (
-			id, rowOracleID, lang, name, manaCost, typeLine, oracleText, flavorText, imageURI string
-			artCropURI, power, toughness, loyalty                                             string
-			layout, priceUSD, artist, scryfallURI, setCode, setName                           string
-			collectorNumber, rarity, releasedAt, facesJSON                                    string
-			colors, colorIdentity                                                             []string
-			cmc                                                                               float64
-			legalAnywhere, commanderLegal, isCommanderCandidate                               bool
-			edhrecRank                                                                        int
-		)
-		if err := rows.Scan(
-			&id,
-			&rowOracleID,
-			&lang,
-			&name,
-			&manaCost,
-			&typeLine,
-			&oracleText,
-			&flavorText,
-			&imageURI,
-			&artCropURI,
-			pq.Array(&colors),
-			pq.Array(&colorIdentity),
-			&cmc,
-			&power,
-			&toughness,
-			&loyalty,
-			&layout,
-			&legalAnywhere,
-			&commanderLegal,
-			&isCommanderCandidate,
-			&priceUSD,
-			&artist,
-			&edhrecRank,
-			&scryfallURI,
-			&setCode,
-			&setName,
-			&collectorNumber,
-			&rarity,
-			&releasedAt,
-			&facesJSON,
-		); err != nil {
-			return nil, err
+		card, scanErr := scanCardPrinting(rows)
+		if scanErr != nil {
+			return nil, scanErr
 		}
-
-		out = append(out, Card{
-			ID:                   id,
-			OracleID:             rowOracleID,
-			Lang:                 lang,
-			Name:                 name,
-			ManaCost:             manaCost,
-			TypeLine:             typeLine,
-			OracleText:           oracleText,
-			FlavorText:           flavorText,
-			ImageURI:             imageURI,
-			ArtCropURI:           artCropURI,
-			Colors:               colors,
-			ColorIdentity:        colorIdentity,
-			CMC:                  cmc,
-			Power:                power,
-			Toughness:            toughness,
-			Loyalty:              loyalty,
-			Layout:               layout,
-			LegalAnywhere:        legalAnywhere,
-			CommanderLegal:       commanderLegal,
-			IsCommanderCandidate: isCommanderCandidate,
-			PriceUSD:             priceUSD,
-			Artist:               artist,
-			EDHRecRank:           edhrecRank,
-			ScryfallURI:          scryfallURI,
-			SetCode:              setCode,
-			SetName:              setName,
-			CollectorNumber:      collectorNumber,
-			Rarity:               rarity,
-			ReleasedAt:           releasedAt,
-			Faces:                decodeCardFacesJSON(facesJSON),
-		})
+		out = append(out, card)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

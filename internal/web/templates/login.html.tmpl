@@ -2,53 +2,68 @@
   {{ template "layout_header" . }}
   {{ $d := .Data }}
 
-  <main class="max-w-4xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="space-y-2">
-        <p class="mt-kicker">Account</p>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Log In</h1>
+  <section class="mt-auth-page" aria-labelledby="login-title">
+    <header class="mt-auth-heading">
+      <h1 id="login-title" class="mt-auth-title">Sign in</h1>
+      <p class="mt-auth-copy">Access your saved decks and continue building where you left off.</p>
+    </header>
+
+    <form method="POST" action="/login" class="mt-auth-form"{{ if .Error }} aria-describedby="site-error"{{ end }}>
+      <input type="hidden" name="next" value="{{ $d.Next }}">
+
+      <div class="mt-auth-field">
+        <label for="login-email" class="mt-field-label">Email</label>
+        <input
+          id="login-email"
+          type="email"
+          name="email"
+          value="{{ $d.Email }}"
+          required
+          autocomplete="email"
+          autocapitalize="none"
+          spellcheck="false"
+          class="mt-control"
+        >
       </div>
-      <div class="flex flex-wrap gap-2">
-        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
-        <a href="/signup?next={{ urlquery $d.Next }}" class="mt-btn mt-btn--secondary mt-btn--sm">Sign Up</a>
-      </div>
-    </div>
 
-    <section class="mt-panel max-w-md mx-auto p-5 sm:p-6">
-      <form method="POST" action="/login" class="space-y-5">
-        <input type="hidden" name="next" value="{{ $d.Next }}">
-        <label class="block text-sm text-slate-200">
-          <span class="mt-field-label">Email</span>
-          <input
-            type="email"
-            name="email"
-            value="{{ $d.Email }}"
-            required
-            class="mt-control"
-          >
-        </label>
-
-        <label class="block text-sm text-slate-200">
-          <span class="mt-field-label">Password</span>
-          <input
-            type="password"
-            name="password"
-            required
-            class="mt-control"
-          >
-        </label>
-
-        <div class="flex flex-col gap-3 pt-1">
-          <button type="submit" class="mt-btn mt-btn--primary w-full">Log In</button>
-          <a href="/forgot-password" class="mt-btn mt-btn--secondary w-full justify-center">Forgot Password?</a>
-          <p class="text-[11px] text-slate-500 text-center">
-            No account?
-            <a href="/signup?next={{ urlquery $d.Next }}" class="text-sky-300 hover:text-sky-200 font-medium">Sign up</a>
-          </p>
+      <div class="mt-auth-field">
+        <div class="mt-auth-field-heading">
+          <label for="login-password" class="mt-field-label">Password</label>
+          <a href="/forgot-password" class="mt-auth-link">Forgot password?</a>
         </div>
-      </form>
-    </section>
-  </main>
+        <input
+          id="login-password"
+          type="password"
+          name="password"
+          required
+          autocomplete="current-password"
+          class="mt-control"
+        >
+      </div>
+
+      <label class="mt-auth-session-choice" for="login-stay-signed-in">
+        <input
+          id="login-stay-signed-in"
+          type="checkbox"
+          name="stay_signed_in"
+          value="1"
+          {{ if $d.StaySignedIn }}checked{{ end }}
+        >
+        <span>
+          <strong>Stay signed in on this device</strong>
+          <small>For 30 days. Uncheck this on a shared device.</small>
+        </span>
+      </label>
+
+      <div class="mt-auth-actions">
+        <button type="submit" class="mt-btn mt-btn--primary mt-auth-submit">Sign In</button>
+        <p class="mt-auth-switch">
+          New to ManaTomb?
+          <a href="/signup?next={{ urlquery $d.Next }}" class="mt-auth-link">Create an account</a>
+        </p>
+      </div>
+    </form>
+  </section>
 
   {{ template "layout_footer" . }}
 {{ end }}

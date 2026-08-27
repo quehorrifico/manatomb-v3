@@ -35,26 +35,50 @@
       var oracleEl = document.querySelector("[data-card-oracle]");
       var flavorGroup = document.querySelector("[data-card-flavor-group]");
       var flavorEl = document.querySelector("[data-card-flavor]");
-      var scryfallLink = document.querySelector("[data-card-scryfall-link]");
+      var powerToughnessRow = document.querySelector("[data-card-power-toughness]");
+      var formatLegalitiesEl = document.querySelector("[data-card-format-legalities]");
       var favoriteForm = document.querySelector("[data-card-favorite-form]");
       var favoriteScryfallID = document.querySelector("[data-card-favorite-scryfall-id]");
       var favoriteAction = document.querySelector("[data-card-favorite-action]");
       var favoriteReturnTo = document.querySelector("[data-card-favorite-return-to]");
       var favoriteButton = document.querySelector("[data-card-favorite-button]");
       var favoriteSymbol = document.querySelector("[data-card-favorite-symbol]");
-      var favoriteLoginLink = document.querySelector("[data-card-favorite-login-link]");
+      var favoriteContext = document.querySelector("[data-card-favorite-context]");
+      var profileArtStatus = document.querySelector("[data-card-profile-art-status]");
+      var profileArtInputs = Array.from(document.querySelectorAll("[data-card-profile-art-scryfall-id]"));
       var addLoginLink = document.querySelector("[data-card-add-login-link]");
       var printingsGrid = document.querySelector("[data-printings-grid]");
       var printingsEmpty = document.querySelector("[data-printings-empty]");
       var printingsCount = document.querySelector("[data-printings-count]");
       var printingsSort = document.querySelector("[data-printings-sort]");
-      var printingsEnglishOnly = document.querySelector("[data-printings-english-only]");
+      var profileArtMenus = Array.from(document.querySelectorAll("[data-card-profile-art-menu]"));
+
+      function closeProfileArtMenus(exceptMenu) {
+        profileArtMenus.forEach(function (menu) {
+          if (menu !== exceptMenu) menu.open = false;
+        });
+      }
+
+      profileArtMenus.forEach(function (menu) {
+        menu.addEventListener("toggle", function () {
+          if (menu.open) closeProfileArtMenus(menu);
+        });
+      });
+
+      document.addEventListener("click", function (event) {
+        profileArtMenus.forEach(function (menu) {
+          if (menu.open && !menu.contains(event.target)) menu.open = false;
+        });
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") closeProfileArtMenus();
+      });
 
       var detailEls = {
         manaValue: document.querySelector("[data-card-mana-value]"),
         colors: document.querySelector("[data-card-colors]"),
         colorIdentity: document.querySelector("[data-card-color-identity]"),
-        commander: document.querySelector("[data-card-commander]"),
         power: document.querySelector("[data-card-power]"),
         toughness: document.querySelector("[data-card-toughness]"),
         loyalty: document.querySelector("[data-card-loyalty]"),
@@ -75,7 +99,8 @@
       var state = {
         printingIndex: 0,
         faceIndex: 0,
-        heroRotated: false
+        heroRotated: false,
+        favoritePrintingCount: Number({{ toJSON $ctx.FavoritePrintingCount }}) || 0
       };
 
       function currentPrinting() {
@@ -112,6 +137,73 @@
       function setText(el, value, fallback) {
         if (!el) return;
         el.textContent = trimValue(value) || fallback || "N/A";
+      }
+
+      function cardStatValue(value) {
+        value = trimValue(value);
+        if (!value || value.toUpperCase() === "N/A") {
+          return "";
+        }
+        return value;
+      }
+
+      function normalizeLegalityStatus(value) {
+        switch (trimValue(value).toLowerCase()) {
+        case "legal":
+        case "not_legal":
+        case "restricted":
+        case "banned":
+          return trimValue(value).toLowerCase();
+        default:
+          return "unknown";
+        }
+      }
+
+      function legalityStatusLabel(status, fallback) {
+        fallback = trimValue(fallback);
+        if (fallback) return fallback;
+        switch (status) {
+        case "legal":
+          return "Legal";
+        case "not_legal":
+          return "Not legal";
+        case "restricted":
+          return "Restricted";
+        case "banned":
+          return "Banned";
+        default:
+          return "Unknown";
+        }
+      }
+
+      function renderFormatLegalities(items) {
+        if (!formatLegalitiesEl) return;
+
+        formatLegalitiesEl.innerHTML = "";
+        if (!Array.isArray(items) || !items.length) {
+          var emptyItem = document.createElement("li");
+          emptyItem.className = "mt-card-format-legalities__empty";
+          emptyItem.textContent = "Legality data unavailable.";
+          formatLegalitiesEl.appendChild(emptyItem);
+          return;
+        }
+
+        items.forEach(function (item) {
+          var status = normalizeLegalityStatus(item && item.Status);
+          var row = document.createElement("li");
+          var format = document.createElement("span");
+          var statusEl = document.createElement("span");
+
+          format.className = "mt-card-format-legalities__format";
+          format.textContent = trimValue(item && item.Format) || "Unknown format";
+          statusEl.className = "mt-card-format-legalities__status";
+          statusEl.setAttribute("data-legality-status", status);
+          statusEl.textContent = legalityStatusLabel(status, item && item.StatusLabel);
+
+          row.appendChild(format);
+          row.appendChild(statusEl);
+          formatLegalitiesEl.appendChild(row);
+        });
       }
 
       function formatPrintingFooter(printing) {
@@ -208,43 +300,197 @@
         favoriteAction.value = favorited ? "unfavorite" : "favorite";
         favoriteButton.disabled = !scryfallID;
         favoriteButton.classList.toggle("is-loved", favorited);
-        favoriteButton.title = favorited ? "Remove this loved card version" : "Love this card version";
+        favoriteButton.title = favorited ? "Remove this printing from favorites" : "Favorite this printing";
         favoriteButton.setAttribute("aria-label", favoriteButton.title);
         if (favoriteSymbol) {
           favoriteSymbol.textContent = favorited ? "♥" : "♡";
         }
       }
 
-      function updateLoginLinks(printing) {
-        var loginPath = loginPathForPrinting(printing);
-        if (favoriteLoginLink) {
-          favoriteLoginLink.href = loginPath;
+      function updateProfileArtForms(printing) {
+        var scryfallID = trimValue(printing && printing.ScryfallID);
+        profileArtInputs.forEach(function (input) {
+          input.value = scryfallID;
+          var form = input.closest("form");
+          var button = form ? form.querySelector('button[type="submit"]') : null;
+          if (button) button.disabled = !scryfallID;
+        });
+      }
+
+      function updateFavoriteContext(printing, errorMessage) {
+        if (!favoriteContext) return;
+
+        errorMessage = trimValue(errorMessage);
+        if (errorMessage) {
+          favoriteContext.hidden = false;
+          favoriteContext.setAttribute("data-status", "error");
+          favoriteContext.textContent = errorMessage;
+          return;
         }
+
+        favoriteContext.removeAttribute("data-status");
+        var total = Math.max(0, Number(state.favoritePrintingCount) || 0);
+        var selectedIsFavorited = !!(printing && printing.IsFavorited);
+        var otherCount = Math.max(0, total - (selectedIsFavorited ? 1 : 0));
+        if (selectedIsFavorited) {
+          if (otherCount === 1) {
+            favoriteContext.textContent = "This printing and 1 other are in your favorites.";
+          } else if (otherCount > 1) {
+            favoriteContext.textContent = "This printing and " + String(otherCount) + " others are in your favorites.";
+          } else {
+            favoriteContext.textContent = "This printing is in your favorites.";
+          }
+        } else if (otherCount === 1) {
+          favoriteContext.textContent = "You favorited another printing.";
+        } else if (otherCount > 1) {
+          favoriteContext.textContent = "You favorited " + String(otherCount) + " other printings.";
+        } else {
+          favoriteContext.textContent = "";
+        }
+        favoriteContext.hidden = total === 0;
+      }
+
+      function updateAddLoginLink(printing) {
         if (addLoginLink) {
-          addLoginLink.href = loginPath;
+          addLoginLink.href = loginPathForPrinting(printing);
         }
       }
 
       document.addEventListener("submit", function (event) {
         var form = event.target && event.target.closest("[data-card-favorite-form]");
-        if (!form || form.getAttribute("data-heart-submit-ready") === "true") return;
-
-        var actionInput = form.querySelector('input[name="action"]');
-        if (!actionInput || trimValue(actionInput.value).toLowerCase() !== "favorite") return;
+        if (!form || typeof window.fetch !== "function") return;
 
         var button = form.querySelector("[data-card-favorite-button]");
-        var symbol = button ? button.querySelector(".mt-heart-button__symbol") : null;
         if (!button || button.disabled) return;
 
         event.preventDefault();
-        button.classList.add("is-loved", "is-popping");
-        if (symbol) {
-          symbol.textContent = "♥";
+        button.disabled = true;
+        favoriteContext && favoriteContext.removeAttribute("data-status");
+
+        var favoriteBody = new URLSearchParams();
+        new FormData(form).forEach(function (value, key) {
+          favoriteBody.append(key, String(value));
+        });
+
+        var favoriteEndpoint = trimValue(form.getAttribute("action")) || "/cards/favorites/printing";
+        window.fetch(favoriteEndpoint, {
+          method: "POST",
+          body: favoriteBody,
+          credentials: "same-origin",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+          }
+        }).catch(function (error) {
+          error.useNativeFallback = true;
+          throw error;
+        }).then(function (response) {
+          return response.json().catch(function () {
+            var responseError = new Error("The favorite response could not be read.");
+            responseError.useNativeFallback = response.ok;
+            throw responseError;
+          }).then(function (payload) {
+            if (!response.ok) {
+              var requestError = new Error(trimValue(payload && payload.error) || "Could not update favorites. Try again.");
+              requestError.loginURL = trimValue(payload && payload.login_url);
+              throw requestError;
+            }
+            return payload;
+          });
+        }).then(function (payload) {
+          var responseID = trimValue(payload && payload.scryfall_id).toLowerCase();
+          var didFindPrinting = false;
+          var wasFavorited = false;
+          printings.forEach(function (printing) {
+            if (trimValue(printing && printing.ScryfallID).toLowerCase() === responseID) {
+              wasFavorited = !!printing.IsFavorited;
+              printing.IsFavorited = !!payload.favorited;
+              didFindPrinting = true;
+            }
+          });
+          if (!didFindPrinting) {
+            var reconcileError = new Error("The updated favorite could not be matched on this page.");
+            reconcileError.useNativeFallback = true;
+            throw reconcileError;
+          }
+          if (wasFavorited !== !!payload.favorited) {
+            state.favoritePrintingCount += payload.favorited ? 1 : -1;
+            state.favoritePrintingCount = Math.max(0, state.favoritePrintingCount);
+          }
+
+          if (payload.favorited) {
+            button.classList.add("is-popping");
+            window.setTimeout(function () {
+              button.classList.remove("is-popping");
+            }, 430);
+          }
+          updateFavoriteForm(currentPrinting());
+          updateFavoriteContext(currentPrinting());
+          renderPrintingsGrid();
+        }).catch(function (error) {
+          button.disabled = false;
+          if (error && error.useNativeFallback) {
+            form.submit();
+            return;
+          }
+          var loginURL = trimValue(error && error.loginURL);
+          if (loginURL) {
+            window.location.assign(loginURL);
+            return;
+          }
+          updateFavoriteContext(currentPrinting(), trimValue(error && error.message) || "Could not update favorites. Try again.");
+        });
+      });
+
+      document.addEventListener("submit", function (event) {
+        var form = event.target && event.target.closest("[data-card-profile-art-form]");
+        if (!form || typeof window.fetch !== "function") return;
+        var button = form.querySelector('button[type="submit"]');
+        if (!button || button.disabled) return;
+
+        event.preventDefault();
+        button.disabled = true;
+        if (profileArtStatus) {
+          profileArtStatus.textContent = "Updating profile art…";
+          profileArtStatus.removeAttribute("data-status");
         }
-        window.setTimeout(function () {
-          form.setAttribute("data-heart-submit-ready", "true");
-          form.submit();
-        }, 360);
+        var body = new URLSearchParams();
+        new FormData(form).forEach(function (value, key) {
+          body.append(key, String(value));
+        });
+        var profileArtEndpoint = trimValue(form.getAttribute("action")) || "/profile/art";
+        window.fetch(profileArtEndpoint, {
+          method: "POST",
+          body: body,
+          credentials: "same-origin",
+          headers: { "Accept": "application/json" }
+        }).then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (payload) {
+            if (!response.ok) {
+              var error = new Error(trimValue(payload && payload.error) || "Could not update profile art.");
+              error.redirectURL = trimValue(payload && payload.redirect_url);
+              throw error;
+            }
+            return payload;
+          });
+        }).then(function (payload) {
+          if (profileArtStatus) {
+            profileArtStatus.textContent = trimValue(payload && payload.message) || "Profile art updated.";
+          }
+          var menu = form.closest("[data-card-profile-art-menu]");
+          if (menu) menu.open = false;
+        }).catch(function (error) {
+          if (error && error.redirectURL) {
+            window.location.assign(error.redirectURL);
+            return;
+          }
+          if (profileArtStatus) {
+            profileArtStatus.textContent = trimValue(error && error.message) || "Could not update profile art.";
+            profileArtStatus.setAttribute("data-status", "error");
+          }
+        }).finally(function () {
+          button.disabled = false;
+        });
       });
 
       function renderFaceTabs(printing) {
@@ -310,21 +556,31 @@
           heroFlavor = trimValue(baseCard.FlavorText);
         }
         var heroImageURI = trimValue(face && face.ImageURI) || trimValue(printing.ImageURI) || trimValue(baseCard.ImageURI);
+        var heroPower = face
+          ? cardStatValue(face.Power)
+          : (cardStatValue(printing.Power) || cardStatValue(baseCard.Power));
+        var heroToughness = face
+          ? cardStatValue(face.Toughness)
+          : (cardStatValue(printing.Toughness) || cardStatValue(baseCard.Toughness));
+        var hasPowerToughness = face
+          ? !!face.HasPowerToughness
+          : !!(printing.HasPowerToughness || baseCard.HasPowerToughness);
 
         if (nameEl) nameEl.textContent = heroName;
-        if (manaEl) manaEl.innerHTML = renderManaSymbols(heroMana);
+        if (manaEl) manaEl.innerHTML = renderManaSymbols(heroMana) || "No mana cost";
         if (typeEl) typeEl.textContent = heroType;
         if (oracleEl) oracleEl.innerHTML = renderCardTextMarkup(heroOracle, "No oracle text.");
         if (flavorGroup) flavorGroup.hidden = !heroFlavor;
         if (flavorEl) flavorEl.innerHTML = renderCardTextMarkup(heroFlavor, "");
+        if (powerToughnessRow) powerToughnessRow.hidden = !hasPowerToughness;
         setHeroImage(heroImageURI, heroName);
 
         setText(detailEls.manaValue, printing.ManaValue || baseCard.ManaValue, "N/A");
         setText(detailEls.colors, trimValue(face && face.Colors) || printing.Colors || baseCard.Colors, "Colorless");
         setText(detailEls.colorIdentity, trimValue(face && face.ColorIdentity) || printing.ColorIdentity || baseCard.ColorIdentity, "Colorless");
-        setText(detailEls.commander, printing.CommanderStatus || baseCard.CommanderStatus, "N/A");
-        setText(detailEls.power, trimValue(face && face.Power) || printing.Power || baseCard.Power, "N/A");
-        setText(detailEls.toughness, trimValue(face && face.Toughness) || printing.Toughness || baseCard.Toughness, "N/A");
+        renderFormatLegalities(printing.Legalities || baseCard.Legalities);
+        setText(detailEls.power, heroPower, "N/A");
+        setText(detailEls.toughness, heroToughness, "N/A");
         setText(detailEls.loyalty, trimValue(face && face.Loyalty) || printing.Loyalty || baseCard.Loyalty, "N/A");
         setText(detailEls.price, printing.PriceUSD || baseCard.PriceUSD, "Not listed");
         setText(detailEls.artist, trimValue(face && face.Artist) || printing.Artist || baseCard.Artist, "Unknown");
@@ -339,40 +595,23 @@
         setText(detailEls.oracleID, printing.OracleID || baseCard.OracleID, "N/A");
         setText(detailEls.scryfallID, printing.ScryfallID || baseCard.ScryfallID, "N/A");
 
-        if (scryfallLink) {
-          var href = trimValue(printing.ScryfallURI);
-          scryfallLink.classList.toggle("hidden", !href);
-          scryfallLink.href = href || "#";
-        }
-
         updateFavoriteForm(printing);
-        updateLoginLinks(printing);
+        updateFavoriteContext(printing);
+        updateProfileArtForms(printing);
+        updateAddLoginLink(printing);
         renderFaceTabs(printing);
       }
 
       function initialPrintingIndex() {
         if (!Array.isArray(printings) || !printings.length) return 0;
         var requestedPrintingID = trimValue(new URLSearchParams(window.location.search).get("printing"));
-        if (requestedPrintingID) {
-          for (var requestedIndex = 0; requestedIndex < printings.length; requestedIndex++) {
-            if (trimValue(printings[requestedIndex] && printings[requestedIndex].ScryfallID) === requestedPrintingID) {
-              return requestedIndex;
+        var selectedPrintingID = requestedPrintingID || trimValue(baseCard.ScryfallID);
+        if (selectedPrintingID) {
+          for (var selectedIndex = 0; selectedIndex < printings.length; selectedIndex++) {
+            if (trimValue(printings[selectedIndex] && printings[selectedIndex].ScryfallID).toLowerCase() === selectedPrintingID.toLowerCase()) {
+              return selectedIndex;
             }
           }
-        }
-
-        var targetSetCode = trimValue(baseCard.SetCode).toUpperCase();
-        var targetRelease = trimValue(baseCard.ReleasedAt);
-
-        for (var i = 0; i < printings.length; i++) {
-          var printing = printings[i] || {};
-          if (targetSetCode && trimValue(printing.SetCode).toUpperCase() !== targetSetCode) {
-            continue;
-          }
-          if (targetRelease && trimValue(printing.ReleasedAt) !== targetRelease) {
-            continue;
-          }
-          return i;
         }
         return 0;
       }
@@ -380,15 +619,7 @@
       function sortedPrintingItems() {
         var items = printings.map(function (printing, index) {
           return { printing: printing, index: index };
-        }).filter(function (item) {
-          return item.index !== state.printingIndex;
         });
-
-        if (printingsEnglishOnly && printingsEnglishOnly.checked) {
-          items = items.filter(function (item) {
-            return trimValue(item.printing.Lang).toUpperCase() === "EN";
-          });
-        }
 
         var sortMode = printingsSort ? trimValue(printingsSort.value) : "newest";
         items.sort(function (a, b) {
@@ -437,51 +668,67 @@
           var label = formatPrintingLabel(printing, item.index);
           var imageURI = trimValue(printing.ImageURI);
           var footer = formatPrintingFooter(printing);
+          var isCurrent = item.index === state.printingIndex;
           var article = document.createElement("article");
           article.className = "min-w-0";
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = "group block w-full overflow-hidden rounded-lg border border-slate-800 bg-slate-950 text-left transition hover:border-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300";
-          button.setAttribute("data-printing-activate", String(item.index));
-          button.setAttribute("data-printing-scryfall-id", trimValue(printing.ScryfallID));
-          button.setAttribute("aria-label", "Show " + label);
-          button.title = label;
+          var link = document.createElement("a");
+          link.href = pathForPrinting(printing);
+          link.className = "mt-printing-tile" + (isCurrent ? " is-active" : "");
+          link.setAttribute("data-printing-activate", String(item.index));
+          link.setAttribute("data-printing-scryfall-id", trimValue(printing.ScryfallID));
+          var isFavorited = !!printing.IsFavorited;
+          link.classList.toggle("is-favorited", isFavorited);
+          link.setAttribute("aria-label", (isCurrent ? "Current printing: " : "Show ") + label + (isFavorited ? ", favorited" : ""));
+          if (isCurrent) {
+            link.setAttribute("aria-current", "true");
+          }
+          link.title = label;
 
           var mediaHTML = "";
           if (imageURI) {
-            mediaHTML = '<img src="' + escapeHTML(imageURI) + '" alt="" class="h-full w-full object-cover">';
+            mediaHTML = '<img src="' + escapeHTML(imageURI) + '" alt="">';
           } else {
-            mediaHTML = '<span class="flex h-full w-full items-center justify-center px-2 text-center text-[10px] uppercase tracking-wide text-slate-500">No image</span>';
+            mediaHTML = '<span class="mt-printing-tile__fallback">No image</span>';
           }
-          button.innerHTML =
-            '<span class="block aspect-[63/88] overflow-hidden bg-slate-950">' + mediaHTML + '</span>' +
-            '<span class="grid gap-0.5 border-t border-slate-800 bg-slate-950/95 px-2 py-2">' +
-              '<span class="truncate text-[11px] font-semibold text-slate-200">' + escapeHTML(footer.set) + '</span>' +
-              '<span class="text-[10px] font-medium text-slate-500">' + escapeHTML(footer.price) + '</span>' +
+          var currentHTML = isCurrent
+            ? '<span class="mt-printing-tile__current">Current</span>'
+            : "";
+          var favoriteHTML = isFavorited
+            ? '<span class="mt-printing-tile__favorite" aria-hidden="true">♥</span>'
+            : "";
+          link.innerHTML =
+            '<span class="mt-printing-tile__media">' + mediaHTML + favoriteHTML + '</span>' +
+            '<span class="mt-printing-tile__meta">' +
+              '<span class="mt-printing-tile__heading">' +
+                '<span class="mt-printing-tile__set">' + escapeHTML(footer.set) + '</span>' +
+                currentHTML +
+              '</span>' +
+              '<span class="mt-printing-tile__price">' + escapeHTML(footer.price) + '</span>' +
             '</span>';
 
-          button.addEventListener("click", function () {
-            var nextIndex = Number(button.getAttribute("data-printing-activate"));
+          link.addEventListener("click", function (event) {
+            if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+              return;
+            }
+            event.preventDefault();
+            var nextIndex = Number(link.getAttribute("data-printing-activate"));
             if (!Number.isFinite(nextIndex) || nextIndex < 0 || nextIndex >= printings.length) return;
+            if (nextIndex === state.printingIndex) return;
             state.printingIndex = nextIndex;
             state.faceIndex = 0;
             setHeroRotated(false);
             updatePrintingURL(printings[state.printingIndex], false);
             renderHero();
             renderPrintingsGrid();
-            window.scrollTo({ top: 0, behavior: "smooth" });
           });
 
-          article.appendChild(button);
+          article.appendChild(link);
           printingsGrid.appendChild(article);
         });
       }
 
       if (printingsSort) {
         printingsSort.addEventListener("change", renderPrintingsGrid);
-      }
-      if (printingsEnglishOnly) {
-        printingsEnglishOnly.addEventListener("change", renderPrintingsGrid);
       }
       window.addEventListener("popstate", function () {
         state.printingIndex = initialPrintingIndex();

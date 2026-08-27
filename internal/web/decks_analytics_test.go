@@ -85,6 +85,63 @@ func TestComputeDeckAnalytics_StatCardsAndCategories(t *testing.T) {
 	}
 }
 
+func TestComputeDeckAnalytics_ManaPipsAndSources(t *testing.T) {
+	t.Parallel()
+
+	rows := []deckAnalyticsCardInput{
+		{Name: "Kitchen Finks", ManaCost: "{1}{G/W}{G/W}", TypeLine: "Creature", Qty: 1},
+		{Name: "Llanowar Elves", ManaCost: "{G}", TypeLine: "Creature", OracleText: "{T}: Add {G}.", Qty: 2},
+		{Name: "Azorius Signet", ManaCost: "{2}", TypeLine: "Artifact", OracleText: "{1}, {T}: Add {W}{U}.", Qty: 2},
+		{Name: "Watery Grave", TypeLine: "Land — Island Swamp", Qty: 1},
+		{Name: "Wastes", TypeLine: "Basic Land", OracleText: "{T}: Add {C}.", Qty: 1},
+		{Name: "Kozilek's Pathfinder", ManaCost: "{6}{C}{C}", TypeLine: "Creature", Qty: 1},
+		{Name: "Mana Confluence", TypeLine: "Land", OracleText: "{T}: Add one mana of any color.", Qty: 1},
+	}
+
+	analytics := computeDeckAnalytics("Sandbox", "", rows)
+	if got := manaColorStatCount(analytics.ManaPips, "W"); got != 2 {
+		t.Fatalf("white mana pips = %d, want 2", got)
+	}
+	if got := manaColorStatCount(analytics.ManaPips, "G"); got != 4 {
+		t.Fatalf("green mana pips = %d, want 4", got)
+	}
+	if got := manaColorStatCount(analytics.ManaPips, "C"); got != 2 {
+		t.Fatalf("colorless mana pips = %d, want 2", got)
+	}
+	if got := manaColorStatCount(analytics.ManaSources, "W"); got != 3 {
+		t.Fatalf("white mana sources = %d, want 3", got)
+	}
+	if got := manaColorStatCount(analytics.ManaSources, "U"); got != 4 {
+		t.Fatalf("blue mana sources = %d, want 4", got)
+	}
+	if got := manaColorStatCount(analytics.ManaSources, "B"); got != 2 {
+		t.Fatalf("black mana sources = %d, want 2", got)
+	}
+	if got := manaColorStatCount(analytics.ManaSources, "C"); got != 1 {
+		t.Fatalf("colorless mana sources = %d, want 1", got)
+	}
+	assertManaColorCard(t, analytics.ManaPips, "G", "Kitchen Finks")
+	assertManaColorCard(t, analytics.ManaSources, "U", "Watery Grave")
+}
+
+func TestComputeDeckAnalytics_ManaProfileExcludesCommanderSlot(t *testing.T) {
+	t.Parallel()
+
+	analytics := computeDeckAnalytics("Commander", "Omnath, Locus of Creation", []deckAnalyticsCardInput{
+		{Name: "Omnath, Locus of Creation", ManaCost: "{R}{G}{W}{U}", TypeLine: "Legendary Creature", ColorID: "W,U,R,G", Qty: 1},
+		{Name: "Command Tower", TypeLine: "Land", OracleText: "{T}: Add one mana of any color in your commander's color identity.", Qty: 1},
+	})
+
+	for _, symbol := range []string{"W", "U", "R", "G"} {
+		if got := manaColorStatCount(analytics.ManaPips, symbol); got != 0 {
+			t.Fatalf("commander %s pip leaked into mainboard count: %d", symbol, got)
+		}
+		if got := manaColorStatCount(analytics.ManaSources, symbol); got != 1 {
+			t.Fatalf("Command Tower %s source count = %d, want 1", symbol, got)
+		}
+	}
+}
+
 func TestComputeDeckAnalytics_DeckSizeGuideAlert(t *testing.T) {
 	t.Parallel()
 
@@ -182,6 +239,30 @@ func assertCategory(t *testing.T, analytics deckAnalyticsData, wantLabel string,
 		}
 	}
 	t.Fatalf("expected category %q in %#v", wantLabel, analytics.CategoryBreakdown)
+}
+
+func manaColorStatCount(stats []deckManaColorStat, symbol string) int {
+	for _, stat := range stats {
+		if stat.Symbol == symbol {
+			return stat.Count
+		}
+	}
+	return 0
+}
+
+func assertManaColorCard(t *testing.T, stats []deckManaColorStat, symbol, cardName string) {
+	t.Helper()
+	for _, stat := range stats {
+		if stat.Symbol != symbol {
+			continue
+		}
+		for _, card := range stat.Cards {
+			if card.Name == cardName {
+				return
+			}
+		}
+	}
+	t.Fatalf("expected %q in mana color %q: %#v", cardName, symbol, stats)
 }
 
 func assertStringPresent(t *testing.T, got []string, want string) {

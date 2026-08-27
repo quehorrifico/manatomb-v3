@@ -3,44 +3,35 @@
     </main>
 
     {{ if not .HideFooter }}
-      <footer class="border-t border-slate-800 bg-slate-900/80 mt-8">
-        <div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
-          <div class="grid gap-6 md:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
-            <section class="space-y-2">
-              <p class="text-sm font-semibold text-slate-100">Mana Tomb</p>
-              <p class="text-xs leading-5 text-slate-400">
-                Free, non-commercial MTG deck building and playtesting.
-              </p>
-            </section>
+      <footer id="site-footer" class="mt-site-footer mt-8">
+        <div class="max-w-5xl mx-auto px-4 py-6 sm:py-7">
+          <div class="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div class="max-w-sm space-y-1.5">
+              <a href="/" class="mt-footer-brand text-sm">ManaTomb</a>
+              <p class="text-xs leading-5 mt-text-muted">Free, non-commercial MTG deck building and playtesting.</p>
+            </div>
 
-            <section class="space-y-2">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Legal</p>
-              <div class="flex flex-col gap-1.5 text-xs text-slate-400">
-                <a href="/privacy" class="hover:text-sky-300 transition-colors">Privacy</a>
-                <a href="/terms" class="hover:text-sky-300 transition-colors">Terms</a>
-              </div>
-            </section>
-
-            <section class="space-y-2">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Support</p>
-              <div class="flex flex-col gap-1.5 text-xs text-slate-400">
-                <a href="{{ projectRepoURL }}" class="hover:text-sky-300 transition-colors" target="_blank" rel="noopener noreferrer">GitHub</a>
-                <a href="{{ projectIssuesURL }}" class="hover:text-sky-300 transition-colors" target="_blank" rel="noopener noreferrer">Contact / Issues</a>
-              </div>
-            </section>
-
-            <section class="space-y-2">
-              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Data</p>
-              <div class="space-y-1.5 text-xs text-slate-400">
-                <p>Card data &copy; <a href="https://scryfall.com" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Scryfall</a></p>
-                <p>Card images &copy; <a href="https://company.wizards.com/en" class="text-sky-300 hover:text-sky-200 font-medium" target="_blank" rel="noopener noreferrer">Wizards of the Coast</a></p>
-              </div>
-            </section>
+            <nav aria-label="Footer navigation">
+              {{/* A future Ko-fi link can be added as another item in this flexible list. */}}
+              <ul class="mt-footer-links flex flex-wrap gap-x-5 gap-y-2 text-xs">
+                <li><a href="/changelog" class="mt-footer-link">Changelog <span aria-hidden="true">&middot; v{{ siteVersion }}</span></a></li>
+                <li><a href="/privacy" class="mt-footer-link">Privacy</a></li>
+                <li><a href="/terms" class="mt-footer-link">Terms</a></li>
+                <li><a href="{{ projectRepoURL }}" class="mt-footer-link" target="_blank" rel="noopener noreferrer">GitHub<span class="sr-only"> (opens in a new tab)</span></a></li>
+                <li><a href="{{ projectIssuesURL }}" class="mt-footer-link" target="_blank" rel="noopener noreferrer">Report an Issue<span class="sr-only"> (opens in a new tab)</span></a></li>
+              </ul>
+            </nav>
           </div>
 
-          <div class="border-t border-slate-800 pt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-[11px] text-slate-500">
-            <span>&copy; {{ currentYear }} Mana Tomb</span>
-            <span>Card data and images remain subject to Scryfall and Wizards of the Coast rights.</span>
+          <div class="mt-footer-divider mt-5 flex flex-col gap-3 border-t pt-4 text-[11px] leading-5 mt-text-muted sm:flex-row sm:items-end sm:justify-between">
+            <div class="space-y-1">
+              <p>&copy; {{ currentYear }} ManaTomb</p>
+              <p>
+                Card data &copy; <a href="https://scryfall.com" class="mt-footer-link mt-footer-link--inline" target="_blank" rel="noopener noreferrer">Scryfall<span class="sr-only"> (opens in a new tab)</span></a>;
+                card images &copy; <a href="https://company.wizards.com/en" class="mt-footer-link mt-footer-link--inline" target="_blank" rel="noopener noreferrer">Wizards of the Coast<span class="sr-only"> (opens in a new tab)</span></a>.
+              </p>
+            </div>
+            <a href="#top" class="mt-footer-link shrink-0">Back to top</a>
           </div>
         </div>
       </footer>
@@ -61,6 +52,8 @@
         var items = [];
         var requestToken = 0;
         var commanderOnly = input.getAttribute('data-card-autocomplete-commander-only') === 'true';
+        var submitOnSelect = input.getAttribute('data-card-autocomplete-submit') !== 'false';
+        var oracleIDInput = root.querySelector('[data-card-autocomplete-oracle-id]');
         var limit = parseInt(input.getAttribute('data-card-autocomplete-limit') || '8', 10);
         if (!Number.isFinite(limit) || limit < 1) {
           limit = 8;
@@ -70,6 +63,7 @@
           menu.innerHTML = '';
           menu.classList.add('hidden');
           input.setAttribute('aria-expanded', 'false');
+          input.removeAttribute('aria-activedescendant');
           activeIndex = -1;
           items = [];
         }
@@ -78,7 +72,19 @@
           var value = String(result && result.name || '').trim();
           if (!value) return;
           input.value = value;
+          if (oracleIDInput) {
+            oracleIDInput.value = String(result && result.oracle_id || '').trim();
+          }
           closeSuggestions();
+          if (!submitOnSelect) {
+            requestToken++;
+            input.dispatchEvent(new CustomEvent('card-autocomplete-selected', {
+              bubbles: true,
+              detail: result
+            }));
+            input.focus();
+            return;
+          }
           if (typeof form.requestSubmit === 'function') {
             form.requestSubmit();
           } else {
@@ -90,8 +96,13 @@
           activeIndex = nextIndex;
           for (var i = 0; i < items.length; i++) {
             var active = i === activeIndex;
-            items[i].classList.toggle('bg-slate-800', active);
-            items[i].classList.toggle('text-sky-200', active);
+            items[i].classList.toggle('is-active', active);
+            items[i].setAttribute('aria-selected', active ? 'true' : 'false');
+          }
+          if (activeIndex >= 0 && activeIndex < items.length) {
+            input.setAttribute('aria-activedescendant', items[activeIndex].id);
+          } else {
+            input.removeAttribute('aria-activedescendant');
           }
         }
 
@@ -99,6 +110,7 @@
           menu.innerHTML = '';
           items = [];
           activeIndex = -1;
+          input.removeAttribute('aria-activedescendant');
 
           if (!Array.isArray(results) || results.length === 0) {
             closeSuggestions();
@@ -112,12 +124,14 @@
 
             var button = document.createElement('button');
             button.type = 'button';
-            button.className = 'block w-full border-t border-slate-800 px-3 py-2 text-left text-sm text-slate-200 first:border-t-0 hover:bg-slate-900 hover:text-sky-200';
+            button.className = 'mt-autocomplete-option';
             button.textContent = name;
             button.setAttribute('role', 'option');
+            button.setAttribute('aria-selected', 'false');
+            button.id = (input.id || 'card-autocomplete') + '-option-' + i;
             button.dataset.name = name;
             button._result = result;
-            button.addEventListener('mousedown', function (event) {
+            button.addEventListener('click', function (event) {
               event.preventDefault();
               submitSelection(this._result || {});
             });
@@ -165,7 +179,10 @@
           }
         }
 
-        input.addEventListener('input', fetchSuggestions);
+        input.addEventListener('input', function () {
+          if (oracleIDInput) oracleIDInput.value = '';
+          fetchSuggestions();
+        });
         input.addEventListener('focus', function () {
           if (String(input.value || '').trim().length >= 2) {
             fetchSuggestions();

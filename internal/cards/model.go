@@ -131,7 +131,11 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 				COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
 				ROW_NUMBER() OVER (
 					PARTITION BY i.q
-					ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
+					ORDER BY
+						COALESCE(oc.legal_anywhere, true) DESC,
+						CASE WHEN lower(btrim(COALESCE(oc.layout, ''))) IN ('token', 'double_faced_token') THEN 1 ELSE 0 END ASC,
+						COALESCE(oc.edhrec_rank, 999999) ASC,
+						oc.name ASC
 				) AS rn
 			FROM input i
 			JOIN oracle_cards oc
@@ -265,7 +269,11 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		LEFT JOIN card_prints cp
 		  ON cp.scryfall_id = oc.default_print_id
 		WHERE oc.name_search = normalize_card_name($1)
-		ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
+		ORDER BY
+			COALESCE(oc.legal_anywhere, true) DESC,
+			CASE WHEN lower(btrim(COALESCE(oc.layout, ''))) IN ('token', 'double_faced_token') THEN 1 ELSE 0 END ASC,
+			COALESCE(oc.edhrec_rank, 999999) ASC,
+			oc.name ASC
 		LIMIT 1
 	`, name).Scan(
 		&oracleID,
@@ -426,6 +434,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 			all_parts JSONB NOT NULL DEFAULT '[]'::jsonb,
 			legal_anywhere BOOLEAN NOT NULL DEFAULT TRUE,
 			commander_legal BOOLEAN NOT NULL DEFAULT FALSE,
+			legalities JSONB NOT NULL DEFAULT '{}'::jsonb,
 			is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE,
 			edhrec_rank INTEGER,
 			default_print_id UUID NULL,
@@ -452,6 +461,7 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS is_commander_candidate BOOLEAN NOT NULL DEFAULT FALSE;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS all_parts JSONB NOT NULL DEFAULT '[]'::jsonb;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS legal_anywhere BOOLEAN NOT NULL DEFAULT TRUE;`,
+		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS legalities JSONB NOT NULL DEFAULT '{}'::jsonb;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS power_text TEXT;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS toughness_text TEXT;`,
 		`ALTER TABLE oracle_cards ADD COLUMN IF NOT EXISTS loyalty_text TEXT;`,
@@ -501,6 +511,9 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 			variation BOOLEAN NOT NULL DEFAULT FALSE,
 			artist TEXT,
 			price_usd TEXT,
+			price_usd_nonfoil TEXT,
+			price_usd_foil TEXT,
+			price_usd_etched TEXT,
 			scryfall_uri TEXT
 		);
 	`); err != nil {
@@ -525,6 +538,9 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS booster BOOLEAN NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS digital BOOLEAN NOT NULL DEFAULT FALSE`,
 		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS variation BOOLEAN NOT NULL DEFAULT FALSE`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS price_usd_nonfoil TEXT`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS price_usd_foil TEXT`,
+		`ALTER TABLE card_prints ADD COLUMN IF NOT EXISTS price_usd_etched TEXT`,
 	}
 	for _, stmt := range alterPrintStmts {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {

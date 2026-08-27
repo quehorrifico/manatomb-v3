@@ -1,0 +1,212 @@
+.mt-deck-tile {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 12.5rem;
+  grid-template-columns: 7.25rem minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--mt-border-subtle);
+  border-radius: 0.5rem;
+  background: var(--mt-surface);
+}
+
+.mt-deck-tile:hover {
+  border-color: var(--mt-border-strong);
+  background: var(--mt-surface-raised);
+}
+
+.mt-deck-tile__link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.mt-deck-tile__link:focus-visible {
+  outline: 2px solid var(--mt-focus);
+  outline-offset: -3px;
+}
+
+.mt-deck-tile__media {
+  display: grid;
+  height: 100%;
+  min-height: 12.5rem;
+  place-items: center;
+  overflow: hidden;
+  border-right: 1px solid var(--mt-border-subtle);
+  background: var(--mt-surface-strong);
+  color: var(--mt-text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mt-deck-tile__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mt-deck-tile__image--art {
+  object-position: center;
+}
+
+.mt-deck-tile__image--card {
+  object-position: center top;
+}
+
+.mt-deck-tile__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  pointer-events: none;
+}
+
+.mt-deck-tile__heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.65rem;
+}
+
+.mt-deck-tile__heading-copy {
+  min-width: 0;
+}
+
+.mt-deck-tile__heading h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--mt-text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.mt-deck-tile__heading p {
+  margin: 0.25rem 0 0;
+  color: var(--mt-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.mt-deck-tile__heading p a {
+  position: relative;
+  z-index: 2;
+  color: var(--mt-accent-text);
+  font-weight: 650;
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.mt-deck-tile__heading p a:hover {
+  color: var(--mt-text);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.mt-deck-tile__heading p a:focus-visible,
+.mt-deck-tile__tags a:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-deck-tile__commander,
+.mt-deck-tile__description {
+  margin: 0;
+  color: var(--mt-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.42;
+}
+
+.mt-deck-tile__commander span {
+  font-weight: 700;
+}
+
+.mt-deck-tile__description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mt-deck-tile__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: auto;
+}
+
+.mt-deck-tile__identity {
+  display: inline-flex;
+  max-width: 7rem;
+  flex-wrap: wrap;
+  justify-self: end;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.18rem;
+}
+
+.mt-deck-tile__identity img {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  filter: drop-shadow(0 1px 0.15rem color-mix(in srgb, var(--mt-text) 12%, transparent));
+}
+
+.mt-deck-tile__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mt-deck-tile__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.55rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.mt-deck-tile__tags a {
+  position: relative;
+  z-index: 2;
+  border-radius: 0.2rem;
+  color: var(--mt-accent-text);
+  pointer-events: auto;
+  text-decoration: none;
+}
+
+.mt-deck-tile__tags a:hover {
+  color: var(--mt-text);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.mt-deck-tile__published {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--mt-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 479px) {
+  .mt-deck-tile {
+    grid-template-columns: 6.25rem minmax(0, 1fr);
+  }
+
+  .mt-deck-tile__identity img {
+    width: 1rem;
+    height: 1rem;
+  }
+}

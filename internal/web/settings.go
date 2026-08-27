@@ -11,6 +11,8 @@ import (
 type settingsFormData struct {
 	DisplayName string
 	Email       string
+	SiteTheme   SiteTheme
+	Themes      []siteThemeOption
 }
 
 var displayNameRegex = regexp.MustCompile(`^[a-zA-Z0-9 .,_'-]{1,32}$`)
@@ -35,6 +37,8 @@ func (a *App) HandleSettingsShow(w http.ResponseWriter, r *http.Request) {
 		Data: settingsFormData{
 			DisplayName: user.DisplayName,
 			Email:       user.Email,
+			SiteTheme:   normalizedSiteTheme(user.SiteTheme),
+			Themes:      selectableSiteThemes(),
 		},
 	}
 
@@ -58,6 +62,23 @@ func (a *App) HandleSettingsPost(w http.ResponseWriter, r *http.Request) {
 	action := r.Form.Get("action")
 
 	switch action {
+	case "update_theme":
+		theme, ok := parseSiteTheme(r.Form.Get("site_theme"))
+		if !ok {
+			setFlash(w, "Please choose a valid color theme.")
+			http.Redirect(w, r, "/settings", http.StatusSeeOther)
+			return
+		}
+		if err := account.UpdateSiteTheme(r.Context(), a.DB, user.ID, string(theme)); err != nil {
+			setFlash(w, "Could not update color theme.")
+			http.Redirect(w, r, "/settings", http.StatusSeeOther)
+			return
+		}
+
+		setFlash(w, "Color theme updated.")
+		http.Redirect(w, r, "/settings", http.StatusSeeOther)
+		return
+
 	case "update_profile":
 		displayName := strings.TrimSpace(r.Form.Get("display_name"))
 

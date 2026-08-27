@@ -1,18 +1,20 @@
 package web
 
 import (
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"manatomb/app/internal/decks"
 )
 
 type deckWorkbenchOptions struct {
-	Format        string
-	CommanderName string
-	Sandbox       bool
-	SaveWorkbench bool
-	Reset         bool
+	Format           string
+	CommanderName    string
+	CommanderPrintID string
+	Sandbox          bool
+	SaveWorkbench    bool
+	Reset            bool
 }
 
 func normalizeLocalReturnPath(raw, fallback string) string {
@@ -20,7 +22,7 @@ func normalizeLocalReturnPath(raw, fallback string) string {
 	if path == "" {
 		return fallback
 	}
-	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
+	if !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") || strings.Contains(path, "\\") {
 		return fallback
 	}
 	return path
@@ -86,34 +88,20 @@ func mergeLocalReturnPath(raw, fallback string, updates map[string]string) strin
 	return parsed.String()
 }
 
-func absoluteRequestURL(r *http.Request, path string) string {
+func absoluteSiteURL(publicBaseURL, path string) string {
+	base := strings.TrimRight(strings.TrimSpace(publicBaseURL), "/")
+	parsed, err := url.Parse(base)
+	if err != nil ||
+		parsed.Host == "" ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") ||
+		parsed.Path != "" ||
+		parsed.RawQuery != "" ||
+		parsed.Fragment != "" ||
+		parsed.User != nil {
+		return ""
+	}
 	path = normalizeLocalReturnPath(path, "/")
-	return requestBaseURL(r) + path
-}
-
-func requestBaseURL(r *http.Request) string {
-	scheme := "http"
-	if r != nil && r.TLS != nil {
-		scheme = "https"
-	}
-	if r != nil {
-		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwarded != "" {
-			scheme = strings.TrimSpace(strings.Split(forwarded, ",")[0])
-		}
-	}
-
-	host := "localhost"
-	if r != nil {
-		host = strings.TrimSpace(r.Host)
-		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
-			host = strings.TrimSpace(strings.Split(forwarded, ",")[0])
-		}
-	}
-	if host == "" {
-		host = "localhost"
-	}
-
-	return scheme + "://" + host
+	return base + path
 }
 
 func userProfilePath(userID int64) string {
@@ -150,12 +138,18 @@ func deckWorkbenchPath(opts deckWorkbenchOptions) string {
 	}
 
 	format := defaultDeckFormat(opts.Format, opts.CommanderName, mode)
+	if opts.Sandbox {
+		format = "Sandbox"
+	}
 	if format != "" {
 		values.Set("format", format)
 	}
 
-	if commanderName := strings.TrimSpace(opts.CommanderName); commanderName != "" {
+	if commanderName := strings.TrimSpace(opts.CommanderName); commanderName != "" && !opts.Sandbox && decks.FormatRequiresCommander(format) {
 		values.Set("commander_name", commanderName)
+		if commanderPrintID := strings.TrimSpace(opts.CommanderPrintID); commanderPrintID != "" {
+			values.Set("commander_print_id", commanderPrintID)
+		}
 	}
 	if opts.SaveWorkbench {
 		values.Set("save_guest", "1")

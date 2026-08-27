@@ -1,0 +1,923 @@
+body[data-page="guess-card"] .mt-page-shell {
+  max-width: none;
+  padding: 0;
+}
+
+body[data-page="guess-card"] *,
+body[data-page="guess-card"] *::before,
+body[data-page="guess-card"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+body[data-page="guess-card"] .mt-btn:hover {
+  transform: none;
+}
+
+.mt-guess-game {
+  width: min(calc(100% - clamp(2rem, 5vw, 5rem)), 88rem);
+  margin-inline: auto;
+  padding: clamp(1.2rem, 3vw, 2.2rem) 0 clamp(3rem, 7vw, 5rem);
+  color: var(--mt-text-soft);
+  font-family: var(--mt-font-sans);
+}
+
+.mt-guess-game__top {
+  display: grid;
+  grid-template-columns: minmax(5rem, 1fr) auto minmax(5rem, 1fr);
+  align-items: end;
+  gap: 1rem;
+}
+
+.mt-guess-game__heading {
+  grid-column: 2;
+  text-align: center;
+}
+
+.mt-guess-game__heading h1 {
+  margin: 0;
+  color: var(--mt-text);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 760;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.mt-guess-game__possible {
+  margin: 0.55rem 0 0;
+  color: var(--mt-text-muted);
+  font-size: 0.76rem;
+  font-weight: 720;
+  letter-spacing: 0.055em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.mt-guess-game__help-button {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.mt-guess-game__eyebrow,
+.mt-guess-game__clue-list dt,
+.mt-guess-game__question-group legend {
+  color: var(--mt-text-muted);
+  font-size: 0.66rem;
+  font-weight: 740;
+  letter-spacing: 0.08em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.mt-guess-game__board:focus,
+.mt-guess-game__questions:focus,
+.mt-guess-game__guess:focus,
+#latest-reveal:focus {
+  outline: 0;
+}
+
+.mt-guess-game__board {
+  display: grid;
+  gap: clamp(1.8rem, 4vw, 3rem);
+  margin-top: clamp(1.25rem, 3vw, 2rem);
+}
+
+.mt-guess-game__stage {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(10rem, 12.5rem) minmax(18rem, 1fr);
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  align-items: center;
+  gap: clamp(1.5rem, 3.5vw, 3rem);
+}
+
+.mt-guess-game__stage--completed {
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  width: min(100%, 58rem);
+  margin-inline: auto;
+  align-items: center;
+  justify-items: stretch;
+}
+
+.mt-guess-game__card {
+  width: min(100%, 12.5rem);
+  margin: 0;
+}
+
+.mt-guess-game__stage:not(.mt-guess-game__stage--completed) > .mt-guess-game__card {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.mt-guess-game__stage--completed .mt-guess-game__card {
+  width: min(100%, 15rem);
+}
+
+.mt-guess-game__card-link,
+.mt-guess-game__card-back,
+.mt-guess-game__card-fallback {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 4.8% / 3.5%;
+  background: var(--mt-surface);
+  box-shadow: var(--mt-shadow-card);
+}
+
+.mt-guess-game__card-link:hover {
+  border-color: var(--mt-border-strong);
+}
+
+.mt-guess-game__card-link:focus-visible {
+  border-color: var(--mt-focus-border);
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 3px;
+}
+
+.mt-guess-game__card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mt-guess-game__card-fallback {
+  padding: 1rem;
+  color: var(--mt-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.mt-guess-game__stage-tools {
+  display: contents;
+}
+
+.mt-guess-game__stage:not(.mt-guess-game__stage--completed) .mt-guess-game__clues {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.mt-guess-game__stage:not(.mt-guess-game__stage--completed) .mt-guess-game__guess {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.mt-guess-game__clues,
+.mt-guess-game__guess,
+.mt-guess-game__history,
+.mt-guess-game__questions,
+.mt-guess-game__result {
+  min-width: 0;
+}
+
+.mt-guess-game__clues > h2,
+.mt-guess-game__guess-heading h2,
+.mt-guess-game__history > h2,
+.mt-guess-game__section-heading h2,
+.mt-guess-game__result h2 {
+  margin: 0;
+  color: var(--mt-text);
+  font-weight: 730;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.mt-guess-game__clues > h2,
+.mt-guess-game__guess-heading h2,
+.mt-guess-game__history > h2,
+.mt-guess-game__section-heading h2 {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+.mt-guess-game__clue-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1.2rem;
+  margin: 0.65rem 0 0;
+}
+
+.mt-guess-game__clue-list > div {
+  min-width: 0;
+}
+
+.mt-guess-game__clue-list .mt-guess-game__clue-item--wide {
+  grid-column: 1 / -1;
+}
+
+.mt-guess-game__clue-list dd {
+  margin: 0.18rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--mt-text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.mt-guess-game__clue-list img {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin-inline: 0.06em;
+  vertical-align: -0.15em;
+}
+
+.mt-guess-game__empty {
+  margin: 0.6rem 0 0;
+  color: var(--mt-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.mt-guess-game__guess {
+  border-left: 1px solid var(--mt-border-subtle);
+  padding-left: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.mt-guess-game__guess-heading,
+.mt-guess-game__section-heading {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mt-guess-game__guess-heading span,
+.mt-guess-game__question-count {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--mt-accent-text);
+  font-size: 0.72rem;
+  font-weight: 720;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.mt-guess-game__guess-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.mt-guess-game__guess-field {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+.mt-guess-game__guess-field .mt-control {
+  width: 100%;
+  min-height: 2.75rem;
+  border-color: var(--mt-border-control);
+  background: var(--mt-surface);
+  color: var(--mt-text);
+  box-shadow: none;
+}
+
+.mt-guess-game__guess-field .mt-control:focus,
+.mt-guess-game__guess-field .mt-control:focus-visible {
+  border-color: var(--mt-border-strong);
+  outline: 0;
+  box-shadow: none;
+}
+
+.mt-guess-game__guess-form > .mt-btn {
+  min-height: 2.75rem;
+}
+
+.mt-guess-game__autocomplete {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  left: 0;
+  z-index: 60;
+  max-height: min(22rem, 50vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-color: var(--mt-border-control);
+  background: var(--mt-surface-strong);
+  box-shadow: var(--mt-shadow-popover);
+}
+
+.mt-guess-game__give-up {
+  margin-top: 0.2rem;
+  text-align: right;
+}
+
+.mt-guess-game__give-up button {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem 0;
+  color: var(--mt-text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  text-decoration: underline;
+  text-decoration-color: var(--mt-border-control);
+  text-underline-offset: 0.2rem;
+}
+
+.mt-guess-game__give-up button:hover {
+  color: var(--mt-negative);
+  text-decoration-color: var(--mt-negative-border);
+}
+
+.mt-guess-game__give-up button:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 3px;
+}
+
+.mt-guess-game__lower {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.8fr) minmax(0, 1.6fr);
+  align-items: start;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.mt-guess-game__lower--completed {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 58rem);
+  margin-inline: auto;
+}
+
+.mt-guess-game__history {
+  border-right: 1px solid var(--mt-border-subtle);
+  padding-right: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.mt-guess-game__lower--completed .mt-guess-game__history {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.mt-guess-game__history-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mt-guess-game__history-list > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  align-items: start;
+  gap: 0.6rem;
+  border-left: 2px solid var(--mt-border-subtle);
+  padding: 0.38rem 0 0.38rem 0.65rem;
+}
+
+.mt-guess-game__history-list > li:last-child {
+  border-left-color: var(--mt-border-strong);
+}
+
+.mt-guess-game__history-list p {
+  margin: 0.04rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--mt-text-soft);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.mt-guess-game__turn {
+  margin-top: 0.25rem;
+  color: var(--mt-text-muted);
+  font-family: var(--mt-font-mono);
+  font-size: 0.62rem;
+  font-weight: 720;
+  line-height: 1;
+}
+
+.mt-guess-game__answer {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 999px;
+  padding: 0.16rem 0.46rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.mt-guess-game__answer--yes {
+  border-color: var(--mt-positive-border);
+  background: var(--mt-positive-soft);
+  color: var(--mt-positive);
+}
+
+.mt-guess-game__answer--no {
+  border-color: var(--mt-negative-border);
+  background: var(--mt-negative-soft);
+  color: var(--mt-negative);
+}
+
+.mt-guess-game__question-scroll {
+  max-height: clamp(24rem, 62vh, 38rem);
+  margin-top: 0.65rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.45rem;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.mt-guess-game__question-carousel {
+  min-width: 0;
+}
+
+.mt-guess-game__question-carousel-controls {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.8rem;
+}
+
+.mt-guess-game__question-carousel-controls button {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 50%;
+  background: var(--mt-surface);
+  padding: 0;
+  color: var(--mt-text-soft);
+  font: inherit;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.mt-guess-game__question-carousel-controls button:hover {
+  border-color: var(--mt-border-strong);
+  background: var(--mt-accent-soft);
+  color: var(--mt-text);
+}
+
+.mt-guess-game__question-carousel-controls button:focus-visible {
+  border-color: var(--mt-focus-border);
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-guess-game__question-carousel-controls p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--mt-text-soft);
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.mt-guess-game__question-carousel-viewport {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-color: var(--mt-border-control) transparent;
+  scrollbar-width: thin;
+  touch-action: pan-x pan-y;
+}
+
+.mt-guess-game__question-carousel-track {
+  display: flex;
+  align-items: flex-start;
+  width: 200%;
+}
+
+.mt-guess-game__question-page {
+  width: 50%;
+  flex: 0 0 50%;
+  padding: 0 0.45rem 0.25rem 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.mt-guess-game__question-groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.mt-guess-game__question-group {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.mt-guess-game__question-group legend {
+  display: block;
+  width: 100%;
+  margin: 0 0 0.42rem;
+  padding: 0;
+  color: var(--mt-text-soft);
+}
+
+.mt-guess-game__question-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.38rem;
+}
+
+.mt-guess-game__question-group--color .mt-guess-game__question-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mt-guess-game__question-group--type .mt-guess-game__question-options,
+.mt-guess-game__question-group--rules .mt-guess-game__question-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mt-guess-game__question-group--mana .mt-guess-game__question-options {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.mt-guess-game__question[value="mv_ge_5"],
+.mt-guess-game__question[value="mv_le_5"] {
+  grid-column: span 3;
+}
+
+.mt-guess-game__question {
+  display: flex;
+  min-width: 0;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 0.55rem;
+  background: var(--mt-surface);
+  padding: 0.48rem 0.58rem;
+  color: var(--mt-text-soft);
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 680;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.mt-guess-game__question:hover {
+  border-color: var(--mt-border-strong);
+  background: var(--mt-accent-soft);
+  color: var(--mt-text);
+}
+
+.mt-guess-game__question:focus-visible {
+  border-color: var(--mt-focus-border);
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-guess-game__question img {
+  display: block;
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: 0 0 auto;
+}
+
+.mt-guess-game__question-symbol {
+  display: grid;
+  width: 1.2rem;
+  height: 1.2rem;
+  min-width: 1.2rem !important;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mt-surface-raised);
+  color: var(--mt-accent-text);
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mt-guess-game__question span {
+  min-width: 0;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.mt-guess-game__result {
+  border-left: 3px solid var(--mt-border-strong);
+  padding-left: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.mt-guess-game__result--won {
+  border-left-color: var(--mt-positive-border);
+}
+
+.mt-guess-game__result--lost {
+  border-left-color: var(--mt-negative-border);
+}
+
+.mt-guess-game__result .mt-guess-game__eyebrow {
+  margin: 0 0 0.35rem;
+}
+
+.mt-guess-game__result h2 {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.mt-guess-game__result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.mt-guess-game__result-actions form {
+  margin: 0;
+}
+
+.mt-guess-help {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mt-guess-help.hidden {
+  display: none;
+}
+
+.mt-guess-help__panel {
+  width: min(100%, 35rem);
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  color: var(--mt-text-soft);
+}
+
+.mt-guess-help__panel:focus {
+  outline: 0;
+}
+
+.mt-guess-help__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 50%;
+  background: var(--mt-surface);
+  padding: 0;
+  color: var(--mt-text-muted);
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.mt-guess-help__close:hover {
+  border-color: var(--mt-border-strong);
+  background: var(--mt-surface-raised);
+  color: var(--mt-text);
+}
+
+.mt-guess-help__close:focus-visible {
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 3px;
+}
+
+.mt-guess-help__panel h2 {
+  margin: 0;
+  padding-right: 3.4rem;
+  color: var(--mt-text);
+  font-size: clamp(1.45rem, 4vw, 1.9rem);
+  font-weight: 740;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.mt-guess-help__content {
+  margin-top: 1rem;
+}
+
+.mt-guess-help__content ol {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding-left: 1.3rem;
+  color: var(--mt-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.mt-guess-help__pool {
+  margin-top: 1.25rem;
+  border-left: 3px solid var(--mt-border-strong);
+  padding-left: 0.9rem;
+}
+
+.mt-guess-help__pool h3 {
+  margin: 0;
+  color: var(--mt-accent-text);
+  font-size: 0.72rem;
+  font-weight: 740;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mt-guess-help__pool p,
+.mt-guess-help__note {
+  margin: 0.35rem 0 0;
+  color: var(--mt-text-soft);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.mt-guess-help__note {
+  color: var(--mt-text-muted);
+}
+
+@media (max-width: 70rem) {
+  .mt-guess-game__lower {
+    grid-template-columns: minmax(15rem, 0.75fr) minmax(0, 1.4fr);
+  }
+
+  .mt-guess-game__question-group--type .mt-guess-game__question-options,
+  .mt-guess-game__question-group--rules .mt-guess-game__question-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 52rem) {
+  .mt-guess-game__stage,
+  .mt-guess-game__stage--completed,
+  .mt-guess-game__lower {
+    grid-template-columns: 1fr;
+  }
+
+  .mt-guess-game__stage {
+    width: min(100%, 58rem);
+    justify-items: center;
+  }
+
+  .mt-guess-game__stage-tools {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 1.25rem;
+  }
+
+  .mt-guess-game__stage:not(.mt-guess-game__stage--completed) > .mt-guess-game__card,
+  .mt-guess-game__stage:not(.mt-guess-game__stage--completed) .mt-guess-game__clues,
+  .mt-guess-game__stage:not(.mt-guess-game__stage--completed) .mt-guess-game__guess {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .mt-guess-game__stage--completed {
+    justify-items: center;
+  }
+
+  .mt-guess-game__stage--completed .mt-guess-game__result {
+    width: min(100%, 32rem);
+  }
+
+  .mt-guess-game__guess {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .mt-guess-game__history {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .mt-guess-game__question-group--type .mt-guess-game__question-options,
+  .mt-guess-game__question-group--rules .mt-guess-game__question-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 43rem) {
+  .mt-guess-game {
+    width: min(calc(100% - 1.25rem), 38rem);
+    padding-top: 1rem;
+  }
+
+  .mt-guess-game__top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .mt-guess-game__heading {
+    grid-column: 1;
+    text-align: left;
+  }
+
+  .mt-guess-game__heading h1 {
+    font-size: clamp(1.9rem, 9vw, 2.5rem);
+  }
+
+  .mt-guess-game__help-button {
+    grid-column: 2;
+  }
+
+  .mt-guess-game__board {
+    gap: 1.5rem;
+    margin-top: 1.15rem;
+  }
+
+  .mt-guess-game__card {
+    width: min(100%, 11rem);
+  }
+
+  .mt-guess-game__question-scroll {
+    max-height: 32rem;
+  }
+
+  .mt-guess-game__question-group--color .mt-guess-game__question-options {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .mt-guess-game__question[value="monocolored"],
+  .mt-guess-game__question[value="multicolor"] {
+    grid-column: span 3;
+  }
+
+  .mt-guess-game__question--color-pip {
+    min-height: 2.9rem;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    padding-inline: 0.25rem;
+    text-align: center;
+  }
+
+  .mt-guess-game__question--color-pip > span:last-child {
+    display: none;
+  }
+
+  .mt-guess-game__guess-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 24rem) {
+  .mt-guess-game__top {
+    align-items: end;
+  }
+
+  .mt-guess-game__help-button {
+    padding-inline: 0.65rem;
+  }
+
+  .mt-guess-game__question-group--type .mt-guess-game__question-options,
+  .mt-guess-game__question-group--rules .mt-guess-game__question-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mt-guess-game__question-group--type .mt-guess-game__question,
+  .mt-guess-game__question-group--rules .mt-guess-game__question {
+    min-height: 3.45rem;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.4rem;
+    text-align: center;
+  }
+
+  .mt-guess-game__question {
+    font-size: 0.68rem;
+  }
+
+  .mt-guess-game__guess-form {
+    grid-template-columns: 1fr;
+  }
+
+  .mt-guess-game__guess-form > .mt-btn,
+  .mt-guess-game__result-actions,
+  .mt-guess-game__result-actions form,
+  .mt-guess-game__result-actions .mt-btn {
+    width: 100%;
+  }
+
+  .mt-guess-game__result-actions .mt-btn {
+    justify-content: center;
+  }
+}

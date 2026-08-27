@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,6 +44,12 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 
 	// Handle add / decrement operations
 	if r.Method == http.MethodPost {
+		current, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
+		if err != nil {
+			a.RenderNotFound(w, r)
+			return
+		}
+
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
@@ -92,19 +99,20 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if action == "save_overview" {
-			current, err := decks.GetDeck(r.Context(), a.DB, id, user.ID)
-			if err != nil {
-				a.RenderNotFound(w, r)
-				return
-			}
-
 			format := current.Format
 			if _, ok := r.Form["format"]; ok {
 				format = defaultDeckFormat(r.Form.Get("format"), current.CommanderName, "")
 			} else {
 				format = defaultDeckFormat(current.Format, current.CommanderName, "")
 			}
-			commander, err := a.commanderForFormatChange(r.Context(), id, current.Format, format, current.CommanderName)
+			commander, err := a.commanderForFormatChange(
+				r.Context(),
+				id,
+				current.Format,
+				format,
+				current.CommanderName,
+				current.CommanderPrintID,
+			)
 			if err != nil {
 				a.RenderServerError(w, r, err)
 				return
@@ -130,6 +138,53 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			setFlash(w, "Overview updated.")
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
+		if action == "undo_card_change" {
+			_, sourceCardID := boardCardIDFromRequest()
+			if sourceCardID == "" {
+				http.Error(w, "missing card information", http.StatusBadRequest)
+				return
+			}
+
+			var expected []decks.CardBoardState
+			var restore []decks.CardBoardState
+			if err := json.Unmarshal([]byte(r.Form.Get("expected_states")), &expected); err != nil {
+				http.Error(w, "invalid expected card state", http.StatusBadRequest)
+				return
+			}
+			if err := json.Unmarshal([]byte(r.Form.Get("restore_states")), &restore); err != nil {
+				http.Error(w, "invalid restore card state", http.StatusBadRequest)
+				return
+			}
+
+			err := decks.RestoreCardBoardStatesIfCurrent(
+				r.Context(),
+				a.DB,
+				id,
+				sourceCardID,
+				expected,
+				restore,
+			)
+			if errors.Is(err, decks.ErrCardBoardStateConflict) {
+				http.Error(w, "Deck changed; undo is no longer available.", http.StatusConflict)
+				return
+			}
+			if errors.Is(err, decks.ErrInvalidCardBoardState) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
 			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
 			return
 		}
@@ -207,6 +262,25 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if action == "set_commander_print" {
+			_, sourceCardID := boardCardIDFromRequest()
+			if sourceCardID == "" {
+				http.Error(w, "missing commander information", http.StatusBadRequest)
+				return
+			}
+			printID := strings.TrimSpace(r.Form.Get("print_id"))
+			if err := decks.SetCommanderPreferredPrint(r.Context(), a.DB, id, sourceCardID, printID); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if respondJSON {
+				a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+				return
+			}
+			http.Redirect(w, r, "/decks/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+			return
+		}
+
 		// Case 1: adding a new card by name (from the "Add card" form)
 		if cardName != "" {
 			resolved, err := cards.ResolveCardByNameFuzzy(r.Context(), a.DB, cardName)
@@ -225,6 +299,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 
 					data := TemplateData{
 						CurrentUser: user,
+						Meta:        deckWorkspacePageMeta(pageData.Deck),
 						Data:        pageData,
 						Flash:       flash,
 						Error:       fmt.Sprintf("No card found matching \"%s\". Please check the spelling.", cardName),
@@ -457,6 +532,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 	}
 	data := TemplateData{
 		CurrentUser: user,
+		Meta:        deckWorkspacePageMeta(pageData.Deck),
 		Data:        pageData,
 		Flash:       flash,
 		WideLayout:  true,
@@ -535,7 +611,14 @@ func (a *App) HandleDeckEditPost(w http.ResponseWriter, r *http.Request) {
 	} else {
 		format = defaultDeckFormat(current.Format, current.CommanderName, "")
 	}
-	commander, err := a.commanderForFormatChange(r.Context(), id, current.Format, format, current.CommanderName)
+	commander, err := a.commanderForFormatChange(
+		r.Context(),
+		id,
+		current.Format,
+		format,
+		current.CommanderName,
+		current.CommanderPrintID,
+	)
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
@@ -705,32 +788,10 @@ func (a *App) HandleDeckCommanderUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	oldCommander := strings.TrimSpace(d.CommanderName)
-	newCommander := commander
-
-	// Remove 1 copy of the new commander from the 99 (it becomes the commander slot).
-	if picked.Quantity > 0 {
-		_ = decks.AddCard(r.Context(), a.DB, deckID, picked.CardID, -1)
-	}
-
-	// Add the old commander back into the 99 if it existed and is changing.
-	if oldCommander != "" && oldCommander != newCommander {
-		oldCard, err := cards.EnsureCardByName(r.Context(), a.DB, oldCommander)
-		if err == nil {
-			_ = decks.AddCard(r.Context(), a.DB, deckID, oldCard.OracleID, 1)
-		}
-	}
-
-	// Update commander while preserving name/description.
-	if err := decks.UpdateDeckWithOptions(r.Context(), a.DB, deckID, decks.DeckInput{
-		Name:          d.Name,
-		Description:   d.Description,
-		Tags:          d.Tags,
-		Format:        d.Format,
-		CommanderName: commander,
-		IsPublic:      d.IsPublic,
-		PublicSlug:    d.PublicSlug,
-		PowerBracket:  d.PowerBracket,
+	if err := decks.ChangeCommander(r.Context(), a.DB, deckID, decks.CommanderChange{
+		NewCommanderName:     commander,
+		NewCommanderOracleID: picked.CardID,
+		NewCommanderPrintID:  strings.TrimSpace(picked.PrintID),
 	}); err != nil {
 		a.RenderServerError(w, r, err)
 		return

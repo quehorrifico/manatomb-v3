@@ -27,6 +27,15 @@ type smtpPasswordResetMailer struct {
 	config SMTPConfig
 }
 
+func allowPlaintextSMTPHost(host string) bool {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func NewSMTPPasswordResetMailer(config SMTPConfig) PasswordResetMailer {
 	config.Host = strings.TrimSpace(config.Host)
 	config.Port = strings.TrimSpace(config.Port)
@@ -56,8 +65,8 @@ func (m *smtpPasswordResetMailer) SendPasswordReset(ctx context.Context, to, res
 		auth = smtp.PlainAuth("", m.config.Username, m.config.Password, m.config.Host)
 	}
 
-	subject := "Reset your Mana Tomb password"
-	body := "A password reset was requested for your Mana Tomb account.\r\n\r\n" +
+	subject := "Reset your ManaTomb password"
+	body := "A password reset was requested for your ManaTomb account.\r\n\r\n" +
 		"Use this link within one hour:\r\n" + resetURL + "\r\n\r\n" +
 		"If you did not request this, you can ignore this email.\r\n"
 	message := []byte(
@@ -94,6 +103,8 @@ func (m *smtpPasswordResetMailer) SendPasswordReset(ctx context.Context, to, res
 		if err := client.StartTLS(&tls.Config{ServerName: m.config.Host, MinVersion: tls.VersionTLS12}); err != nil {
 			return err
 		}
+	} else if !allowPlaintextSMTPHost(m.config.Host) {
+		return fmt.Errorf("smtp server %q does not advertise STARTTLS", m.config.Host)
 	}
 	if auth != nil {
 		if err := client.Auth(auth); err != nil {

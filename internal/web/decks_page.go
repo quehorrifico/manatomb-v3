@@ -27,6 +27,35 @@ type deckPageData struct {
 	WorkspaceState        workspaceDeckState
 	WorkbenchMode         bool
 	WorkbenchSandbox      bool
+	GuestAuthNextPath     string
+}
+
+func deckWorkspacePageMeta(deck *decks.Deck) *PageMeta {
+	meta := defaultPageMeta("deck_show")
+	if meta == nil {
+		meta = &PageMeta{Title: "Deck Editor"}
+	}
+	if deck != nil {
+		if name := truncateShareText(deck.Name, 56); name != "" {
+			meta.Title = name
+			meta.Description = "Edit, organize, analyze, and playtest " + name + " on ManaTomb."
+		}
+	}
+	return meta
+}
+
+func deckPlaytestPageMeta(deck *decks.Deck) *PageMeta {
+	meta := defaultPageMeta("deck_playtest")
+	if meta == nil {
+		meta = &PageMeta{Title: "Deck Playtest"}
+	}
+	if deck != nil {
+		if name := truncateShareText(deck.Name, 44); name != "" {
+			meta.Title = name + " — Playtest"
+			meta.Description = "Playtest " + name + " in the ManaTomb tabletop workspace."
+		}
+	}
+	return meta
 }
 
 func buildCommanderCandidateSet(candidates []commanderCandidate) map[string]bool {
@@ -59,4 +88,17 @@ func (a *App) lookupCommanderCard(ctx context.Context, commanderName string) *ca
 		return nil
 	}
 	return card
+}
+
+func (a *App) lookupCommanderCardPrinting(ctx context.Context, commanderName, printID string) *cards.Card {
+	card := a.lookupCommanderCard(ctx, commanderName)
+	if card == nil || strings.TrimSpace(printID) == "" {
+		return card
+	}
+
+	selected, err := cards.GetCardPrintingByID(ctx, a.DB, card.OracleID, printID)
+	if err != nil {
+		return card
+	}
+	return selected
 }

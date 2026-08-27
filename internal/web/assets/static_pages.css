@@ -1,0 +1,245 @@
+.mt-static-page {
+  width: min(100%, 58rem);
+  margin: 0 auto;
+  padding: clamp(2.25rem, 7vw, 5rem) clamp(1rem, 3vw, 1.5rem);
+  color: var(--mt-text-soft);
+}
+
+.mt-static-page--document {
+  width: min(100%, 64rem);
+}
+
+.mt-static-header {
+  display: grid;
+  max-width: 44rem;
+  gap: 0.65rem;
+  margin-bottom: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.mt-static-title {
+  margin: 0;
+  color: var(--mt-text);
+  font-size: clamp(2.15rem, 6vw, 3.65rem);
+  font-weight: 740;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+
+.mt-static-lede {
+  max-width: 42rem;
+  margin: 0;
+  color: var(--mt-text-soft);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.mt-static-document {
+  display: grid;
+  gap: clamp(2rem, 5vw, 3.25rem);
+}
+
+.mt-static-section {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+  gap: clamp(1.25rem, 4vw, 3.5rem);
+  align-items: start;
+}
+
+.mt-static-section h2 {
+  margin: 0;
+  color: var(--mt-text);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+}
+
+.mt-static-section__body {
+  display: grid;
+  min-width: 0;
+  gap: 0.7rem;
+}
+
+.mt-static-section__body p {
+  margin: 0;
+  color: var(--mt-text-soft);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.mt-static-link {
+  color: var(--mt-accent-text);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: var(--mt-border-strong);
+  text-underline-offset: 0.18em;
+}
+
+.mt-static-link:hover {
+  color: var(--mt-text);
+}
+
+.mt-static-link:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-changelog-header {
+  max-width: 48rem;
+}
+
+.mt-changelog-title-row,
+.mt-changelog-release-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mt-changelog-current {
+  flex: none;
+  border: 1px solid var(--mt-border-strong);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  color: var(--mt-accent-text);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.mt-changelog-releases {
+  display: grid;
+  gap: clamp(3.25rem, 8vw, 5.5rem);
+}
+
+.mt-changelog-release {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.mt-changelog-release + .mt-changelog-release {
+  border-top: 1px solid var(--mt-border-subtle);
+  padding-top: clamp(2.5rem, 6vw, 4rem);
+}
+
+.mt-changelog-release-header h2 {
+  margin: 0.2rem 0 0;
+  color: var(--mt-text);
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  font-weight: 720;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.mt-changelog-release-header time,
+.mt-changelog-version {
+  margin: 0;
+  color: var(--mt-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.mt-changelog-release-header time {
+  flex: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.mt-changelog-summary {
+  max-width: 46rem;
+  margin: 0;
+  color: var(--mt-text-soft);
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.mt-changelog-details {
+  width: fit-content;
+  font-size: 0.82rem;
+}
+
+.mt-static-page--message {
+  display: grid;
+  min-height: min(34rem, 62svh);
+  place-items: center;
+  text-align: center;
+}
+
+.mt-static-message {
+  display: grid;
+  width: min(100%, 38rem);
+  justify-items: center;
+  gap: 1rem;
+}
+
+.mt-static-status {
+  margin: 0;
+  color: var(--mt-text-muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.mt-static-message .mt-static-title {
+  font-size: clamp(2rem, 7vw, 3.4rem);
+}
+
+.mt-static-message .mt-static-lede {
+  max-width: 32rem;
+}
+
+.mt-static-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+body[data-page="error"] .mt-static-actions .mt-btn:hover,
+body[data-page="not-found"] .mt-static-actions .mt-btn:hover {
+  transform: none;
+}
+
+@media (max-width: 639px) {
+  .mt-static-page {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+  }
+
+  .mt-static-header {
+    margin-bottom: 2.25rem;
+  }
+
+  .mt-static-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.65rem;
+  }
+
+  .mt-changelog-title-row,
+  .mt-changelog-release-header {
+    align-items: flex-start;
+  }
+
+  .mt-changelog-release-header {
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .mt-static-page--message {
+    min-height: 52svh;
+  }
+
+  .mt-static-actions {
+    width: 100%;
+  }
+
+  .mt-static-actions .mt-btn {
+    min-height: 2.75rem;
+    flex: 1 1 9rem;
+  }
+}

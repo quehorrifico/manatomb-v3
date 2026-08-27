@@ -466,7 +466,9 @@
           if (!isWorkbenchPlaytest) return null;
           var baseDraft = (workbenchDraftSeed && typeof workbenchDraftSeed === "object") ? workbenchDraftSeed : {};
           var commanderName = String(baseDraft.commanderName || "").trim();
-          var format = String(baseDraft.format || "").trim() === "Commander" ? "Commander" : "Sandbox";
+          var commanderPrintID = String(baseDraft.commanderPrintID || "").trim();
+          var format = String(baseDraft.format || "").trim() || "Sandbox";
+          var deckName = String(baseDraft.name || "").trim() || "Untitled Deck";
 
           var cardEntries = [];
           var cardSource = (baseDraft && baseDraft.cards && typeof baseDraft.cards === "object") ? baseDraft.cards : {};
@@ -500,8 +502,9 @@
 
           return {
             commander_name: commanderName,
+            commander_print_id: commanderPrintID,
             format: format,
-            name: "New Guest Deck",
+            name: deckName,
             description: String(baseDraft.description || "").trim(),
             tags: String(baseDraft.tags || "").trim(),
             cards: cardEntries,
@@ -509,6 +512,7 @@
             maybe_cards: maybeEntries,
             commander_candidates: Array.isArray(baseDraft.commanderCandidates) ? baseDraft.commanderCandidates.slice() : [],
             card_meta: (baseDraft && baseDraft.cardMeta && typeof baseDraft.cardMeta === "object") ? baseDraft.cardMeta : {},
+            board_card_meta: (baseDraft && baseDraft.boardCardMeta && typeof baseDraft.boardCardMeta === "object") ? baseDraft.boardCardMeta : {},
             sandbox: !!(baseDraft && baseDraft.sandbox)
           };
         }
@@ -557,14 +561,16 @@
 
             var draft = {
               commanderName: String(payload.commander_name || "").trim(),
+              commanderPrintID: String(payload.commander_print_id || "").trim(),
               format: String(payload.format || "").trim() || "Sandbox",
-              name: "New Guest Deck",
+              name: String(payload.name || "").trim() || "Untitled Deck",
               description: String(payload.description || "").trim(),
               tags: String(payload.tags || "").trim(),
               cards: cards,
               sideboardCards: sideboardCards,
               maybeCards: maybeCards,
               cardMeta: (payload.card_meta && typeof payload.card_meta === "object") ? payload.card_meta : {},
+              boardCardMeta: (payload.board_card_meta && typeof payload.board_card_meta === "object") ? payload.board_card_meta : {},
               commanderCandidates: Array.isArray(payload.commander_candidates) ? payload.commander_candidates : [],
               sandbox: !!payload.sandbox,
               updatedAt: new Date().toISOString()
@@ -1321,7 +1327,7 @@
           var history = Array.isArray(state.history) ? state.history : [];
           if (history.length === 0) {
             var empty = document.createElement("li");
-            empty.className = "text-sm text-slate-500 px-1 py-3";
+            empty.className = "pt-empty-message pt-empty-message--padded";
             empty.textContent = "No actions yet.";
             historyListEl.appendChild(empty);
             return;
@@ -3599,7 +3605,7 @@
           var mode = currentLookMode();
           if (cards.length === 0) {
             var empty = document.createElement("p");
-            empty.className = "text-sm text-slate-500 self-center";
+            empty.className = "pt-empty-message pt-empty-message--centered";
             empty.textContent = mode === "surveil" ? "No cards to surveil." : (mode === "reveal" ? "No cards to reveal." : "No cards to scry.");
             scryCardsEl.appendChild(empty);
             return;
@@ -3670,7 +3676,7 @@
 
           if (matches.length === 0) {
             var empty = document.createElement("p");
-            empty.className = "text-sm text-slate-500 self-center";
+            empty.className = "pt-empty-message pt-empty-message--centered";
             empty.textContent = cards.length === 0 ? "Library is empty." : "No matching cards.";
             librarySearchResultsEl.appendChild(empty);
             return;
@@ -3967,7 +3973,7 @@
           var hand = state.zones.hand;
           if (!hand || hand.length === 0) {
             var empty = document.createElement("p");
-            empty.className = "text-sm text-slate-500 self-center";
+            empty.className = "pt-empty-message pt-empty-message--centered";
             empty.textContent = "No cards in opening hand.";
             openingHandEl.appendChild(empty);
             return;
@@ -3998,7 +4004,7 @@
               node.classList.add("pt-card--stack");
               revealWrap.appendChild(node);
               var revealLabel = document.createElement("p");
-              revealLabel.className = "text-[11px] text-slate-400 text-center";
+              revealLabel.className = "pt-card-note";
               revealLabel.textContent = "Top card";
               revealWrap.appendChild(revealLabel);
               el.appendChild(revealWrap);
@@ -4016,7 +4022,7 @@
           el.appendChild(stack);
 
           var label = document.createElement("p");
-          label.className = "text-[11px] text-slate-400 text-center mt-0.5";
+          label.className = "pt-card-note pt-card-note--spaced";
           label.textContent = state.zones.library.length + " cards";
           el.appendChild(label);
         }
@@ -4059,7 +4065,7 @@
 
           if (state.phase !== "play") {
             var waiting = document.createElement("p");
-            waiting.className = "text-xs text-slate-500 px-2 pt-6";
+            waiting.className = "pt-empty-message pt-empty-message--waiting";
             waiting.textContent = "Opening hand is shown in the start overlay.";
             el.appendChild(waiting);
             return;

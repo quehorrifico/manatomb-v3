@@ -11,7 +11,6 @@ import (
 type Config struct {
 	DatabaseURL         string
 	Port                string
-	SessionSecret       string
 	SessionCookieSecure bool
 	PublicBaseURL       string
 	SMTPHost            string
@@ -31,7 +30,6 @@ func Load() *Config {
 	cfg := &Config{
 		DatabaseURL:         mustEnv("DATABASE_URL"),
 		Port:                getEnv("PORT", "8080"),
-		SessionSecret:       mustEnv("SESSION_SECRET"),
 		SessionCookieSecure: getEnvBool("SESSION_COOKIE_SECURE", false),
 		PublicBaseURL:       strings.TrimRight(getEnv("PUBLIC_BASE_URL", ""), "/"),
 		SMTPHost:            getEnv("SMTP_HOST", ""),

@@ -38,6 +38,7 @@ type workspaceDeckState struct {
 	Tags                string                                  `json:"tags"`
 	Format              string                                  `json:"format"`
 	CommanderName       string                                  `json:"commanderName,omitempty"`
+	CommanderPrintID    string                                  `json:"commanderPrintID,omitempty"`
 	IsPublic            bool                                    `json:"isPublic"`
 	PublicSlug          string                                  `json:"publicSlug,omitempty"`
 	Cards               map[string]int                          `json:"cards"`
@@ -91,18 +92,19 @@ func buildWorkspaceStateFromDeck(
 	commanderCard *cards.Card,
 ) workspaceDeckState {
 	state := workspaceDeckState{
-		ID:             d.ID,
-		Name:           d.Name,
-		Description:    d.Description,
-		Tags:           d.Tags,
-		Format:         d.Format,
-		CommanderName:  d.CommanderName,
-		IsPublic:       d.IsPublic,
-		PublicSlug:     d.PublicSlug,
-		Cards:          map[string]int{},
-		SideboardCards: map[string]int{},
-		MaybeCards:     map[string]int{},
-		CardMeta:       map[string]workspaceCardMeta{},
+		ID:               d.ID,
+		Name:             d.Name,
+		Description:      d.Description,
+		Tags:             d.Tags,
+		Format:           d.Format,
+		CommanderName:    d.CommanderName,
+		CommanderPrintID: strings.TrimSpace(d.CommanderPrintID),
+		IsPublic:         d.IsPublic,
+		PublicSlug:       d.PublicSlug,
+		Cards:            map[string]int{},
+		SideboardCards:   map[string]int{},
+		MaybeCards:       map[string]int{},
+		CardMeta:         map[string]workspaceCardMeta{},
 		BoardCardMeta: map[string]map[string]workspaceCardMeta{
 			"main":  {},
 			"side":  {},
@@ -165,6 +167,7 @@ func buildWorkspaceStateFromDeck(
 		name := strings.TrimSpace(commanderCard.Name)
 		if name != "" {
 			meta := workspaceCardMeta{
+				CardID:               strings.TrimSpace(commanderCard.OracleID),
 				Name:                 name,
 				ManaCost:             strings.TrimSpace(commanderCard.ManaCost),
 				TypeLine:             strings.TrimSpace(commanderCard.TypeLine),
@@ -172,6 +175,14 @@ func buildWorkspaceStateFromDeck(
 				CMC:                  commanderCard.CMC,
 				PriceUSD:             strings.TrimSpace(commanderCard.PriceUSD),
 				ImageURI:             strings.TrimSpace(commanderCard.ImageURI),
+				PreferredPrintID:     strings.TrimSpace(d.CommanderPrintID),
+				PrintID:              strings.TrimSpace(commanderCard.ID),
+				SetCode:              strings.TrimSpace(commanderCard.SetCode),
+				SetName:              strings.TrimSpace(commanderCard.SetName),
+				CollectorNumber:      strings.TrimSpace(commanderCard.CollectorNumber),
+				Rarity:               strings.TrimSpace(commanderCard.Rarity),
+				ReleasedAt:           strings.TrimSpace(commanderCard.ReleasedAt),
+				Artist:               strings.TrimSpace(commanderCard.Artist),
 				IsCommanderCandidate: true,
 				Faces:                commanderCard.Faces,
 			}
@@ -233,7 +244,7 @@ func (a *App) loadSavedDeckWorkspace(ctx context.Context, userID, deckID int64) 
 			}
 		}
 
-		commanderCard = a.lookupCommanderCard(ctx, d.CommanderName)
+		commanderCard = a.lookupCommanderCardPrinting(ctx, d.CommanderName, d.CommanderPrintID)
 	}
 
 	workspaceState := buildWorkspaceStateFromDeck(d, deckCards, sideboardDeckCards, maybeDeckCards, commanderCandidates, commanderCard)

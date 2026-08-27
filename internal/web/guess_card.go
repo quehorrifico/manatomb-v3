@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,14 +18,21 @@ import (
 	"manatomb/app/internal/cards"
 )
 
-const guessCardAwardGuessLimit = 10
+const (
+	guessCardAwardGuessLimit     = 10
+	guessCardDefaultMaxQuestions = 8
+)
 
 type guessQuestion struct {
-	ID   string
-	Text string
+	ID     string
+	Label  string
+	Text   string
+	Symbol string
 }
 
 type guessAnswerView struct {
+	Number   int
+	Kind     string
 	Question string
 	Answer   string
 	Yes      bool
@@ -35,6 +44,21 @@ type guessClueView struct {
 	ValueHTML template.HTML
 }
 
+type guessQuestionGroupView struct {
+	Name      string
+	Questions []guessQuestion
+}
+
+type guessRevealView struct {
+	Number   int
+	Label    string
+	Question string
+	Answer   string
+	Yes      bool
+	HasClue  bool
+	Clue     guessClueView
+}
+
 type guessCardPageData struct {
 	GameID             int64
 	Status             string
@@ -42,15 +66,25 @@ type guessCardPageData struct {
 	Won                bool
 	QuestionCount      int
 	GuessCount         int
+	PossibleCardsLeft  int
+	PossibleCardsTotal int
+	NextGuessNumber    int
 	IsDaily            bool
 	HasAccount         bool
 	AwardGuessLimit    int
 	AwardGuessesLeft   int
 	AwardStatus        string
+	AwardEarned        bool
 	GameModeLabel      string
 	History            []guessAnswerView
 	Clues              []guessClueView
 	AvailableQuestions []guessQuestion
+	QuestionGroups     []guessQuestionGroupView
+	HasLatestReveal    bool
+	LatestReveal       guessRevealView
+	PreviousReveals    []guessRevealView
+	QuestionsLeft      int
+	MaxQuestions       int
 	CanAsk             bool
 	CanGuess           bool
 	TargetName         string
@@ -59,37 +93,62 @@ type guessCardPageData struct {
 }
 
 var guessCardQuestions = []guessQuestion{
-	{ID: "color_w", Text: "Is it white?"},
-	{ID: "color_u", Text: "Is it blue?"},
-	{ID: "color_b", Text: "Is it black?"},
-	{ID: "color_r", Text: "Is it red?"},
-	{ID: "color_g", Text: "Is it green?"},
-	{ID: "colorless", Text: "Is it colorless?"},
-	{ID: "monocolored", Text: "Is it monocolored?"},
-	{ID: "multicolor", Text: "Is it multicolored?"},
-	{ID: "permanent", Text: "Is it a permanent?"},
-	{ID: "nonpermanent", Text: "Is it a nonpermanent?"},
-	{ID: "creature", Text: "Is it a creature?"},
-	{ID: "instant", Text: "Is it an instant?"},
-	{ID: "sorcery", Text: "Is it a sorcery?"},
-	{ID: "artifact", Text: "Is it an artifact?"},
-	{ID: "enchantment", Text: "Is it an enchantment?"},
-	{ID: "planeswalker", Text: "Is it a planeswalker?"},
-	{ID: "land", Text: "Is it a land?"},
-	{ID: "legendary", Text: "Is it legendary?"},
-	{ID: "mv_le_2", Text: "Is its mana value 2 or less?"},
-	{ID: "mv_le_3", Text: "Is its mana value 3 or less?"},
-	{ID: "mv_ge_5", Text: "Is its mana value 5 or greater?"},
-	{ID: "commander_legal", Text: "Is it legal in Commander?"},
-	{ID: "draws_cards", Text: "Does it mention drawing cards?"},
-	{ID: "makes_tokens", Text: "Does it make tokens?"},
-	{ID: "destroys", Text: "Does it destroy something?"},
-	{ID: "searches_library", Text: "Does it search a library?"},
-	{ID: "graveyard", Text: "Does it mention graveyards?"},
-	{ID: "flying", Text: "Does it have or mention flying?"},
-	{ID: "generates_mana", Text: "Does it generate mana?"},
-	{ID: "deals_damage", Text: "Does it deal damage?"},
-	{ID: "protects", Text: "Is it used to protect something?"},
+	{ID: "color_w", Label: "White", Text: "Does its color identity include white?", Symbol: "W"},
+	{ID: "color_u", Label: "Blue", Text: "Does its color identity include blue?", Symbol: "U"},
+	{ID: "color_b", Label: "Black", Text: "Does its color identity include black?", Symbol: "B"},
+	{ID: "color_r", Label: "Red", Text: "Does its color identity include red?", Symbol: "R"},
+	{ID: "color_g", Label: "Green", Text: "Does its color identity include green?", Symbol: "G"},
+	{ID: "colorless", Label: "Colorless", Text: "Is its color identity colorless?", Symbol: "C"},
+	{ID: "monocolored", Label: "Monocolored", Text: "Does its color identity contain exactly one color?", Symbol: "1"},
+	{ID: "multicolor", Label: "Multicolor", Text: "Does its color identity contain multiple colors?", Symbol: "2+"},
+	{ID: "permanent", Label: "Permanent", Text: "Is it a permanent?", Symbol: "P"},
+	{ID: "nonpermanent", Label: "Nonpermanent", Text: "Is it a nonpermanent?", Symbol: "N"},
+	{ID: "creature", Label: "Creature", Text: "Is it a creature?", Symbol: "C"},
+	{ID: "instant", Label: "Instant", Text: "Is it an instant?", Symbol: "I"},
+	{ID: "sorcery", Label: "Sorcery", Text: "Is it a sorcery?", Symbol: "S"},
+	{ID: "artifact", Label: "Artifact", Text: "Is it an artifact?", Symbol: "A"},
+	{ID: "enchantment", Label: "Enchantment", Text: "Is it an enchantment?", Symbol: "E"},
+	{ID: "planeswalker", Label: "Planeswalker", Text: "Is it a planeswalker?", Symbol: "PW"},
+	{ID: "battle", Label: "Battle", Text: "Is it a battle?", Symbol: "BT"},
+	{ID: "mv_ge_5", Label: "Greater than or equal to 5", Text: "Is its mana value greater than or equal to 5?", Symbol: "≥5"},
+	{ID: "mv_le_5", Label: "Less than or equal to 5", Text: "Is its mana value less than or equal to 5?", Symbol: "≤5"},
+	{ID: "mv_eq_0", Label: "0", Text: "Is its mana value exactly 0?", Symbol: "0"},
+	{ID: "mv_eq_1", Label: "1", Text: "Is its mana value exactly 1?", Symbol: "1"},
+	{ID: "mv_eq_2", Label: "2", Text: "Is its mana value exactly 2?", Symbol: "2"},
+	{ID: "mv_eq_3", Label: "3", Text: "Is its mana value exactly 3?", Symbol: "3"},
+	{ID: "mv_eq_4", Label: "4", Text: "Is its mana value exactly 4?", Symbol: "4"},
+	{ID: "mv_eq_5", Label: "5", Text: "Is its mana value exactly 5?", Symbol: "5"},
+	{ID: "draws_cards", Label: "Card draw", Text: "Does its rules text mention drawing cards?", Symbol: "+"},
+	{ID: "makes_tokens", Label: "Tokens", Text: "Does its rules text mention tokens?", Symbol: "○"},
+	{ID: "destroys", Label: "Destroy", Text: "Does its rules text mention destroying something?", Symbol: "×"},
+	{ID: "exiles", Label: "Exile", Text: "Does its rules text mention exile?", Symbol: "↗"},
+	{ID: "searches_library", Label: "Search", Text: "Does its rules text search a library?", Symbol: "?"},
+	{ID: "graveyard", Label: "Graveyard", Text: "Does its rules text mention a graveyard?", Symbol: "↶"},
+	{ID: "flying", Label: "Flying", Text: "Does its rules text mention flying?", Symbol: "↑"},
+	{ID: "generates_mana", Label: "Mana", Text: "Does it produce mana or Treasures?", Symbol: "M"},
+	{ID: "deals_damage", Label: "Damage", Text: "Does its rules text deal damage?", Symbol: "✶"},
+	{ID: "protects", Label: "Protection", Text: "Does it grant or use a protective effect?", Symbol: "◆"},
+}
+
+// Legacy questions remain resolvable so rounds created before a catalog
+// change can still render their original evidence. Keeping them outside the
+// current catalog prevents them from becoming new one-tap choices.
+var guessCardLegacyQuestions = []guessQuestion{
+	{ID: "mv_le_2", Label: "≤ 2", Text: "Is its mana value 2 or less?", Symbol: "≤2"},
+	{ID: "mv_le_3", Label: "≤ 3", Text: "Is its mana value 3 or less?", Symbol: "≤3"},
+	{ID: "commander_legal", Label: "Commander legal", Text: "Is it legal in Commander?", Symbol: "C"},
+	{ID: "legendary", Label: "Legendary", Text: "Is it legendary?", Symbol: "★"},
+	{ID: "land", Label: "Land", Text: "Is it a land?", Symbol: "L"},
+}
+
+var guessCardQuestionGroupDefinitions = []struct {
+	Name string
+	IDs  []string
+}{
+	{Name: "Color", IDs: []string{"color_w", "color_u", "color_b", "color_r", "color_g", "colorless", "monocolored", "multicolor"}},
+	{Name: "Card type", IDs: []string{"permanent", "nonpermanent", "creature", "instant", "sorcery", "artifact", "enchantment", "planeswalker", "battle"}},
+	{Name: "Mana value", IDs: []string{"mv_ge_5", "mv_le_5", "mv_eq_0", "mv_eq_1", "mv_eq_2", "mv_eq_3", "mv_eq_4", "mv_eq_5"}},
+	{Name: "Rules text", IDs: []string{"draws_cards", "makes_tokens", "destroys", "exiles", "searches_library", "graveyard", "flying", "generates_mana", "deals_damage", "protects"}},
 }
 
 func questionByID(questionID string) *guessQuestion {
@@ -99,7 +158,61 @@ func questionByID(questionID string) *guessQuestion {
 			return &guessCardQuestions[i]
 		}
 	}
+	for i := range guessCardLegacyQuestions {
+		if guessCardLegacyQuestions[i].ID == questionID {
+			return &guessCardLegacyQuestions[i]
+		}
+	}
 	return nil
+}
+
+func groupGuessCardQuestions(questions []guessQuestion) []guessQuestionGroupView {
+	available := make(map[string]guessQuestion, len(questions))
+	for _, question := range questions {
+		available[question.ID] = question
+	}
+
+	groups := make([]guessQuestionGroupView, 0, len(guessCardQuestionGroupDefinitions))
+	for _, definition := range guessCardQuestionGroupDefinitions {
+		group := guessQuestionGroupView{Name: definition.Name}
+		for _, questionID := range definition.IDs {
+			question, ok := available[questionID]
+			if !ok {
+				continue
+			}
+			group.Questions = append(group.Questions, question)
+		}
+		if len(group.Questions) > 0 {
+			groups = append(groups, group)
+		}
+	}
+	return groups
+}
+
+func guessCardMaxQuestions(game guessCardGame) int {
+	if game.MaxQuestions > 0 {
+		return game.MaxQuestions
+	}
+	return guessCardDefaultMaxQuestions
+}
+
+func guessCardQuestionsUsed(game guessCardGame) int {
+	used := game.QuestionCount
+	if len(game.AskedQuestions) > used {
+		used = len(game.AskedQuestions)
+	}
+	if used < 0 {
+		return 0
+	}
+	return used
+}
+
+func guessCardQuestionsLeft(game guessCardGame) int {
+	left := guessCardMaxQuestions(game) - guessCardQuestionsUsed(game)
+	if left < 0 {
+		return 0
+	}
+	return left
 }
 
 func matchGuessQuestion(raw string) *guessQuestion {
@@ -199,15 +312,25 @@ func (a *App) HandleGuessCardShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	card, err := cards.GetCardByOracleID(r.Context(), a.DB, game.TargetOracleID)
+	card, err := a.loadGuessCardTarget(r.Context(), *game)
 	if err != nil {
 		a.RenderServerError(w, r, err)
 		return
 	}
+	page := buildGuessCardPageData(*game, *card)
+	if !page.Completed {
+		counts, err := loadGuessCardPossibilityCounts(r.Context(), a.DB, *game, *card)
+		if err != nil {
+			log.Printf("guess card possibility count unavailable for game %d: %v", game.ID, err)
+		} else {
+			page.PossibleCardsLeft = counts.Possible
+			page.PossibleCardsTotal = counts.Total
+		}
+	}
 
 	a.Renderer.Render(w, "guess_card", TemplateData{
 		CurrentUser: user,
-		Data:        buildGuessCardPageData(*game, *card),
+		Data:        page,
 		Flash:       readFlash(w, r),
 	})
 }
@@ -229,7 +352,7 @@ func (a *App) guessCardGameForShow(r *http.Request, player gamePlayer) (*guessCa
 		return nil, err
 	}
 	if guessCardActiveGameExpired(*game) {
-		if err := abandonActiveGuessCardGames(r.Context(), a.DB, player); err != nil {
+		if err := abandonGuessCardGame(r.Context(), a.DB, player, game.ID); err != nil {
 			return nil, err
 		}
 		return activeOrNewGuessCardGame(r.Context(), a.DB, player)
@@ -251,16 +374,7 @@ func (a *App) HandleGuessCardPost(w http.ResponseWriter, r *http.Request) {
 
 	switch strings.ToLower(strings.TrimSpace(r.Form.Get("action"))) {
 	case "new":
-		if err := abandonActiveGuessCardGames(r.Context(), a.DB, player); err != nil {
-			a.RenderServerError(w, r, err)
-			return
-		}
-		if _, err := createReplayGuessCardGame(r.Context(), a.DB, player); err != nil {
-			a.RenderServerError(w, r, err)
-			return
-		}
-		setFlash(w, "Practice game started. Only the daily card is eligible for a profile card award.")
-		http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
+		a.handleGuessCardNewPost(w, r, player)
 	case "question":
 		a.handleGuessCardQuestionPost(w, r, player)
 	case "guess":
@@ -273,12 +387,52 @@ func (a *App) HandleGuessCardPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *App) handleGuessCardQuestionPost(w http.ResponseWriter, r *http.Request, player gamePlayer) {
-	game, err := loadActiveGuessCardGame(r.Context(), a.DB, player)
+func (a *App) handleGuessCardNewPost(w http.ResponseWriter, r *http.Request, player gamePlayer) {
+	previousGameID, ok := parseGuessCardGameID(r.Form.Get("game_id"))
+	if !ok {
+		setFlash(w, "That round could not be replayed. The current game has been refreshed.")
+		http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
+		return
+	}
+	previous, err := loadGuessCardGameByID(r.Context(), a.DB, player, previousGameID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			setFlash(w, "Start a new game first.")
+			setFlash(w, "That round could not be replayed. The current game has been refreshed.")
 			http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
+			return
+		}
+		a.RenderServerError(w, r, err)
+		return
+	}
+	if previous.Status == "active" {
+		setFlash(w, "Finish or reveal the current card before starting a practice round.")
+		http.Redirect(w, r, guessCardRoundPath(previous.ID), http.StatusSeeOther)
+		return
+	}
+
+	if active, err := loadActiveGuessCardGame(r.Context(), a.DB, player); err == nil {
+		setFlash(w, "A round is already in progress.")
+		http.Redirect(w, r, guessCardRoundPath(active.ID), http.StatusSeeOther)
+		return
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
+	game, err := createReplayGuessCardGame(r.Context(), a.DB, player)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+}
+
+func (a *App) handleGuessCardQuestionPost(w http.ResponseWriter, r *http.Request, player gamePlayer) {
+	game, err := loadGuessCardGameForMutation(r.Context(), a.DB, player, r.Form.Get("game_id"))
+	if err != nil {
+		if errors.Is(err, errGuessCardRoundStale) {
+			setFlash(w, "That round is no longer active. The current game has been refreshed.")
+			http.Redirect(w, r, guessCardRoundRefreshPath(r.Form.Get("game_id")), http.StatusSeeOther)
 			return
 		}
 		a.RenderServerError(w, r, err)
@@ -291,31 +445,41 @@ func (a *App) handleGuessCardQuestionPost(w http.ResponseWriter, r *http.Request
 			questionID = question.ID
 		}
 	}
+	if guessCardQuestionsLeft(*game) == 0 {
+		setFlash(w, "No questions remain. Make a guess or give up.")
+		http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+		return
+	}
+	target, err := a.loadGuessCardTarget(r.Context(), *game)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+	if !guessCardQuestionAvailable(*game, *target, questionID) {
+		setFlash(w, "That question is no longer available.")
+		http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+		return
+	}
 	if err := addGuessCardQuestion(r.Context(), a.DB, game.ID, player, questionID); err != nil {
 		if errors.Is(err, errGuessCardQuestionUnavailable) {
-			setFlash(w, "That question has already been asked.")
-			http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
-			return
-		}
-		setFlash(w, "Try rephrasing your question.")
-	}
-	http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
-}
-
-func (a *App) handleGuessCardFinalGuessPost(w http.ResponseWriter, r *http.Request, player gamePlayer) {
-	game, err := loadActiveGuessCardGame(r.Context(), a.DB, player)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			setFlash(w, "Start a new game first.")
-			http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
+			setFlash(w, "That question is no longer available.")
+			http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
 			return
 		}
 		a.RenderServerError(w, r, err)
 		return
 	}
+	http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+}
 
-	target, err := cards.GetCardByOracleID(r.Context(), a.DB, game.TargetOracleID)
+func (a *App) handleGuessCardFinalGuessPost(w http.ResponseWriter, r *http.Request, player gamePlayer) {
+	game, err := loadGuessCardGameForMutation(r.Context(), a.DB, player, r.Form.Get("game_id"))
 	if err != nil {
+		if errors.Is(err, errGuessCardRoundStale) {
+			setFlash(w, "That round is no longer active. The current game has been refreshed.")
+			http.Redirect(w, r, guessCardRoundRefreshPath(r.Form.Get("game_id")), http.StatusSeeOther)
+			return
+		}
 		a.RenderServerError(w, r, err)
 		return
 	}
@@ -323,7 +487,18 @@ func (a *App) handleGuessCardFinalGuessPost(w http.ResponseWriter, r *http.Reque
 	guess := strings.TrimSpace(r.Form.Get("guess"))
 	if guess == "" {
 		setFlash(w, "Enter a card name before making your final guess.")
-		http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
+		http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+		return
+	}
+	expectedGuessNumber, err := strconv.Atoi(strings.TrimSpace(r.Form.Get("guess_number")))
+	if err != nil || expectedGuessNumber <= 0 {
+		setFlash(w, "That guess could not be verified. No attempt was used; please try again.")
+		http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+		return
+	}
+	target, err := a.loadGuessCardTarget(r.Context(), *game)
+	if err != nil {
+		a.RenderServerError(w, r, err)
 		return
 	}
 
@@ -337,65 +512,54 @@ func (a *App) handleGuessCardFinalGuessPost(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	won := len(matches) > 0 && strings.EqualFold(strings.TrimSpace(matches[0].OracleID), strings.TrimSpace(target.OracleID))
-	if err := incrementGuessCardGuessCount(r.Context(), a.DB, game.ID, player); err != nil {
+	guessedOracleID := ""
+	if len(matches) > 0 {
+		guessedOracleID = matches[0].OracleID
+	}
+	attempt, err := recordGuessCardFinalGuess(r.Context(), a.DB, game.ID, player, *target, guessedOracleID, guess, expectedGuessNumber)
+	if err != nil {
+		if errors.Is(err, errGuessCardAttemptDuplicate) {
+			setFlash(w, "That guess was already submitted. No extra attempt was used.")
+			http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+			return
+		}
+		if errors.Is(err, errGuessCardGameUnavailable) {
+			setFlash(w, "That round is no longer active. The current game has been refreshed.")
+			http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+			return
+		}
 		a.RenderServerError(w, r, err)
 		return
 	}
-	guessNumber := game.GuessCount + 1
-	awardEligible := guessCardGameAwardEligible(*game)
-
-	if won && awardEligible && guessNumber < guessCardAwardGuessLimit {
-		if err := completeGuessCardGameWithAward(r.Context(), a.DB, *game, *target, guessNumber); err != nil {
-			a.RenderServerError(w, r, err)
-			return
-		}
-		setFlash(w, "Correct. You kept the card.")
-	} else if won {
-		if err := completeGuessCardGame(r.Context(), a.DB, game.ID, player, true); err != nil {
-			a.RenderServerError(w, r, err)
-			return
-		}
-		if player.IsGuest() {
-			setFlash(w, "Correct. Sign in before playing tomorrow's daily card to earn profile awards.")
-		} else if awardEligible {
-			setFlash(w, "Correct. Cards are awarded for daily solves in fewer than 10 guesses.")
-		} else if game.IsDaily {
-			setFlash(w, "Correct. That daily card has expired; only today's daily card awards a profile card.")
-		} else {
-			setFlash(w, "Correct. Practice games do not award profile cards.")
-		}
-	} else {
-		setFlash(w, "Not quite. Ask another question for a new clue.")
-		http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
+	if !attempt.Won {
+		http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/games/guess-card?game_id=%d", game.ID), http.StatusSeeOther)
+	http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
 }
 
 func (a *App) handleGuessCardGiveUpPost(w http.ResponseWriter, r *http.Request, player gamePlayer) {
-	game, err := loadActiveGuessCardGame(r.Context(), a.DB, player)
+	game, err := loadGuessCardGameForMutation(r.Context(), a.DB, player, r.Form.Get("game_id"))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			setFlash(w, "Start a new game first.")
-			http.Redirect(w, r, "/games/guess-card", http.StatusSeeOther)
+		if errors.Is(err, errGuessCardRoundStale) {
+			setFlash(w, "That round is no longer active. The current game has been refreshed.")
+			http.Redirect(w, r, guessCardRoundRefreshPath(r.Form.Get("game_id")), http.StatusSeeOther)
 			return
 		}
 		a.RenderServerError(w, r, err)
 		return
 	}
 
-	target, err := cards.GetCardByOracleID(r.Context(), a.DB, game.TargetOracleID)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
 	if err := completeGuessCardGame(r.Context(), a.DB, game.ID, player, false); err != nil {
+		if errors.Is(err, errGuessCardGameUnavailable) {
+			setFlash(w, "That round was already completed. The result has been refreshed.")
+			http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
+			return
+		}
 		a.RenderServerError(w, r, err)
 		return
 	}
-	setFlash(w, "The answer was "+target.Name+".")
-	http.Redirect(w, r, fmt.Sprintf("/games/guess-card?game_id=%d", game.ID), http.StatusSeeOther)
+	http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
 }
 
 func addAutomaticGuessClue(ctx context.Context, db *sql.DB, game guessCardGame, card cards.Card) (bool, error) {
@@ -459,12 +623,15 @@ func automaticGuessQuestionPriority() []string {
 		"artifact",
 		"enchantment",
 		"planeswalker",
-		"land",
-		"legendary",
-		"mv_le_2",
-		"mv_le_3",
+		"battle",
 		"mv_ge_5",
-		"commander_legal",
+		"mv_le_5",
+		"mv_eq_0",
+		"mv_eq_1",
+		"mv_eq_2",
+		"mv_eq_3",
+		"mv_eq_4",
+		"mv_eq_5",
 	}
 }
 
@@ -482,38 +649,31 @@ func guessCardGameAwardEligible(game guessCardGame) bool {
 }
 
 func buildGuessCardPageData(game guessCardGame, card cards.Card) guessCardPageData {
-	history := make([]guessAnswerView, 0, len(game.AskedQuestions))
-	for _, questionID := range game.AskedQuestions {
-		question := questionByID(questionID)
-		if question == nil {
-			continue
-		}
-		answer := guessQuestionAnswer(card, question.ID)
-		label := "No"
-		if answer {
-			label = "Yes"
-		}
-		history = append(history, guessAnswerView{
-			Question: question.Text,
-			Answer:   label,
-			Yes:      answer,
-		})
-	}
-
 	completed := game.Status != "active"
 	awardLeft := guessCardAwardGuessLimit - 1 - game.GuessCount
 	if awardLeft < 0 {
 		awardLeft = 0
 	}
 	awardStatus := "Eligible"
-	if game.GuestID != "" {
-		awardStatus = "Sign in to earn"
-	} else if !game.IsDaily {
+	if !game.IsDaily {
 		awardStatus = "Practice"
-	} else if completed && game.Status == "won" && game.GuessCount < guessCardAwardGuessLimit {
-		awardStatus = "Earned"
+	} else if game.GuestID != "" {
+		if completed {
+			awardStatus = "Guest result"
+		} else {
+			awardStatus = "Sign in to earn"
+		}
+	} else if completed {
+		switch {
+		case game.Status == "won" && game.AwardEarned:
+			awardStatus = "Earned"
+		case game.Status == "won":
+			awardStatus = "Solved"
+		default:
+			awardStatus = "Not earned"
+		}
 	} else if game.GuessCount >= guessCardAwardGuessLimit-1 {
-		awardStatus = "Practice"
+		awardStatus = "Award closed"
 	}
 	gameMode := "Daily Game"
 	if !game.IsDaily {
@@ -521,29 +681,142 @@ func buildGuessCardPageData(game guessCardGame, card cards.Card) guessCardPageDa
 	}
 
 	clues := buildGuessCardClues(game, card)
+	reveals := buildGuessCardReveals(game, card, clues)
+	history := buildGuessCardHistory(game, card)
+
+	availableQuestions := availableGuessCardQuestionsForCard(game.AskedQuestions, clues, card)
+	maxQuestions := guessCardMaxQuestions(game)
+	questionsLeft := guessCardQuestionsLeft(game)
+	canAsk := !completed && questionsLeft > 0 && len(availableQuestions) > 0
+
+	var latestReveal guessRevealView
+	var previousReveals []guessRevealView
+	if len(reveals) > 0 {
+		latestReveal = reveals[len(reveals)-1]
+		if completed {
+			previousReveals = append(previousReveals, reveals...)
+		} else {
+			previousReveals = append(previousReveals, reveals[:len(reveals)-1]...)
+		}
+	}
 
 	return guessCardPageData{
 		GameID:             game.ID,
 		Status:             guessGameStatusLabel(game.Status),
 		Completed:          completed,
 		Won:                game.Status == "won",
-		QuestionCount:      game.QuestionCount,
+		QuestionCount:      guessCardQuestionsUsed(game),
 		GuessCount:         game.GuessCount,
+		NextGuessNumber:    game.GuessCount + 1,
 		IsDaily:            game.IsDaily,
 		HasAccount:         game.GuestID == "",
 		AwardGuessLimit:    guessCardAwardGuessLimit,
 		AwardGuessesLeft:   awardLeft,
 		AwardStatus:        awardStatus,
+		AwardEarned:        game.AwardEarned,
 		GameModeLabel:      gameMode,
 		History:            history,
 		Clues:              clues,
-		AvailableQuestions: availableGuessCardQuestions(game.AskedQuestions, clues),
-		CanAsk:             !completed,
+		AvailableQuestions: availableQuestions,
+		QuestionGroups:     groupGuessCardQuestions(availableQuestions),
+		HasLatestReveal:    len(reveals) > 0,
+		LatestReveal:       latestReveal,
+		PreviousReveals:    previousReveals,
+		QuestionsLeft:      questionsLeft,
+		MaxQuestions:       maxQuestions,
+		CanAsk:             canAsk,
 		CanGuess:           !completed,
 		TargetName:         card.Name,
 		TargetImageURI:     card.ImageURI,
-		TargetDetailPath:   cardDetailPath(card.OracleID),
+		TargetDetailPath:   cardPrintingDetailPath(card.OracleID, guessCardDetailPrintingID(card, game.TargetScryfallID)),
 	}
+}
+
+func buildGuessCardHistory(game guessCardGame, card cards.Card) []guessAnswerView {
+	events := game.HistoryEvents
+	if len(events) == 0 {
+		events = make([]string, 0, len(game.AskedQuestions))
+		for _, questionID := range game.AskedQuestions {
+			questionID = strings.TrimSpace(questionID)
+			if questionID != "" {
+				events = append(events, guessCardHistoryQuestionPrefix+questionID)
+			}
+		}
+	}
+
+	history := make([]guessAnswerView, 0, len(events))
+	for _, event := range events {
+		event = strings.TrimSpace(event)
+		switch {
+		case strings.HasPrefix(event, guessCardHistoryQuestionPrefix):
+			question := questionByID(strings.TrimPrefix(event, guessCardHistoryQuestionPrefix))
+			if question == nil {
+				continue
+			}
+			yes := guessQuestionAnswer(card, question.ID)
+			answer := "No"
+			if yes {
+				answer = "Yes"
+			}
+			history = append(history, guessAnswerView{
+				Number:   len(history) + 1,
+				Kind:     "question",
+				Question: question.Text,
+				Answer:   answer,
+				Yes:      yes,
+			})
+		case strings.HasPrefix(event, guessCardHistoryGuessPrefix):
+			name := strings.TrimSpace(strings.TrimPrefix(event, guessCardHistoryGuessPrefix))
+			if name == "" {
+				continue
+			}
+			if !strings.HasSuffix(name, "?") {
+				name += "?"
+			}
+			history = append(history, guessAnswerView{
+				Number:   len(history) + 1,
+				Kind:     "guess",
+				Question: name,
+				Answer:   "No",
+			})
+		}
+	}
+	return history
+}
+
+func guessCardDetailPrintingID(card cards.Card, fallback string) string {
+	if printingID := strings.TrimSpace(card.ID); printingID != "" {
+		return printingID
+	}
+	return strings.TrimSpace(fallback)
+}
+
+func buildGuessCardReveals(game guessCardGame, card cards.Card, clues []guessClueView) []guessRevealView {
+	reveals := make([]guessRevealView, 0, len(game.AskedQuestions))
+	for index, questionID := range game.AskedQuestions {
+		question := questionByID(questionID)
+		if question == nil {
+			continue
+		}
+		yes := guessQuestionAnswer(card, question.ID)
+		answer := "No"
+		if yes {
+			answer = "Yes"
+		}
+		reveal := guessRevealView{
+			Number:   index + 1,
+			Label:    question.Label,
+			Question: question.Text,
+			Answer:   answer,
+			Yes:      yes,
+		}
+		if index < len(clues) {
+			reveal.HasClue = true
+			reveal.Clue = clues[index]
+		}
+		reveals = append(reveals, reveal)
+	}
+	return reveals
 }
 
 func availableGuessCardQuestions(askedQuestions []string, clues []guessClueView) []guessQuestion {
@@ -561,6 +834,197 @@ func availableGuessCardQuestions(askedQuestions []string, clues []guessClueView)
 		out = append(out, question)
 	}
 	return out
+}
+
+func availableGuessCardQuestionsForCard(askedQuestions []string, clues []guessClueView, card cards.Card) []guessQuestion {
+	answerEliminations := guessCardAnswerEliminations(guessCardAnswerFacts(askedQuestions, card))
+	available := availableGuessCardQuestions(askedQuestions, clues)
+	out := make([]guessQuestion, 0, len(available))
+	for _, question := range available {
+		if answerEliminations[question.ID] {
+			continue
+		}
+		out = append(out, question)
+	}
+	return out
+}
+
+func guessCardAnswerFacts(askedQuestions []string, card cards.Card) map[string]bool {
+	facts := make(map[string]bool, len(askedQuestions))
+	for _, questionID := range askedQuestions {
+		questionID = strings.TrimSpace(questionID)
+		if questionByID(questionID) == nil {
+			continue
+		}
+		facts[questionID] = guessQuestionAnswer(card, questionID)
+	}
+	return facts
+}
+
+func guessCardAnswerEliminations(facts map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	merge := func(eliminations map[string]bool) {
+		for questionID := range eliminations {
+			out[questionID] = true
+		}
+	}
+
+	merge(guessCardModelEliminations(facts, guessCardColorQuestionIDs(), guessCardColorModels()))
+	merge(guessCardModelEliminations(facts, guessCardManaValueQuestionIDs(), guessCardManaValueModels()))
+	merge(guessCardModelEliminations(facts, guessCardTypeQuestionIDs(), guessCardTypeModels()))
+
+	// Once a player has chosen either broad colored-card question, the sibling
+	// option is no longer useful. Colorless and the five individual colors stay
+	// available when they can still narrow the identity further.
+	if _, asked := facts["monocolored"]; asked {
+		out["multicolor"] = true
+	}
+	if _, asked := facts["multicolor"]; asked {
+		out["monocolored"] = true
+	}
+
+	return out
+}
+
+func guessCardModelEliminations(facts map[string]bool, questionIDs []string, models []map[string]bool) map[string]bool {
+	relevantFacts := map[string]bool{}
+	for _, questionID := range questionIDs {
+		if answer, ok := facts[questionID]; ok {
+			relevantFacts[questionID] = answer
+		}
+	}
+	if len(relevantFacts) == 0 {
+		return nil
+	}
+
+	consistent := make([]map[string]bool, 0, len(models))
+	for _, model := range models {
+		matches := true
+		for questionID, answer := range relevantFacts {
+			if model[questionID] != answer {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			consistent = append(consistent, model)
+		}
+	}
+	if len(consistent) == 0 {
+		return nil
+	}
+
+	out := map[string]bool{}
+	for _, questionID := range questionIDs {
+		if _, asked := relevantFacts[questionID]; asked {
+			continue
+		}
+		answer := consistent[0][questionID]
+		settled := true
+		for _, model := range consistent[1:] {
+			if model[questionID] != answer {
+				settled = false
+				break
+			}
+		}
+		if settled {
+			out[questionID] = true
+		}
+	}
+	return out
+}
+
+func guessCardColorQuestionIDs() []string {
+	return []string{"color_w", "color_u", "color_b", "color_r", "color_g", "colorless", "monocolored", "multicolor"}
+}
+
+func guessCardColorModels() []map[string]bool {
+	models := make([]map[string]bool, 0, 32)
+	colorIDs := []string{"color_w", "color_u", "color_b", "color_r", "color_g"}
+	for mask := 0; mask < 32; mask++ {
+		model := map[string]bool{}
+		colorCount := 0
+		for index, questionID := range colorIDs {
+			included := mask&(1<<index) != 0
+			model[questionID] = included
+			if included {
+				colorCount++
+			}
+		}
+		model["colorless"] = colorCount == 0
+		model["monocolored"] = colorCount == 1
+		model["multicolor"] = colorCount > 1
+		models = append(models, model)
+	}
+	return models
+}
+
+func guessCardManaValueQuestionIDs() []string {
+	return []string{
+		"mv_ge_5",
+		"mv_le_5",
+		"mv_eq_0",
+		"mv_eq_1",
+		"mv_eq_2",
+		"mv_eq_3",
+		"mv_eq_4",
+		"mv_eq_5",
+		"mv_le_2",
+		"mv_le_3",
+	}
+}
+
+func guessCardManaValueModels() []map[string]bool {
+	// Integer and half-step representatives cover every distinct combination of
+	// the current exact/range questions and the two legacy range questions.
+	values := []float64{0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5}
+	models := make([]map[string]bool, 0, len(values))
+	for _, value := range values {
+		model := map[string]bool{
+			"mv_ge_5": value >= 5,
+			"mv_le_5": value <= 5,
+			"mv_le_2": value <= 2,
+			"mv_le_3": value <= 3,
+		}
+		for exact := 0; exact <= 5; exact++ {
+			model[fmt.Sprintf("mv_eq_%d", exact)] = value == float64(exact)
+		}
+		models = append(models, model)
+	}
+	return models
+}
+
+func guessCardTypeQuestionIDs() []string {
+	return []string{"permanent", "nonpermanent", "creature", "instant", "sorcery", "artifact", "enchantment", "planeswalker", "land", "battle"}
+}
+
+func guessCardTypeModels() []map[string]bool {
+	models := make([]map[string]bool, 0, 256)
+	baseIDs := []string{"creature", "artifact", "enchantment", "planeswalker", "land", "battle", "instant", "sorcery"}
+	for mask := 0; mask < 1<<len(baseIDs); mask++ {
+		model := map[string]bool{}
+		for index, questionID := range baseIDs {
+			model[questionID] = mask&(1<<index) != 0
+		}
+		model["permanent"] = model["creature"] || model["artifact"] || model["enchantment"] || model["planeswalker"] || model["land"] || model["battle"]
+		model["nonpermanent"] = model["instant"] || model["sorcery"]
+		models = append(models, model)
+	}
+	return models
+}
+
+func guessCardQuestionAvailable(game guessCardGame, card cards.Card, questionID string) bool {
+	questionID = strings.TrimSpace(questionID)
+	if questionID == "" || guessCardQuestionsLeft(game) == 0 {
+		return false
+	}
+	clues := buildGuessCardClues(game, card)
+	for _, question := range availableGuessCardQuestionsForCard(game.AskedQuestions, clues, card) {
+		if question.ID == questionID {
+			return true
+		}
+	}
+	return false
 }
 
 func guessCardQuestionEliminations(clues []guessClueView) map[string]bool {
@@ -584,6 +1048,7 @@ func guessCardQuestionEliminations(clues []guessClueView) map[string]bool {
 				"enchantment",
 				"planeswalker",
 				"land",
+				"battle",
 				"legendary",
 			)
 		case "rules text":
@@ -591,6 +1056,7 @@ func guessCardQuestionEliminations(clues []guessClueView) map[string]bool {
 				"draws_cards",
 				"makes_tokens",
 				"destroys",
+				"exiles",
 				"searches_library",
 				"graveyard",
 				"flying",
@@ -598,10 +1064,19 @@ func guessCardQuestionEliminations(clues []guessClueView) map[string]bool {
 				"deals_damage",
 				"protects",
 			)
-		case "cast cost", "card cost":
-			add("mv_le_2", "mv_le_3", "mv_ge_5")
-		case "mana value":
-			add("mv_le_2", "mv_le_3", "mv_ge_5")
+		case "cast cost", "card cost", "mana value":
+			add(
+				"mv_ge_5",
+				"mv_le_5",
+				"mv_eq_0",
+				"mv_eq_1",
+				"mv_eq_2",
+				"mv_eq_3",
+				"mv_eq_4",
+				"mv_eq_5",
+				"mv_le_2",
+				"mv_le_3",
+			)
 		case "color identity":
 			add(
 				"color_w",
@@ -621,7 +1096,7 @@ func guessCardQuestionEliminations(clues []guessClueView) map[string]bool {
 }
 
 func buildGuessCardClues(game guessCardGame, card cards.Card) []guessClueView {
-	pool := guessCardCluePool(card)
+	pool := stagedGuessCardCluePool(guessCardCluePool(card), guessCardMaxQuestions(game))
 	if len(pool) == 0 || len(game.AskedQuestions) == 0 {
 		return nil
 	}
@@ -630,31 +1105,127 @@ func buildGuessCardClues(game guessCardGame, card cards.Card) []guessClueView {
 	if clueCount > len(pool) {
 		clueCount = len(pool)
 	}
-	used := map[int]bool{}
 	out := make([]guessClueView, 0, clueCount)
 	for i := 0; i < clueCount; i++ {
-		index := guessCardClueIndex(game.ID, i, len(pool), used)
-		used[index] = true
-		out = append(out, pool[index])
+		clue := pool[i]
+		if game.Status == "active" {
+			clue = maskGuessCardClueNames(clue, card)
+		}
+		out = append(out, clue)
 	}
 	return out
 }
 
-func guessCardClueIndex(gameID int64, clueIndex int, poolSize int, used map[int]bool) int {
-	if poolSize <= 0 {
-		return 0
+func stagedGuessCardCluePool(pool []guessClueView, limit int) []guessClueView {
+	if limit <= 0 || len(pool) == 0 {
+		return nil
 	}
-	start := int((gameID*31 + int64(clueIndex*17+7)) % int64(poolSize))
-	if start < 0 {
-		start = -start
+	if limit > len(pool) {
+		limit = len(pool)
 	}
-	for offset := 0; offset < poolSize; offset++ {
-		index := (start + offset) % poolSize
-		if !used[index] {
-			return index
+
+	stageLabels := [][]string{
+		{"rarity"},
+		{"mana value"},
+		{"color identity"},
+		{"card type"},
+		{"power/toughness", "loyalty", "commander"},
+		{"cast cost", "card cost"},
+		{"default set", "release date", "artist"},
+		{"rules text", "flavor text"},
+	}
+	buckets := make([][]guessClueView, len(stageLabels))
+	clueByLabel := make(map[string]guessClueView, len(pool))
+	for _, clue := range pool {
+		clueByLabel[strings.ToLower(strings.TrimSpace(clue.Label))] = clue
+	}
+	usedLabels := make(map[string]bool, len(pool))
+	for stage, labels := range stageLabels {
+		for _, label := range labels {
+			clue, ok := clueByLabel[label]
+			if !ok {
+				continue
+			}
+			buckets[stage] = append(buckets[stage], clue)
+			usedLabels[label] = true
 		}
 	}
-	return start
+	for _, clue := range pool {
+		label := strings.ToLower(strings.TrimSpace(clue.Label))
+		if !usedLabels[label] {
+			buckets[len(buckets)-2] = append(buckets[len(buckets)-2], clue)
+		}
+	}
+
+	selected := make([]int, len(buckets))
+	selectedCount := 0
+	for stage := range buckets {
+		if len(buckets[stage]) == 0 || selectedCount >= limit {
+			continue
+		}
+		selected[stage] = 1
+		selectedCount++
+	}
+	for stage := range buckets {
+		for selectedCount < limit && selected[stage] < len(buckets[stage]) {
+			selected[stage]++
+			selectedCount++
+		}
+	}
+
+	out := make([]guessClueView, 0, selectedCount)
+	for stage := range buckets {
+		out = append(out, buckets[stage][:selected[stage]]...)
+	}
+	return out
+}
+
+func maskGuessCardClueNames(clue guessClueView, card cards.Card) guessClueView {
+	masked := maskGuessCardNames(clue.Value, card)
+	if masked == clue.Value {
+		return clue
+	}
+	clue.Value = masked
+	if clue.ValueHTML != "" {
+		clue.ValueHTML = renderGuessCardRulesTextHTML(masked)
+	}
+	return clue
+}
+
+func maskGuessCardNames(value string, card cards.Card) string {
+	names := make([]string, 0, len(card.Faces)+3)
+	addName := func(name string) {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	addName(card.Name)
+	for _, name := range strings.Split(card.Name, "//") {
+		addName(name)
+	}
+	for _, face := range card.Faces {
+		addName(face.Name)
+	}
+	sort.SliceStable(names, func(i, j int) bool {
+		return len(names[i]) > len(names[j])
+	})
+
+	seen := map[string]bool{}
+	masked := value
+	for _, name := range names {
+		key := strings.ToLower(name)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		pattern, err := regexp.Compile(`(?i)(^|[^\p{L}\p{N}])(` + regexp.QuoteMeta(name) + `)([^\p{L}\p{N}]|$)`)
+		if err != nil {
+			continue
+		}
+		masked = pattern.ReplaceAllString(masked, `${1}[card name]${3}`)
+	}
+	return masked
 }
 
 func guessCardCluePool(card cards.Card) []guessClueView {
@@ -836,7 +1407,7 @@ func guessQuestionAnswer(card cards.Card, questionID string) bool {
 		return guessIsPermanent(card)
 	case "nonpermanent":
 		return guessIsNonpermanent(card)
-	case "creature", "instant", "sorcery", "artifact", "enchantment", "planeswalker", "land":
+	case "creature", "instant", "sorcery", "artifact", "enchantment", "planeswalker", "land", "battle":
 		return strings.Contains(guessTypeLine(card), questionID)
 	case "legendary":
 		return strings.Contains(guessTypeLine(card), "legendary")
@@ -846,6 +1417,20 @@ func guessQuestionAnswer(card cards.Card, questionID string) bool {
 		return card.CMC <= 3
 	case "mv_ge_5":
 		return card.CMC >= 5
+	case "mv_le_5":
+		return card.CMC <= 5
+	case "mv_eq_0":
+		return card.CMC == 0
+	case "mv_eq_1":
+		return card.CMC == 1
+	case "mv_eq_2":
+		return card.CMC == 2
+	case "mv_eq_3":
+		return card.CMC == 3
+	case "mv_eq_4":
+		return card.CMC == 4
+	case "mv_eq_5":
+		return card.CMC == 5
 	case "commander_legal":
 		return card.CommanderLegal
 	case "draws_cards":
@@ -854,6 +1439,8 @@ func guessQuestionAnswer(card cards.Card, questionID string) bool {
 		return strings.Contains(guessOracleText(card), "token")
 	case "destroys":
 		return strings.Contains(guessOracleText(card), "destroy")
+	case "exiles":
+		return strings.Contains(guessOracleText(card), "exile")
 	case "searches_library":
 		text := guessOracleText(card)
 		return strings.Contains(text, "search") && strings.Contains(text, "library")

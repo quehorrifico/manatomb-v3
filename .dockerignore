@@ -1,0 +1,12 @@
+.git
+.github
+.codex
+.env
+.env.*
+!.env.example
+node_modules
+bin
+build
+*.log
+*.sqlite
+ops-notes.md

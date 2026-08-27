@@ -2,82 +2,189 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <main class="max-w-3xl mx-auto py-10 px-4 space-y-5">
-    <section class="mt-panel p-5 sm:p-6 space-y-4">
-      <div class="space-y-2">
-        <p class="mt-kicker">Import</p>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-100">Loading deck.</h1>
+  <div class="mt-deck-import-seed" data-import-seed>
+    <h1>Preparing your deck</h1>
+    <p data-import-seed-status>Your decklist is being opened in the editor.</p>
+    <div class="mt-deck-import-seed__failure" data-import-seed-failure hidden>
+      <p>Your existing local draft was left unchanged. Return to the import page and try again after allowing site storage or freeing browser storage.</p>
+      <div>
+        <button type="button" class="mt-btn mt-btn--secondary" data-import-seed-back>Back to import</button>
+        <a href="/decks/import" class="mt-btn mt-btn--primary">Start over</a>
       </div>
-
-      <div class="flex flex-wrap gap-2">
-        <a href="/" class="mt-btn mt-btn--secondary">Home</a>
-        <a href="/decks/new/workbench" class="mt-btn mt-btn--primary">Open Deck</a>
-      </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <script>
   document.addEventListener('DOMContentLoaded', function () {
     var payload = {{ $ctx.PayloadJSON }};
     var key = 'manatomb.draftDeck';
     var returnKey = key + '.playtestReturn';
+    var importWarningKey = 'manatomb.deckImportWarning';
+    var root = document.querySelector('[data-import-seed]');
+    var status = root ? root.querySelector('[data-import-seed-status]') : null;
+    var failure = root ? root.querySelector('[data-import-seed-failure]') : null;
+    var back = root ? root.querySelector('[data-import-seed-back]') : null;
 
+    if (back) {
+      back.addEventListener('click', function () {
+        window.history.back();
+      });
+    }
+
+    function boardState(items) {
+      var quantities = {};
+      var printingMeta = {};
+      if (!Array.isArray(items)) {
+        return { quantities: quantities, printingMeta: printingMeta };
+      }
+      items.forEach(function (item) {
+        if (!item || !item.name || !item.qty || item.qty <= 0) return;
+        quantities[item.name] = (quantities[item.name] || 0) + item.qty;
+        var meta = item.meta && typeof item.meta === 'object'
+          ? Object.assign({}, item.meta)
+          : {};
+        if (item.oracle_id) meta.cardID = item.oracle_id;
+        if (item.preferred_print_id) {
+          meta.preferredPrintID = item.preferred_print_id;
+          meta.printID = item.preferred_print_id;
+        }
+        if (item.set_code) meta.setCode = item.set_code;
+        if (item.collector_number) meta.collectorNumber = item.collector_number;
+        printingMeta[item.name] = meta;
+      });
+      return { quantities: quantities, printingMeta: printingMeta };
+    }
+
+    function draftHasCards(raw) {
+      if (!raw) return false;
+      try {
+        var draft = JSON.parse(raw);
+        if (String((draft && draft.commanderName) || '').trim() !== '') return true;
+        var boards = ['cards', 'sideboardCards', 'maybeCards'];
+        for (var boardIndex = 0; boardIndex < boards.length; boardIndex++) {
+          var quantities = draft && draft[boards[boardIndex]];
+          if (!quantities || typeof quantities !== 'object') continue;
+          var names = Object.keys(quantities);
+          for (var nameIndex = 0; nameIndex < names.length; nameIndex++) {
+            if (Number(quantities[names[nameIndex]] || 0) > 0) return true;
+          }
+        }
+        return false;
+      } catch (parseError) {
+        return true;
+      }
+    }
+
+    var previousRaw = null;
+    var hadPreviousDraft = false;
     try {
-      var cards = {};
-      var sideboardCards = {};
-      var maybeCards = {};
-      if (payload && Array.isArray(payload.cards)) {
-        payload.cards.forEach(function (item) {
-          if (!item || !item.name || !item.qty) return;
-          if (item.qty <= 0) return;
-          cards[item.name] = (cards[item.name] || 0) + item.qty;
-        });
+      previousRaw = localStorage.getItem(key);
+      hadPreviousDraft = draftHasCards(previousRaw);
+      if (hadPreviousDraft && !(payload && payload.replace_existing_draft)) {
+        throw new Error('replacement confirmation required');
       }
-      if (payload && Array.isArray(payload.sideboard_cards)) {
-        payload.sideboard_cards.forEach(function (item) {
-          if (!item || !item.name || !item.qty) return;
-          if (item.qty <= 0) return;
-          sideboardCards[item.name] = (sideboardCards[item.name] || 0) + item.qty;
+
+      var main = boardState(payload && payload.cards);
+      var side = boardState(payload && payload.sideboard_cards);
+      var maybe = boardState(payload && payload.maybe_cards);
+      var suppliedMeta = payload && payload.card_meta && typeof payload.card_meta === 'object'
+        ? payload.card_meta
+        : {};
+
+      var cardMeta = {};
+      Object.keys(suppliedMeta).forEach(function (name) {
+        var source = suppliedMeta[name];
+        if (!source || typeof source !== 'object') return;
+        cardMeta[name] = source;
+      });
+      [main.printingMeta, side.printingMeta, maybe.printingMeta].forEach(function (boardMeta) {
+        Object.keys(boardMeta).forEach(function (name) {
+          cardMeta[name] = Object.assign({}, cardMeta[name] || {}, boardMeta[name]);
         });
-      }
-      if (payload && Array.isArray(payload.maybe_cards)) {
-        payload.maybe_cards.forEach(function (item) {
-          if (!item || !item.name || !item.qty) return;
-          if (item.qty <= 0) return;
-          maybeCards[item.name] = (maybeCards[item.name] || 0) + item.qty;
-        });
-      }
+      });
 
       var draft = {
         commanderName: payload.commander_name || '',
+        commanderPrintID: payload.commander_print_id || '',
         format: payload.format || 'Sandbox',
         commanderCandidates: Array.isArray(payload.commander_candidates) ? payload.commander_candidates : [],
-        name: payload.name || payload.commander_name || 'Imported Deck',
+        name: payload.name || 'Untitled Deck',
         description: payload.description || '',
         tags: '',
-        cards: cards,
-        sideboardCards: sideboardCards,
-        maybeCards: maybeCards,
-        cardMeta: {},
+        cards: main.quantities,
+        sideboardCards: side.quantities,
+        maybeCards: maybe.quantities,
+        cardMeta: cardMeta,
+        boardCardMeta: {
+          main: main.printingMeta,
+          side: side.printingMeta,
+          maybe: maybe.printingMeta
+        },
         updatedAt: new Date().toISOString()
       };
 
       var raw = JSON.stringify(draft);
       localStorage.setItem(key, raw);
+      if (localStorage.getItem(key) !== raw) {
+        throw new Error('local draft verification failed');
+      }
       try {
         sessionStorage.setItem(returnKey, raw);
-      } catch (e) {
-        // ignore session storage failures
+      } catch (sessionError) {
+        // The verified localStorage copy is sufficient.
       }
-    } catch (e) {
-      // ignore storage failures
-    }
 
-    var nextURL = '/decks/new/workbench';
-    if (payload && payload.format) {
-      nextURL += '?format=' + encodeURIComponent(payload.format);
+      var importWarnings = payload && Array.isArray(payload.import_warnings)
+        ? payload.import_warnings.filter(function (warning) {
+            return String(warning || '').trim() !== '';
+          })
+        : [];
+      try {
+        if (importWarnings.length > 0) {
+          sessionStorage.setItem(importWarningKey, JSON.stringify(importWarnings));
+        } else {
+          sessionStorage.removeItem(importWarningKey);
+        }
+      } catch (warningStorageError) {
+        // The query marker still provides generic warning feedback.
+      }
+
+      var nextParams = new URLSearchParams();
+      if (payload && payload.format) {
+        nextParams.set('format', payload.format);
+      }
+      if (importWarnings.length > 0) {
+        nextParams.set('view', 'analysis');
+        nextParams.set('import_warning', '1');
+      }
+      var nextQuery = nextParams.toString();
+      var nextURL = '/decks/new/workbench' + (nextQuery ? '?' + nextQuery : '');
+      window.location.replace(nextURL);
+    } catch (storageError) {
+      try {
+        if (hadPreviousDraft) {
+          localStorage.setItem(key, previousRaw);
+        } else {
+          localStorage.removeItem(key);
+        }
+      } catch (restoreError) {
+        // Nothing else should be written after a failed restoration.
+      }
+      try {
+        sessionStorage.removeItem(importWarningKey);
+      } catch (warningCleanupError) {
+        // A stale warning is less important than preserving the prior draft.
+      }
+
+      if (status) {
+        status.textContent = storageError && storageError.message === 'replacement confirmation required'
+          ? 'Your current local draft was not replaced.'
+          : 'This browser could not safely store the imported draft.';
+      }
+      if (failure) {
+        failure.hidden = false;
+      }
     }
-    window.location.replace(nextURL);
   });
   </script>
 

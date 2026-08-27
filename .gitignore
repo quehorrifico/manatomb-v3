@@ -1,6 +1,7 @@
 .env
 bin/
 build/
+node_modules/
 *.log
 *.sqlite
 ops-notes.md

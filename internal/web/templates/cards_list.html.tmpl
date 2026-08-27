@@ -1,253 +1,172 @@
 {{ define "cards_list" }}
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
+  {{ $advanced := eq $ctx.ResultsMode "advanced" }}
 
-  <main class="max-w-6xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-      <div class="space-y-2">
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Advanced Search Results</h1>
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        <a href="{{ $ctx.EditFiltersPath }}" class="mt-btn mt-btn--primary mt-btn--sm">Edit Filters</a>
-        {{ if .CurrentUser }}
-          <a href="/decks" class="mt-btn mt-btn--secondary mt-btn--sm">Decks</a>
-        {{ end }}
-        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
-      </div>
-    </div>
-
-    {{ if $ctx.AppliedFilters }}
-      <section class="mt-subpanel p-4 space-y-3">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Applied Filters</p>
-          <div class="flex flex-wrap gap-2">
-            <a href="{{ $ctx.ClearPath }}" class="text-xs font-medium text-sky-300 transition-colors hover:text-sky-200">Clear all</a>
-            <a href="{{ $ctx.EditFiltersPath }}" class="text-xs font-medium text-slate-300 transition-colors hover:text-slate-100">Edit filters</a>
-          </div>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          {{ range $ctx.AppliedFilters }}
-            <a href="{{ .RemovePath }}"
-               class="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:border-slate-500 hover:text-slate-50">
-              <span>{{ .Label }}</span>
-              <span aria-hidden="true" class="text-slate-500">×</span>
-            </a>
+  <div class="mt-card-results-page">
+    <header class="mt-card-results-header">
+      <div class="mt-card-results-heading">
+        <h1>
+          {{ if $advanced }}
+            {{ if $ctx.NameQuery }}Cards matching “{{ $ctx.NameQuery }}”{{ else }}Matching cards{{ end }}
+          {{ else }}
+            {{ if $ctx.NameQuery }}Results for “{{ $ctx.NameQuery }}”{{ else }}Browse cards{{ end }}
           {{ end }}
+        </h1>
+        <p>
+          {{ if gt $ctx.TotalResults 0 }}
+            {{ if gt $ctx.TotalPages 1 }}
+              Showing {{ $ctx.ResultStart }}–{{ $ctx.ResultEnd }} of {{ $ctx.TotalResults }} cards
+            {{ else if eq $ctx.TotalResults 1 }}
+              1 matching card
+            {{ else }}
+              {{ $ctx.TotalResults }} matching cards
+            {{ end }}
+          {{ else }}
+            No matching cards
+          {{ end }}
+        </p>
+        {{ if $ctx.ShowOldestPrintingNote }}
+          <p>Ordered by each card’s first English printing; tiles show the printing selected for these results.</p>
+        {{ end }}
+      </div>
+
+      <form method="GET" action="/cards" class="mt-card-results-sort" aria-label="Sort card results">
+        {{ range $ctx.SortFields }}
+          <input type="hidden" name="{{ .Name }}" value="{{ .Value }}">
+        {{ end }}
+        <label class="sr-only" for="cards-sort-select">Sort results</label>
+        <select id="cards-sort-select"
+                name="sort"
+                class="mt-control"
+                onchange="this.form.requestSubmit()">
+          {{ range $ctx.SortOptions }}
+            <option value="{{ .Value }}" {{ if eq $ctx.SelectedSort .Value }}selected{{ end }}>{{ .Label }}</option>
+          {{ end }}
+        </select>
+        <label class="sr-only" for="cards-sort-direction">Sort direction</label>
+        <select id="cards-sort-direction"
+                name="sort_dir"
+                class="mt-control"
+                onchange="this.form.requestSubmit()">
+          {{ range $ctx.DirectionOptions }}
+            <option value="{{ .Value }}" {{ if eq $ctx.SelectedSortDirection .Value }}selected{{ end }}>{{ .Label }}</option>
+          {{ end }}
+        </select>
+        <noscript>
+          <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Apply sort</button>
+        </noscript>
+      </form>
+    </header>
+
+    {{ if and $advanced $ctx.AppliedFilters }}
+      <nav class="mt-card-results-filter-bar" aria-label="Applied filters">
+        <span class="mt-card-results-filter-label">Applied</span>
+        {{ range $ctx.AppliedFilters }}
+          <a href="{{ .RemovePath }}" class="mt-card-results-chip" aria-label="Remove filter: {{ .Label }}">
+            <span>{{ .Label }}</span>
+            <span class="mt-card-results-chip__remove" aria-hidden="true">×</span>
+          </a>
+        {{ end }}
+        <a href="{{ $ctx.ClearPath }}" class="mt-card-results-clear">Clear all</a>
+      </nav>
+    {{ end }}
+
+    <details class="mt-card-results-refine" {{ if $ctx.FiltersOpen }}open{{ end }}>
+      <summary>
+        <span>{{ if $advanced }}Refine filters{{ else }}Refine with filters{{ end }}</span>
+      </summary>
+      <div class="mt-card-results-refine__content">
+        {{ template "cards_search_filter_form" $ctx.FilterForm }}
+      </div>
+    </details>
+
+    {{ if $ctx.Results }}
+      <ul class="mt-card-results-grid">
+        {{ range $ctx.Results }}
+          <li>
+            <article class="mt-card-result"
+                     data-card-result-tile
+                     data-card-result-layout="{{ .Layout }}"
+                     data-card-result-faces='{{ .FacesJSON }}'
+                     data-card-result-front-image="{{ .ImageURI }}"
+                     data-card-result-front-name="{{ .Name }}">
+              {{ if .IsSplitLayout }}
+                <button type="button"
+                        class="mt-card-result__face-control"
+                        data-card-result-rotate
+                        data-card-result-control="rotate"
+                        aria-label="Rotate card"
+                        aria-pressed="false">
+                  <span aria-hidden="true">↻</span>
+                  <span class="sr-only">Rotate</span>
+                </button>
+              {{ else if .FacesJSON }}
+                <button type="button"
+                        class="mt-card-result__face-control"
+                        data-card-result-control="turn-over"
+                        data-card-result-turn-over
+                        aria-label="Show back face">
+                  <span aria-hidden="true">↺</span>
+                  <span class="sr-only">Turn Over</span>
+                </button>
+              {{ end }}
+
+              <a href="{{ .DetailPath }}"
+                 class="mt-card-result__link"
+                 data-card-result-link
+                 aria-label="Open {{ .Name }}">
+                <span class="mt-card-result__art">
+                  <img {{ if .ImageURI }}src="{{ .ImageURI }}"{{ end }}
+                       alt="{{ .Name }}"
+                       class="mt-card-result__image {{ if not .ImageURI }}hidden{{ end }}"
+                       loading="lazy"
+                       decoding="async"
+                       data-card-result-image>
+                  <span class="mt-card-result__fallback {{ if .ImageURI }}hidden{{ end }}"
+                        data-card-result-fallback>
+                    {{ if .ImageURI }}No image{{ else }}{{ .Name }}{{ end }}
+                  </span>
+                </span>
+                <span class="mt-card-result__meta">
+                  <span class="mt-card-result__name" title="{{ .Name }}">{{ .Name }}</span>
+                  <span class="mt-card-result__facts">
+                    <span class="mt-card-result__set" title="{{ if .SetName }}{{ .SetName }}{{ if .SetCode }} ({{ .SetCode }}){{ end }}{{ else if .SetCode }}{{ .SetCode }}{{ else }}Unknown set{{ end }}">
+                      {{ if .SetName }}{{ .SetName }}{{ if .SetCode }} ({{ .SetCode }}){{ end }}{{ else if .SetCode }}{{ .SetCode }}{{ else }}Unknown set{{ end }}
+                    </span>
+                    <span class="mt-card-result__price">{{ .PriceUSD }}</span>
+                  </span>
+                </span>
+              </a>
+            </article>
+          </li>
+        {{ end }}
+      </ul>
+    {{ else }}
+      <section class="mt-card-results-empty">
+        <div>
+          <h2>No cards matched</h2>
+          <p>Remove a filter or broaden the search above to try again.</p>
         </div>
       </section>
     {{ end }}
 
-    <section class="space-y-4">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div class="space-y-1">
-          <h2 class="text-lg font-semibold text-slate-100">
-            Results{{ if and $ctx.HasSearched $ctx.Results }} <span class="ml-1 text-xs text-slate-500">({{ len $ctx.Results }})</span>{{ end }}
-          </h2>
-          <p class="text-sm text-slate-400">
-            {{ if $ctx.HasSearched }}
-              Click any card image to open the full card details.
-            {{ else }}
-              Refine the query on the search page, then come back here for richer result actions.
-            {{ end }}
-          </p>
-          <p class="text-xs text-slate-500">Current order: <span class="font-medium text-slate-300">{{ $ctx.CurrentSortLabel }} · {{ $ctx.CurrentDirectionLabel }}</span></p>
-          {{ if $ctx.ShowOldestPrintingNote }}
-            <p class="text-xs text-slate-500">Oldest printing sorts by the first English print date, even though each card tile still shows the latest default English printing.</p>
-          {{ end }}
-        </div>
-
-        <form method="GET" action="/cards" class="flex w-full max-w-full flex-col gap-1.5 rounded-2xl border border-slate-800 bg-slate-950/60 p-2.5 sm:w-auto sm:min-w-[14rem]">
-          {{ range $ctx.SortFields }}
-            <input type="hidden" name="{{ .Name }}" value="{{ .Value }}">
-          {{ end }}
-          <label class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500" for="cards-sort-select">Sort Results</label>
-          <div class="grid gap-2 sm:grid-cols-2">
-            <select id="cards-sort-select"
-                    name="sort"
-                    class="mt-control mt-control--sm w-full min-w-0 text-xs text-slate-100"
-                    onchange="this.form.requestSubmit()">
-              {{ range $ctx.SortOptions }}
-                <option value="{{ .Value }}" {{ if eq $ctx.SelectedSort .Value }}selected{{ end }}>{{ .Label }}</option>
-              {{ end }}
-            </select>
-            <select name="sort_dir"
-                    aria-label="Sort direction"
-                    class="mt-control mt-control--sm w-full min-w-0 text-xs text-slate-100"
-                    onchange="this.form.requestSubmit()">
-              {{ range $ctx.DirectionOptions }}
-                <option value="{{ .Value }}" {{ if eq $ctx.SelectedSortDirection .Value }}selected{{ end }}>{{ .Label }}</option>
-              {{ end }}
-            </select>
-          </div>
-          <noscript>
-            <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Apply</button>
-          </noscript>
-        </form>
-      </div>
-
-      {{ if $ctx.HasSearched }}
-        {{ if $ctx.Results }}
-          <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-            {{ range $ctx.Results }}
-              <li>
-                <article class="relative space-y-2"
-                         data-card-result-tile
-                         data-card-result-layout="{{ .Layout }}"
-                         data-card-result-faces='{{ .FacesJSON }}'
-                         data-card-result-front-image="{{ .ImageURI }}"
-                         data-card-result-front-name="{{ .Name }}">
-                  <a href="{{ .DetailPath }}"
-                     class="group relative block rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 {{ if .IsSplitLayout }}overflow-visible{{ else }}overflow-hidden{{ end }}"
-                     data-card-result-link
-                     aria-label="Open {{ .Name }}"
-                     title="{{ .Name }}">
-                    <span class="relative block aspect-[63/88] bg-slate-950 {{ if .IsSplitLayout }}overflow-visible{{ else }}overflow-hidden{{ end }}">
-                      <img {{ if .ImageURI }}src="{{ .ImageURI }}"{{ end }}
-                           alt="{{ .Name }}"
-                           class="mt-card-art-rotatable rounded-lg {{ if not .ImageURI }}hidden {{ end }}h-full w-full object-cover transition duration-150 group-hover:brightness-110"
-                           data-card-result-image>
-                      <span class="{{ if .ImageURI }}hidden {{ end }}flex h-full w-full items-center justify-center px-2 text-center text-[10px] uppercase tracking-wide text-slate-500"
-                            data-card-result-fallback>
-                        No image
-                      </span>
-                    </span>
-                    <span class="grid gap-0.5 border-t border-slate-800 bg-slate-950/95 px-2 py-2">
-                      <span class="truncate text-[11px] font-semibold text-slate-200">{{ if .SetName }}{{ .SetName }}{{ else if .SetCode }}{{ .SetCode }}{{ else }}Unknown set{{ end }}{{ if and .SetName .SetCode }} ({{ .SetCode }}){{ end }}</span>
-                      <span class="text-[10px] font-medium text-slate-500">{{ if .PriceUSD }}{{ .PriceUSD }}{{ else }}Not listed{{ end }}</span>
-                    </span>
-                  </a>
-                  {{ if .IsSplitLayout }}
-                    <button type="button"
-                            class="mt-btn mt-btn--secondary mt-btn--sm w-full justify-center text-xs"
-                            data-card-result-rotate
-                            data-card-result-control="rotate"
-                            aria-pressed="false">
-                      Rotate
-                    </button>
-                  {{ else if .FacesJSON }}
-                    <button type="button"
-                            class="mt-btn mt-btn--secondary mt-btn--sm w-full justify-center text-xs"
-                            data-card-result-control="turn-over"
-                            data-card-result-turn-over>
-                      Turn Over
-                    </button>
-                  {{ end }}
-                </article>
-              </li>
-            {{ end }}
-          </ul>
+    {{ if gt $ctx.TotalPages 1 }}
+      <nav class="mt-card-results-pagination" aria-label="Search result pages">
+        {{ if $ctx.PreviousPath }}
+          <a href="{{ $ctx.PreviousPath }}" class="mt-btn mt-btn--secondary mt-btn--sm">Previous</a>
         {{ else }}
-          <div class="mt-empty-state space-y-2">
-            <p class="text-sm font-medium text-slate-200">No cards matched those filters.</p>
-          </div>
+          <span class="mt-card-results-pagination__disabled" aria-hidden="true"></span>
         {{ end }}
-      {{ else }}
-        <div class="mt-empty-state space-y-3">
-          <p class="text-sm text-slate-300">There is no active advanced search yet.</p>
-          <div>
-            <a href="{{ $ctx.ClearPath }}" class="mt-btn mt-btn--primary mt-btn--sm">Open Advanced Search</a>
-          </div>
-        </div>
-      {{ end }}
-    </section>
-
-  </main>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      function trimValue(value) {
-        return String(value || "").trim();
-      }
-
-      function faceValue(face, key) {
-        if (!face) return "";
-        var aliases = {
-          image_uri: ["image_uri", "ImageURI", "ImageUri"],
-          name: ["name", "Name"]
-        };
-        var keys = aliases[key] || [key];
-        for (var i = 0; i < keys.length; i++) {
-          var value = trimValue(face[keys[i]]);
-          if (value) return value;
-        }
-        return "";
-      }
-
-      function setTileImage(tile, imageURI, name) {
-        var image = tile.querySelector("[data-card-result-image]");
-        var fallback = tile.querySelector("[data-card-result-fallback]");
-        imageURI = trimValue(imageURI);
-        name = trimValue(name) || trimValue(tile.getAttribute("data-card-result-front-name")) || "Card";
-
-        if (image && imageURI) {
-          image.src = imageURI;
-          image.alt = name;
-          image.classList.remove("hidden");
-          if (fallback) fallback.classList.add("hidden");
-          return;
-        }
-
-        if (image) {
-          image.src = "";
-          image.alt = "";
-          image.classList.add("hidden");
-        }
-        if (fallback) {
-          fallback.textContent = name;
-          fallback.classList.remove("hidden");
-        }
-      }
-
-      document.querySelectorAll("[data-card-result-tile]").forEach(function (tile) {
-        var rotateButton = tile.querySelector("[data-card-result-rotate]");
-        if (rotateButton) {
-          rotateButton.addEventListener("click", function () {
-            var image = tile.querySelector("[data-card-result-image]");
-            var rotated = !tile.classList.contains("is-rotated");
-            tile.classList.toggle("is-rotated", rotated);
-            tile.style.zIndex = rotated ? "40" : "";
-            if (image) image.classList.toggle("is-rotated", rotated);
-            rotateButton.setAttribute("aria-pressed", rotated ? "true" : "false");
-            rotateButton.textContent = rotated ? "Reset" : "Rotate";
-          });
-          return;
-        }
-
-        var button = tile.querySelector("[data-card-result-turn-over]");
-        if (!button) return;
-
-        var faces = [];
-        try {
-          faces = JSON.parse(tile.getAttribute("data-card-result-faces") || "[]");
-        } catch (error) {
-          faces = [];
-        }
-        if (!Array.isArray(faces) || faces.length <= 1) {
-          button.classList.add("hidden");
-          return;
-        }
-
-        var faceIndex = 0;
-        var firstNextName = faceValue(faces[1] || {}, "name");
-        button.title = firstNextName ? ("Turn over to " + firstNextName) : "Turn over card";
-        button.addEventListener("click", function () {
-          faceIndex = (faceIndex + 1) % faces.length;
-          var face = faces[faceIndex] || {};
-          var imageURI = faceValue(face, "image_uri");
-          var name = faceValue(face, "name");
-          if (faceIndex === 0) {
-            imageURI = imageURI || trimValue(tile.getAttribute("data-card-result-front-image"));
-            name = name || trimValue(tile.getAttribute("data-card-result-front-name"));
-          }
-          setTileImage(tile, imageURI, name);
-          var nextFace = faces[(faceIndex + 1) % faces.length] || {};
-          var nextName = faceValue(nextFace, "name");
-          button.title = nextName ? ("Turn over to " + nextName) : "Turn over card";
-        });
-      });
-    });
-  </script>
+        <span class="mt-card-results-pagination__status">Page {{ $ctx.Page }} of {{ $ctx.TotalPages }}</span>
+        {{ if $ctx.NextPath }}
+          <a href="{{ $ctx.NextPath }}" class="mt-btn mt-btn--secondary mt-btn--sm mt-card-results-pagination__next">Next</a>
+        {{ else }}
+          <span class="mt-card-results-pagination__disabled" aria-hidden="true"></span>
+        {{ end }}
+      </nav>
+    {{ end }}
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

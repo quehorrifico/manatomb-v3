@@ -1,0 +1,33 @@
+{{ define "changelog" }}
+  {{ template "layout_header" . }}
+
+  <div class="mt-static-page mt-static-page--document mt-changelog">
+    <header class="mt-static-header mt-changelog-header">
+      <div class="mt-changelog-title-row">
+        <h1 class="mt-static-title">Changelog</h1>
+        <span class="mt-changelog-current">v{{ .Data.CurrentVersion }}<span class="sr-only">, current version</span></span>
+      </div>
+      <p class="mt-static-lede">What changed in ManaTomb, newest release first.</p>
+    </header>
+
+    <div class="mt-changelog-releases">
+      {{ range .Data.Releases }}
+        <article class="mt-changelog-release" aria-labelledby="release-{{ .Version }}">
+          <header class="mt-changelog-release-header">
+            <div>
+              <p class="mt-changelog-version">Version {{ .Version }}</p>
+              <h2 id="release-{{ .Version }}">{{ .Title }}</h2>
+            </div>
+            <time datetime="{{ .DateISO }}">{{ .DateLabel }}</time>
+          </header>
+          <p class="mt-changelog-summary">{{ .Summary }}</p>
+          <a href="{{ projectRepoURL }}" class="mt-static-link mt-changelog-details" target="_blank" rel="noopener noreferrer">
+            More details on GitHub<span class="sr-only"> (opens in a new tab)</span>
+          </a>
+        </article>
+      {{ end }}
+    </div>
+  </div>
+
+  {{ template "layout_footer" . }}
+{{ end }}

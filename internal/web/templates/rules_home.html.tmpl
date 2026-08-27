@@ -1,24 +1,12 @@
 {{ define "rules_home" }}
   {{ template "layout_header" . }}
 
-  <main class="max-w-4xl mx-auto px-4 py-10 space-y-5">
-    <section class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-      <div class="space-y-2">
-        <p class="mt-kicker">Rules</p>
-        <h1 class="mt-title">Coming soon.</h1>
-      </div>
-
-      <div class="flex flex-wrap gap-2">
-        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
-        <a href="/cards/search" class="mt-btn mt-btn--secondary mt-btn--sm">Advanced Search</a>
-        <a href="/decks/new" class="mt-btn mt-btn--primary mt-btn--sm">Builder</a>
-      </div>
+  <div class="mt-static-page mt-static-page--message">
+    <section class="mt-static-message" aria-labelledby="rules-title">
+      <h1 id="rules-title" class="mt-static-title">Rules reference is coming soon.</h1>
+      <p class="mt-static-lede">Card search and deck playtesting remain available while the reference is being prepared.</p>
     </section>
-
-    <section class="mt-panel p-5 sm:p-6">
-      <p class="text-sm text-slate-300">Use card search and playtest for now.</p>
-    </section>
-  </main>
+  </div>
 
   {{ template "layout_footer" . }}
 {{ end }}

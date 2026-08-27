@@ -1,0 +1,304 @@
+.mt-deck-import-page {
+  width: min(100%, 62rem);
+  margin-inline: auto;
+  padding: clamp(0.5rem, 2.5vw, 1.5rem) 0 clamp(2rem, 5vw, 4rem);
+  color: var(--mt-text-soft);
+}
+
+.mt-deck-import-page *,
+.mt-deck-import-page *::before,
+.mt-deck-import-page *::after {
+  animation: none;
+  transition: none;
+}
+
+.mt-deck-import-heading {
+  width: min(100%, 48rem);
+  margin: 0 auto clamp(1.5rem, 4vw, 2.5rem);
+  text-align: center;
+}
+
+.mt-deck-import-heading h1 {
+  margin: 0;
+  color: var(--mt-text);
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  font-weight: 760;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.mt-deck-import-heading p {
+  max-width: 42rem;
+  margin: 0.8rem auto 0;
+  color: var(--mt-text-muted);
+  font-size: 0.98rem;
+  line-height: 1.65;
+}
+
+.mt-deck-import-paste {
+  display: grid;
+  width: min(100%, 52rem);
+  margin-inline: auto;
+  gap: 0.85rem;
+}
+
+.mt-deck-import-paste__field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.mt-deck-import-paste__field > span {
+  color: var(--mt-text);
+  font-size: 0.78rem;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+}
+
+.mt-deck-import-paste__dropzone {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mt-deck-import-paste textarea.mt-control {
+  height: clamp(19rem, 44vh, 28rem);
+  min-height: 19rem;
+  resize: vertical;
+  border-color: var(--mt-border-control);
+  border-radius: 0.8rem;
+  background: var(--mt-surface);
+  padding: 1rem;
+  color: var(--mt-text);
+  font-family: var(--mt-font-mono);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.mt-deck-import-page .mt-control:focus,
+.mt-deck-import-page .mt-control:focus-visible {
+  border-color: var(--mt-border-strong);
+  outline: 0;
+  box-shadow: none;
+}
+
+.mt-deck-import-paste__dropzone[data-drag-active="true"] textarea.mt-control {
+  border-color: var(--mt-border-strong);
+  background: var(--mt-surface-raised);
+}
+
+.mt-deck-import-file-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--mt-text-muted);
+  font-size: 0.76rem;
+}
+
+.mt-deck-import-file-input,
+.mt-deck-import-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.mt-deck-import-file-picker {
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 1px solid var(--mt-border-control);
+  padding: 0.2rem 0;
+  color: var(--mt-text-soft);
+  font-weight: 680;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.mt-deck-import-file-picker:hover,
+.mt-deck-import-file-input:focus-visible + .mt-deck-import-file-picker {
+  border-bottom-color: var(--mt-border-strong);
+  color: var(--mt-text);
+}
+
+.mt-deck-import-file-input:focus-visible + .mt-deck-import-file-picker {
+  outline: 1px solid var(--mt-focus);
+  outline-offset: 3px;
+}
+
+.mt-deck-import-file-status {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mt-deck-import-file-status[data-error] {
+  color: var(--mt-negative);
+}
+
+.mt-deck-import-field-error {
+  margin: 0;
+  color: var(--mt-negative);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.mt-deck-import-paste__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mt-deck-import-paste__footer .mt-btn {
+  min-width: 9rem;
+  justify-content: center;
+}
+
+.mt-deck-import-existing-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-left: 3px solid var(--mt-border-control);
+  background: color-mix(in srgb, var(--mt-surface-raised) 58%, transparent);
+  padding: 0.8rem 1rem;
+  color: var(--mt-text-muted);
+  font-size: 0.78rem;
+}
+
+.mt-deck-import-storage-warning {
+  display: grid;
+  gap: 0.15rem;
+  border-left: 3px solid var(--mt-negative);
+  background: var(--mt-negative-soft);
+  padding: 0.8rem 1rem;
+  color: var(--mt-text-muted);
+  font-size: 0.78rem;
+}
+
+.mt-deck-import-storage-warning[hidden] {
+  display: none;
+}
+
+.mt-deck-import-storage-warning strong {
+  color: var(--mt-negative);
+}
+
+.mt-deck-import-existing-warning[hidden] {
+  display: none;
+}
+
+.mt-deck-import-existing-warning > div:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.mt-deck-import-existing-warning strong {
+  color: var(--mt-text);
+}
+
+.mt-deck-import-existing-warning__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem 1rem;
+}
+
+.mt-deck-import-existing-warning a {
+  color: var(--mt-accent-text);
+  font-weight: 680;
+}
+
+.mt-deck-import-existing-warning label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--mt-text-soft);
+  cursor: pointer;
+}
+
+.mt-deck-import-existing-warning input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--mt-accent);
+}
+
+.mt-deck-import-page .mt-btn[disabled] {
+  border-color: var(--mt-border-subtle);
+  background: var(--mt-surface-raised);
+  color: var(--mt-text-disabled);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.mt-deck-import-seed {
+  display: grid;
+  width: min(100%, 38rem);
+  min-height: 48vh;
+  margin-inline: auto;
+  place-content: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.mt-deck-import-seed h1 {
+  margin: 0;
+  color: var(--mt-text);
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.mt-deck-import-seed > p,
+.mt-deck-import-seed__failure > p {
+  margin: 0;
+  color: var(--mt-text-muted);
+  line-height: 1.6;
+}
+
+.mt-deck-import-seed__failure {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  border-left: 3px solid var(--mt-negative);
+  background: var(--mt-negative-soft);
+  padding: 1rem;
+  text-align: left;
+}
+
+.mt-deck-import-seed__failure[hidden] {
+  display: none;
+}
+
+.mt-deck-import-seed__failure > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+@media (max-width: 720px) {
+  .mt-deck-import-page {
+    padding-top: 0.15rem;
+  }
+
+  .mt-deck-import-existing-warning {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mt-deck-import-existing-warning__actions {
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .mt-deck-import-file-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .mt-deck-import-paste__footer .mt-btn {
+    width: 100%;
+  }
+}

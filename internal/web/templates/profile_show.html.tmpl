@@ -2,52 +2,40 @@
   {{ template "layout_header" . }}
   {{ $ctx := .Data }}
 
-  <link rel="stylesheet" href="/assets/profile.css">
-
-  <main class="mt-profile-page max-w-7xl mx-auto px-4 py-6 sm:py-8">
+  <div class="mt-profile-page max-w-7xl mx-auto px-4 py-6 sm:py-8">
     <section class="mt-profile-hero">
-      {{ if $ctx.Stats.AvatarImageURI }}
-        <img src="{{ $ctx.Stats.AvatarImageURI }}" alt="" class="mt-profile-hero__art" aria-hidden="true">
+      {{ if $ctx.Stats.BackgroundImageURI }}
+        <img src="{{ $ctx.Stats.BackgroundImageURI }}" alt="" class="mt-profile-hero__art" aria-hidden="true" data-profile-background-image>
       {{ end }}
       <div class="mt-profile-hero__shade" aria-hidden="true"></div>
       <div class="mt-profile-hero__content">
         <div class="mt-profile-avatar">
           {{ if $ctx.Stats.AvatarImageURI }}
-            <img src="{{ $ctx.Stats.AvatarImageURI }}" alt="{{ $ctx.Stats.AvatarAlt }}">
+            <img src="{{ $ctx.Stats.AvatarImageURI }}" alt="{{ $ctx.Stats.AvatarAlt }}" data-profile-picture-image>
           {{ else }}
             <span>MT</span>
           {{ end }}
         </div>
 
         <div class="mt-profile-identity">
-          <p class="mt-kicker">Player Profile</p>
           <h1>{{ $ctx.Profile.DisplayName }}</h1>
-          <p>Joined {{ $ctx.Stats.JoinedLabel }} · {{ len $ctx.Items }} public deck{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
+          <p>Joined {{ $ctx.Stats.JoinedLabel }}</p>
         </div>
 
         <div class="mt-profile-actions">
-          <button type="button" id="profile-share" class="mt-btn mt-btn--secondary mt-btn--sm">Share Profile</button>
           {{ if $ctx.Stats.CanEdit }}
             <button type="button" class="mt-btn mt-btn--primary mt-btn--sm" data-profile-customize-open>Customize</button>
+          {{ end }}
+          <button type="button" id="profile-share" class="mt-btn mt-btn--secondary mt-btn--sm">Share Profile</button>
+          {{ if $ctx.Stats.CanEdit }}
+            <a href="/settings" class="mt-btn mt-btn--secondary mt-btn--sm">Settings</a>
           {{ end }}
           <p id="profile-action-status" class="mt-profile-action-status" aria-live="polite"></p>
         </div>
       </div>
     </section>
 
-    <dl class="mt-profile-stats" aria-label="Profile totals">
-      <div>
-        <dt>Public Decks</dt>
-        <dd>{{ len $ctx.Items }}</dd>
-      </div>
-      <div>
-        <dt>Favorite Printings</dt>
-        <dd>{{ $ctx.FavoritePagination.Total }}</dd>
-      </div>
-      <div>
-        <dt>Cards Won</dt>
-        <dd>{{ $ctx.AwardTotal }}</dd>
-      </div>
+    <dl class="mt-profile-stats mt-profile-stats--playstyle" aria-label="Profile summary">
       <div>
         <dt>Favorite Colors</dt>
         <dd class="mt-profile-color-stat">
@@ -62,43 +50,42 @@
           <span>{{ $ctx.Stats.FavoriteColorCombination }}</span>
         </dd>
       </div>
-    </dl>
-
-    <section class="mt-profile-playstyle" aria-label="Playstyle">
       <div>
-        <span>Usually Plays</span>
-        <strong>{{ $ctx.Stats.UsuallyPlays }}</strong>
-      </div>
-      <div>
-        <span>Published Deck Average</span>
-        <strong>{{ $ctx.Stats.AveragePowerBracket }}</strong>
+        <dt>Usually Plays</dt>
+        <dd>{{ $ctx.Stats.UsuallyPlays }}</dd>
       </div>
       <div class="mt-profile-playstyle__tags">
-        <span>Playstyle</span>
+        <dt>Playstyle</dt>
         {{ if $ctx.Stats.Likes }}
-          <div>
+          <dd>
             {{ range $ctx.Stats.Likes }}
               <span class="{{ publicTagChipClass . }}">{{ . }}</span>
             {{ end }}
-          </div>
+          </dd>
         {{ else }}
-          <strong>Not enough data</strong>
+          <dd>Not enough data</dd>
         {{ end }}
       </div>
-    </section>
+    </dl>
 
     <nav class="mt-profile-tabs" aria-label="Profile sections">
       <a href="/users/{{ $ctx.Profile.ID }}"
+         data-profile-tab="decks"
+         aria-controls="profile-panel-decks"
          class="mt-profile-tab {{ if eq $ctx.ActiveTab "decks" }}mt-profile-tab--active{{ end }}"
          {{ if eq $ctx.ActiveTab "decks" }}aria-current="page"{{ end }}>
         Decks <span>{{ len $ctx.Items }}</span>
       </a>
       <a href="/users/{{ $ctx.Profile.ID }}?tab=favorites"
+         data-profile-tab="favorites"
+         aria-controls="profile-panel-favorites"
          class="mt-profile-tab {{ if eq $ctx.ActiveTab "favorites" }}mt-profile-tab--active{{ end }}"
          {{ if eq $ctx.ActiveTab "favorites" }}aria-current="page"{{ end }}>
         Favorites <span>{{ $ctx.FavoritePagination.Total }}</span>
       </a>
       <a href="/users/{{ $ctx.Profile.ID }}?tab=achievements"
+         data-profile-tab="achievements"
+         aria-controls="profile-panel-achievements"
          class="mt-profile-tab {{ if eq $ctx.ActiveTab "achievements" }}mt-profile-tab--active{{ end }}"
          {{ if eq $ctx.ActiveTab "achievements" }}aria-current="page"{{ end }}>
         Achievements <span>{{ $ctx.AwardTotal }}</span>
@@ -106,11 +93,9 @@
     </nav>
 
     <div class="mt-profile-content">
-      {{ if eq $ctx.ActiveTab "decks" }}
-        <section aria-labelledby="profile-decks-title">
+        <section id="profile-panel-decks" data-profile-panel="decks" aria-labelledby="profile-decks-title" {{ if ne $ctx.ActiveTab "decks" }}hidden{{ end }}>
           <div class="mt-profile-section-head">
             <div>
-              <p class="mt-kicker">Published Collection</p>
               <h2 id="profile-decks-title">Public Decks</h2>
               <p id="profile-deck-summary">{{ len $ctx.Items }} deck{{ if ne (len $ctx.Items) 1 }}s{{ end }}</p>
             </div>
@@ -135,51 +120,8 @@
 
           {{ if $ctx.Items }}
             <div id="profile-deck-list" class="mt-profile-deck-grid">
-              {{ range $index, $item := $ctx.Items }}
-                <article class="mt-profile-deck"
-                         data-profile-deck
-                         data-order="{{ $index }}"
-                         data-name="{{ $item.Name }}"
-                         data-format="{{ $item.Format }}"
-                         data-power="{{ $item.PowerBracket }}"
-                         data-search="{{ $item.Name }} {{ $item.CommanderName }} {{ $item.Format }} {{ $item.Tags }} {{ $item.Description }}">
-                  <a href="/decks/public/{{ $item.PublicSlug }}" class="mt-profile-deck__link" aria-label="Open {{ $item.Name }}"></a>
-                  <div class="mt-profile-deck__media">
-                    {{ if $item.CommanderArtCropURI }}
-                      <img class="mt-profile-deck__image mt-profile-deck__image--art" src="{{ $item.CommanderArtCropURI }}" alt="{{ $item.CommanderName }}" loading="lazy">
-                    {{ else if $item.CommanderImageURI }}
-                      <img class="mt-profile-deck__image mt-profile-deck__image--card" src="{{ $item.CommanderImageURI }}" alt="{{ $item.CommanderName }}" loading="lazy">
-                    {{ else }}
-                      <span>{{ if $item.CommanderName }}Commander{{ else }}Deck{{ end }}</span>
-                    {{ end }}
-                  </div>
-                  <div class="mt-profile-deck__body">
-                    <div>
-                      <h3>{{ $item.Name }}</h3>
-                      {{ if $item.CommanderName }}<p>{{ $item.CommanderName }}</p>{{ end }}
-                    </div>
-                    {{ if $item.Description }}
-                      <p class="mt-profile-deck__description">{{ $item.Description }}</p>
-                    {{ end }}
-                    <div class="mt-profile-deck__meta">
-                      {{ if $item.ColorPips }}
-                        <span class="inline-flex items-center gap-1" aria-label="{{ $item.ColorIdentityName }}">
-                          {{ range $item.ColorPips }}
-                            <img src="{{ .ImageURI }}" alt="" aria-hidden="true" class="mt-mana-pip">
-                            <span class="sr-only">{{ .Label }}</span>
-                          {{ end }}
-                        </span>
-                      {{ end }}
-                      <span class="mt-chip">{{ if $item.Format }}{{ $item.Format }}{{ else }}Commander{{ end }}</span>
-                      {{ if $item.PowerBracket }}<span class="mt-chip">{{ $item.PowerBracket }}</span>{{ end }}
-                    </div>
-                    {{ if $item.Tags }}
-                      <div class="mt-profile-deck__tags">
-                        {{ range splitTags $item.Tags }}<span class="{{ publicTagChipClass . }}">{{ . }}</span>{{ end }}
-                      </div>
-                    {{ end }}
-                  </div>
-                </article>
+              {{ range $ctx.Items }}
+                {{ template "deck_tile" . }}
               {{ end }}
             </div>
             <div id="profile-deck-empty" class="mt-empty-state text-center hidden">No decks match this filter.</div>
@@ -187,11 +129,9 @@
             <div class="mt-empty-state text-center">No public decks yet.</div>
           {{ end }}
         </section>
-      {{ else if eq $ctx.ActiveTab "favorites" }}
-        <section aria-labelledby="profile-favorites-title">
+        <section id="profile-panel-favorites" data-profile-panel="favorites" aria-labelledby="profile-favorites-title" {{ if ne $ctx.ActiveTab "favorites" }}hidden{{ end }}>
           <div class="mt-profile-section-head">
             <div>
-              <p class="mt-kicker">Card Collection</p>
               <h2 id="profile-favorites-title">Favorite Printings</h2>
               <p>{{ $ctx.FavoritePagination.Total }} saved art favorite{{ if ne $ctx.FavoritePagination.Total 1 }}s{{ end }}</p>
             </div>
@@ -245,7 +185,7 @@
                   {{ if $ctx.Stats.CanEdit }}
                     <form method="POST" action="/cards/favorites/printing" class="mt-profile-favorite__action">
                       <input type="hidden" name="scryfall_id" value="{{ .ScryfallID }}">
-                      <input type="hidden" name="action" value="unfavorite">
+                      <input type="hidden" name="favorite_action" value="unfavorite">
                       <input type="hidden" name="return_to" value="{{ $ctx.FavoriteReturnTo }}">
                       <button type="submit" class="mt-btn mt-btn--secondary mt-btn--xs">Remove</button>
                     </form>
@@ -265,28 +205,32 @@
             </nav>
           {{ end }}
         </section>
-      {{ else }}
-        <section aria-labelledby="profile-achievements-title">
+        <section id="profile-panel-achievements" data-profile-panel="achievements" aria-labelledby="profile-achievements-title" {{ if ne $ctx.ActiveTab "achievements" }}hidden{{ end }}>
           <div class="mt-profile-section-head">
             <div>
-              <p class="mt-kicker">Trophy Case</p>
               <h2 id="profile-achievements-title">Achievements</h2>
-              <p>{{ $ctx.AwardTotal }} daily card{{ if ne $ctx.AwardTotal 1 }}s{{ end }} won across Mana Tomb games</p>
+              <p>{{ $ctx.AwardTotal }} game win{{ if ne $ctx.AwardTotal 1 }}s{{ end }} across ManaTomb</p>
             </div>
           </div>
 
+          {{ if eq $ctx.AwardTotal 0 }}
+            <div class="mt-profile-achievements-empty">
+              <strong>No game wins yet.</strong>
+              <p>Completed game wins will appear here.</p>
+            </div>
+          {{ else }}
           <div class="mt-profile-award-groups">
             <section class="mt-profile-award-group" aria-labelledby="guess-awards-title">
               <div class="mt-profile-award-group__head">
                 <div>
-                  <h3 id="guess-awards-title">Cards Guessed Correctly</h3>
-                  <p>Daily Guess the Card wins</p>
+                  <h3 id="guess-awards-title">Guess the Card Wins</h3>
+                  <p>Daily and practice wins</p>
                 </div>
                 <strong>{{ $ctx.GuessPagination.Total }}</strong>
               </div>
-              {{ if $ctx.GuessAwards }}
+              {{ if $ctx.GuessWins }}
                 <div class="mt-profile-award-grid">
-                  {{ range $ctx.GuessAwards }}
+                  {{ range $ctx.GuessWins }}
                     <article data-card-detail-root
                              data-oracle-id="{{ .OracleID }}"
                              data-detail-path="{{ .DetailPath }}"
@@ -295,12 +239,12 @@
                       <button type="button" data-card-detail aria-label="View details for {{ .CardName }}">
                         {{ if .ImageURI }}<img src="{{ .ImageURI }}" alt="{{ .CardName }}" loading="lazy">{{ else }}<span>Won card</span>{{ end }}
                       </button>
-                      <div><strong>{{ .CardName }}</strong><span>{{ .GuessCount }} guesses</span></div>
+                      <div><strong>{{ .CardName }}</strong><span>{{ .ModeLabel }} · {{ .GuessCount }} guesses</span></div>
                     </article>
                   {{ end }}
                 </div>
               {{ else }}
-                <p class="mt-profile-award-empty">No daily Guess the Card wins yet.</p>
+                <p class="mt-profile-award-empty">No Guess the Card wins yet.</p>
               {{ end }}
               {{ if gt $ctx.GuessPagination.TotalPages 1 }}
                 <nav class="mt-profile-pagination" aria-label="Cards guessed correctly pages">
@@ -314,7 +258,7 @@
             <section class="mt-profile-award-group" aria-labelledby="tombscript-awards-title">
               <div class="mt-profile-award-group__head">
                 <div>
-                  <h3 id="tombscript-awards-title">Tombscript Cards Won</h3>
+                  <h3 id="tombscript-awards-title">Tombscript Wins</h3>
                   <p>Daily Tombscript wins</p>
                 </div>
                 <strong>{{ $ctx.SpellifyPagination.Total }}</strong>
@@ -346,47 +290,63 @@
               {{ end }}
             </section>
           </div>
+          {{ end }}
         </section>
-      {{ end }}
     </div>
-  </main>
+  </div>
 
   {{ if $ctx.Stats.CanEdit }}
-    <div id="profile-customize-modal" class="mt-modal hidden" role="dialog" aria-modal="true" aria-labelledby="profile-customize-title">
-      <div class="mt-modal-panel mt-profile-customize-panel">
+    <div id="profile-customize-modal" class="mt-modal mt-profile-customize-modal hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="profile-customize-title" aria-describedby="profile-customize-copy" hidden>
+      <div class="mt-modal-panel mt-profile-customize-panel" role="document" tabindex="-1">
         <button type="button" class="mt-btn mt-btn--secondary mt-btn--sm mt-profile-customize-close" data-profile-customize-close>Close</button>
-        <p class="mt-kicker">Profile Art</p>
         <h2 id="profile-customize-title">Customize Profile</h2>
-        <p class="mt-profile-customize-copy">Choose art from one of your commanders or search for any card.</p>
+        <p id="profile-customize-copy" class="mt-profile-customize-copy">Choose the exact printing used for each image.</p>
 
-        {{ if $ctx.Stats.AvatarChoices }}
-          <div class="mt-profile-avatar-choices">
-            {{ range $ctx.Stats.AvatarChoices }}
-              <form method="POST" action="/profile/avatar">
-                <input type="hidden" name="commander_name" value="{{ .Name }}">
-                <button type="submit" class="{{ if .IsSelected }}mt-profile-avatar-choice--selected{{ end }}" aria-label="Use {{ .Name }} as profile art">
-                  <img src="{{ .ImageURI }}" alt="">
-                  <span>{{ .Name }}</span>
-                </button>
-              </form>
-            {{ end }}
-          </div>
-        {{ end }}
+        <div class="mt-profile-art-targets" aria-label="Image to customize">
+          <button type="button" data-profile-art-target="picture" aria-pressed="true">
+            <span class="mt-profile-art-target__preview mt-profile-art-target__preview--picture" data-profile-art-target-preview="picture">
+              {{ if $ctx.Stats.AvatarImageURI }}<img src="{{ $ctx.Stats.AvatarImageURI }}" alt="">{{ else }}<span>MT</span>{{ end }}
+            </span>
+            <span><strong>Profile picture</strong><small>Square image</small></span>
+          </button>
+          <button type="button" data-profile-art-target="background" aria-pressed="false">
+            <span class="mt-profile-art-target__preview" data-profile-art-target-preview="background">
+              {{ if $ctx.Stats.BackgroundImageURI }}<img src="{{ $ctx.Stats.BackgroundImageURI }}" alt="">{{ else }}<span>MT</span>{{ end }}
+            </span>
+            <span><strong>Background</strong><small>Wide profile art</small></span>
+          </button>
+        </div>
 
-        <form method="POST" action="/profile/avatar" class="mt-profile-avatar-search">
+        <div class="mt-profile-avatar-search">
           <label for="profile-avatar-card">Search card art</label>
-          <div>
-            <input id="profile-avatar-card" name="commander_name" type="search" autocomplete="off" placeholder="Card name" class="mt-control">
-            <button type="submit" class="mt-btn mt-btn--primary">Use Art</button>
+          <div class="mt-profile-avatar-search__controls">
+            <form method="GET" action="/cards" class="mt-profile-avatar-search__field" data-profile-art-search data-card-autocomplete-root>
+              <input
+                id="profile-avatar-card"
+                name="q"
+                type="search"
+                autocomplete="off"
+                placeholder="Start typing a card name"
+                class="mt-control"
+                aria-autocomplete="list"
+                aria-controls="profile-avatar-card-results"
+                aria-expanded="false"
+                aria-haspopup="listbox"
+                data-card-autocomplete-input
+                data-card-autocomplete-submit="false"
+                data-card-autocomplete-limit="8">
+              <input type="hidden" name="oracle_id" value="" data-card-autocomplete-oracle-id>
+              <div
+                id="profile-avatar-card-results"
+                class="mt-autocomplete-menu hidden"
+                role="listbox"
+                aria-label="Card art suggestions"
+                data-card-autocomplete-menu></div>
+            </form>
+            <button type="button" class="mt-btn mt-btn--secondary" data-profile-art-random>Random Card Art</button>
           </div>
-        </form>
-
-        <div class="mt-profile-customize-footer">
-          <form method="POST" action="/profile/avatar">
-            <input type="hidden" name="commander_name" value="">
-            <button type="submit" class="mt-btn mt-btn--secondary mt-btn--sm">Reset Art</button>
-          </form>
-          <a href="/settings" class="mt-btn mt-btn--secondary mt-btn--sm">Account Settings</a>
+          <p class="mt-profile-avatar-search__status" data-profile-avatar-search-status aria-live="polite">Choose a card suggestion, then choose its printing.</p>
+          <div class="mt-profile-art-printings" data-profile-art-printings hidden></div>
         </div>
       </div>
     </div>

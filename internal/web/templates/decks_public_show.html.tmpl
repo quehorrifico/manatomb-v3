@@ -3,179 +3,283 @@
   {{ $ctx := .Data }}
   {{ $d := $ctx.Deck }}
 
-  <link rel="stylesheet" href="/assets/public_deck.css">
+  <div class="mt-public-deck-page">
+    <article class="mt-public-showcase{{ if not $ctx.Commander }} mt-public-showcase--no-commander{{ else if not $ctx.Commander.ImageURI }} mt-public-showcase--no-commander{{ end }}"
+             aria-labelledby="public-deck-title">
+      {{ if and $ctx.Commander $ctx.Commander.ArtCropURI }}
+        <div class="mt-public-showcase__art" aria-hidden="true">
+          <img src="{{ $ctx.Commander.ArtCropURI }}" alt="" decoding="async">
+        </div>
+      {{ end }}
 
-  <main class="max-w-7xl mx-auto px-4 py-7 sm:py-8 space-y-5">
-    <section class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
-      <div class="flex gap-4 min-w-0">
-        {{ if and $ctx.Commander $ctx.Commander.ImageURI }}
-          <div class="h-32 w-24 mt-card-media bg-slate-900 shrink-0">
-            <img src="{{ $ctx.Commander.ImageURI }}" alt="{{ $d.CommanderName }}" class="h-full w-full object-cover">
+      <div class="mt-public-showcase__content">
+        <div class="mt-public-showcase__intro">
+          <ul class="mt-public-showcase__context" aria-label="Deck summary">
+            <li>{{ if $d.Format }}{{ $d.Format }}{{ else }}Commander{{ end }}</li>
+            {{ if $d.PowerBracket }}<li>{{ $d.PowerBracket }}</li>{{ end }}
+            {{ if $ctx.ColorPips }}
+              <li>
+                <span class="mt-public-showcase__identity"
+                      role="img"
+                      aria-label="{{ $ctx.ColorIdentityName }} color identity">
+                  {{ range $ctx.ColorPips }}
+                    <img src="{{ .ImageURI }}" alt="">
+                  {{ end }}
+                </span>
+              </li>
+            {{ end }}
+          </ul>
+
+          <h1 id="public-deck-title">{{ $d.Name }}</h1>
+
+          <p class="mt-public-showcase__byline">
+            {{ if $ctx.Owner }}
+              <span>by <a href="{{ userProfilePath $ctx.Owner.ID }}">{{ $ctx.Owner.DisplayName }}</a></span>
+            {{ end }}
+            {{ if $ctx.PublishedLabel }}<span>Published {{ $ctx.PublishedLabel }}</span>{{ end }}
+            {{ if $ctx.UpdatedLabel }}<span>Updated {{ $ctx.UpdatedLabel }}</span>{{ end }}
+          </p>
+
+          <div class="mt-public-showcase__actions">
+            <div class="mt-public-showcase__action-row">
+              {{ if and .CurrentUser (eq .CurrentUser.ID $d.UserID) }}
+                <a href="/decks/{{ $d.ID }}" class="mt-btn mt-btn--primary mt-btn--sm">Edit Deck</a>
+              {{ else if .CurrentUser }}
+                <form method="POST" action="/decks/public/fork">
+                  <input type="hidden" name="slug" value="{{ $d.PublicSlug }}">
+                  <button type="submit" class="mt-btn mt-btn--primary mt-btn--sm">Copy to My Decks</button>
+                </form>
+              {{ else }}
+                <a href="/login?next={{ urlquery (print "/decks/public/" $d.PublicSlug) }}"
+                   class="mt-btn mt-btn--primary mt-btn--sm">
+                  Sign In to Copy
+                </a>
+              {{ end }}
+
+              <div class="mt-public-download-split">
+                <button type="button"
+                        id="public-deck-export-txt"
+                        class="mt-public-download-split__primary">
+                  Download TXT
+                </button>
+                <details id="public-deck-action-menu"
+                         class="mt-action-menu mt-public-download-split__menu">
+                  <summary aria-label="More deck actions">
+                    <span aria-hidden="true">▾</span>
+                  </summary>
+                  <div class="mt-action-menu__panel">
+                    <button type="button" id="public-deck-copy-link" class="mt-action-menu__item">Copy deck link</button>
+                    <button type="button" id="public-deck-copy-list" class="mt-action-menu__item">Copy decklist</button>
+                    <button type="button" id="public-deck-export-csv" class="mt-action-menu__item">Download CSV</button>
+                  </div>
+                </details>
+              </div>
+            </div>
+            <p id="public-deck-action-status"
+               class="mt-public-action-status"
+               role="status"
+               aria-live="polite"></p>
+          </div>
+        </div>
+
+        {{ if or $d.Description $d.Tags }}
+          <div class="mt-public-showcase__story">
+            {{ if $d.Description }}
+              <p class="mt-public-showcase__description">{{ $d.Description }}</p>
+            {{ end }}
+            {{ if $d.Tags }}
+              <nav class="mt-public-showcase__tags" aria-label="Deck archetypes">
+                {{ range splitTags $d.Tags }}
+                  <a href="/decks/public?archetype={{ urlquery . }}"
+                     aria-label="Browse public decks with the {{ . }} archetype">#{{ . }}</a>
+                {{ end }}
+              </nav>
+            {{ end }}
           </div>
         {{ end }}
 
-        <div class="space-y-2 min-w-0">
-          <p class="mt-kicker">Public Deck</p>
-          <div class="flex flex-wrap items-center gap-2">
-            <h1 class="text-2xl font-semibold text-slate-100 break-words">{{ $d.Name }}</h1>
-            <span class="mt-chip">Public</span>
+        <dl class="mt-public-showcase__metrics" aria-label="Deck overview">
+          <div>
+            <dt>Cost</dt>
+            <dd>{{ $ctx.DeckCostDisplay }}</dd>
+            {{ if $ctx.DeckCostNote }}<small>{{ $ctx.DeckCostNote }}</small>{{ end }}
           </div>
-          {{ if $ctx.Owner }}
-            <p class="text-sm text-slate-400">
-              by <a href="{{ userProfilePath $ctx.Owner.ID }}" class="text-sky-300 hover:text-sky-200">{{ $ctx.Owner.DisplayName }}</a>
-            </p>
-          {{ end }}
-          <div class="flex flex-wrap gap-2 text-xs">
-            <span class="mt-chip">{{ if $d.Format }}{{ $d.Format }}{{ else }}Commander{{ end }}</span>
-            {{ if $d.PowerBracket }}
-              <span class="mt-chip">{{ $d.PowerBracket }}</span>
-            {{ end }}
-            {{ if $d.CommanderName }}
-              <span class="mt-chip">Commander: {{ $d.CommanderName }}</span>
-            {{ end }}
-          </div>
-          {{ if $d.Tags }}
-            <div class="flex flex-wrap gap-1.5 pt-1">
-              {{ range splitTags $d.Tags }}
-                <span class="{{ publicTagChipClass . }}">{{ . }}</span>
-              {{ end }}
-            </div>
-          {{ end }}
-          {{ if $d.Description }}
-            <p class="text-sm text-slate-300 whitespace-pre-line max-w-3xl">{{ $d.Description }}</p>
-          {{ end }}
-        </div>
-      </div>
-
-      <div class="mt-public-hero-actions">
-        <div class="flex flex-wrap gap-2">
-          <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
-          <a href="/decks/public" class="mt-btn mt-btn--secondary mt-btn--sm">Browse</a>
-          {{ if .CurrentUser }}
-            <form method="POST" action="/decks/public/fork">
-              <input type="hidden" name="slug" value="{{ $d.PublicSlug }}">
-              <button type="submit" class="mt-btn mt-btn--primary mt-btn--sm">Copy</button>
-            </form>
-          {{ else }}
-            <a href="/login?next={{ urlquery (print "/decks/public/" $d.PublicSlug) }}"
-               class="mt-btn mt-btn--warning mt-btn--sm">
-              Log In
-            </a>
-          {{ end }}
-          <details id="public-deck-action-menu" class="mt-action-menu mt-public-action-menu">
-            <summary>Share &amp; export</summary>
-            <div class="mt-action-menu__panel">
-              <button type="button" id="public-deck-share" class="mt-action-menu__item">Share deck</button>
-              <button type="button" id="public-deck-copy-list" class="mt-action-menu__item">Copy deck list</button>
-              <button type="button" id="public-deck-export-txt" class="mt-action-menu__item">Download TXT</button>
-              <button type="button" id="public-deck-export-csv" class="mt-action-menu__item">Download CSV</button>
-            </div>
-          </details>
-        </div>
-        <p id="public-deck-action-status" class="mt-public-action-status" aria-live="polite"></p>
-      </div>
-    </section>
-
-    <details class="mt-panel mt-public-stats-disclosure p-4 sm:p-5" open>
-      <summary>
-        <span class="mt-section-label" role="heading" aria-level="2">Deck stats</span>
-        <span class="mt-public-stats-summary-meta">
-          <span>Mainboard</span>
-          <svg class="mt-public-stats-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m6 9 6 6 6-6"></path>
-          </svg>
-        </span>
-      </summary>
-      <div class="mt-public-stats-content">
-        <dl class="mt-public-stats-grid">
-          <div class="mt-public-stat">
-            <dt>Total cards</dt>
-            <dd>{{ $ctx.Analytics.TotalCards }}</dd>
-          </div>
-          <div class="mt-public-stat">
-            <dt>Average CMC</dt>
+          <div>
+            <dt>Average mana value</dt>
             <dd>{{ $ctx.Analytics.AverageCMCDisplay }}</dd>
           </div>
-          <div class="mt-public-stat">
+          <div>
             <dt>Lands</dt>
             <dd>{{ $ctx.Analytics.LandCount }}</dd>
           </div>
-          <div class="mt-public-stat">
+          <div>
             <dt>Nonlands</dt>
             <dd>{{ $ctx.Analytics.NonLandCount }}</dd>
           </div>
         </dl>
-        {{ if $ctx.Analytics.ValidationWarnings }}
-          <div class="mt-4 border-l-2 border-amber-400/70 pl-3">
-            <h3 class="text-xs font-semibold uppercase text-amber-200">Warnings</h3>
-            <ul class="mt-2 space-y-1 text-xs text-amber-100">
-              {{ range $ctx.Analytics.ValidationWarnings }}
-                <li>{{ . }}</li>
-              {{ end }}
-            </ul>
+      </div>
+
+      {{ if and $ctx.Commander $ctx.Commander.ImageURI }}
+        <figure class="mt-public-showcase__commander">
+          <button type="button"
+                  class="mt-public-showcase__commander-link"
+                  data-card-detail
+                  data-oracle-id="{{ $ctx.Commander.OracleID }}"
+                  data-scryfall-id="{{ $ctx.Commander.ID }}"
+                  data-detail-path="{{ if $ctx.Commander.OracleID }}/cards/view/{{ $ctx.Commander.OracleID }}{{ end }}"
+                  data-name="{{ $ctx.Commander.Name }}"
+                  data-mana-cost="{{ $ctx.Commander.ManaCost }}"
+                  data-type-line="{{ $ctx.Commander.TypeLine }}"
+                  data-image-uri="{{ $ctx.Commander.ImageURI }}"
+                  data-price="{{ $ctx.Commander.PriceUSD }}"
+                  data-artist="{{ $ctx.Commander.Artist }}"
+                  data-set-code="{{ $ctx.Commander.SetCode }}"
+                  data-set-name="{{ $ctx.Commander.SetName }}"
+                  data-released-at="{{ $ctx.Commander.ReleasedAt }}"
+                  aria-label="View {{ $d.CommanderName }} card details">
+            <img src="{{ $ctx.Commander.ImageURI }}"
+                 alt=""
+                 loading="eager"
+                 decoding="async">
+          </button>
+          <figcaption>
+            <span>Commander</span>
+            <strong>{{ if $d.CommanderName }}{{ $d.CommanderName }}{{ else }}{{ $ctx.Commander.Name }}{{ end }}</strong>
+          </figcaption>
+        </figure>
+      {{ end }}
+    </article>
+
+    <section class="mt-public-deck-analysis" aria-label="Deck analysis">
+      <div class="mt-public-deck-analysis__content">
+        <section class="mt-public-analysis-group" aria-labelledby="public-deck-types-title">
+          <h3 id="public-deck-types-title">Card types</h3>
+          <dl class="mt-public-analysis-list">
+            <div><dt>Artifacts</dt><dd>{{ $ctx.Analytics.ArtifactCount }}</dd></div>
+            <div><dt>Enchantments</dt><dd>{{ $ctx.Analytics.EnchantmentCount }}</dd></div>
+            <div><dt>Instants</dt><dd>{{ $ctx.Analytics.InstantCount }}</dd></div>
+            <div><dt>Sorceries</dt><dd>{{ $ctx.Analytics.SorceryCount }}</dd></div>
+            <div><dt>Planeswalkers</dt><dd>{{ $ctx.Analytics.PlaneswalkerCount }}</dd></div>
+          </dl>
+        </section>
+
+        <section class="mt-public-analysis-group" aria-labelledby="public-deck-roles-title">
+          <h3 id="public-deck-roles-title">Deck roles</h3>
+          <dl class="mt-public-analysis-list">
+            <div><dt>Ramp</dt><dd>{{ $ctx.Analytics.RampCount }}</dd></div>
+            <div><dt>Card draw</dt><dd>{{ $ctx.Analytics.CardDrawCount }}</dd></div>
+            <div><dt>Tutors</dt><dd>{{ $ctx.Analytics.TutorCount }}</dd></div>
+            <div><dt>Interaction</dt><dd>{{ $ctx.Analytics.InteractionCount }}</dd></div>
+            <div><dt>Board wipes</dt><dd>{{ $ctx.Analytics.BoardWipeCount }}</dd></div>
+            <div><dt>Protection</dt><dd>{{ $ctx.Analytics.ProtectionCount }}</dd></div>
+          </dl>
+        </section>
+
+        <section class="mt-public-analysis-group" aria-labelledby="public-deck-sample-title">
+          <h3 id="public-deck-sample-title">Sample hand</h3>
+          {{ if $ctx.SampleHand }}
+            <div class="mt-public-sample-hand">
+              <div id="public-deck-sample-cards" class="mt-public-sample-hand__cards">
+                {{ range $index, $card := $ctx.SampleHand }}
+                  <button type="button"
+                          class="mt-public-sample-card"
+                          data-sample-index="{{ $index }}"
+                          aria-label="View {{ $card.CardName }} card details">
+                    {{ if $card.ImageURI }}
+                      <img src="{{ $card.ImageURI }}" alt="" loading="lazy" decoding="async">
+                    {{ else }}
+                      <span>{{ $card.CardName }}</span>
+                    {{ end }}
+                  </button>
+                {{ end }}
+              </div>
+              <button type="button"
+                      id="public-deck-sample-refresh"
+                      class="mt-public-sample-refresh"
+                      hidden
+                      aria-describedby="public-deck-sample-status">
+                <span class="mt-public-sample-refresh__icon" aria-hidden="true">↻</span>
+                <span>Another hand</span>
+              </button>
+            </div>
+            <p id="public-deck-sample-status"
+               class="mt-visually-hidden"
+               role="status"
+               aria-live="polite"></p>
+          {{ else }}
+            <p class="mt-public-sample-hand__empty">Add at least one card to draw a sample hand.</p>
+          {{ end }}
+        </section>
+      </div>
+    </section>
+
+    <section class="mt-public-deck-browser" aria-labelledby="public-deck-browser-title">
+      <header class="mt-public-deck-browser__heading">
+        <h2 id="public-deck-browser-title">Decklist</h2>
+      </header>
+
+      <div class="mt-public-deck-toolbar">
+        {{ if or $ctx.SideboardDeckCards $ctx.MaybeDeckCards }}
+          <div class="mt-board-tabs" role="group" aria-label="Deck sections">
+            <button type="button"
+                    class="mt-board-tab"
+                    data-board="main"
+                    aria-controls="public-deck-output"
+                    aria-pressed="false">
+              <span>Deck</span>
+              <span data-board-count="main">0</span>
+            </button>
+            {{ if $ctx.SideboardDeckCards }}
+              <button type="button"
+                      class="mt-board-tab"
+                      data-board="side"
+                      aria-controls="public-deck-output"
+                      aria-pressed="false">
+                <span>Sideboard</span>
+                <span data-board-count="side">0</span>
+              </button>
+            {{ end }}
+            {{ if $ctx.MaybeDeckCards }}
+              <button type="button"
+                      class="mt-board-tab"
+                      data-board="maybe"
+                      aria-controls="public-deck-output"
+                      aria-pressed="false">
+                <span>Maybeboard</span>
+                <span data-board-count="maybe">0</span>
+              </button>
+            {{ end }}
           </div>
         {{ end }}
-      </div>
-    </details>
 
-    <section class="mt-panel p-4 sm:p-5 space-y-3">
-      <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 class="mt-section-label">Deck browser</h2>
-          <p id="public-deck-summary" class="mt-1 text-xs text-slate-500"></p>
-        </div>
-      </div>
-
-      <div class="mt-deck-toolbar flex flex-col gap-2.5 xl:flex-row xl:items-end xl:justify-between">
-        <div class="mt-board-tabs" role="tablist" aria-label="Deck boards">
-          <button type="button" class="mt-board-tab" data-board="main" role="tab">
-            <span>Main</span>
-            <span data-board-count="main">0</span>
-          </button>
-          <button type="button" class="mt-board-tab" data-board="side" role="tab">
-            <span>Side</span>
-            <span data-board-count="side">0</span>
-          </button>
-          <button type="button" class="mt-board-tab" data-board="maybe" role="tab">
-            <span>Maybe</span>
-            <span data-board-count="maybe">0</span>
-          </button>
-        </div>
-
-        <div class="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4 xl:w-auto">
-          <label class="block text-xs text-slate-400">
-            <span class="mt-field-label mb-1">Filter</span>
-            <input id="public-deck-filter"
-                   type="search"
-                   class="mt-control mt-control--sm"
-                   placeholder="Name, type, text"
-                   autocomplete="off">
-          </label>
-          <label class="block text-xs text-slate-400">
-            <span class="mt-field-label mb-1">Group</span>
+        <div class="mt-public-deck-controls">
+          <label class="mt-public-deck-field" for="public-deck-group">
+            <span>Group cards by</span>
             <select id="public-deck-group" class="mt-control mt-control--sm">
-              <option value="none">None</option>
-              <option value="category">Categories</option>
+              <option value="type" selected>Card type</option>
+              <option value="none">No grouping</option>
+              <option value="category">Category</option>
               <option value="alphabet">Alphabet</option>
-              <option value="type">Type</option>
-              <option value="mv">Mana Value</option>
+              <option value="mv">Mana value</option>
               <option value="price">Price</option>
             </select>
           </label>
-          <label class="block text-xs text-slate-400">
-            <span class="mt-field-label mb-1">Sort</span>
+
+          <label class="mt-public-deck-field" for="public-deck-sort">
+            <span>Sort cards by</span>
             <select id="public-deck-sort" class="mt-control mt-control--sm">
+              <option value="mv" selected>Mana value</option>
               <option value="alphabet">Alphabet</option>
-              <option value="mv">Mana Value</option>
-              <option value="type">Type</option>
+              <option value="type">Card type</option>
               <option value="price">Price</option>
             </select>
           </label>
-          <label class="block text-xs text-slate-400">
-            <span class="mt-field-label mb-1">View</span>
+
+          <label class="mt-public-deck-field" for="public-deck-view">
+            <span>Card view</span>
             <select id="public-deck-view" class="mt-control mt-control--sm">
+              <option value="text" selected>Text list</option>
               <option value="stacks">Stacks</option>
-              <option value="text">Text</option>
               <option value="grid">Grid</option>
               <option value="table">Table</option>
               <option value="single">Single card</option>
@@ -184,25 +288,25 @@
         </div>
       </div>
 
-      <div id="public-deck-output" class="mt-public-deck-output" aria-live="polite"></div>
+      <div id="public-deck-output" class="mt-public-deck-output"></div>
 
       <noscript>
-        <ul class="divide-y divide-slate-800 text-sm">
+        <ul class="mt-public-deck-noscript-list">
           {{ range $ctx.DeckCards }}
-            <li class="py-2 flex items-center justify-between gap-3">
-              <div class="min-w-0">
-                <p class="font-medium text-slate-100">{{ .CardName }}</p>
-                <p class="text-xs text-slate-500">{{ .TypeLine }}</p>
+            <li>
+              <div>
+                <p class="mt-public-deck-noscript-name">{{ .CardName }}</p>
+                <p class="mt-public-deck-noscript-meta">{{ .TypeLine }}</p>
               </div>
-              <span class="text-xs text-slate-400 shrink-0">x{{ .Quantity }}</span>
+              <span class="mt-public-deck-noscript-quantity">x{{ .Quantity }}</span>
             </li>
           {{ else }}
-            <li class="py-3 text-slate-500">Empty.</li>
+            <li class="mt-public-deck-noscript-empty">This deck is empty.</li>
           {{ end }}
         </ul>
       </noscript>
     </section>
-  </main>
+  </div>
 
   {{ template "card_detail_modal" . }}
 
@@ -213,6 +317,15 @@
       name: {{ toJSON $d.Name }},
       format: {{ toJSON $d.Format }},
       commanderName: {{ toJSON $d.CommanderName }},
+      commander: {{ if $ctx.Commander }}{
+        name: {{ toJSON $ctx.Commander.Name }},
+        printID: {{ toJSON $ctx.Commander.ID }},
+        setCode: {{ toJSON $ctx.Commander.SetCode }},
+        collectorNumber: {{ toJSON $ctx.Commander.CollectorNumber }},
+        price: {{ toJSON $ctx.Commander.PriceUSD }}
+      }{{ else }}null{{ end }},
+      sampleHand: {{ toJSON $ctx.SampleHand }},
+      sampleExcludesCommander: {{ if $ctx.SampleExcludesCommander }}true{{ else }}false{{ end }},
       boards: {
         main: {{ toJSON $ctx.DeckCards }},
         side: {{ toJSON $ctx.SideboardDeckCards }},

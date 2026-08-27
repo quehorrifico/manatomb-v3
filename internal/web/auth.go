@@ -23,6 +23,14 @@ import (
 const ctxKeyUser ctxKey = "currentUser"
 const sessionCookieName = "mt_session"
 
+const (
+	// A browser-session login still expires server-side if a browser keeps the
+	// session cookie alive unusually long. Persistent logins are deliberately
+	// bounded rather than acting as permanent credentials.
+	defaultSessionTTL           = 24 * time.Hour
+	defaultPersistentSessionTTL = 30 * 24 * time.Hour
+)
+
 type ctxKey string
 
 type notFoundRecorder struct {
@@ -55,6 +63,8 @@ type TemplateData struct {
 	WideLayout  bool
 	HideHeader  bool
 	HideFooter  bool
+	Theme       SiteTheme
+	PageID      string
 }
 
 type PageMeta struct {
@@ -64,6 +74,7 @@ type PageMeta struct {
 	ImageURL     string
 	ImageAlt     string
 	Type         string
+	Robots       string
 }
 
 func (a *App) withCurrentUser(next http.Handler) http.Handler {
@@ -89,13 +100,62 @@ func CurrentUser(r *http.Request) *account.User {
 	return u
 }
 
+// authNextPath sends ordinary authentication to My Decks. The only resumable
+// exception is a marked guest-workbench save, whose draft remains in this
+// browser until the returned workbench imports it into the signed-in account.
 func authNextPath(raw string) string {
-	return normalizeLocalReturnPath(raw, "/decks")
+	const fallback = "/decks"
+
+	path := normalizeLocalReturnPath(raw, fallback)
+	parsed, err := url.Parse(path)
+	if err != nil {
+		return fallback
+	}
+	if parsed.Path != "/decks/new/workbench" {
+		return fallback
+	}
+
+	query := parsed.Query()
+	if strings.TrimSpace(query.Get("save_guest")) != "1" {
+		return fallback
+	}
+
+	sandbox := strings.TrimSpace(query.Get("sandbox")) == "1"
+	format := query.Get("format")
+	commanderName := query.Get("commander_name")
+	commanderPrintID := query.Get("commander_print_id")
+	if sandbox {
+		format = "Sandbox"
+		commanderName = ""
+		commanderPrintID = ""
+	} else {
+		format = defaultDeckFormat(format, commanderName, "")
+		if !decks.FormatRequiresCommander(format) {
+			commanderName = ""
+			commanderPrintID = ""
+		}
+	}
+
+	return deckWorkbenchPath(deckWorkbenchOptions{
+		Format:           format,
+		CommanderName:    commanderName,
+		CommanderPrintID: commanderPrintID,
+		Sandbox:          sandbox,
+		SaveWorkbench:    true,
+	})
 }
 
 type loginPageData struct {
-	Email string
-	Next  string
+	Email        string
+	Next         string
+	StaySignedIn bool
+}
+
+type signupPageData struct {
+	DisplayName  string
+	Email        string
+	Next         string
+	StaySignedIn bool
 }
 
 type forgotPasswordPageData struct {
@@ -110,48 +170,58 @@ func resetPasswordURL(publicBaseURL, token string) string {
 	return strings.TrimRight(publicBaseURL, "/") + "/reset-password?token=" + url.QueryEscape(token)
 }
 
+func wantsPersistentSession(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "on", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+func authSessionTTL(staySignedIn bool) time.Duration {
+	if staySignedIn {
+		return defaultPersistentSessionTTL
+	}
+	return defaultSessionTTL
+}
+
+func sessionCookie(session *account.Session, secure, staySignedIn bool) *http.Cookie {
+	cookie := &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    session.ID.String(),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+	if staySignedIn {
+		cookie.Expires = session.ExpiresAt.UTC()
+		cookie.MaxAge = int(session.ExpiresAt.Sub(session.CreatedAt) / time.Second)
+	}
+	return cookie
+}
+
 // ===== Handlers =====
 
 func (a *App) HandleHome(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	user := CurrentUser(r)
 	flash := readFlash(w, r)
-
-	// If not logged in, show a simple landing page
-	if user == nil {
-		data := TemplateData{
-			CurrentUser: nil,
-			Data:        nil, // no extra data needed
-			Flash:       flash,
-		}
-		a.Renderer.Render(w, "home", data)
-		return
-	}
-
-	// Logged-in dashboard: show a few recent decks
-	userDecks, err := decks.ListDecksByUser(r.Context(), a.DB, user.ID)
-	if err != nil {
-		a.RenderServerError(w, r, err)
-		return
-	}
-
-	// Optionally limit to first 5 for the dashboard
-	if len(userDecks) > 5 {
-		userDecks = userDecks[:5]
-	}
-
-	type homeData struct {
-		RecentDecks []decks.Deck
-	}
-
-	data := TemplateData{
+	a.Renderer.Render(w, "home", TemplateData{
 		CurrentUser: user,
-		Data: homeData{
-			RecentDecks: userDecks,
-		},
-		Flash: flash,
-	}
-
-	a.Renderer.Render(w, "home", data)
+		Flash:       flash,
+		HideHeader:  true,
+	})
 }
 
 func (a *App) HandleSignupShow(w http.ResponseWriter, r *http.Request) {
@@ -161,12 +231,9 @@ func (a *App) HandleSignupShow(w http.ResponseWriter, r *http.Request) {
 
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
-		Data: struct {
-			DisplayName string
-			Email       string
-			Next        string
-		}{
-			Next: next,
+		Data: signupPageData{
+			Next:         next,
+			StaySignedIn: true,
 		},
 		Flash: flash,
 		Error: "",
@@ -179,11 +246,7 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		log.Printf("signup parse form error: %v", err)
 		data := TemplateData{
-			Data: struct {
-				DisplayName string
-				Email       string
-				Next        string
-			}{},
+			Data:  signupPageData{StaySignedIn: true},
 			Error: "Invalid form submission. Please try again.",
 		}
 		a.Renderer.Render(w, "signup", data)
@@ -193,20 +256,18 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.Form.Get("email"))
 	displayName := strings.TrimSpace(r.Form.Get("display_name"))
 	password := r.Form.Get("password")
+	staySignedIn := wantsPersistentSession(r.Form.Get("stay_signed_in"))
 
 	next := authNextPath(r.Form.Get("next"))
 
 	// Basic validation
 	if displayName == "" || email == "" || password == "" {
 		data := TemplateData{
-			Data: struct {
-				DisplayName string
-				Email       string
-				Next        string
-			}{
-				DisplayName: displayName,
-				Email:       email,
-				Next:        next,
+			Data: signupPageData{
+				DisplayName:  displayName,
+				Email:        email,
+				Next:         next,
+				StaySignedIn: staySignedIn,
 			},
 			Error: "Display name, email, and password are required.",
 		}
@@ -216,14 +277,11 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 
 	if len(password) < 8 {
 		data := TemplateData{
-			Data: struct {
-				DisplayName string
-				Email       string
-				Next        string
-			}{
-				DisplayName: displayName,
-				Email:       email,
-				Next:        next,
+			Data: signupPageData{
+				DisplayName:  displayName,
+				Email:        email,
+				Next:         next,
+				StaySignedIn: staySignedIn,
 			},
 			Error: "Password must be at least 8 characters long.",
 		}
@@ -235,14 +293,11 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("create user error during signup")
 		data := TemplateData{
-			Data: struct {
-				DisplayName string
-				Email       string
-				Next        string
-			}{
-				DisplayName: displayName,
-				Email:       email,
-				Next:        next,
+			Data: signupPageData{
+				DisplayName:  displayName,
+				Email:        email,
+				Next:         next,
+				StaySignedIn: staySignedIn,
 			},
 			Error: "Could not create account. This email may already be in use.",
 		}
@@ -250,36 +305,26 @@ func (a *App) HandleSignupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, err := account.CreateSession(r.Context(), a.DB, u.ID, 7*24*time.Hour)
+	sess, err := account.CreateSession(r.Context(), a.DB, u.ID, authSessionTTL(staySignedIn))
 	if err != nil {
 		log.Printf("create session error: %v", err)
 		data := TemplateData{
-			Data: struct {
-				DisplayName string
-				Email       string
-				Next        string
-			}{
-				DisplayName: displayName,
-				Email:       email,
-				Next:        next,
+			Data: signupPageData{
+				DisplayName:  displayName,
+				Email:        email,
+				Next:         next,
+				StaySignedIn: staySignedIn,
 			},
-			Error: "Account created, but we couldn't log you in automatically. Please try logging in.",
+			Error: "Account created, but we couldn't sign you in automatically. Please try signing in.",
 		}
 		a.Renderer.Render(w, "signup", data)
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    sess.ID.String(),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   a.SessionCookieSecure,
-		SameSite: http.SameSiteLaxMode,
-	})
+	http.SetCookie(w, sessionCookie(sess, a.SessionCookieSecure, staySignedIn))
 
 	log.Printf("signup success: userID=%d, redirecting to %s", u.ID, next)
-	setFlash(w, "Account created. Welcome to Mana Tomb!")
+	setFlash(w, "Account created. Welcome to ManaTomb!")
 	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
@@ -291,7 +336,8 @@ func (a *App) HandleLoginShow(w http.ResponseWriter, r *http.Request) {
 	data := TemplateData{
 		CurrentUser: CurrentUser(r),
 		Data: loginPageData{
-			Next: next,
+			Next:         next,
+			StaySignedIn: true,
 		},
 		Flash: flash,
 		Error: "",
@@ -303,7 +349,7 @@ func (a *App) HandleLoginShow(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		data := TemplateData{
-			Data:  loginPageData{},
+			Data:  loginPageData{StaySignedIn: true},
 			Error: "Invalid form submission. Please try again.",
 		}
 		a.Renderer.Render(w, "login", data)
@@ -312,6 +358,7 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 
 	email := strings.TrimSpace(r.Form.Get("email"))
 	password := r.Form.Get("password")
+	staySignedIn := wantsPersistentSession(r.Form.Get("stay_signed_in"))
 
 	next := authNextPath(r.Form.Get("next"))
 
@@ -322,8 +369,9 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		}
 		data := TemplateData{
 			Data: loginPageData{
-				Email: email,
-				Next:  next,
+				Email:        email,
+				Next:         next,
+				StaySignedIn: staySignedIn,
 			},
 			Error: "Invalid email or password.",
 		}
@@ -331,28 +379,22 @@ func (a *App) HandleLoginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess, err := account.CreateSession(r.Context(), a.DB, u.ID, 7*24*time.Hour)
+	sess, err := account.CreateSession(r.Context(), a.DB, u.ID, authSessionTTL(staySignedIn))
 	if err != nil {
 		log.Printf("create session error: %v", err)
 		data := TemplateData{
 			Data: loginPageData{
-				Email: email,
-				Next:  next,
+				Email:        email,
+				Next:         next,
+				StaySignedIn: staySignedIn,
 			},
-			Error: "Could not create session. Please try logging in again.",
+			Error: "We couldn't sign you in. Please try again.",
 		}
 		a.Renderer.Render(w, "login", data)
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    sess.ID.String(),
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   a.SessionCookieSecure,
-		SameSite: http.SameSiteLaxMode,
-	})
+	http.SetCookie(w, sessionCookie(sess, a.SessionCookieSecure, staySignedIn))
 
 	setFlash(w, "Welcome back!")
 	http.Redirect(w, r, next, http.StatusSeeOther)
@@ -470,7 +512,7 @@ func (a *App) HandleResetPasswordPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setFlash(w, "Password updated. Please log in with your new password.")
+	setFlash(w, "Password updated. Please sign in with your new password.")
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
@@ -496,6 +538,11 @@ func (a *App) ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	a.ClearSessionCookie(w, r)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

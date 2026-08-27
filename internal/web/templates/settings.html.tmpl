@@ -2,108 +2,143 @@
   {{ template "layout_header" . }}
   {{ $d := .Data }}
 
-  <main class="max-w-5xl mx-auto py-10 px-4 space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div class="space-y-2">
-        <p class="mt-kicker">Account</p>
-        <h1 class="text-2xl font-semibold tracking-tight text-slate-50">Settings</h1>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <a href="/" class="mt-btn mt-btn--secondary mt-btn--sm">Home</a>
-        <a href="/decks" class="mt-btn mt-btn--secondary mt-btn--sm">Decks</a>
-      </div>
-    </div>
+  <div class="mt-settings-page">
+    <header class="mt-settings-header">
+      <h1>Settings</h1>
+      <p>Manage your profile, appearance, and account security.</p>
+      {{ if .CurrentUser }}
+        <a href="{{ userProfilePath .CurrentUser.ID }}" class="mt-settings-back" aria-label="Back to profile">
+          <span aria-hidden="true">←</span> Back to Profile
+        </a>
+      {{ end }}
+    </header>
 
-    <section class="mt-panel p-5">
-      <p class="mt-section-label mb-3">Profile</p>
-      <div class="grid gap-3 sm:grid-cols-2 text-sm text-slate-200">
-        <div class="mt-stat-card">
-          <p class="text-slate-500 text-xs uppercase tracking-wide">Display Name</p>
-          <p class="mt-1">{{ .CurrentUser.DisplayName }}</p>
-        </div>
-        <div class="mt-stat-card">
-          <p class="text-slate-500 text-xs uppercase tracking-wide">Email</p>
-          <p class="mt-1">{{ .CurrentUser.Email }}</p>
-        </div>
+    <section class="mt-settings-section" aria-labelledby="settings-appearance-title">
+      <div class="mt-settings-section__heading">
+        <h2 id="settings-appearance-title">Appearance</h2>
+        <p>Your theme follows your account on every device.</p>
       </div>
+      <form method="POST" action="/settings" class="mt-settings-form" data-theme-settings-form>
+        <input type="hidden" name="action" value="update_theme">
+        <fieldset>
+          <legend class="sr-only">Color theme</legend>
+          <div class="mt-theme-grid">
+            {{ range $d.Themes }}
+              <label class="mt-theme-choice" data-theme-preview="{{ .Value }}">
+                <input type="radio" name="site_theme" value="{{ .Value }}"{{ if eq $d.SiteTheme .Value }} checked{{ end }}>
+                <span class="mt-theme-choice__swatches" aria-hidden="true">
+                  <span class="mt-theme-choice__swatch mt-theme-choice__swatch--background"></span>
+                  <span class="mt-theme-choice__swatch mt-theme-choice__swatch--surface"></span>
+                  <span class="mt-theme-choice__swatch mt-theme-choice__swatch--accent"></span>
+                </span>
+                <span class="mt-theme-choice__copy">
+                  <strong>{{ .Label }}</strong>
+                  <span>{{ .Description }}</span>
+                </span>
+                <span class="mt-theme-choice__check" aria-hidden="true">&#10003;</span>
+              </label>
+            {{ end }}
+          </div>
+        </fieldset>
+        <p class="mt-settings-theme-status" data-theme-settings-status aria-live="polite"></p>
+      </form>
     </section>
 
-    <section class="mt-panel p-5 sm:p-6">
-      <p class="mt-section-label mb-4">Update Profile</p>
-      <form method="POST" action="/settings" class="space-y-5">
+    <section class="mt-settings-section" aria-labelledby="settings-profile-title">
+      <div class="mt-settings-section__heading">
+        <h2 id="settings-profile-title">Profile</h2>
+        <p>This is how other players see you on public decks and your profile.</p>
+      </div>
+      <form method="POST" action="/settings" class="mt-settings-form">
         <input type="hidden" name="action" value="update_profile">
-
-        <label class="block text-sm text-slate-200">
-          <span class="mt-field-label">Display Name</span>
-          <input
-            type="text"
-            name="display_name"
-            value="{{ $d.DisplayName }}"
-            required
-            class="mt-control">
+        <label class="mt-settings-field">
+          <span class="mt-field-label">Display name</span>
+          <input type="text" name="display_name" value="{{ $d.DisplayName }}" required maxlength="32" autocomplete="nickname" class="mt-control">
         </label>
-        <div class="flex justify-end">
-          <button type="submit" class="mt-btn mt-btn--primary">Save Changes</button>
+        <div class="mt-settings-field">
+          <span class="mt-field-label">Email</span>
+          <p class="mt-settings-readonly">{{ $d.Email }}</p>
+        </div>
+        <div class="mt-settings-form__actions">
+          <button type="submit" class="mt-btn mt-btn--primary">Save Profile</button>
         </div>
       </form>
     </section>
 
-    <section class="mt-panel p-5 sm:p-6">
-      <p class="mt-section-label mb-4">Change Password</p>
-      <form method="POST" action="/settings" class="space-y-5">
+    <section class="mt-settings-section" aria-labelledby="settings-security-title">
+      <div class="mt-settings-section__heading">
+        <h2 id="settings-security-title">Security</h2>
+        <p>Choose a new password for your ManaTomb account.</p>
+      </div>
+      <form method="POST" action="/settings" class="mt-settings-form">
         <input type="hidden" name="action" value="change_password">
-
-        <label class="block text-sm text-slate-200">
-          <span class="mt-field-label">Current Password</span>
-          <input
-            type="password"
-            name="current_password"
-            required
-            class="mt-control">
+        <label class="mt-settings-field">
+          <span class="mt-field-label">Current password</span>
+          <input type="password" name="current_password" required autocomplete="current-password" class="mt-control">
         </label>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-          <label class="block text-sm text-slate-200">
-            <span class="mt-field-label">New Password</span>
-            <input
-              type="password"
-              name="new_password"
-              required
-              class="mt-control">
+        <div class="mt-settings-field-row">
+          <label class="mt-settings-field">
+            <span class="mt-field-label">New password</span>
+            <input type="password" name="new_password" required autocomplete="new-password" class="mt-control">
           </label>
-          <label class="block text-sm text-slate-200">
-            <span class="mt-field-label">Confirm New Password</span>
-            <input
-              type="password"
-              name="confirm_password"
-              required
-              class="mt-control">
+          <label class="mt-settings-field">
+            <span class="mt-field-label">Confirm password</span>
+            <input type="password" name="confirm_password" required autocomplete="new-password" class="mt-control">
           </label>
         </div>
-
-        <div class="flex justify-end">
+        <div class="mt-settings-form__actions">
           <button type="submit" class="mt-btn mt-btn--primary">Update Password</button>
         </div>
       </form>
     </section>
 
-    <section class="mt-panel p-5">
-      <p class="mt-section-label mb-3">Sign Out</p>
-      <form method="GET" action="/logout">
-        <button type="submit" class="mt-btn mt-btn--secondary">Sign Out</button>
-      </form>
+    <section class="mt-settings-section mt-settings-section--account" aria-labelledby="settings-account-title">
+      <div class="mt-settings-section__heading">
+        <h2 id="settings-account-title">Account</h2>
+        <p>Sign out here, or permanently remove your account and decks.</p>
+      </div>
+      <div class="mt-settings-account-actions">
+        <form method="POST" action="/logout">
+          <button type="submit" class="mt-btn mt-btn--secondary">Sign Out</button>
+        </form>
+        <form method="POST" action="/settings" onsubmit="return confirm('Delete your account and all decks? This cannot be undone.');">
+          <input type="hidden" name="action" value="delete_account">
+          <button type="submit" class="mt-btn mt-btn--danger">Delete Account</button>
+        </form>
+      </div>
     </section>
+  </div>
 
-    <section class="mt-panel p-5 border-red-900/70 bg-red-950/35 shadow-red-900/30">
-      <p class="mt-section-label mb-3 text-red-300">Danger Zone</p>
-      <form method="POST" action="/settings"
-            onsubmit="return confirm('Delete your account and all decks? This cannot be undone.');">
-        <input type="hidden" name="action" value="delete_account">
-        <button type="submit" class="mt-btn mt-btn--danger">Delete Account</button>
-      </form>
-    </section>
-
-  </main>
+  <script>
+    (function () {
+      var form = document.querySelector('[data-theme-settings-form]');
+      if (!form) return;
+      var originalTheme = document.documentElement.dataset.theme || 'tomb';
+      var choices = form.querySelectorAll('input[name="site_theme"]');
+      var status = form.querySelector('[data-theme-settings-status]');
+      var submitting = false;
+      choices.forEach(function (choice) {
+        choice.addEventListener('change', function () {
+          if (!choice.checked || submitting) return;
+          document.documentElement.dataset.theme = choice.value;
+          submitting = true;
+          if (status) status.textContent = 'Applying ' + choice.closest('label').querySelector('strong').textContent + '…';
+          if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+          } else {
+            form.submit();
+          }
+        });
+      });
+      window.addEventListener('pageshow', function (event) {
+        submitting = false;
+        if (status) status.textContent = '';
+        if (!event.persisted) return;
+        var selected = form.querySelector('input[name="site_theme"]:checked');
+        document.documentElement.dataset.theme = selected ? selected.value : originalTheme;
+      });
+    })();
+  </script>
 
   {{ template "layout_footer" . }}
 {{ end }}

@@ -1,17 +1,21 @@
 {{ define "layout_header" }}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="{{ .Theme }}">
 <head>
   <meta charset="utf-8">
   {{ with .Meta }}
-    {{ if .Title }}
-      <title>{{ .Title }} | Mana Tomb</title>
+    {{ if eq .Title "ManaTomb" }}
+      <title>ManaTomb</title>
+    {{ else if .Title }}
+      <title>{{ .Title }} | ManaTomb</title>
     {{ else }}
-      <title>Mana Tomb</title>
+      <title>ManaTomb</title>
     {{ end }}
     {{ if .Description }}<meta name="description" content="{{ .Description }}">{{ end }}
+    {{ if .Robots }}<meta name="robots" content="{{ .Robots }}">{{ end }}
     {{ if .CanonicalURL }}<link rel="canonical" href="{{ .CanonicalURL }}">{{ end }}
-    <meta property="og:site_name" content="Mana Tomb">
+    <meta property="og:site_name" content="ManaTomb">
+    <meta property="og:locale" content="en_US">
     <meta property="og:type" content="{{ if .Type }}{{ .Type }}{{ else }}website{{ end }}">
     {{ if .Title }}<meta property="og:title" content="{{ .Title }}">{{ end }}
     {{ if .Description }}<meta property="og:description" content="{{ .Description }}">{{ end }}
@@ -26,41 +30,162 @@
     {{ if .Title }}<meta name="twitter:title" content="{{ .Title }}">{{ end }}
     {{ if .Description }}<meta name="twitter:description" content="{{ .Description }}">{{ end }}
     {{ if .ImageURL }}<meta name="twitter:image" content="{{ .ImageURL }}">{{ end }}
+    {{ if and .ImageURL .ImageAlt }}<meta name="twitter:image:alt" content="{{ .ImageAlt }}">{{ end }}
   {{ else }}
-    <title>Mana Tomb</title>
+    <title>ManaTomb</title>
   {{ end }}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Tailwind CDN (simple, no build step) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Optional: tweak Tailwind theme a bit -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            tomb: {
-              bg: "#020617",      // slate-950-ish
-              surface: "#020817", // deep blue/black
-              accent: "#0ea5e9",  // sky-500-ish
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <meta name="theme-color" content="#0b1512">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/theme.css">
+  <link rel="stylesheet" href="/assets/tailwind.css">
   <style>
-    :root {
-      --mt-border: rgba(51, 65, 85, 0.9);
-      --mt-border-strong: rgba(56, 189, 248, 0.45);
-      --mt-surface: rgba(2, 6, 23, 0.78);
-      --mt-surface-strong: rgba(15, 23, 42, 0.92);
-      --mt-text-soft: rgb(148 163 184);
-      --mt-text-muted: rgb(100 116 139);
-      --mt-accent: rgb(14 165 233);
-      --mt-accent-strong: rgb(56 189 248);
-      --mt-dark: rgb(2 6 23);
+    body.mt-app {
+      background: var(--mt-bg);
+      color: var(--mt-text);
+      font-family: var(--mt-font-sans);
+    }
+
+    .mt-skip-link {
+      position: fixed;
+      z-index: 1000;
+      top: 0.75rem;
+      left: 0.75rem;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .mt-skip-link:focus {
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      border: 1px solid var(--mt-border);
+      border-radius: 0.45rem;
+      background: var(--mt-surface-raised);
+      padding: 0.6rem 0.8rem;
+      color: var(--mt-text);
+      box-shadow: var(--mt-shadow-popover);
+    }
+
+    .mt-text-soft {
+      color: var(--mt-text-soft);
+    }
+
+    .mt-text-primary {
+      color: var(--mt-text);
+    }
+
+    .mt-text-muted {
+      color: var(--mt-text-muted);
+    }
+
+    .mt-site-footer {
+      border-top: 1px solid var(--mt-border-subtle);
+      background: var(--mt-surface);
+    }
+
+    .mt-footer-brand {
+      color: var(--mt-text);
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 140ms ease;
+    }
+
+    .mt-footer-brand:hover {
+      color: var(--mt-accent-text);
+    }
+
+    .mt-footer-brand:focus-visible {
+      border-radius: 0.2rem;
+      outline: 2px solid var(--mt-focus);
+      outline-offset: 2px;
+    }
+
+    .mt-footer-divider {
+      border-color: var(--mt-border-subtle);
+    }
+
+    .mt-footer-link {
+      color: var(--mt-text-muted);
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 140ms ease;
+    }
+
+    .mt-footer-link:hover {
+      color: var(--mt-text);
+    }
+
+    .mt-footer-link--inline {
+      text-decoration: underline;
+      text-decoration-color: var(--mt-border);
+      text-underline-offset: 0.18em;
+    }
+
+    .mt-footer-link:focus-visible {
+      border-radius: 0.2rem;
+      outline: 2px solid var(--mt-focus);
+      outline-offset: 2px;
+    }
+
+    .mt-flash {
+      margin-bottom: 0.75rem;
+      border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .mt-flash--info {
+      border: 1px solid var(--mt-border-strong);
+      background: var(--mt-accent-soft);
+      color: var(--mt-accent-text);
+    }
+
+    .mt-flash--error {
+      border: 1px solid var(--mt-negative-border);
+      background: var(--mt-negative-soft);
+      color: var(--mt-negative);
+    }
+
+    .mt-autocomplete-menu {
+      z-index: 30;
+      overflow: hidden;
+      border: 1px solid var(--mt-border);
+      border-radius: 0.75rem;
+      background: var(--mt-surface-strong);
+      box-shadow: var(--mt-shadow-popover);
+    }
+
+    .mt-autocomplete-option {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-top: 1px solid var(--mt-border-subtle);
+      background: transparent;
+      padding: 0.5rem 0.75rem;
+      color: var(--mt-text-soft);
+      font-size: 0.875rem;
+      text-align: left;
+      transition: background-color 120ms ease, color 120ms ease;
+    }
+
+    .mt-autocomplete-option:first-child {
+      border-top: 0;
+    }
+
+    .mt-autocomplete-option:hover,
+    .mt-autocomplete-option.is-active {
+      background: var(--mt-surface-raised);
+      color: var(--mt-accent-text);
+    }
+
+    .mt-autocomplete-option:focus-visible {
+      outline: 2px solid var(--mt-focus);
+      outline-offset: -2px;
     }
 
     @keyframes mtDeckItemIn {
@@ -79,31 +204,78 @@
       to { opacity: 1; }
     }
 
+    .mt-site-header {
+      position: relative;
+      z-index: 220;
+      border-bottom: 1px solid var(--mt-border-subtle);
+      background: var(--mt-bg);
+    }
+
+    .mt-site-brand {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.45rem;
+      color: var(--mt-text);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .mt-site-brand__mark {
+      color: var(--mt-accent-strong);
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+
+    .mt-site-brand__name {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .mt-site-brand:hover {
+      color: var(--mt-accent-text);
+    }
+
+    .mt-site-brand:focus-visible,
+    .mt-nav-link:focus-visible,
+    .mt-site-menu-toggle:focus-visible {
+      border-radius: 0.2rem;
+      outline: 2px solid var(--mt-focus);
+      outline-offset: 2px;
+    }
+
+    .mt-site-search [data-card-autocomplete-input] {
+      background: var(--mt-surface);
+    }
+
+    .mt-site-search [data-card-autocomplete-input]:focus,
+    .mt-site-search [data-card-autocomplete-input]:focus-visible {
+      border-color: transparent;
+      outline: none;
+      box-shadow: inset 0 1px 0 var(--mt-control-highlight);
+    }
+
     .mt-nav-link {
       position: relative;
       display: inline-flex;
       min-height: 2.1rem;
       align-items: center;
       padding: 0.48rem 0.2rem 0.58rem;
-      color: rgb(203 213 225);
+      color: var(--mt-text-soft);
       font-size: 0.82rem;
       font-weight: 600;
       line-height: 1.15;
+      text-decoration: none;
       white-space: nowrap;
-      transition: color 140ms ease;
     }
 
     .mt-nav-link:hover {
-      color: var(--mt-accent-strong);
-    }
-
-    .mt-nav-link:focus-visible {
-      outline: 2px solid var(--mt-accent-strong);
-      outline-offset: 2px;
+      color: var(--mt-accent-text);
     }
 
     .mt-nav-link[aria-current="page"] {
-      color: rgb(240 249 255);
+      color: var(--mt-text);
     }
 
     .mt-nav-link[aria-current="page"]::after {
@@ -138,9 +310,13 @@
       align-items: center;
     }
 
-    .mt-site-nav__primary + .mt-site-nav__account {
-      border-left: 1px solid rgba(51, 65, 85, 0.8);
-      padding-left: 0.75rem;
+    .mt-site-account-action {
+      white-space: nowrap;
+    }
+
+    .mt-site-header .mt-btn,
+    .mt-site-header .mt-btn:hover {
+      transform: none;
     }
 
     .mt-site-menu-toggle {
@@ -149,20 +325,15 @@
       height: 2.35rem;
       align-items: center;
       justify-content: center;
-      border: 1px solid rgba(71, 85, 105, 0.92);
+      border: 1px solid var(--mt-border-control);
       border-radius: 0.58rem;
-      background: rgba(15, 23, 42, 0.9);
-      color: rgb(226 232 240);
+      background: var(--mt-surface);
+      color: var(--mt-text-soft);
     }
 
     .mt-site-menu-toggle:hover {
-      border-color: rgba(56, 189, 248, 0.55);
-      color: rgb(186 230 253);
-    }
-
-    .mt-site-menu-toggle:focus-visible {
-      outline: 2px solid var(--mt-accent-strong);
-      outline-offset: 2px;
+      border-color: var(--mt-border-strong);
+      color: var(--mt-accent-text);
     }
 
     .mt-site-menu-toggle svg {
@@ -206,13 +377,18 @@
         display: inline-flex;
       }
 
+      .mt-site-brand {
+        min-height: 2.35rem;
+        padding-right: 3rem;
+      }
+
       .mt-site-nav {
         display: none;
         width: 100%;
         flex-direction: column;
         align-items: stretch;
         gap: 0;
-        border-top: 1px solid rgba(51, 65, 85, 0.78);
+        border-top: 1px solid var(--mt-border-subtle);
         padding-top: 0.35rem;
       }
 
@@ -230,14 +406,13 @@
 
       .mt-site-nav__primary + .mt-site-nav__account {
         width: 100%;
-        border-left: 0;
         padding: 0.7rem 0 0.25rem;
       }
 
       .mt-nav-link {
         width: 100%;
         min-height: 2.75rem;
-        border-bottom: 1px solid rgba(30, 41, 59, 0.88);
+        border-bottom: 1px solid var(--mt-border-subtle);
         padding: 0.75rem 0.5rem 0.75rem 1rem;
         font-size: 0.84rem;
       }
@@ -256,11 +431,6 @@
       }
     }
 
-    .mt-site-header {
-      position: relative;
-      z-index: 220;
-    }
-
     .mt-btn {
       display: inline-flex;
       align-items: center;
@@ -270,6 +440,7 @@
       padding: 0.72rem 1rem;
       font-size: 0.9rem;
       font-weight: 600;
+      font-family: inherit;
       line-height: 1.2;
       transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
     }
@@ -279,14 +450,14 @@
     }
 
     .mt-btn:focus-visible {
-      outline: 2px solid var(--mt-accent-strong);
+      outline: 2px solid var(--mt-focus);
       outline-offset: 2px;
     }
 
     .mt-btn--primary {
       background: var(--mt-accent);
-      color: var(--mt-dark);
-      box-shadow: 0 8px 20px rgba(14, 165, 233, 0.2);
+      color: var(--mt-on-accent);
+      box-shadow: var(--mt-shadow-accent);
     }
 
     .mt-btn--primary:hover {
@@ -294,19 +465,20 @@
     }
 
     .mt-btn--secondary {
-      border: 1px solid var(--mt-border);
-      background: rgba(15, 23, 42, 0.92);
-      color: rgb(226 232 240);
+      border: 1px solid var(--mt-border-control);
+      background: var(--mt-surface-strong);
+      color: var(--mt-text);
     }
 
     .mt-btn--secondary:hover {
       border-color: var(--mt-border-strong);
-      color: rgb(240 249 255);
+      background: var(--mt-surface-raised);
+      color: var(--mt-text);
     }
 
     .mt-btn--light {
       background: rgb(241 245 249);
-      color: var(--mt-dark);
+      color: var(--mt-on-accent);
       box-shadow: 0 8px 18px rgba(148, 163, 184, 0.18);
     }
 
@@ -316,7 +488,7 @@
 
     .mt-btn--warning {
       background: rgb(252 211 77);
-      color: var(--mt-dark);
+      color: var(--mt-on-accent);
       box-shadow: 0 8px 18px rgba(251, 191, 36, 0.18);
     }
 
@@ -366,9 +538,73 @@
       gap: 0.2rem;
     }
 
-    .mt-header-search-submit,
-    .mt-header-search-submit:hover {
-      transform: translateY(-50%);
+    .mt-home-action {
+      width: 100%;
+      min-height: 3.5rem;
+      height: 100%;
+      text-align: center;
+    }
+
+    .mt-home-search-shell,
+    .mt-site-search-shell {
+      position: relative;
+      display: flex;
+      min-width: 0;
+      align-items: stretch;
+      border: 1px solid var(--mt-border-control);
+      border-radius: 0.72rem;
+      background: var(--mt-surface-strong);
+    }
+
+    .mt-home-search-shell .mt-home-search-input,
+    .mt-site-search-shell .mt-site-search-input {
+      height: 100%;
+      min-width: 0;
+      border: 0;
+      border-radius: 0.68rem 0 0 0.68rem;
+      background: transparent;
+      box-shadow: inset 0 1px 0 var(--mt-control-highlight);
+    }
+
+    .mt-home-search-shell .mt-home-search-input:focus-visible,
+    .mt-site-search-shell .mt-site-search-input:focus-visible {
+      border-color: transparent;
+      outline: none;
+      box-shadow: inset 0 1px 0 var(--mt-control-highlight);
+    }
+
+    .mt-home-search-random,
+    .mt-site-search-random {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-left: 1px solid var(--mt-border-strong);
+      border-radius: 0 0.68rem 0.68rem 0;
+      background: var(--mt-accent-soft);
+      padding: 0.68rem clamp(0.7rem, 3vw, 1rem);
+      color: var(--mt-accent-text);
+      font-size: 0.8rem;
+      font-weight: 700;
+      line-height: 1.2;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .mt-home-search-random:hover,
+    .mt-home-search-random:focus-visible,
+    .mt-site-search-random:hover,
+    .mt-site-search-random:focus-visible {
+      border-left-color: var(--mt-accent-strong);
+      background: var(--mt-surface-raised);
+      color: var(--mt-text);
+    }
+
+    .mt-home-search-random:focus-visible,
+    .mt-site-search-random:focus-visible {
+      outline: 2px solid var(--mt-focus);
+      outline-offset: -3px;
     }
 
     @keyframes mtHeartPop {
@@ -396,28 +632,28 @@
       width: 2.25rem;
       height: 2.25rem;
       place-items: center;
-      border: 1px solid rgba(51, 65, 85, 0.9);
+      border: 1px solid var(--mt-border-control);
       border-radius: 9999px;
-      background: rgba(15, 23, 42, 0.92);
-      color: rgb(226 232 240);
+      background: var(--mt-surface);
+      color: var(--mt-text-soft);
       transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
     }
 
     .mt-heart-button:hover {
-      border-color: rgba(251, 113, 133, 0.72);
-      background: rgba(76, 5, 25, 0.36);
-      color: rgb(253 164 175);
+      border-color: var(--mt-negative-border);
+      background: var(--mt-negative-soft);
+      color: var(--mt-negative);
     }
 
     .mt-heart-button:focus-visible {
-      outline: 2px solid rgb(251 113 133);
+      outline: 2px solid var(--mt-negative);
       outline-offset: 2px;
     }
 
     .mt-heart-button.is-loved {
-      border-color: rgba(251, 113, 133, 0.68);
-      background: rgba(159, 18, 57, 0.2);
-      color: rgb(251 113 133);
+      border-color: var(--mt-negative-border);
+      background: var(--mt-negative-soft);
+      color: var(--mt-negative);
     }
 
     .mt-heart-button__symbol {
@@ -475,14 +711,14 @@
     .mt-card-art-rotatable.is-rotated {
       z-index: 40;
       transform: rotate(90deg);
-      box-shadow: 0 18px 45px rgba(2, 6, 23, 0.62);
+      box-shadow: var(--mt-shadow-popover);
     }
 
     .mt-panel {
-      border: 1px solid rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--mt-border);
       border-radius: 0.8rem;
       background: var(--mt-surface);
-      box-shadow: 0 12px 30px rgba(2, 6, 23, 0.24);
+      box-shadow: var(--mt-shadow-panel);
     }
 
     .mt-commander-panel {
@@ -556,26 +792,51 @@
 
     .mt-action-card {
       display: block;
-      border: 1px solid rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--mt-border);
       border-radius: 0.9rem;
-      background: rgba(2, 6, 23, 0.68);
+      background: var(--mt-surface);
       padding: 0.85rem;
       transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
-      box-shadow: 0 10px 24px rgba(2, 6, 23, 0.18);
+      box-shadow: var(--mt-shadow-card);
     }
 
     .mt-action-card:hover {
       transform: translateY(-2px);
       border-color: var(--mt-border-strong);
-      background: rgba(15, 23, 42, 0.96);
-      box-shadow: 0 16px 34px rgba(2, 6, 23, 0.28);
+      background: var(--mt-surface-raised);
+      box-shadow: var(--mt-shadow-card-hover);
+    }
+
+    .mt-action-card:focus-visible {
+      outline: 2px solid var(--mt-focus);
+      outline-offset: 2px;
+    }
+
+    .mt-guest-home {
+      min-height: calc(100vh - 3rem);
+      min-height: calc(100svh - 3rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    body[data-page="guest-home"] *,
+    body[data-page="guest-home"] *::before,
+    body[data-page="guest-home"] *::after {
+      animation: none;
+      transition: none;
+    }
+
+    body[data-page="guest-home"] .mt-btn:hover,
+    body[data-page="guest-home"] .mt-action-card:hover {
+      transform: none;
     }
 
     .mt-kicker {
       font-size: 0.64rem;
       text-transform: uppercase;
       letter-spacing: 0.16em;
-      color: rgba(125, 211, 252, 0.86);
+      color: var(--mt-accent-strong);
       font-weight: 700;
     }
 
@@ -584,7 +845,7 @@
       line-height: 1.08;
       font-weight: 700;
       letter-spacing: -0.03em;
-      color: rgb(248 250 252);
+      color: var(--mt-text);
     }
 
     .mt-copy {
@@ -603,11 +864,11 @@
       display: inline-flex;
       align-items: center;
       border-radius: 9999px;
-      border: 1px solid rgba(51, 65, 85, 0.92);
-      background: rgba(15, 23, 42, 0.86);
+      border: 1px solid var(--mt-border);
+      background: var(--mt-surface-strong);
       padding: 0.14rem 0.48rem;
       font-size: 0.68rem;
-      color: rgb(203 213 225);
+      color: var(--mt-text-soft);
     }
 
     .mt-board-tabs {
@@ -689,35 +950,43 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: rgb(148 163 184);
+      color: var(--mt-text-muted);
     }
 
     .mt-control {
       width: 100%;
-      border: 1px solid rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--mt-border-control);
       border-radius: 0.72rem;
       background: var(--mt-surface-strong);
       padding: 0.68rem 0.86rem;
-      font-size: 0.9rem;
-      color: rgb(248 250 252);
-      box-shadow: inset 0 1px 0 rgba(14, 165, 233, 0.04);
+      font-family: inherit;
+      font-size: var(--mt-control-font-size);
+      color: var(--mt-text);
+      box-shadow: inset 0 1px 0 var(--mt-control-highlight);
       transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
     }
 
     .mt-control::placeholder {
-      color: rgb(100 116 139);
+      color: var(--mt-text-muted);
+      opacity: 1;
     }
 
     .mt-control:focus-visible {
-      outline: 2px solid var(--mt-accent-strong);
+      outline: 2px solid var(--mt-focus);
       outline-offset: 2px;
-      border-color: rgba(56, 189, 248, 0.6);
+      border-color: var(--mt-focus-border);
     }
 
-    .mt-control--sm {
+    .mt-control.mt-control--sm {
       padding: 0.46rem 0.62rem;
-      font-size: 0.8rem;
+      font-size: 0.875rem;
       border-radius: 0.62rem;
+    }
+
+    @media (max-width: 767px) {
+      .mt-control.mt-control--sm {
+        font-size: var(--mt-control-font-size);
+      }
     }
 
     .mt-section-label {
@@ -725,13 +994,13 @@
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: rgb(148 163 184);
+      color: var(--mt-text-muted);
     }
 
     .mt-stat-card {
-      border: 1px solid rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--mt-border);
       border-radius: 0.7rem;
-      background: rgba(2, 6, 23, 0.72);
+      background: var(--mt-surface);
       padding: 0.58rem 0.65rem;
     }
 
@@ -943,9 +1212,9 @@
     }
 
     .mt-subpanel {
-      border: 1px solid rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--mt-border);
       border-radius: 0.85rem;
-      background: rgba(2, 6, 23, 0.7);
+      background: var(--mt-surface);
       padding: 0.85rem;
     }
 
@@ -988,12 +1257,12 @@
     }
 
     .mt-note {
-      border: 1px solid rgba(51, 65, 85, 0.92);
+      border: 1px solid var(--mt-border);
       border-radius: 0.82rem;
-      background: rgba(15, 23, 42, 0.82);
+      background: var(--mt-surface);
       padding: 0.72rem 0.82rem;
       font-size: 0.82rem;
-      color: rgb(148 163 184);
+      color: var(--mt-text-muted);
       line-height: 1.45;
     }
 
@@ -1062,12 +1331,12 @@
     }
 
     .mt-empty-state {
-      border: 1px dashed rgba(51, 65, 85, 0.92);
+      border: 1px dashed var(--mt-border);
       border-radius: 0.9rem;
-      background: rgba(2, 6, 23, 0.58);
+      background: var(--mt-surface);
       padding: 0.9rem 1rem;
       font-size: 0.9rem;
-      color: rgb(148 163 184);
+      color: var(--mt-text-muted);
     }
 
     .mt-check-pill {
@@ -1123,22 +1392,27 @@
     .mt-modal {
       position: fixed;
       inset: 0;
-      z-index: 200;
+      z-index: 300;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 1rem;
-      background: rgba(2, 6, 23, 0.84);
+      background: color-mix(in srgb, var(--mt-bg) 86%, transparent);
+    }
+
+    .mt-modal.hidden,
+    .mt-modal[hidden] {
+      display: none;
     }
 
     .mt-modal-panel {
       position: relative;
       width: 100%;
-      border: 1px solid rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--mt-border);
       border-radius: 1rem;
-      background: rgba(2, 6, 23, 0.96);
+      background: var(--mt-surface);
       padding: 1rem;
-      box-shadow: 0 24px 50px rgba(2, 6, 23, 0.45);
+      box-shadow: var(--mt-shadow-popover);
     }
 
     #card-detail-modal {
@@ -1460,7 +1734,7 @@
     }
 
     .mt-deck-qty-btn:focus-visible {
-      outline: 2px solid var(--mt-accent-strong);
+      outline: 2px solid var(--mt-focus);
       outline-offset: 2px;
     }
 
@@ -1637,7 +1911,7 @@
       break-inside: avoid;
       border: 0;
       border-radius: 0;
-      background: var(--mt-dark);
+      background: var(--mt-bg);
     }
 
     .mt-deck-view-root--stacks.mt-deck-view-root--grouped .mt-deck-view-section--stack-active {
@@ -2001,10 +2275,10 @@
       position: relative;
       width: 100%;
       aspect-ratio: 5 / 7;
-      border: 1px solid rgba(30, 41, 59, 0.92);
+      border: 1px solid var(--mt-border-subtle);
       border-radius: 0.65rem;
       overflow: hidden;
-      background: rgba(15, 23, 42, 0.92);
+      background: var(--mt-surface);
     }
 
     .mt-art-tile__fallback {
@@ -2016,7 +2290,7 @@
       padding: 0.3rem;
       text-align: center;
       font-size: 0.65rem;
-      color: rgb(203 213 225);
+      color: var(--mt-text-soft);
     }
 
     .mt-art-tile__badge {
@@ -2024,11 +2298,11 @@
       right: 0.35rem;
       top: 0.35rem;
       border-radius: 0.45rem;
-      background: rgba(2, 6, 23, 0.92);
+      background: color-mix(in srgb, var(--mt-bg) 92%, transparent);
       padding: 0.12rem 0.4rem;
       font-size: 0.65rem;
       font-weight: 700;
-      color: rgb(125 211 252);
+      color: var(--mt-accent-text);
     }
 
     .mt-art-tile__menu {
@@ -2043,11 +2317,11 @@
       min-width: 1.75rem;
       height: 1.75rem;
       border-radius: 9999px;
-      border: 1px solid rgba(51, 65, 85, 0.82);
-      background: rgba(2, 6, 23, 0.84);
+      border: 1px solid var(--mt-border-control);
+      background: color-mix(in srgb, var(--mt-bg) 84%, transparent);
       padding: 0;
-      color: rgb(226 232 240);
-      box-shadow: 0 10px 20px rgba(2, 6, 23, 0.28);
+      color: var(--mt-text-soft);
+      box-shadow: var(--mt-shadow-card);
       backdrop-filter: blur(10px);
     }
 
@@ -2057,50 +2331,113 @@
       text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 0.65rem;
-      color: rgb(203 213 225);
+      color: var(--mt-text-soft);
     }
   </style>
+  {{ if eq .PageID "card-show" }}
+    <link rel="stylesheet" href="/assets/card_show.css">
+  {{ end }}
+  {{ if or (eq .PageID "cards-search") (eq .PageID "cards-list") }}
+    <link rel="stylesheet" href="/assets/cards_search.css">
+    <script src="/assets/cards_search.js" defer></script>
+  {{ end }}
+  {{ if eq .PageID "cards-list" }}
+    <link rel="stylesheet" href="/assets/cards_list.css">
+    <script src="/assets/cards_list.js" defer></script>
+  {{ end }}
+  {{ if eq .PageID "decks-public" }}
+    <link rel="stylesheet" href="/assets/decks_public.css">
+  {{ end }}
+  {{ if or (eq .PageID "decks-public") (eq .PageID "profile-show") }}
+    <link rel="stylesheet" href="/assets/deck_tile.css">
+  {{ end }}
+  {{ if eq .PageID "decks-public-show" }}
+    <link rel="stylesheet" href="/assets/public_deck.css">
+  {{ end }}
+  {{ if eq .PageID "deck-show" }}
+    <link rel="stylesheet" href="/assets/deck_show.css">
+    <script src="/assets/deck_show.js" defer></script>
+  {{ end }}
+  {{ if or (eq .PageID "decks-import") (eq .PageID "decks-workbench-import-seed") }}
+    <link rel="stylesheet" href="/assets/decks_import.css">
+  {{ end }}
+  {{ if eq .PageID "guess-card" }}
+    <link rel="stylesheet" href="/assets/guess_card.css">
+    <script src="/assets/guess_card.js" defer></script>
+  {{ end }}
+  {{ if eq .PageID "spellify" }}
+    <link rel="stylesheet" href="/assets/spellify.css">
+    <script src="/assets/spellify.js" defer></script>
+  {{ end }}
+  {{ if eq .PageID "pack-opening" }}
+    <link rel="stylesheet" href="/assets/pack_opening.css">
+    <script src="/assets/pack_opening.js" defer></script>
+  {{ end }}
+  {{ if or (eq .PageID "login") (eq .PageID "signup") (eq .PageID "forgot-password") (eq .PageID "reset-password") }}
+    <link rel="stylesheet" href="/assets/auth.css">
+  {{ end }}
+  {{ if eq .PageID "settings" }}
+    <link rel="stylesheet" href="/assets/settings.css">
+  {{ end }}
+  {{ if eq .PageID "commanders-search" }}
+    <link rel="stylesheet" href="/assets/commanders_search.css">
+  {{ end }}
+  {{ if or (eq .PageID "home") (eq .PageID "decks-list") }}
+    <link rel="stylesheet" href="/assets/account_pages.css">
+  {{ end }}
+  {{ if or (eq .PageID "changelog") (eq .PageID "privacy") (eq .PageID "terms") (eq .PageID "rules-home") (eq .PageID "error") (eq .PageID "not-found") }}
+    <link rel="stylesheet" href="/assets/static_pages.css">
+  {{ end }}
+  {{ if eq .PageID "profile-show" }}
+    <link rel="stylesheet" href="/assets/profile.css">
+  {{ end }}
 </head>
-<body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+<body id="top" class="mt-app min-h-screen antialiased" data-page="{{ .PageID }}">
+  <script>
+    (function () {
+      var themeMeta = document.querySelector('meta[name="theme-color"]');
+      var themeBackground = getComputedStyle(document.documentElement).getPropertyValue('--mt-palette-bg').trim();
+      if (themeMeta && themeBackground) themeMeta.content = themeBackground;
+    })();
+  </script>
+  <a class="mt-skip-link" href="#main-content">Skip to content</a>
   <div class="min-h-screen flex flex-col">
     {{ if not .HideHeader }}
-      <header class="mt-site-header border-b border-slate-800 bg-slate-900/80 backdrop-blur">
+      <header class="mt-site-header">
         <div class="mt-site-header__inner max-w-7xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-          <a href="/" class="flex shrink-0 items-center gap-2">
-            <div class="h-7 w-7 rounded-full border border-sky-400/60 bg-sky-500/10 flex items-center justify-center text-sky-300 font-bold text-xs">
-              MT
-            </div>
-            <span class="text-base font-semibold tracking-wide">Mana Tomb</span>
+          <a href="/" class="mt-site-brand shrink-0">
+            <span class="mt-site-brand__mark" aria-hidden="true">MT</span>
+            <span class="mt-site-brand__name">ManaTomb</span>
           </a>
 
-          <form action="/cards" method="GET" class="flex-1 min-w-0">
+          <form action="/cards" method="GET" class="mt-site-search flex-1 min-w-0" role="search" aria-label="Card search">
             <input type="hidden" name="sort" value="relevance">
             <input type="hidden" name="sort_dir" value="desc">
             <label for="site-card-search" class="sr-only">Search cards</label>
-            <div class="relative" data-card-autocomplete-root>
-              <input
-                id="site-card-search"
-                name="q"
-                type="text"
-                placeholder="Search cards"
-                class="mt-control mt-control--sm w-full !pr-24"
-                autocomplete="off"
-                aria-autocomplete="list"
-                aria-expanded="false"
-                aria-haspopup="listbox"
-                data-card-autocomplete-input
-              />
-              <div
-                data-card-autocomplete-menu
-                class="mt-autocomplete-menu hidden absolute left-0 right-0 top-[calc(100%+0.35rem)] rounded-xl border border-slate-700 bg-slate-950 shadow-2xl shadow-slate-950/70"
-                role="listbox"></div>
-              <button
-                type="submit"
-                class="mt-header-search-submit absolute right-1 top-1/2 mt-btn mt-btn--primary mt-btn--xs"
-              >
-                Search
-              </button>
+            <div class="mt-site-search-shell">
+              <div class="relative flex min-w-0 flex-1" data-card-autocomplete-root>
+                <input
+                  id="site-card-search"
+                  name="q"
+                  type="search"
+                  placeholder="Search cards"
+                  class="mt-control mt-control--sm mt-site-search-input flex-1"
+                  autocomplete="off"
+                  aria-autocomplete="list"
+                  aria-controls="site-card-search-results"
+                  aria-expanded="false"
+                  aria-haspopup="listbox"
+                  data-card-autocomplete-input
+                />
+                <div
+                  id="site-card-search-results"
+                  data-card-autocomplete-menu
+                  class="mt-autocomplete-menu hidden absolute left-0 right-0 top-[calc(100%+0.35rem)]"
+                  role="listbox"></div>
+              </div>
+              <a href="/cards/random" class="mt-site-search-random">Random Card</a>
             </div>
+            <button type="submit" class="sr-only">Search cards</button>
           </form>
 
           <button type="button"
@@ -2119,22 +2456,29 @@
 
           <nav id="site-primary-navigation" class="mt-site-nav" aria-label="Primary navigation" data-open="false" data-site-nav>
             <div class="mt-site-nav__primary">
-              <a href="/decks/new" class="mt-nav-link"{{ if eq .ActiveNav "builder" }} aria-current="page"{{ end }}>Builder</a>
+              <a href="/decks/new" class="mt-nav-link"{{ if eq .ActiveNav "builder" }} aria-current="page"{{ end }}>Build a Deck</a>
               <a href="/cards/search" class="mt-nav-link"{{ if eq .ActiveNav "cards" }} aria-current="page"{{ end }}>Advanced Search</a>
-              <a href="/decks/public" class="mt-nav-link"{{ if eq .ActiveNav "public-decks" }} aria-current="page"{{ end }}>Browse Decks</a>
+              <a href="/decks/public" class="mt-nav-link"{{ if eq .ActiveNav "public-decks" }} aria-current="page"{{ end }}>Browse Public Decks</a>
               {{ if .CurrentUser }}
-                <a href="/decks" class="mt-nav-link"{{ if eq .ActiveNav "my-decks" }} aria-current="page"{{ end }}>My Decks</a>
                 <a href="{{ userProfilePath .CurrentUser.ID }}" class="mt-nav-link"{{ if eq .ActiveNav "profile" }} aria-current="page"{{ end }}>Profile</a>
               {{ end }}
             </div>
             <div class="mt-site-nav__account">
               {{ if .CurrentUser }}
-                <a href="/settings" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2"{{ if eq .ActiveNav "settings" }} aria-current="page"{{ end }}>
-                  Settings
+                <a href="/decks" class="mt-btn mt-btn--primary mt-btn--sm mt-site-account-action"{{ if eq .ActiveNav "my-decks" }} aria-current="page"{{ end }}>
+                  My Decks
                 </a>
               {{ else }}
-                <a href="/login" class="mt-btn mt-btn--secondary text-xs !px-3 !py-2"{{ if eq .ActiveNav "login" }} aria-current="page"{{ end }}>
-                  Log In
+                {{ $guestAuthNext := "" }}
+                {{ if eq .PageID "deck-show" }}
+                  {{ $guestAuthNext = .Data.GuestAuthNextPath }}
+                {{ end }}
+                {{ $guestLoginPath := "/login" }}
+                {{ if $guestAuthNext }}
+                  {{ $guestLoginPath = print "/login?next=" (urlquery $guestAuthNext) }}
+                {{ end }}
+                <a href="{{ $guestLoginPath }}" class="mt-btn mt-btn--primary mt-btn--sm mt-site-account-action"{{ if eq .ActiveNav "login" }} aria-current="page"{{ end }}{{ if $guestAuthNext }} data-guest-auth-save-link{{ end }}>
+                  Sign In/Sign Up
                 </a>
               {{ end }}
             </div>
@@ -2182,16 +2526,16 @@
       </header>
     {{ end }}
 
-        <main class="flex-1">
-      <div class="{{ if .WideLayout }}w-full px-0 {{ if .HideHeader }}py-3{{ else }}py-6{{ end }}{{ else }}max-w-5xl mx-auto px-4 py-6{{ end }}">
-        {{ if .Flash }}
-          <div class="mb-3 rounded-md border border-sky-500/60 bg-sky-500/10 px-3 py-2 text-sm text-sky-200">
+    <main id="main-content" class="flex-1" tabindex="-1">
+      <div class="mt-page-shell {{ if .WideLayout }}w-full px-0 {{ if .HideHeader }}py-3{{ else }}py-6{{ end }}{{ else }}max-w-5xl mx-auto px-4 py-6{{ end }}">
+        {{ if and .Flash (ne .PageID "guess-card") (ne .PageID "spellify") }}
+          <div class="mt-flash mt-flash--info" role="status">
             {{ .Flash }}
           </div>
         {{ end }}
 
         {{ if .Error }}
-          <div class="mb-4 rounded-md border border-red-500/70 bg-red-900/40 px-3 py-2 text-sm text-red-200">
+          <div id="site-error" class="mt-flash mt-flash--error" role="alert">
             {{ .Error }}
           </div>
         {{ end }}
