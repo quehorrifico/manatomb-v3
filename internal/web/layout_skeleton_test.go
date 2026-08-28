@@ -41,7 +41,7 @@ func TestSharedLayoutProvidesSkipNavigationAndBrowserIdentity(t *testing.T) {
 	for _, needle := range []string{
 		`<meta name="theme-color" content="#0b1512">`,
 		`getPropertyValue('--mt-palette-bg')`,
-		`<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">`,
+		`<link rel="icon" href="/assets/manatomb-square-logo.svg" type="image/svg+xml">`,
 		`<a class="mt-skip-link" href="#main-content">Skip to content</a>`,
 		`<main id="main-content" class="flex-1" tabindex="-1">`,
 	} {

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -42,8 +43,10 @@ func (a *App) HandleDeckList(w http.ResponseWriter, r *http.Request) {
 	for _, d := range userDecks {
 		item := deckListItem{
 			ID:            d.ID,
+			DeckPath:      "/decks/" + strconv.FormatInt(d.ID, 10),
 			Name:          d.Name,
 			Description:   d.Description,
+			Tags:          d.Tags,
 			Format:        d.Format,
 			CommanderName: d.CommanderName,
 			IsPublic:      d.IsPublic,
@@ -149,6 +152,19 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	if decks.FormatRequiresCommander(format) {
+		selected, err := cards.GetCardByName(r.Context(), a.DB, commander)
+		if err != nil || !isCommanderCandidateAllowed(selected.IsCommanderCandidate, selected.TypeLine) {
+			a.renderDeckNew(w, user, "", "That card cannot be used as a commander.", deckNewPageData{
+				Format:        format,
+				CommanderName: commander,
+				Name:          name,
+				Description:   desc,
+				PowerBracket:  powerBracket,
+			})
+			return
+		}
+	}
 
 	// Basic validation: require a name
 	if name == "" {
@@ -176,8 +192,14 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 		PowerBracket:     powerBracket,
 	})
 	if err != nil {
-		// Use our pretty 500 page + logging
-		a.RenderServerError(w, r, err)
+		log.Printf("deck creation failed: user_id=%d error=%v", user.ID, err)
+		a.renderDeckNew(w, user, "", "We couldn't create your deck. Please try again.", deckNewPageData{
+			Format:        format,
+			CommanderName: commander,
+			Name:          name,
+			Description:   desc,
+			PowerBracket:  powerBracket,
+		})
 		return
 	}
 
@@ -303,6 +325,16 @@ func (a *App) HandleDeckCommanderSelect(w http.ResponseWriter, r *http.Request) 
 		setFlash(w, "Please choose a commander card first.")
 		http.Redirect(w, r, "/commanders/search?return_to="+url.QueryEscape(returnTo), http.StatusSeeOther)
 		return
+	}
+	// Search results are already constrained, but validate the choice again so
+	// a forged or stale form cannot start a Commander deck with a Battle.
+	if a.DB != nil {
+		selected, err := cards.GetCardByName(r.Context(), a.DB, commander)
+		if err != nil || !isCommanderCandidateAllowed(selected.IsCommanderCandidate, selected.TypeLine) {
+			setFlash(w, "That card cannot be used as a commander.")
+			http.Redirect(w, r, commanderDeckBuilderPath(commanderDeckBuilderState{Query: commander}), http.StatusSeeOther)
+			return
+		}
 	}
 
 	if isDeckSettingsPath(returnTo) {

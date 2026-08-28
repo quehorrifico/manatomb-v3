@@ -6,7 +6,7 @@
            data-format="{{ .Format }}"
            data-power="{{ .PowerBracket }}"
            data-search="{{ .Name }} {{ .CommanderName }} {{ .Format }} {{ .Tags }} {{ .Description }}"{{ end }}>
-    <a href="/decks/public/{{ .PublicSlug }}"
+    <a href="{{ if .DeckPath }}{{ .DeckPath }}{{ else }}/decks/public/{{ .PublicSlug }}{{ end }}"
        class="mt-deck-tile__link"
        aria-label="Open {{ .Name }}"></a>
 
@@ -45,17 +45,17 @@
         {{ end }}
       </div>
 
-      {{ if .CommanderName }}
-        <p class="mt-deck-tile__commander"><span>Commander:</span> {{ .CommanderName }}</p>
+      {{ if eq .Format "Commander" }}
+        <p class="mt-deck-tile__commander"><span>Commander:</span> {{ if .CommanderName }}{{ .CommanderName }}{{ else }}Not selected{{ end }}</p>
+        {{ if .PowerBracket }}
+          <p class="mt-deck-tile__commander"><span>Bracket:</span> {{ .PowerBracket }}</p>
+        {{ end }}
+      {{ else }}
+        <p class="mt-deck-tile__commander"><span>Format:</span> {{ if .Format }}{{ .Format }}{{ else }}Sandbox{{ end }}</p>
       {{ end }}
       {{ if .Description }}
         <p class="mt-deck-tile__description">{{ .Description }}</p>
       {{ end }}
-
-      <div class="mt-deck-tile__meta">
-        <span class="mt-chip">{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
-        {{ if .PowerBracket }}<span class="mt-chip">{{ .PowerBracket }}</span>{{ end }}
-      </div>
 
       {{ if or .Tags .PublishedLabel }}
         <div class="mt-deck-tile__footer">

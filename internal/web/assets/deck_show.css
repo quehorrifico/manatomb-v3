@@ -1607,6 +1607,10 @@ body[data-page="deck-show"] .mt-action-menu > summary {
   box-shadow: none;
 }
 
+body[data-page="deck-show"] .mt-deck-qty-btn--bulk {
+  min-width: 2.35rem;
+}
+
 body[data-page="deck-show"] .mt-deck-board-switch__btn {
   color: var(--mt-text-muted);
 }

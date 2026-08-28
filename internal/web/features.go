@@ -1062,8 +1062,7 @@ func recordGuessCardFinalGuess(
 
 	result := guessCardAttemptResult{GuessCount: guessCount, Won: true}
 	awardEligible := userID.Valid && userID.Int64 > 0 &&
-		isDaily && strings.TrimSpace(dailyKey) == guessCardDailyKey(time.Now().UTC()) &&
-		guessCount < guessCardAwardGuessLimit
+		guessCardGameAwardEligible(guessCardGame{IsDaily: isDaily, DailyKey: dailyKey})
 	if awardEligible {
 		awardScryfallID := strings.TrimSpace(card.ID)
 		if awardScryfallID == "" {
@@ -1505,6 +1504,9 @@ func completeSpellifyGame(ctx context.Context, db *sql.DB, gameID int64, player 
 func completeSpellifyGameWithAward(ctx context.Context, db *sql.DB, game spellifyGame, card cards.Card) error {
 	if game.UserID <= 0 {
 		return errors.New("guest games cannot create awards")
+	}
+	if !game.IsDaily || strings.TrimSpace(game.DailyKey) != guessCardDailyKey(time.Now().UTC()) {
+		return errors.New("only the first Tombscript game of the day can create awards")
 	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

@@ -265,11 +265,39 @@ func faceMatchesCommanderCandidateRule(typeLine, oracleText string) bool {
 	return isLegendaryCreatureType(typeLine) || hasCommanderText(oracleText)
 }
 
+func isBattleTypeLine(typeLine string) bool {
+	for _, word := range strings.FieldsFunc(strings.ToLower(typeLine), func(r rune) bool {
+		return r < 'a' || r > 'z'
+	}) {
+		if word == "battle" {
+			return true
+		}
+	}
+	return false
+}
+
+func isBattleCard(sc scryfallCard) bool {
+	if isBattleTypeLine(sc.TypeLine) {
+		return true
+	}
+	for _, face := range sc.CardFaces {
+		if isBattleTypeLine(face.TypeLine) {
+			return true
+		}
+	}
+	return false
+}
+
 func isCommanderCandidate(sc scryfallCard) bool {
 	if sc.Legalities == nil || !strings.EqualFold(strings.TrimSpace(sc.Legalities["commander"]), "legal") {
 		return false
 	}
 	if !supportsPaper(sc.Games) {
+		return false
+	}
+	// A transforming Battle can have a legendary creature on its reverse face,
+	// but Battles are never legal commander choices.
+	if isBattleCard(sc) {
 		return false
 	}
 

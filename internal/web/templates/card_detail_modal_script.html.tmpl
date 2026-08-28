@@ -36,7 +36,8 @@
     var priceEl = modal.querySelector('[data-field="price-usd"]');
     var artistEl = modal.querySelector('[data-field="artist"]');
     var printingGroupEl = modal.querySelector('[data-field="printing-group"]');
-    var printingSelectEl = modal.querySelector('[data-field="printing-select"]');
+    var printingLabelEl = modal.querySelector('[data-field="printing-label"]');
+    var printingGridEl = modal.querySelector('[data-field="printing-grid"]');
     var printingMetaEl = modal.querySelector('[data-field="printing-meta"]');
     var stickyNameInputEl = modal.querySelector('[data-field="sticky-name-input"]');
     var stickyPrintInputEl = modal.querySelector('[data-field="sticky-print-input"]');
@@ -53,6 +54,7 @@
 	    var currentVersions = [];
 	    var currentVersionContext = null;
 	    var currentPreferredPrintID = '';
+	    var currentVersionIndex = 0;
 	    var modalRequestToken = 0;
 
     function buildDetailPath(oracleID) {
@@ -253,41 +255,63 @@
       printingMetaEl.classList.toggle('hidden', bits.length === 0);
     }
 
+	    function printingImageURI(version) {
+	      var image = trimValue(version && version.image_uri);
+	      if (!image && version && Array.isArray(version.faces) && version.faces.length > 0) {
+	        image = trimValue(version.faces[0] && version.faces[0].image_uri);
+	      }
+	      return image;
+	    }
+
 	    function populatePrintings(versions, selectedIndex) {
-	      if (!printingSelectEl) return;
-      printingSelectEl.innerHTML = '';
-      if (!Array.isArray(versions) || versions.length === 0) {
-        var emptyOpt = document.createElement('option');
-        emptyOpt.value = '0';
-        emptyOpt.textContent = 'Latest printing';
-        printingSelectEl.appendChild(emptyOpt);
-        printingSelectEl.disabled = true;
-        setPrintingsVisible(false);
-        return;
-      }
+	      if (!printingGridEl) return;
+	      printingGridEl.innerHTML = '';
+	      if (!Array.isArray(versions) || versions.length <= 1) {
+	        setPrintingsVisible(false);
+	        return;
+	      }
 
-      if (versions.length <= 1) {
-        var singleOpt = document.createElement('option');
-        singleOpt.value = '0';
-        singleOpt.textContent = 'Latest printing';
-        printingSelectEl.appendChild(singleOpt);
-        printingSelectEl.disabled = true;
-        setPrintingsVisible(false);
-        return;
-      }
+	      setPrintingsVisible(true);
+	      if (printingLabelEl) {
+	        printingLabelEl.textContent = currentVersionContext && typeof currentVersionContext.onSelect === 'function'
+	          ? 'Change version'
+	          : 'Printing';
+	      }
+	      var idx = Number(selectedIndex || 0);
+	      if (!Number.isFinite(idx) || idx < 0 || idx >= versions.length) idx = 0;
+	      currentVersionIndex = idx;
+	      for (var i = 0; i < versions.length; i++) {
+	        var version = versions[i];
+	        var label = formatPrintingLabel(version, i);
+	        var button = document.createElement('button');
+	        button.type = 'button';
+	        button.className = 'mt-card-detail-modal__printing-choice';
+	        button.setAttribute('role', 'option');
+	        button.setAttribute('data-printing-index', String(i));
+	        button.setAttribute('aria-label', label);
+	        button.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+	        var imageURI = printingImageURI(version);
+	        if (imageURI) {
+	          var image = document.createElement('img');
+	          image.src = imageURI;
+	          image.alt = label;
+	          image.loading = 'lazy';
+	          button.appendChild(image);
+	        } else {
+	          var fallback = document.createElement('span');
+	          fallback.textContent = label;
+	          button.appendChild(fallback);
+	        }
+	        printingGridEl.appendChild(button);
+	      }
+	    }
 
-      setPrintingsVisible(true);
-      for (var i = 0; i < versions.length; i++) {
-        var option = document.createElement('option');
-        option.value = String(i);
-        option.textContent = formatPrintingLabel(versions[i], i);
-        printingSelectEl.appendChild(option);
-      }
-
-      printingSelectEl.disabled = false;
-      var idx = Number(selectedIndex || 0);
-      if (!Number.isFinite(idx) || idx < 0 || idx >= versions.length) idx = 0;
-	      printingSelectEl.value = String(idx);
+	    function setSelectedPrinting(index) {
+	      currentVersionIndex = index;
+	      if (!printingGridEl) return;
+	      printingGridEl.querySelectorAll('[data-printing-index]').forEach(function (button) {
+	        button.setAttribute('aria-selected', button.getAttribute('data-printing-index') === String(index) ? 'true' : 'false');
+	      });
 	    }
 
 	    function selectedVersionIndex(versions, preferredPrintID) {
@@ -302,7 +326,11 @@
 	    }
 
     function setVersionsLoading(loading) {
-      if (printingSelectEl && loading) printingSelectEl.disabled = true;
+      if (printingGridEl) {
+        printingGridEl.querySelectorAll('button').forEach(function (button) {
+          button.disabled = !!loading;
+        });
+      }
       if (modalPanelEl) {
         if (loading) modalPanelEl.setAttribute('aria-busy', 'true');
         else modalPanelEl.removeAttribute('aria-busy');
@@ -386,6 +414,22 @@
 
       if (priceEl) {
         priceEl.textContent = formatPriceDisplay(version.price_usd);
+      }
+    }
+
+    function selectPrinting(index, notify) {
+      var idx = Number(index || 0);
+      if (!Number.isFinite(idx) || idx < 0 || idx >= currentVersions.length) idx = 0;
+      var version = currentVersions[idx];
+      if (!version) return;
+      setSelectedPrinting(idx);
+      applyVersion(version);
+      currentPreferredPrintID = trimValue(version.scryfall_id);
+      if (notify && currentVersionContext && typeof currentVersionContext.onSelect === 'function') {
+        currentVersionContext.onSelect(version, {
+          index: idx,
+          versions: currentVersions.slice(),
+        });
       }
     }
 
@@ -491,6 +535,7 @@
 	      currentVersions = [payloadToVersion(payload)];
 	      var selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
 	      populatePrintings(currentVersions, selectedIdx);
+	      setSelectedPrinting(selectedIdx);
 	      applyVersion(currentVersions[selectedIdx]);
 	      if (modal.classList.contains('hidden')) {
 	        restoreFocusEl = document.activeElement;
@@ -517,6 +562,7 @@
 	          currentVersions = [payloadToVersion(payload)];
 	          selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
 	          populatePrintings(currentVersions, selectedIdx);
+	          setSelectedPrinting(selectedIdx);
 	          applyVersion(currentVersions[selectedIdx]);
 	        }
 	      }
@@ -528,9 +574,11 @@
 	      if (!loadedVersions || loadedVersions.length === 0) {
 	        selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
 	        populatePrintings(currentVersions, selectedIdx);
+	        setSelectedPrinting(selectedIdx);
 	        applyVersion(currentVersions[selectedIdx]);
-	        if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
-	          printingSelectEl.focus();
+	        if (payload.detailMode === 'versions' && printingGridEl && currentVersions.length > 1) {
+	          var selectedButton = printingGridEl.querySelector('[aria-selected="true"]');
+	          if (selectedButton) selectedButton.focus();
         }
         setVersionsLoading(false);
         return;
@@ -539,10 +587,12 @@
 	      currentVersions = loadedVersions;
 	      selectedIdx = selectedVersionIndex(currentVersions, currentPreferredPrintID);
 	      populatePrintings(currentVersions, selectedIdx);
+	      setSelectedPrinting(selectedIdx);
 	      applyVersion(currentVersions[selectedIdx]);
 	      setVersionsLoading(false);
-	      if (payload.detailMode === 'versions' && printingSelectEl && currentVersions.length > 1) {
-	        printingSelectEl.focus();
+	      if (payload.detailMode === 'versions' && printingGridEl && currentVersions.length > 1) {
+	        var selectedButton = printingGridEl.querySelector('[aria-selected="true"]');
+	        if (selectedButton) selectedButton.focus();
       }
     }
 
@@ -585,19 +635,12 @@
       }
     });
 
-	    if (printingSelectEl) {
-	      printingSelectEl.addEventListener('change', function () {
-	        var idx = Number(printingSelectEl.value || '0');
-	        if (!Number.isFinite(idx) || idx < 0 || idx >= currentVersions.length) idx = 0;
-	        var version = currentVersions[idx];
-	        applyVersion(version);
-	        currentPreferredPrintID = trimValue(version && version.scryfall_id);
-	        if (currentVersionContext && typeof currentVersionContext.onSelect === 'function') {
-	          currentVersionContext.onSelect(version, {
-	            index: idx,
-	            versions: currentVersions.slice(),
-	          });
-	        }
+
+	    if (printingGridEl) {
+	      printingGridEl.addEventListener('click', function (event) {
+	        var button = event.target.closest('[data-printing-index]');
+	        if (!button || !printingGridEl.contains(button)) return;
+	        selectPrinting(button.getAttribute('data-printing-index'), true);
 	      });
 	    }
 
@@ -615,14 +658,7 @@
       flipBtn.addEventListener('click', function () {
         if (!currentFaces || currentFaces.length < 2) return;
         currentFaceIndex = (currentFaceIndex + 1) % currentFaces.length;
-        var selectedIdx = 0;
-        if (printingSelectEl) {
-          selectedIdx = Number(printingSelectEl.value || '0');
-          if (!Number.isFinite(selectedIdx) || selectedIdx < 0 || selectedIdx >= currentVersions.length) {
-            selectedIdx = 0;
-          }
-        }
-        renderFace(currentFaces[currentFaceIndex], currentVersions[selectedIdx] || null);
+        renderFace(currentFaces[currentFaceIndex], currentVersions[currentVersionIndex] || null);
       });
     }
 

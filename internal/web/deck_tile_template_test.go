@@ -8,7 +8,7 @@ import (
 	"manatomb/app/internal/account"
 )
 
-func TestProfileAndBrowseRenderTheSameSharedDeckTile(t *testing.T) {
+func TestDeckLibrariesRenderTheSharedDeckTile(t *testing.T) {
 	item := deckListItem{
 		ID:                  7,
 		Name:                "Shared Tile Test",
@@ -34,14 +34,40 @@ func TestProfileAndBrowseRenderTheSameSharedDeckTile(t *testing.T) {
 		Items: []deckListItem{item},
 		Sort:  "recent",
 	}})
+	mine := renderTemplate(t, "decks_list", TemplateData{Data: []deckListItem{{
+		ID:                  item.ID,
+		DeckPath:            "/decks/7",
+		Name:                item.Name,
+		Description:         item.Description,
+		Tags:                item.Tags,
+		Format:              item.Format,
+		CommanderName:       item.CommanderName,
+		CommanderArtCropURI: item.CommanderArtCropURI,
+		ColorPips:           item.ColorPips,
+		ColorIdentityName:   item.ColorIdentityName,
+		PowerBracket:        item.PowerBracket,
+	}}})
 
 	profileTile := renderedDeckTile(t, profile)
 	browseTile := renderedDeckTile(t, browse)
 	if profileTile != browseTile {
 		t.Fatalf("profile and browse deck tiles drifted apart:\nprofile: %s\nbrowse: %s", profileTile, browseTile)
 	}
+	myTile := renderedDeckTile(t, mine)
+	for _, needle := range []string{
+		`href="/decks/7"`,
+		`<span>Commander:</span> Muldrotha, the Gravetide`,
+		`<span>Bracket:</span> 3 - Upgraded`,
+	} {
+		if !strings.Contains(myTile, needle) {
+			t.Fatalf("My Decks shared tile missing %q: %s", needle, myTile)
+		}
+	}
+	if strings.Contains(myTile, `mt-deck-tile__meta`) {
+		t.Fatalf("shared deck tile retained the old format pill: %s", myTile)
+	}
 
-	for _, page := range []string{profile, browse} {
+	for _, page := range []string{profile, browse, mine} {
 		if !strings.Contains(page, `href="/assets/deck_tile.css"`) {
 			t.Fatal("page using the shared deck tile is missing its shared stylesheet")
 		}
@@ -62,9 +88,14 @@ func TestDeckTileMarkupAndStylesHaveOneOwner(t *testing.T) {
 		t.Fatalf("read shared deck tile template: %v", err)
 	}
 
+	myDecksTemplate, err := os.ReadFile("templates/decks_list.html.tmpl")
+	if err != nil {
+		t.Fatalf("read My Decks template: %v", err)
+	}
 	for name, source := range map[string]string{
-		"profile": string(profileTemplate),
-		"browse":  string(browseTemplate),
+		"profile":  string(profileTemplate),
+		"browse":   string(browseTemplate),
+		"my decks": string(myDecksTemplate),
 	} {
 		if !strings.Contains(source, `{{ template "deck_tile" . }}`) {
 			t.Fatalf("%s template does not call the shared deck tile", name)

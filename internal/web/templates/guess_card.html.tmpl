@@ -77,9 +77,6 @@
               <section id="exact-guess" class="mt-guess-game__guess" aria-labelledby="guess-card-final-title" tabindex="-1">
                 <div class="mt-guess-game__guess-heading">
                   <h2 id="guess-card-final-title">Name the card</h2>
-                  {{ if and $ctx.IsDaily $ctx.HasAccount (gt $ctx.AwardGuessesLeft 0) }}
-                    <span>{{ $ctx.AwardGuessesLeft }} award {{ if eq $ctx.AwardGuessesLeft 1 }}guess{{ else }}guesses{{ end }}</span>
-                  {{ end }}
                 </div>
                 <form method="POST" action="/games/guess-card" class="mt-guess-game__guess-form" data-guess-card-guess-form>
                   <input type="hidden" name="action" value="guess">
@@ -219,7 +216,7 @@
           <p>Nonland mystery cards come from Scryfall’s EDHREC ranks 1–250 and have a supported paper printing, card art, and legality in at least one tracked format. Daily uses one shared card; practice chooses randomly from the same pool.</p>
         </div>
         <p class="mt-guess-help__note">
-          {{ if not $ctx.IsDaily }}Practice rounds do not award cards.{{ else if not $ctx.HasAccount }}Play as a guest, or sign in before a future Daily game to earn card awards.{{ else }}Solve the Daily card in nine or fewer card guesses to add it to your profile.{{ end }}
+          {{ if not $ctx.IsDaily }}This is a just-for-fun round. Only your first Guess the Card game each day can win a card.{{ else if not $ctx.HasAccount }}This is your first game today, but guest rounds cannot win cards. Sign in before starting your first game tomorrow to be eligible.{{ else }}This is your first game today and the only prize-eligible Guess the Card round. Solve it to win the card; every later round today is just for fun.{{ end }}
         </p>
       </div>
     </div>

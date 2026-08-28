@@ -183,7 +183,7 @@ func buildWorkspaceStateFromDeck(
 				Rarity:               strings.TrimSpace(commanderCard.Rarity),
 				ReleasedAt:           strings.TrimSpace(commanderCard.ReleasedAt),
 				Artist:               strings.TrimSpace(commanderCard.Artist),
-				IsCommanderCandidate: true,
+				IsCommanderCandidate: isCommanderCandidateAllowed(commanderCard.IsCommanderCandidate, commanderCard.TypeLine),
 				Faces:                commanderCard.Faces,
 			}
 			state.CardMeta[name] = meta
@@ -239,7 +239,7 @@ func (a *App) loadSavedDeckWorkspace(ctx context.Context, userID, deckID int64) 
 				continue
 			}
 			resolved, ok := deckCardsByName[strings.ToLower(name)]
-			if ok && resolved.IsCommanderCandidate {
+			if ok && isCommanderCandidateAllowed(resolved.IsCommanderCandidate, resolved.TypeLine) {
 				commanderCandidates = append(commanderCandidates, commanderCandidate{CardName: name})
 			}
 		}

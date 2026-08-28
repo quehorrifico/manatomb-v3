@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Vector reconstruction of the supplied ManaTomb square logo. No fonts or external assets. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-labelledby="title description">
+  <title id="title">ManaTomb square logo</title>
+  <desc id="description">Gold MT monogram on a rounded, near-black navy app icon.</desc>
+  <defs>
+    <linearGradient id="navy" x1="134" y1="75" x2="1030" y2="1185" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#13233A"/>
+      <stop offset="0.42" stop-color="#0A1424"/>
+      <stop offset="1" stop-color="#040811"/>
+    </linearGradient>
+    <radialGradient id="navyBloom" cx="0" cy="0" r="1" gradientTransform="translate(612 386) rotate(90) scale(854 893)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#172942" stop-opacity="0.45"/>
+      <stop offset="0.63" stop-color="#0A1525" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#02050B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="292" y1="282" x2="792" y2="1020" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD97D"/>
+      <stop offset="0.31" stop-color="#F5B944"/>
+      <stop offset="0.65" stop-color="#D18C1D"/>
+      <stop offset="1" stop-color="#B56C12"/>
+    </linearGradient>
+    <linearGradient id="goldHighlight" x1="402" y1="272" x2="760" y2="729" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF0AC"/>
+      <stop offset="0.5" stop-color="#FFD875"/>
+      <stop offset="1" stop-color="#D69426"/>
+    </linearGradient>
+    <filter id="monogramShadow" x="204" y="226" width="846" height="839" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#00040B" flood-opacity="0.72"/>
+    </filter>
+    <clipPath id="roundedSquare">
+      <rect width="1254" height="1254" rx="267"/>
+    </clipPath>
+  </defs>
+
+  <!-- The source image has black outside the rounded app-icon field. -->
+  <rect width="1254" height="1254" rx="267" fill="url(#navy)"/>
+  <rect width="1254" height="1254" rx="267" fill="url(#navyBloom)"/>
+  <g clip-path="url(#roundedSquare)">
+    <rect x="2" y="2" width="1250" height="1250" rx="265" fill="none" stroke="#172945" stroke-opacity="0.24" stroke-width="4"/>
+  </g>
+
+  <!--
+    One closed silhouette for the complete MT monogram. This keeps the diagonal arms,
+    tapered side strokes, stem, and base perfectly joined at every scale.
+  -->
+  <path filter="url(#monogramShadow)" fill="url(#gold)" d="M269 274.3c-6.2 0-11.9 2.4-16.1 6.7-4.3 4.5-6.4 10.5-5.9 16.9l16.5 250.3c1.6 24.2-2.1 46.2-10.7 67.5-4.2 10.4-.8 22.3 8.1 28.9 8.8 6.5 20.9 5.8 28.9-1.8 7.5-7.1 9.5-17.4 5.2-26.6-7.8-18.9-10.2-41-8.7-67.7l8.4-153.1c1-25.7 18.6-42.3 37.8-31.3l258.1 150.2c8.8 5.1 13.3 12.7 13.3 22.8v409.2c0 22.6-11.7 36.7-32.2 36.7H470c-11.2 0-20.2 8.8-20.2 19.9 0 11 8.9 19.9 20.2 19.9h315.9c11.2 0 20.3-8.9 20.3-19.9 0-11.1-9.1-19.9-20.3-19.9H682.4c-20.6 0-32.3-14.1-32.3-36.7V536.7c0-10.1 4.5-17.7 13.3-22.8l258.1-150.2c19.2-11 36.9 5.6 37.8 31.3l8.4 153.1c1.5 26.7-.9 48.8-8.7 67.7-4.3 9.2-2.3 19.5 5.2 26.6 8 7.6 20.1 8.3 28.9 1.8 8.9-6.6 12.3-18.5 8.1-28.9-8.6-21.3-12.3-43.3-10.7-67.5l16.5-250.3c.5-6.4-1.6-12.4-5.9-16.9-4.2-4.3-9.9-6.7-16.1-6.7-4.8 0-9.1 1.5-13.2 3.9L642.1 476.3c-9.7 5.7-20.4 5.7-30.1 0L282.2 278.2c-4.1-2.4-8.4-3.9-13.2-3.9Z"/>
+
+  <!-- A restrained rim-light along the exposed upper edges of the original mark. -->
+  <path fill="none" stroke="url(#goldHighlight)" stroke-linecap="round" stroke-linejoin="round" stroke-width="4" opacity="0.68" d="M267.7 282.8 612 482.4c9.7 5.6 20.4 5.6 30.1 0l344.3-199.6M267.5 282.8c-5.5.5-10.2 6.1-9.8 12.1l16.4 253.8M986.5 282.8c5.5.5 10.2 6.1 9.8 12.1l-16.4 253.8M469.8 990.5h316.4"/>
+</svg>

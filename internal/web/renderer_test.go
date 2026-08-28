@@ -268,6 +268,7 @@ func TestDeckListTemplateUsesFlatThemeAwareLibraryAndMobileMenu(t *testing.T) {
 	body := renderTemplate(t, "decks_list", TemplateData{
 		Data: []deckListItem{{
 			ID:                1,
+			DeckPath:          "/decks/1",
 			Name:              "Header Test",
 			Description:       "A saved deck description.",
 			Format:            "Commander",
@@ -281,20 +282,24 @@ func TestDeckListTemplateUsesFlatThemeAwareLibraryAndMobileMenu(t *testing.T) {
 
 	for _, needle := range []string{
 		`href="/assets/account_pages.css"`,
+		`href="/assets/deck_tile.css"`,
 		`class="mt-account-page mt-deck-library"`,
 		`class="mt-deck-library__grid" aria-label="Saved decks"`,
-		`class="mt-deck-library-card"`,
-		`href="/decks/1" class="mt-deck-library-card__link"`,
+		`class="mt-deck-tile"`,
+		`href="/decks/1"`,
 		`loading="lazy"`,
-		`Commander</span>`,
+		`Commander:</span>`,
 		`Alela, Artful Provocateur`,
-		`href="/decks/public/header-test" class="mt-deck-library-card__public"`,
+		`Bracket:</span> 3 - Upgraded`,
 		`href="/decks/new"`,
 		`Build New Deck`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("decks_list template missing %q: %s", needle, body)
 		}
+	}
+	if strings.Contains(body, `href="/decks/public/header-test"`) || strings.Contains(body, `mt-deck-tile__meta`) {
+		t.Fatalf("My Decks should use the editor path and no format pill: %s", body)
 	}
 	if !strings.Contains(body, `data-site-menu-toggle`) || !strings.Contains(body, `aria-controls="site-primary-navigation"`) {
 		t.Fatalf("layout header did not render the mobile menu control: %s", body)

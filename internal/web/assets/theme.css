@@ -347,7 +347,7 @@ html[data-theme="ash"],
 }
 
 .mt-card-detail-modal__facts dt,
-.mt-card-detail-modal__printing-control > label {
+.mt-card-detail-modal__printing-label {
   color: var(--mt-text-muted);
   font-size: 0.68rem;
   font-weight: 700;
@@ -375,8 +375,64 @@ html[data-theme="ash"],
   gap: 0.4rem;
 }
 
-.mt-card-detail-modal__printing-control > .mt-control {
+.mt-card-detail-modal__printing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding: 0.1rem;
+  scrollbar-gutter: stable;
+}
+
+.mt-card-detail-modal__printing-choice {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  aspect-ratio: 0.714;
+  overflow: hidden;
+  border: 1px solid var(--mt-border-control);
+  border-radius: 0.35rem;
+  background: var(--mt-surface-strong);
+  padding: 0;
+  color: var(--mt-text);
+}
+
+.mt-card-detail-modal__printing-choice:hover {
+  border-color: var(--mt-border-strong);
+}
+
+.mt-card-detail-modal__printing-choice[aria-selected="true"] {
+  border-color: var(--mt-accent-strong);
+  box-shadow: 0 0 0 1px var(--mt-accent-strong);
+}
+
+.mt-card-detail-modal__printing-choice:focus-visible {
+  outline: 2px solid var(--mt-focus);
+  outline-offset: 2px;
+}
+
+.mt-card-detail-modal__printing-choice:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.mt-card-detail-modal__printing-choice img {
+  display: block;
   width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--mt-surface-strong);
+}
+
+.mt-card-detail-modal__printing-choice span {
+  display: grid;
+  place-items: center;
+  padding: 0.35rem;
+  color: var(--mt-text-muted);
+  font-size: 0.65rem;
+  line-height: 1.2;
+  text-align: center;
 }
 
 #card-detail-modal .mt-card-detail-modal__printing-meta[data-field="printing-meta"] {

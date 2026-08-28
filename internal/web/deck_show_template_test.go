@@ -376,6 +376,25 @@ func TestDeckShowDisplayControlsStayPredictableAndAccessible(t *testing.T) {
 	}
 }
 
+func TestDeckShowProvidesBulkBasicLandControls(t *testing.T) {
+	body := renderTemplate(t, "deck_show", TemplateData{
+		Data: deckPageData{Deck: &decks.Deck{Name: "Lands", Format: "Sandbox"}, WorkbenchMode: true},
+	})
+
+	for _, needle := range []string{
+		`function isBasicLandDeckCard(cardName, cardMeta)`,
+		`createDeckQuantityButton('-10'`,
+		`createDeckQuantityButton('+10'`,
+		`btn.classList.add('mt-deck-qty-btn--bulk');`,
+		`params.set('action', 'set_qty');`,
+		`beforeState.quantity + step`,
+	} {
+		if !strings.Contains(body, needle) {
+			t.Fatalf("deck editor bulk land controls missing %q", needle)
+		}
+	}
+}
+
 func TestDeckShowPreservesLegacyFormatWithoutOfferingIt(t *testing.T) {
 	body := renderTemplate(t, "deck_show", TemplateData{
 		CurrentUser: &account.User{ID: 7},

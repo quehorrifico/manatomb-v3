@@ -778,7 +778,7 @@ func (a *App) HandleDeckCommanderUpdate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	matched, ok := resolvedCommander[strings.ToLower(strings.TrimSpace(picked.CardName))]
-	if !ok || !matched.IsCommanderCandidate {
+	if !ok || !isCommanderCandidateAllowed(matched.IsCommanderCandidate, matched.TypeLine) {
 		if wantsJSONResponse(r) {
 			http.Error(w, "Could not update commander: that card is not a valid commander.", http.StatusBadRequest)
 			return

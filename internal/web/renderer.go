@@ -271,9 +271,9 @@ func applyPageSEODefaults(name string, page *TemplateData, publicBaseURL string)
 		meta.Type = "website"
 	}
 	if strings.TrimSpace(meta.ImageURL) == "" && !strings.HasPrefix(meta.Robots, "noindex") {
-		meta.ImageURL = absoluteSiteURL(publicBaseURL, "/assets/og.png")
+		meta.ImageURL = absoluteSiteURL(publicBaseURL, "/assets/manatomb-square-logo.png")
 		if meta.ImageURL != "" && strings.TrimSpace(meta.ImageAlt) == "" {
-			meta.ImageAlt = "ManaTomb card search, deck building, and play tools"
+			meta.ImageAlt = "ManaTomb logo"
 		}
 	}
 }

@@ -26,6 +26,8 @@ func TestSharedCardDetailModalUsesSemanticTombStructure(t *testing.T) {
 		`class="mt-card-detail-modal__oracle"`,
 		`class="mt-card-detail-modal__facts"`,
 		`class="mt-card-detail-modal__printing"`,
+		`data-field="printing-grid"`,
+		`role="listbox"`,
 		`View card page`,
 	} {
 		if !strings.Contains(modal, needle) {
@@ -63,6 +65,8 @@ func TestSharedCardDetailModalUsesThemeTokensAndAccessibleBehavior(t *testing.T)
 		`box-shadow: var(--mt-shadow-card);`,
 		`@media (max-width: 719px)`,
 		`max-width: min(68vw, 16rem);`,
+		`grid-template-columns: repeat(3, minmax(0, 1fr));`,
+		`object-fit: contain;`,
 	} {
 		if !strings.Contains(component, needle) {
 			t.Fatalf("shared card detail theme missing %q", needle)
@@ -89,6 +93,9 @@ func TestSharedCardDetailModalUsesThemeTokensAndAccessibleBehavior(t *testing.T)
 		`event.key !== 'Tab'`,
 		`last.focus()`,
 		`first.focus()`,
+		`data-printing-index`,
+		`Change version`,
+		`currentVersionContext.onSelect`,
 	} {
 		if !strings.Contains(script, needle) {
 			t.Fatalf("shared card detail script missing %q", needle)

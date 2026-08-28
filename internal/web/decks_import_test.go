@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
@@ -64,6 +65,24 @@ func TestWorkbenchImportPayloadGeneratesMissingNameAndPreservesExplicitName(t *t
 	named := workbenchPayloadFromImportReview(page, explicitName, "", false)
 	if named.Name != explicitName {
 		t.Fatalf("explicit imported deck name = %q, want %q", named.Name, explicitName)
+	}
+}
+
+func TestImportDraftJSONAcceptsRichClientCardMetadata(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/decks/import-draft", strings.NewReader(`{
+  "name":"Not Yet 100 Cards",
+  "format":"Commander",
+  "cards":[{"name":"Plains","qty":7}],
+  "card_meta":{"Plains":{"cardID":"oracle-id","name":"Plains","typeLine":"Basic Land — Plains","imageURI":"https://example.test/plains.jpg","unrelated_client_field":true}}
+}`))
+	var payload importDraftRequest
+	if err := parseImportDraftJSONBody(req, &payload); err != nil {
+		t.Fatalf("parseImportDraftJSONBody() rejected rich card metadata: %v", err)
+	}
+	if payload.Name != "Not Yet 100 Cards" || len(payload.Cards) != 1 || payload.CardMeta["Plains"].resolvedOracleID() != "oracle-id" {
+		t.Fatalf("decoded import payload = %#v", payload)
 	}
 }
 

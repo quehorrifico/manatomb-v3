@@ -281,6 +281,7 @@ func TestBuildCardSearchFiltersAdvanced(t *testing.T) {
 		"COALESCE(oc.legal_anywhere, TRUE) = TRUE",
 		"oc.commander_legal = TRUE",
 		"oc.is_commander_candidate = TRUE",
+		"lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'",
 		"oc.oracle_text NOT ILIKE '%' || $1 || '%'",
 		"oc.type_line ILIKE '%' || $2 || '%'",
 		"oc.type_line NOT ILIKE '%' || $3 || '%'",

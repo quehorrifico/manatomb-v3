@@ -18,6 +18,7 @@ import (
 // It includes the core deck fields plus an optional CommanderImageURI for UI use.
 type deckListItem struct {
 	ID                  int64
+	DeckPath            string
 	OwnerID             int64
 	OwnerDisplayName    string
 	Name                string
@@ -41,6 +42,23 @@ type manaPipView struct {
 	Symbol   string
 	Label    string
 	ImageURI string
+}
+
+// isCommanderCandidateAllowed supplements the persisted candidate flag while
+// old card-sync data is still present. A Battle is never a commander, even if
+// its reverse face is a legendary creature.
+func isCommanderCandidateAllowed(candidate bool, typeLine string) bool {
+	if !candidate {
+		return false
+	}
+	for _, word := range strings.FieldsFunc(strings.ToLower(typeLine), func(r rune) bool {
+		return r < 'a' || r > 'z'
+	}) {
+		if word == "battle" {
+			return false
+		}
+	}
+	return true
 }
 
 type deckNewPageData struct {

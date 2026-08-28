@@ -36,7 +36,7 @@
   {{ end }}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0b1512">
-  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/manatomb-square-logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/theme.css">
   <link rel="stylesheet" href="/assets/tailwind.css">
   <style>
@@ -213,18 +213,18 @@
 
     .mt-site-brand {
       display: inline-flex;
-      align-items: baseline;
+      align-items: center;
       gap: 0.45rem;
       color: var(--mt-text);
       text-decoration: none;
       white-space: nowrap;
     }
 
-    .mt-site-brand__mark {
-      color: var(--mt-accent-strong);
-      font-size: 0.76rem;
-      font-weight: 800;
-      letter-spacing: 0.12em;
+    .mt-site-brand__logo {
+      display: block;
+      width: 1.9rem;
+      height: 1.9rem;
+      border-radius: 0.45rem;
     }
 
     .mt-site-brand__name {
@@ -1445,7 +1445,7 @@
       overflow-wrap: anywhere;
     }
 
-    #card-detail-modal [data-field="printing-select"] {
+    #card-detail-modal [data-field="printing-grid"] {
       width: 100%;
       max-width: 100%;
     }
@@ -1706,6 +1706,13 @@
       line-height: 1;
       box-shadow: 0 8px 18px rgba(2, 6, 23, 0.18);
       transition: border-color 170ms ease, background-color 170ms ease, color 170ms ease, transform 170ms ease, box-shadow 170ms ease;
+    }
+
+    .mt-deck-qty-btn--bulk {
+      min-width: 2.35rem;
+      padding-inline: 0.24rem;
+      font-size: 0.66rem;
+      letter-spacing: -0.02em;
     }
 
     .mt-deck-control-icon {
@@ -2348,7 +2355,7 @@
   {{ if eq .PageID "decks-public" }}
     <link rel="stylesheet" href="/assets/decks_public.css">
   {{ end }}
-  {{ if or (eq .PageID "decks-public") (eq .PageID "profile-show") }}
+  {{ if or (eq .PageID "decks-public") (eq .PageID "profile-show") (eq .PageID "decks-list") }}
     <link rel="stylesheet" href="/assets/deck_tile.css">
   {{ end }}
   {{ if eq .PageID "decks-public-show" }}
@@ -2406,7 +2413,7 @@
       <header class="mt-site-header">
         <div class="mt-site-header__inner max-w-7xl mx-auto px-4 py-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
           <a href="/" class="mt-site-brand shrink-0">
-            <span class="mt-site-brand__mark" aria-hidden="true">MT</span>
+            <img class="mt-site-brand__logo" src="/assets/manatomb-square-logo.svg" alt="">
             <span class="mt-site-brand__name">ManaTomb</span>
           </a>
 

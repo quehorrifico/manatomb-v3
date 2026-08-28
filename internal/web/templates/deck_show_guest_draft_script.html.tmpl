@@ -1839,9 +1839,17 @@
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'mt-deck-qty-btn';
-      btn.setAttribute('aria-label', (delta > 0 ? 'Add copy of ' : 'Remove copy of ') + cardName);
-      btn.title = delta > 0 ? 'Add copy' : 'Remove copy';
-      btn.appendChild(createDeckControlIcon(delta > 0 ? 'plus' : 'minus'));
+      var quantity = Math.abs(Number(delta || 0)) || 1;
+      var action = delta > 0 ? 'Add ' : 'Remove ';
+      var copyLabel = quantity === 1 ? 'copy of ' : String(quantity) + ' copies of ';
+      btn.setAttribute('aria-label', action + copyLabel + cardName);
+      btn.title = action + copyLabel + cardName;
+      if (quantity === 10) {
+        btn.classList.add('mt-deck-qty-btn--bulk');
+        btn.textContent = label;
+      } else {
+        btn.appendChild(createDeckControlIcon(delta > 0 ? 'plus' : 'minus'));
+      }
       var canAdjust = typeof adjustQuantity === 'function' && (isGuest || !!(cardMeta && cardMeta.cardID) || !!cardName);
       btn.disabled = !canAdjust;
       if (canAdjust) {
@@ -1852,6 +1860,12 @@
         });
       }
       return btn;
+    }
+
+    function isBasicLandDeckCard(cardName, cardMeta) {
+      var typeLine = normalizeName(cardMeta && (cardMeta.typeLine || cardMeta.type_line) || '').toLowerCase();
+      if (typeLine.indexOf('basic') !== -1 && typeLine.indexOf('land') !== -1) return true;
+      return ['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes'].indexOf(normalizeName(cardName).toLowerCase()) !== -1;
     }
 
     function createDeckBoardMoveButton(label, targetBoard, row, cardMeta, moveBoard) {
@@ -1913,13 +1927,19 @@
       if (config.includeBoardSwitch !== false) {
         cluster.appendChild(createDeckBoardMoveControl(row, cardMeta, moveBoard, config.includeCurrentBoard !== false));
       }
+      if (isBasicLandDeckCard(row.cardName, cardMeta)) {
+        cluster.appendChild(createDeckQuantityButton('-10', row.cardName, cardMeta, -10, adjustQuantity));
+      }
       cluster.appendChild(createDeckQuantityButton('-', row.cardName, cardMeta, -1, adjustQuantity));
       cluster.appendChild(createActionMenu(row.cardName, cardMeta));
       cluster.appendChild(createDeckQuantityButton('+', row.cardName, cardMeta, 1, adjustQuantity));
+      if (isBasicLandDeckCard(row.cardName, cardMeta)) {
+        cluster.appendChild(createDeckQuantityButton('+10', row.cardName, cardMeta, 10, adjustQuantity));
+      }
       return cluster;
     }
 
-    function createDeckTextRow(row, createActionMenu, adjustQuantity, moveBoard) {
+    function createDeckTextRow(row, createActionMenu, adjustQuantity, moveBoard, openCard) {
       var cardMeta = row.cardMeta || {};
       var node = document.createElement('article');
       node.className = 'mt-list-row';
@@ -1934,7 +1954,7 @@
         String(row.qty) + 'x ' + row.cardName,
         'mt-list-row__title',
         function () {
-          openWorkbenchCardView(row.cardName, cardMeta);
+          openCard(row.cardName, cardMeta);
         }
       );
       bindDeckHoverPreview(title, row.cardName, cardMeta);
@@ -1960,12 +1980,12 @@
       node.appendChild(right);
       node.addEventListener('click', function (event) {
         if (event.target && event.target.closest('button, a, input, select, textarea, summary, details')) return;
-        openWorkbenchCardView(row.cardName, cardMeta);
+        openCard(row.cardName, cardMeta);
       });
       return node;
     }
 
-    function createDeckArtCard(row, createActionMenu, adjustQuantity, moveBoard, mode, stackIndex) {
+    function createDeckArtCard(row, createActionMenu, adjustQuantity, moveBoard, mode, stackIndex, openCard) {
       var cardMeta = row.cardMeta || {};
       var imageURI = normalizeName(cardMeta.imageURI || '');
       var viewMode = normalizeDeckViewMode(mode);
@@ -1984,9 +2004,7 @@
       media.type = 'button';
       media.className = 'mt-deck-art-card__media block w-full border-0 bg-transparent p-0 text-left';
       media.addEventListener('click', function () {
-        openWorkbenchCardView(row.cardName, cardMeta, {
-          imageURI: imageURI,
-        });
+        openCard(row.cardName, cardMeta, { imageURI: imageURI });
       });
 
       if (imageURI) {
@@ -2033,9 +2051,7 @@
         row.cardName,
         'mt-art-card__title',
         function () {
-          openWorkbenchCardView(row.cardName, cardMeta, {
-            imageURI: imageURI,
-          });
+          openCard(row.cardName, cardMeta, { imageURI: imageURI });
         }
       );
       title.title = row.cardName;
@@ -2050,7 +2066,7 @@
       return article;
     }
 
-    function createDeckTable(sections, createActionMenu, adjustQuantity, moveBoard, setQuantity) {
+    function createDeckTable(sections, createActionMenu, adjustQuantity, moveBoard, setQuantity, openCard) {
       var wrap = document.createElement('div');
       wrap.className = 'mt-deck-view-section__body mt-deck-view-section__body--table';
       var groupMode = normalizeDeckGroupMode(deckGroupMode);
@@ -2131,7 +2147,7 @@
               localName,
               'mt-deck-table__name',
               function () {
-                openWorkbenchCardView(localName, localMeta);
+                openCard(localName, localMeta);
               }
             );
           })(row.cardName, cardMeta);
@@ -2216,7 +2232,7 @@
           tr.addEventListener('click', (function (localName, localMeta) {
             return function (event) {
               if (event.target && event.target.closest('button, a, input, select, textarea, summary, details')) return;
-              openWorkbenchCardView(localName, localMeta);
+              openCard(localName, localMeta);
             };
           })(row.cardName, cardMeta));
           tbody.appendChild(tr);
@@ -2417,7 +2433,7 @@
       layoutDeckStackSection(container, -1);
     }
 
-    function renderDeckSections(rows, createActionMenu, adjustQuantity, moveBoard, setQuantity) {
+    function renderDeckSections(rows, createActionMenu, adjustQuantity, moveBoard, setQuantity, openCard) {
       if (!listEl) return;
       var focusedControlLabel = '';
       if (document.activeElement && listEl.contains(document.activeElement)) {
@@ -2452,7 +2468,7 @@
       if (viewMode === 'table') {
         var tableSection = document.createElement('section');
         tableSection.className = 'mt-deck-view-section mt-deck-view-section--table';
-        tableSection.appendChild(createDeckTable(sections, createActionMenu, adjustQuantity, moveBoard, setQuantity));
+        tableSection.appendChild(createDeckTable(sections, createActionMenu, adjustQuantity, moveBoard, setQuantity, openCard));
         listEl.appendChild(tableSection);
         restoreFocusedControl();
         return;
@@ -2468,9 +2484,9 @@
         for (var j = 0; j < section.rows.length; j++) {
           var row = section.rows[j];
           if (viewMode === 'text') {
-            body.appendChild(createDeckTextRow(row, createActionMenu, adjustQuantity, moveBoard));
+            body.appendChild(createDeckTextRow(row, createActionMenu, adjustQuantity, moveBoard, openCard));
           } else {
-            body.appendChild(createDeckArtCard(row, createActionMenu, adjustQuantity, moveBoard, viewMode, j));
+            body.appendChild(createDeckArtCard(row, createActionMenu, adjustQuantity, moveBoard, viewMode, j, openCard));
           }
         }
 
@@ -2890,12 +2906,39 @@
 	      return payload;
 	    }
 
+    function defaultWorkbenchVersionContext(cardName, cardMeta, opts) {
+      // A signed-in workbench is still a local draft, so its version changes
+      // are persisted to local storage. Saved decks provide their own context
+      // from initSavedDeckWorkspace(), where the server mutation helpers live.
+      if (!isSignedIn || !isGuest) return null;
+      var options = opts || {};
+      var name = normalizeName(cardName || (cardMeta && cardMeta.name) || '');
+      if (!name) return null;
+      var board = normalizeDeckBoardMode(options.board || deckBoardMode || 'main');
+      var currentCommander = currentCommanderForDraft(loadDraft() || {});
+      var isCommander = !!options.isCommander || (
+        formatUsesCommander(guestFormatField ? guestFormatField.value : deckFormat) &&
+        name.toLowerCase() === normalizeName(currentCommander).toLowerCase()
+      );
+
+      return {
+        onSelect: function (version) {
+          var draft = loadDraft() || {};
+          var targetBoard = isCommander ? (draftBoardForCard(draft, name) || 'main') : board;
+          applyGuestCardVersion(name, cardMeta, version, targetBoard);
+        }
+      };
+    }
+
     async function openWorkbenchCardView(cardName, cardMeta, opts) {
       var api = window.mtCardDetailModal;
       if (!api || typeof api.open !== 'function') return;
 
       var payload = buildWorkbenchModalPayload(cardName, cardMeta, opts);
       if (!payload.name && !payload.oracleID) return;
+	  if (!payload.versionContext) {
+	    payload.versionContext = defaultWorkbenchVersionContext(payload.name, cardMeta, opts);
+	  }
 
       var shouldResolveExact = !!(opts && opts.resolveExact);
       if ((shouldResolveExact || (!payload.oracleID && payload.name)) && payload.name) {
@@ -4600,7 +4643,7 @@
           {
             label: 'View card',
             onClick: function () {
-              openWorkbenchCardView(cardName, cardMeta);
+              openGuestCardVersionPicker(cardName, cardMeta, currentBoard);
             }
           },
           {
@@ -4698,6 +4741,9 @@
         moveGuestCardQuantityBetweenBoards(deckBoardMode, targetBoard, cardName, quantity || 1);
       }, function (cardName, cardMeta, quantity) {
         setGuestBoardCardQuantity(deckBoardMode, cardName, quantity);
+      }, function (cardName, cardMeta, options) {
+        var config = Object.assign({ board: deckBoardMode }, options || {});
+        openWorkbenchCardView(cardName, cardMeta, config);
       });
 
       if (emptyEl) {
@@ -4722,7 +4768,7 @@
       window.mtDeckGuestMoveMaybeToMain = moveGuestMaybeToMain;
       window.mtDeckOpeningHandActions = {
         view: function (cardName, cardMeta) {
-          openWorkbenchCardView(cardName, cardMeta);
+          openWorkbenchCardView(cardName, cardMeta, { board: 'main' });
         },
         changeVersion: function (cardName, cardMeta) {
           openGuestCardVersionPicker(cardName, cardMeta, 'main');
@@ -4741,9 +4787,9 @@
         currentName: function () {
           return currentCommanderForDraft(d);
         },
-        view: function () {
-          var current = currentCommanderForDraft(d);
-          openWorkbenchCardView(current, draftMetaForCard(d, current));
+          view: function () {
+            var current = currentCommanderForDraft(d);
+          openGuestCardVersionPicker(current, draftMetaForCard(d, current), draftBoardForCard(d, current) || 'main');
         },
         changeVersion: function () {
           var current = currentCommanderForDraft(d);
@@ -5208,17 +5254,18 @@
         if (!actionCardID) return;
         var targetBoard = normalizeDeckBoardMode(board || 'main');
         var beforeState = savedBoardUndoState(savedDraft, targetBoard, displayName);
+        var step = Math.floor(Number(delta || 0));
+        if (!Number.isFinite(step) || step === 0) return;
         try {
           var params = new URLSearchParams();
           params.set(boardCardIDParam(targetBoard), actionCardID);
-          if (Number(delta || 0) > 0) {
-            params.set('action', boardIncrementAction(targetBoard));
-          }
+          params.set('action', 'set_qty');
+          params.set('quantity', String(Math.max(0, beforeState.quantity + step)));
           var next = await postSavedMutation('/decks/' + savedDraft.id, params);
           commanderName = currentSavedCommander(next);
           renderSaved(next);
           var afterState = savedBoardUndoState(next, targetBoard, displayName);
-          if (Number(delta || 0) < 0 && afterState.quantity < beforeState.quantity) {
+          if (step < 0 && afterState.quantity < beforeState.quantity) {
             showSavedDeckUndo(
               'Removed ' + displayName + '.',
               actionCardID,
@@ -5491,9 +5538,9 @@
           var currentBoard = normalizeDeckBoardMode(board || deckBoardMode);
           var items = [
             {
-              label: 'View card',
-              onClick: function () {
-                openWorkbenchCardView(cardName, cardMeta);
+            label: 'View card',
+            onClick: function () {
+                openSavedCardVersionPicker(cardName, cardMeta, currentBoard);
               }
             },
             {
@@ -5589,6 +5636,8 @@
           moveSavedCardBetweenBoards(cardMeta, deckBoardMode, targetBoard, cardName, quantity || 1);
         }, function (cardName, cardMeta, quantity) {
           setSavedCardQuantity(cardMeta, quantity, deckBoardMode, cardName);
+        }, function (cardName, cardMeta) {
+          openSavedCardVersionPicker(cardName, cardMeta, deckBoardMode);
         });
 
         if (emptyEl) {
@@ -5613,7 +5662,7 @@
         window.mtDeckCurrentSavedDraft = d;
         window.mtDeckOpeningHandActions = {
           view: function (cardName, cardMeta) {
-            openWorkbenchCardView(cardName, cardMeta);
+            openSavedCardVersionPicker(cardName, cardMeta, 'main');
           },
           changeVersion: function (cardName, cardMeta) {
             openSavedCardVersionPicker(cardName, cardMeta, 'main');
@@ -5634,7 +5683,7 @@
           },
           view: function () {
             var current = currentSavedCommander(savedDraft);
-            openWorkbenchCardView(current, draftMetaForCard(savedDraft, current));
+            openSavedCommanderVersionPicker(current, draftMetaForCard(savedDraft, current));
           },
           changeVersion: function () {
             var current = currentSavedCommander(savedDraft);
@@ -6197,12 +6246,6 @@
       var cards = draftRowsForBoard(dd, 'main', dd.cards);
       var sideboardCards = draftRowsForBoard(dd, 'side', dd.sideboardCards);
       var maybeCards = draftRowsForBoard(dd, 'maybe', dd.maybeCards);
-      if (!commanderForSave && cards.length === 0 && sideboardCards.length === 0 && maybeCards.length === 0) {
-        if (copyStatus) copyStatus.textContent = 'Add cards before saving this deck.';
-        if (guestOverviewStatus) guestOverviewStatus.textContent = 'Add a card before saving this deck.';
-        return false;
-      }
-
       var payload = {
         format: normalizeGuestFormat(dd.format || deckFormat),
         commander_name: commanderForSave,
@@ -6226,7 +6269,11 @@
 
         var res = await fetch('/decks/import/save', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          credentials: 'same-origin',
           body: JSON.stringify(payload),
         });
 
@@ -6239,7 +6286,11 @@
               failureMessage += ' ' + failure.unresolved.slice(0, 2).join(' ');
             }
           } catch (parseError) {
-            // Keep the concise fallback message.
+            if (res.status === 401) {
+              failureMessage = 'Your session expired. Sign in again, then save your deck.';
+            } else if (res.status >= 500) {
+              failureMessage = 'The deck could not be saved right now. Your draft is still here—please try again.';
+            }
           }
           if (copyStatus) copyStatus.textContent = failureMessage;
           if (guestOverviewStatus) {
@@ -6249,7 +6300,12 @@
           return false;
         }
 
-        var out = await res.json();
+        var out;
+        try {
+          out = await res.json();
+        } catch (parseError) {
+          throw new Error('The save response was incomplete. Your draft is still here—please try again.');
+        }
         if (out && out.deck_id) {
           try { localStorage.removeItem(key); } catch (e) {}
           try {
@@ -6272,9 +6328,12 @@
         }
         return false;
       } catch (e) {
-        if (copyStatus) copyStatus.textContent = 'Could not save deck. Please try again.';
+        var requestFailure = e && e.message
+          ? e.message
+          : 'Could not save deck. Your draft is still here—please try again.';
+        if (copyStatus) copyStatus.textContent = requestFailure;
         if (guestOverviewStatus) {
-          guestOverviewStatus.textContent = 'Could not save deck. Please try again.';
+          guestOverviewStatus.textContent = requestFailure;
           guestOverviewStatus.setAttribute('data-save-state', 'error');
         }
         return false;

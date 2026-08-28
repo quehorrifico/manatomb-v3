@@ -18,10 +18,7 @@ import (
 	"manatomb/app/internal/cards"
 )
 
-const (
-	guessCardAwardGuessLimit     = 10
-	guessCardDefaultMaxQuestions = 8
-)
+const guessCardDefaultMaxQuestions = 8
 
 type guessQuestion struct {
 	ID     string
@@ -71,8 +68,6 @@ type guessCardPageData struct {
 	NextGuessNumber    int
 	IsDaily            bool
 	HasAccount         bool
-	AwardGuessLimit    int
-	AwardGuessesLeft   int
 	AwardStatus        string
 	AwardEarned        bool
 	GameModeLabel      string
@@ -535,6 +530,15 @@ func (a *App) handleGuessCardFinalGuessPost(w http.ResponseWriter, r *http.Reque
 		http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
 		return
 	}
+	if attempt.Awarded {
+		setFlash(w, "Correct. You won the card from your first game today!")
+	} else if !game.IsDaily {
+		setFlash(w, "Correct. This is a just-for-fun round, so no card is awarded.")
+	} else if player.IsGuest() {
+		setFlash(w, "Correct. Guest rounds are just for fun. Sign in before your first game tomorrow to win cards.")
+	} else {
+		setFlash(w, "Correct. You solved your first game today, but this card is already in your rewards.")
+	}
 	http.Redirect(w, r, guessCardRoundPath(game.ID), http.StatusSeeOther)
 }
 
@@ -650,13 +654,9 @@ func guessCardGameAwardEligible(game guessCardGame) bool {
 
 func buildGuessCardPageData(game guessCardGame, card cards.Card) guessCardPageData {
 	completed := game.Status != "active"
-	awardLeft := guessCardAwardGuessLimit - 1 - game.GuessCount
-	if awardLeft < 0 {
-		awardLeft = 0
-	}
 	awardStatus := "Eligible"
 	if !game.IsDaily {
-		awardStatus = "Practice"
+		awardStatus = "Just for fun"
 	} else if game.GuestID != "" {
 		if completed {
 			awardStatus = "Guest result"
@@ -672,12 +672,10 @@ func buildGuessCardPageData(game guessCardGame, card cards.Card) guessCardPageDa
 		default:
 			awardStatus = "Not earned"
 		}
-	} else if game.GuessCount >= guessCardAwardGuessLimit-1 {
-		awardStatus = "Award closed"
 	}
-	gameMode := "Daily Game"
+	gameMode := "First game today"
 	if !game.IsDaily {
-		gameMode = "Practice Game"
+		gameMode = "Just for fun"
 	}
 
 	clues := buildGuessCardClues(game, card)
@@ -710,8 +708,6 @@ func buildGuessCardPageData(game guessCardGame, card cards.Card) guessCardPageDa
 		NextGuessNumber:    game.GuessCount + 1,
 		IsDaily:            game.IsDaily,
 		HasAccount:         game.GuestID == "",
-		AwardGuessLimit:    guessCardAwardGuessLimit,
-		AwardGuessesLeft:   awardLeft,
 		AwardStatus:        awardStatus,
 		AwardEarned:        game.AwardEarned,
 		GameModeLabel:      gameMode,
