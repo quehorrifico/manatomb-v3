@@ -57,7 +57,7 @@ func TestPackOpeningTemplateUsesSetRailBoosterButtonsAndInteractiveStage(t *test
 		`data-pack-opening`,
 		`data-pack-wrapper`,
 		`data-pack-wrapper-symbol-image`,
-		`data-pack-wrapper-symbol-image src="/assets/favicon.svg"`,
+		`data-pack-wrapper-symbol-image src="/assets/manatomb-square-logo.svg"`,
 		`data-pack-wrapper-symbol-fallback`,
 		`decoding="async"`,
 		`data-pack-open-slider`,

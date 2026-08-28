@@ -293,7 +293,7 @@ func TestGuessQuestionAnswerHandlesNewCatalogQuestions(t *testing.T) {
 	}
 }
 
-func TestBuildGuessCardPageDataUsesFinalGuessBadgeCutoff(t *testing.T) {
+func TestBuildGuessCardPageDataKeepsFirstGamePrizeEligibleWithoutGuessCutoff(t *testing.T) {
 	t.Parallel()
 
 	card := cards.Card{
@@ -302,17 +302,12 @@ func TestBuildGuessCardPageDataUsesFinalGuessBadgeCutoff(t *testing.T) {
 		TypeLine: "Instant",
 	}
 
-	active := buildGuessCardPageData(guessCardGame{Status: "active", GuessCount: 8, IsDaily: true}, card)
-	if active.AwardGuessesLeft != 1 || active.AwardStatus != "Eligible" {
-		t.Fatalf("active badge data = left %d status %q, want left 1 status Eligible", active.AwardGuessesLeft, active.AwardStatus)
+	active := buildGuessCardPageData(guessCardGame{Status: "active", GuessCount: 99, IsDaily: true}, card)
+	if active.AwardStatus != "Eligible" || active.GameModeLabel != "First game today" {
+		t.Fatalf("first-game prize data = status %q mode %q", active.AwardStatus, active.GameModeLabel)
 	}
 
-	closed := buildGuessCardPageData(guessCardGame{Status: "active", GuessCount: 9, IsDaily: true}, card)
-	if closed.AwardGuessesLeft != 0 || closed.AwardStatus != "Award closed" {
-		t.Fatalf("closed badge data = left %d status %q, want left 0 status Award closed", closed.AwardGuessesLeft, closed.AwardStatus)
-	}
-
-	won := buildGuessCardPageData(guessCardGame{Status: "won", GuessCount: 9, IsDaily: true, AwardEarned: true}, card)
+	won := buildGuessCardPageData(guessCardGame{Status: "won", GuessCount: 99, IsDaily: true, AwardEarned: true}, card)
 	if won.AwardStatus != "Earned" {
 		t.Fatalf("won badge status = %q, want Earned", won.AwardStatus)
 	}
@@ -324,8 +319,8 @@ func TestBuildGuessCardPageDataUsesFinalGuessBadgeCutoff(t *testing.T) {
 	if solved.AwardStatus != "Solved" || solved.AwardEarned {
 		t.Fatalf("non-awarded win = status %q earned %t, want Solved false", solved.AwardStatus, solved.AwardEarned)
 	}
-	if active.NextGuessNumber != 9 {
-		t.Fatalf("next guess number = %d, want 9", active.NextGuessNumber)
+	if active.NextGuessNumber != 100 {
+		t.Fatalf("next guess number = %d, want 100", active.NextGuessNumber)
 	}
 }
 
@@ -368,11 +363,11 @@ func TestBuildGuessCardPageDataMarksReplayGamesPractice(t *testing.T) {
 	}
 
 	got := buildGuessCardPageData(guessCardGame{Status: "active", GuessCount: 0, IsDaily: false}, card)
-	if got.AwardStatus != "Practice" {
-		t.Fatalf("replay award status = %q, want Practice", got.AwardStatus)
+	if got.AwardStatus != "Just for fun" {
+		t.Fatalf("replay award status = %q, want Just for fun", got.AwardStatus)
 	}
-	if got.GameModeLabel != "Practice Game" {
-		t.Fatalf("replay game mode label = %q, want Practice Game", got.GameModeLabel)
+	if got.GameModeLabel != "Just for fun" {
+		t.Fatalf("replay game mode label = %q, want Just for fun", got.GameModeLabel)
 	}
 }
 

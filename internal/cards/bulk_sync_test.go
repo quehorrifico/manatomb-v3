@@ -48,6 +48,20 @@ func TestDecodeBulkDescriptorRetainsLegacyDownloadURI(t *testing.T) {
 	}
 }
 
+func TestCommanderCandidateExcludesBattles(t *testing.T) {
+	t.Parallel()
+
+	battle := scryfallCard{
+		TypeLine:   "Battle — Siege",
+		OracleText: "This card can be your commander.",
+		Games:      []string{"paper"},
+		Legalities: map[string]string{"commander": "legal"},
+	}
+	if isCommanderCandidate(battle) {
+		t.Fatal("Battle was incorrectly accepted as a commander candidate")
+	}
+}
+
 func TestDecodeOracleRowsAcceptsGzipJSONLines(t *testing.T) {
 	t.Parallel()
 

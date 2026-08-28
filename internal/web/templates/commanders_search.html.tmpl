@@ -175,12 +175,11 @@
 
             <div class="mt-card-detail-modal__printing">
               <div class="mt-card-detail-modal__printing-control" data-field="printing-group">
-                <label for="card-detail-printing-select">Printing</label>
-                <select id="card-detail-printing-select"
-                        data-field="printing-select"
-                        class="mt-control mt-control--sm">
-                  <option value="">Latest printing</option>
-                </select>
+                <span class="mt-card-detail-modal__printing-label" data-field="printing-label">Printing</span>
+                <div class="mt-card-detail-modal__printing-grid"
+                     data-field="printing-grid"
+                     role="listbox"
+                     aria-label="Card printings"></div>
               </div>
               <p data-field="printing-meta" class="mt-card-detail-modal__printing-meta hidden"></p>
             </div>

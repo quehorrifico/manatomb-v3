@@ -87,6 +87,7 @@ func TestSpellifyTemplateUsesFlatTombGameBoard(t *testing.T) {
 		`aria-label="Close How to Play"`,
 		`data-auto-open="true"`,
 		`Mystery cards come from Scryfall’s EDHREC ranks 1–250`,
+		`This is your first game today, but guest rounds cannot win cards. Sign in before starting your first game tomorrow to be eligible.`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("Tombscript page missing %q", needle)

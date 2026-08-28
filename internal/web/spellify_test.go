@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -256,9 +257,6 @@ func TestBuildSpellifyPageDataProvidesCompactRoundState(t *testing.T) {
 	if got.MaxGuesses != spellifyMaxGuesses || got.RemainingGuesses != spellifyMaxGuesses-4 {
 		t.Fatalf("reveal budget = %d max, %d left", got.MaxGuesses, got.RemainingGuesses)
 	}
-	if got.AwardGuessesLeft != spellifyAwardGuessLimit-1-4 {
-		t.Fatalf("award-safe reveals left = %d", got.AwardGuessesLeft)
-	}
 	if got.HasManaCost || !got.HasRulesText || got.HasFlavorText {
 		t.Fatalf("clue availability = mana %t rules %t flavor %t", got.HasManaCost, got.HasRulesText, got.HasFlavorText)
 	}
@@ -369,33 +367,25 @@ func TestBuildSpellifyPageDataMasksFlavorText(t *testing.T) {
 	}
 }
 
-func TestBuildSpellifyPageDataUsesDailyAwardCutoff(t *testing.T) {
+func TestBuildSpellifyPageDataKeepsFirstGamePrizeEligibleWithoutRevealCutoff(t *testing.T) {
 	t.Parallel()
 
 	card := cards.Card{OracleID: "123e4567-e89b-12d3-a456-426614174000", Name: "Sol Ring"}
-	eligible := buildSpellifyPageData(spellifyGame{Status: "active", GuessCount: 5, IsDaily: true}, card)
-	if eligible.AwardStatus != "Eligible" || eligible.GameModeLabel != "Daily Tombscript" {
-		t.Fatalf("eligible daily data = status %q mode %q", eligible.AwardStatus, eligible.GameModeLabel)
+	eligible := buildSpellifyPageData(spellifyGame{Status: "active", GuessCount: 12, IsDaily: true}, card)
+	if eligible.AwardStatus != "Eligible" || eligible.GameModeLabel != "First Tombscript today" {
+		t.Fatalf("first-game prize data = status %q mode %q", eligible.AwardStatus, eligible.GameModeLabel)
 	}
-	solveNow := buildSpellifyPageData(spellifyGame{Status: "active", GuessCount: 6, IsDaily: true}, card)
-	if solveNow.AwardStatus != "Solve now" || solveNow.AwardGuessesLeft != 0 {
-		t.Fatalf("final award-safe state = status %q, safe reveals %d", solveNow.AwardStatus, solveNow.AwardGuessesLeft)
-	}
-	closed := buildSpellifyPageData(spellifyGame{Status: "active", GuessCount: 7, IsDaily: true}, card)
-	if closed.AwardStatus != "Award closed" || closed.AwardGuessesLeft != 0 {
-		t.Fatalf("daily after cutoff = status %q, safe reveals %d", closed.AwardStatus, closed.AwardGuessesLeft)
-	}
-	won := buildSpellifyPageData(spellifyGame{Status: "won", GuessCount: 6, IsDaily: true}, card)
+	won := buildSpellifyPageData(spellifyGame{Status: "won", GuessCount: 12, IsDaily: true}, card)
 	if won.AwardStatus != "Earned" {
 		t.Fatalf("daily win status = %q, want Earned", won.AwardStatus)
 	}
 	replay := buildSpellifyPageData(spellifyGame{Status: "active", GuessCount: 0, IsDaily: false}, card)
-	if replay.AwardStatus != "Practice" || replay.GameModeLabel != "Practice Tombscript" {
+	if replay.AwardStatus != "Just for fun" || replay.GameModeLabel != "Just for fun" {
 		t.Fatalf("replay data = status %q mode %q", replay.AwardStatus, replay.GameModeLabel)
 	}
 	guestReplay := buildSpellifyPageData(spellifyGame{Status: "active", GuestID: "guest", IsDaily: false}, card)
-	if guestReplay.AwardStatus != "Practice" {
-		t.Fatalf("guest practice status = %q, want Practice", guestReplay.AwardStatus)
+	if guestReplay.AwardStatus != "Just for fun" {
+		t.Fatalf("guest practice status = %q, want Just for fun", guestReplay.AwardStatus)
 	}
 	lost := buildSpellifyPageData(spellifyGame{Status: "lost", GuessCount: 2, IsDaily: true}, card)
 	if lost.AwardStatus != "Not earned" {
@@ -420,5 +410,19 @@ func TestSpellifyDailyEligibilityAndExpiry(t *testing.T) {
 	}
 	if spellifyActiveGameExpired(spellifyGame{Status: "won", IsDaily: true, DailyKey: yesterday}) {
 		t.Fatal("completed Tombscript game should not be treated as an expired active game")
+	}
+}
+
+func TestCompleteSpellifyGameWithAwardRejectsJustForFunRounds(t *testing.T) {
+	t.Parallel()
+
+	err := completeSpellifyGameWithAward(
+		context.Background(),
+		nil,
+		spellifyGame{UserID: 42, IsDaily: false},
+		cards.Card{},
+	)
+	if err == nil || !strings.Contains(err.Error(), "first Tombscript game") {
+		t.Fatalf("practice award attempt error = %v, want first-game eligibility rejection", err)
 	}
 }

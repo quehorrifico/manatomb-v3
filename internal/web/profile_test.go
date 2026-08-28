@@ -27,6 +27,21 @@ func TestColorCombinationName(t *testing.T) {
 	}
 }
 
+func TestTopProfileColorCombinationDoesNotTreatPublicationOrderAsPreference(t *testing.T) {
+	t.Parallel()
+
+	items := []deckListItem{
+		{ColorIdentityName: "Esper", ColorPips: manaPipsForColorIdentity("WUB")},
+		{ColorIdentityName: "Golgari", ColorPips: manaPipsForColorIdentity("BG")},
+	}
+	if got := topProfileColorCombination(items); got != "No clear favorite yet" {
+		t.Fatalf("topProfileColorCombination() = %q, want no clear favorite", got)
+	}
+	if got := favoriteProfileColorPips(items); len(got) != 0 {
+		t.Fatalf("favoriteProfileColorPips() = %#v, want no pips for a tie", got)
+	}
+}
+
 func TestBuildProfilePaginationPreservesOtherSections(t *testing.T) {
 	t.Parallel()
 

@@ -17,7 +17,6 @@ import (
 )
 
 const spellifyMaxGuesses = 13
-const spellifyAwardGuessLimit = 7
 const spellifyMaxCardGuesses = 3
 
 var errSpellifyRoundStale = errors.New("Tombscript round is no longer active")
@@ -38,8 +37,6 @@ type spellifyPageData struct {
 	SymbolKeys           []spellifySymbolKey
 	IsDaily              bool
 	HasAccount           bool
-	AwardGuessLimit      int
-	AwardGuessesLeft     int
 	AwardStatus          string
 	GameModeLabel        string
 	CanRevealChar        bool
@@ -399,7 +396,7 @@ func (a *App) handleSpellifyFinalGuessPost(w http.ResponseWriter, r *http.Reques
 	}
 
 	message := ""
-	if spellifyGameAwardEligible(*game) && game.GuessCount < spellifyAwardGuessLimit {
+	if spellifyGameAwardEligible(*game) {
 		if err := completeSpellifyGameWithAward(r.Context(), a.DB, *game, *target); err != nil {
 			a.RenderServerError(w, r, err)
 			return
@@ -412,10 +409,8 @@ func (a *App) handleSpellifyFinalGuessPost(w http.ResponseWriter, r *http.Reques
 		}
 		if player.IsGuest() {
 			message = "Correct. Sign in before playing tomorrow's daily Tombscript to earn profile awards."
-		} else if game.IsDaily {
-			message = "Correct. Daily Tombscript cards are awarded in fewer than 7 reveal guesses."
 		} else {
-			message = "Correct. Practice Tombscript games do not award cards."
+			message = "Correct. This Tombscript round is just for fun, so no card is awarded."
 		}
 	}
 	redirect := spellifyRoundPath(game.ID)
@@ -573,7 +568,7 @@ func buildSpellifyPageData(game spellifyGame, card cards.Card) spellifyPageData 
 	}
 	awardStatus := "Eligible"
 	if !game.IsDaily {
-		awardStatus = "Practice"
+		awardStatus = "Just for fun"
 	} else if game.GuestID != "" {
 		if completed {
 			awardStatus = "Guest result"
@@ -582,25 +577,15 @@ func buildSpellifyPageData(game spellifyGame, card cards.Card) spellifyPageData 
 		}
 	} else if completed {
 		switch {
-		case game.Status == "won" && game.GuessCount < spellifyAwardGuessLimit:
-			awardStatus = "Earned"
 		case game.Status == "won":
-			awardStatus = "Solved"
+			awardStatus = "Earned"
 		default:
 			awardStatus = "Not earned"
 		}
-	} else if game.GuessCount >= spellifyAwardGuessLimit {
-		awardStatus = "Award closed"
-	} else if game.GuessCount == spellifyAwardGuessLimit-1 {
-		awardStatus = "Solve now"
 	}
-	gameMode := "Daily Tombscript"
+	gameMode := "First Tombscript today"
 	if !game.IsDaily {
-		gameMode = "Practice Tombscript"
-	}
-	awardGuessesLeft := spellifyAwardGuessLimit - 1 - game.GuessCount
-	if awardGuessesLeft < 0 {
-		awardGuessesLeft = 0
+		gameMode = "Just for fun"
 	}
 
 	// Target identity is result-only data. Active page data is serialized for
@@ -637,8 +622,6 @@ func buildSpellifyPageData(game spellifyGame, card cards.Card) spellifyPageData 
 		SymbolKeys:           spellifySymbolKeys(card, guessedChars),
 		IsDaily:              game.IsDaily,
 		HasAccount:           game.GuestID == "",
-		AwardGuessLimit:      spellifyAwardGuessLimit,
-		AwardGuessesLeft:     awardGuessesLeft,
 		AwardStatus:          awardStatus,
 		GameModeLabel:        gameMode,
 		CanRevealChar:        !completed && remaining > 0,

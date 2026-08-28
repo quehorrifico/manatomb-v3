@@ -590,6 +590,7 @@ func buildCardSearchFilters(params CardSearchParams, startArg int) (string, []an
 	}
 	if params.CommanderOnly {
 		clauses = append(clauses, "oc.is_commander_candidate = TRUE")
+		clauses = append(clauses, "lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'")
 	}
 	if nameQuery != "" {
 		clauses = append(clauses, "(oc.name ILIKE '%' || $"+fmt.Sprint(argN)+" || '%')")
@@ -1156,6 +1157,7 @@ func RandomTopCommanders(
 
 	sqlText := canonicalCardSelectSQL() + `
 		WHERE oc.is_commander_candidate = TRUE
+		  AND lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'
 		  AND oc.edhrec_rank IS NOT NULL
 		  AND oc.edhrec_rank > 0
 		  AND oc.edhrec_rank <= $1
@@ -1194,6 +1196,7 @@ func RandomizedTopCommanderBatch(
 
 	sqlText := canonicalCardSelectSQL() + `
 		WHERE oc.is_commander_candidate = TRUE
+		  AND lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'
 		  AND oc.edhrec_rank IS NOT NULL
 		  AND oc.edhrec_rank > 0
 		  AND oc.edhrec_rank <= $2
@@ -1243,6 +1246,7 @@ func PopularCommanders(
 
 	sqlText := canonicalCardSelectSQL() + `
 		WHERE oc.is_commander_candidate = TRUE
+		  AND lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'
 		  AND oc.edhrec_rank IS NOT NULL
 		  AND oc.edhrec_rank > 0
 		ORDER BY oc.edhrec_rank ASC, lower(oc.name) ASC, oc.oracle_id ASC
@@ -1298,6 +1302,7 @@ func SearchCardNamesExactThenFuzzy(
 	args := []any{query}
 	if commanderOnly {
 		exactSQL += ` AND oc.is_commander_candidate = TRUE`
+		exactSQL += ` AND lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'`
 	}
 	exactSQL += ` ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC LIMIT 1`
 
@@ -1371,6 +1376,7 @@ func SearchCardNamesExactThenFuzzy(
 	fuzzyArgs := []any{normalizedQuery}
 	if commanderOnly {
 		fuzzySQL += ` AND oc.is_commander_candidate = TRUE`
+		fuzzySQL += ` AND lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'`
 	}
 	fuzzySQL += `
 		ORDER BY

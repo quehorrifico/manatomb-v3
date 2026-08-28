@@ -18,9 +18,9 @@ func TestRendererAddsCanonicalSocialAndRobotsMetadata(t *testing.T) {
 		`<link rel="canonical" href="https://manatomb.app/">`,
 		`<meta property="og:site_name" content="ManaTomb">`,
 		`<meta property="og:locale" content="en_US">`,
-		`<meta property="og:image" content="https://manatomb.app/assets/og.png">`,
+		`<meta property="og:image" content="https://manatomb.app/assets/manatomb-square-logo.png">`,
 		`<meta name="twitter:card" content="summary_large_image">`,
-		`<meta name="twitter:image:alt" content="ManaTomb card search, deck building, and play tools">`,
+		`<meta name="twitter:image:alt" content="ManaTomb logo">`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("home metadata missing %q: %s", needle, body)
@@ -64,7 +64,7 @@ func TestStablePublicPagesUseConfiguredCanonicalOrigin(t *testing.T) {
 		if got.Meta.CanonicalURL != "https://manatomb.app"+path {
 			t.Fatalf("%s canonical = %q", name, got.Meta.CanonicalURL)
 		}
-		if got.Meta.Robots != "index,follow" || got.Meta.ImageURL != "https://manatomb.app/assets/og.png" {
+		if got.Meta.Robots != "index,follow" || got.Meta.ImageURL != "https://manatomb.app/assets/manatomb-square-logo.png" {
 			t.Fatalf("%s public SEO defaults = %#v", name, got.Meta)
 		}
 	}

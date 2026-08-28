@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -437,7 +438,7 @@ func (a *App) buildDeckImportReview(ctx context.Context, parsed decks.ParsedDeck
 				item.StatusLabel = "Commander quantity"
 				item.StatusDetail = "A commander must have a quantity of one."
 				item.NeedsAttention = true
-			} else if !resolved.IsCommanderCandidate {
+			} else if !isCommanderCandidateAllowed(resolved.IsCommanderCandidate, resolved.TypeLine) {
 				item.Status = "commander"
 				item.StatusLabel = "Not a commander"
 				item.StatusDetail = "This card is not currently recognized as a legal commander candidate."
@@ -893,9 +894,31 @@ func writeImportDraftError(w http.ResponseWriter, status int, message string, un
 	})
 }
 
+func writeImportDraftServerError(w http.ResponseWriter, userID int64, err error) {
+	log.Printf("deck save failed: user_id=%d error=%v", userID, err)
+	writeImportDraftError(w, http.StatusInternalServerError, "We couldn't save this deck. Your draft is still available here, so please try again.", nil)
+}
+
+func importDraftHasNoCards(req importDraftRequest) bool {
+	return strings.TrimSpace(req.CommanderName) == "" &&
+		len(req.Cards) == 0 &&
+		len(req.SideboardCards) == 0 &&
+		len(req.MaybeCards) == 0
+}
+
+// The browser keeps rich display metadata alongside each card. Only a small
+// subset is needed to persist a deck, so tolerate extra metadata fields here
+// instead of rejecting an otherwise valid, unfinished deck as "invalid data".
+func parseImportDraftJSONBody(r *http.Request, dst any) error {
+	return json.NewDecoder(r.Body).Decode(dst)
+}
+
 func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
-	user := a.currentUserOrRedirect(w, r)
+	// This endpoint is called by the editor with fetch(), so JSON is much more
+	// useful than redirecting to a login page when the session has expired.
+	user := CurrentUser(r)
 	if user == nil {
+		writeImportDraftError(w, http.StatusUnauthorized, "Your session expired. Sign in again, then save your deck.", nil)
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -905,7 +928,7 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, deckImportMaxBodyBytes)
 	var req importDraftRequest
-	if err := parseJSONBody(r, &req); err != nil {
+	if err := parseImportDraftJSONBody(r, &req); err != nil {
 		writeImportDraftError(w, http.StatusBadRequest, "Invalid deck data.", nil)
 		return
 	}
@@ -913,11 +936,31 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 		writeImportDraftError(w, http.StatusRequestEntityTooLarge, "That deck contains too many import rows.", nil)
 		return
 	}
+	if importDraftHasNoCards(req) {
+		deckName := strings.TrimSpace(req.Name)
+		if deckName == "" {
+			deckName = randomDeckName()
+		}
+		format := defaultDeckFormat(req.Format, "", "import")
+		deck, err := decks.CreateDeckWithOptions(r.Context(), a.DB, user.ID, decks.DeckInput{
+			Name:         deckName,
+			Description:  strings.TrimSpace(req.Description),
+			Tags:         strings.TrimSpace(req.Tags),
+			Format:       format,
+			PowerBracket: defaultDeckPowerBracket("", format),
+		})
+		if err != nil {
+			writeImportDraftServerError(w, user.ID, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, importDraftResponse{DeckID: deck.ID})
+		return
+	}
 
 	parsed := parsedDecklistFromDraftRequest(req)
 	review, err := a.buildDeckImportReview(r.Context(), parsed, "")
 	if err != nil {
-		a.RenderServerError(w, r, err)
+		writeImportDraftServerError(w, user.ID, err)
 		return
 	}
 	if !review.CanFinalize {
@@ -950,12 +993,11 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 		PowerBracket:     defaultDeckPowerBracket("", format),
 	}, importedCards)
 	if err != nil {
-		a.RenderServerError(w, r, err)
+		writeImportDraftServerError(w, user.ID, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(importDraftResponse{DeckID: deck.ID})
+	writeJSON(w, http.StatusCreated, importDraftResponse{DeckID: deck.ID})
 }
 
 func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {

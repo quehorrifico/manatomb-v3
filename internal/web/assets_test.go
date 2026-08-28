@@ -64,6 +64,20 @@ func TestAssetHandlerServesFavicon(t *testing.T) {
 	}
 }
 
+func TestAssetHandlerServesRoundedManaTombTabLogo(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/assets/manatomb-square-logo.svg", nil)
+	rr := httptest.NewRecorder()
+
+	AssetHandler().ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("tab logo status = %d", rr.Code)
+	}
+	body := rr.Body.String()
+	if !strings.Contains(body, `rx="267"`) || strings.Contains(body, `<rect width="1254" height="1254" fill="#000"/>`) {
+		t.Fatalf("tab logo should preserve transparent rounded corners: %s", body)
+	}
+}
+
 func TestPlaytestAssetPreservesWorkbenchFormat(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/assets/playtest.js", nil)
 	rr := httptest.NewRecorder()

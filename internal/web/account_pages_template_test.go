@@ -19,7 +19,6 @@ func TestAccountPagesStylesheetUsesSharedThemeTokens(t *testing.T) {
 	for _, needle := range []string{
 		`body[data-page="home"] .mt-account-home`,
 		`.mt-deck-library__grid`,
-		`.mt-deck-library-card`,
 		`color: var(--mt-text);`,
 		`color: var(--mt-text-muted);`,
 		`background: var(--mt-surface);`,
@@ -30,6 +29,9 @@ func TestAccountPagesStylesheetUsesSharedThemeTokens(t *testing.T) {
 		if !strings.Contains(css, needle) {
 			t.Fatalf("account pages stylesheet missing %q: %s", needle, css)
 		}
+	}
+	if strings.Contains(css, `.mt-deck-library-card`) {
+		t.Fatal("My Decks retained a duplicate deck-tile component instead of the shared deck tile")
 	}
 
 	for _, forbidden := range []string{`rgb(`, `rgba(`, `text-slate-`, `bg-slate-`, `border-slate-`} {

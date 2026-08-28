@@ -139,6 +139,7 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 	for index, d := range publicDecks {
 		item := deckListItem{
 			ID:            d.ID,
+			DeckPath:      "/decks/public/" + d.PublicSlug,
 			Name:          d.Name,
 			Description:   d.Description,
 			Tags:          d.Tags,
@@ -149,6 +150,9 @@ func (a *App) HandleProfileShow(w http.ResponseWriter, r *http.Request) {
 			PowerBracket:  d.PowerBracket,
 			ProfileTile:   true,
 			TileOrder:     index,
+		}
+		if currentUser := CurrentUser(r); currentUser != nil && currentUser.ID == profile.ID {
+			item.DeckPath = "/decks/" + strconv.FormatInt(d.ID, 10)
 		}
 		if d.PublishedAt != nil {
 			item.PublishedLabel = d.PublishedAt.Format("Jan 2, 2006")
@@ -951,16 +955,36 @@ func topProfileColorCombination(items []deckListItem) string {
 		}
 		counts[name]++
 	}
-	top := topProfileCountLabels(counts, order, 1)
-	if len(top) == 0 {
+	if len(counts) == 0 {
 		return "Not enough data"
 	}
+
+	maxCount := 0
+	for _, count := range counts {
+		if count > maxCount {
+			maxCount = count
+		}
+	}
+	// A tie is not a preference. The deck list is ordered by publication time,
+	// so choosing the first tied item would incorrectly make the latest public
+	// deck look like the user's favorite color pairing.
+	winners := 0
+	for _, count := range counts {
+		if count == maxCount {
+			winners++
+		}
+	}
+	if winners != 1 {
+		return "No clear favorite yet"
+	}
+
+	top := topProfileCountLabels(counts, order, 1)
 	return top[0]
 }
 
 func favoriteProfileColorPips(items []deckListItem) []manaPipView {
 	favorite := topProfileColorCombination(items)
-	if favorite == "Not enough data" {
+	if favorite == "Not enough data" || favorite == "No clear favorite yet" {
 		return nil
 	}
 	for _, item := range items {

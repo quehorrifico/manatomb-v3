@@ -19,42 +19,7 @@
     {{ if $ctx }}
       <section class="mt-deck-library__grid" aria-label="Saved decks">
         {{ range $ctx }}
-          <article class="mt-deck-library-card">
-            <a href="/decks/{{ .ID }}" class="mt-deck-library-card__link" aria-label="Open {{ .Name }}"></a>
-            <div class="mt-deck-library-card__media">
-              {{ if .CommanderImageURI }}
-                <img src="{{ .CommanderImageURI }}" alt="" loading="lazy">
-              {{ else }}
-                <span aria-hidden="true">{{ if .CommanderName }}Commander{{ else }}Deck{{ end }}</span>
-              {{ end }}
-            </div>
-
-            <div class="mt-deck-library-card__body">
-              <div class="mt-deck-library-card__title-row">
-                <h2>{{ .Name }}</h2>
-                <span class="mt-deck-library-card__visibility">{{ if .IsPublic }}Public{{ else }}Private{{ end }}</span>
-              </div>
-
-              {{ if .Description }}
-                <p class="mt-deck-library-card__description">{{ .Description }}</p>
-              {{ end }}
-
-              <div class="mt-deck-library-card__commander">
-                <span>Commander</span>
-                <strong>{{ if .CommanderName }}{{ .CommanderName }}{{ else }}None selected{{ end }}</strong>
-              </div>
-
-              <div class="mt-deck-library-card__footer">
-                <div class="mt-deck-library-card__meta">
-                  <span>{{ if .Format }}{{ .Format }}{{ else }}Commander{{ end }}</span>
-                  {{ if .PowerBracket }}<span>{{ .PowerBracket }}</span>{{ end }}
-                </div>
-                {{ if and .IsPublic .PublicSlug }}
-                  <a href="/decks/public/{{ .PublicSlug }}" class="mt-deck-library-card__public">View public page</a>
-                {{ end }}
-              </div>
-            </div>
-          </article>
+          {{ template "deck_tile" . }}
         {{ end }}
       </section>
     {{ else }}

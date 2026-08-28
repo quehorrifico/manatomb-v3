@@ -19,10 +19,8 @@ func guessCardTemplateFixture() guessCardPageData {
 		NextGuessNumber:    3,
 		IsDaily:            true,
 		HasAccount:         true,
-		AwardGuessLimit:    10,
-		AwardGuessesLeft:   8,
 		AwardStatus:        "Eligible",
-		GameModeLabel:      "Daily Game",
+		GameModeLabel:      "First game today",
 		Clues: []guessClueView{
 			{Label: "Rarity", Value: "Rare"},
 			{Label: "Mana value", Value: "3"},
@@ -168,6 +166,7 @@ func TestGuessCardTemplateUsesTwoRowOneTapGameBoard(t *testing.T) {
 		`id="guess-card-help-title">How to Play</h2>`,
 		`<h3>Card pool</h3>`,
 		`Nonland mystery cards come from Scryfall’s EDHREC ranks 1–250 and have a supported paper printing, card art, and legality in at least one tracked format. Daily uses one shared card; practice chooses randomly from the same pool.`,
+		`This is your first game today and the only prize-eligible Guess the Card round. Solve it to win the card; every later round today is just for fun.`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("guess-card page missing %q", needle)
@@ -208,7 +207,6 @@ func TestGuessCardTemplateUsesTwoRowOneTapGameBoard(t *testing.T) {
 		t.Fatal("the lower row must render concise history beside the always-visible question board")
 	}
 	for _, verbose := range []string{
-		"Daily Game",
 		`aria-label="Game status"`,
 		`<dt>Questions</dt>`,
 		`<dt>Card guesses</dt>`,
@@ -218,7 +216,6 @@ func TestGuessCardTemplateUsesTwoRowOneTapGameBoard(t *testing.T) {
 		"Ask any yes-or-no question",
 		"Your investigation",
 		"Evidence trail",
-		"Practice games have no award limit",
 		`<legend>Format</legend>`,
 		`value="commander_legal"`,
 		`value="legendary"`,
