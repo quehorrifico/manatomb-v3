@@ -375,57 +375,71 @@ html[data-theme="ash"],
   gap: 0.4rem;
 }
 
-.mt-card-detail-modal__printing-grid {
+#card-detail-modal .mt-card-detail-modal__printing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
-  max-height: 15rem;
+  grid-auto-rows: 12.75rem;
+  width: min(100%, 30rem);
+  min-height: 13.9rem;
+  height: 13.9rem;
+  gap: 0.8rem;
+  align-content: start;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: 0.1rem;
+  overscroll-behavior: contain;
+  border: 1px solid var(--mt-border-subtle);
+  border-radius: 0.5rem;
+  background: var(--mt-surface-strong);
+  padding: 0.5rem;
   scrollbar-gutter: stable;
 }
 
-.mt-card-detail-modal__printing-choice {
+#card-detail-modal .mt-card-detail-modal__printing-choice {
   position: relative;
   display: grid;
   min-width: 0;
-  aspect-ratio: 0.714;
-  overflow: hidden;
-  border: 1px solid var(--mt-border-control);
-  border-radius: 0.35rem;
-  background: var(--mt-surface-strong);
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   padding: 0;
   color: var(--mt-text);
 }
 
-.mt-card-detail-modal__printing-choice:hover {
-  border-color: var(--mt-border-strong);
+#card-detail-modal .mt-card-detail-modal__printing-choice:hover {
+  filter: brightness(1.08);
 }
 
-.mt-card-detail-modal__printing-choice[aria-selected="true"] {
-  border-color: var(--mt-accent-strong);
-  box-shadow: 0 0 0 1px var(--mt-accent-strong);
+#card-detail-modal .mt-card-detail-modal__printing-choice[aria-selected="true"] {
+  filter: none;
 }
 
-.mt-card-detail-modal__printing-choice:focus-visible {
+#card-detail-modal .mt-card-detail-modal__printing-choice:focus-visible {
   outline: 2px solid var(--mt-focus);
   outline-offset: 2px;
 }
 
-.mt-card-detail-modal__printing-choice:disabled {
+#card-detail-modal .mt-card-detail-modal__printing-choice:disabled {
   cursor: wait;
   opacity: 0.58;
 }
 
-.mt-card-detail-modal__printing-choice img {
+#card-detail-modal .mt-card-detail-modal__printing-choice img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: var(--mt-surface-strong);
+  border-radius: 4.8% / 3.5%;
+  background: transparent;
 }
 
-.mt-card-detail-modal__printing-choice span {
+#card-detail-modal .mt-card-detail-modal__printing-choice[aria-selected="true"] img {
+  box-shadow: 0 0 0 2px var(--mt-accent-strong);
+}
+
+#card-detail-modal .mt-card-detail-modal__printing-choice span {
   display: grid;
   place-items: center;
   padding: 0.35rem;
