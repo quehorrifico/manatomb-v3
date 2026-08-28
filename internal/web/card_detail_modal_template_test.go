@@ -65,7 +65,16 @@ func TestSharedCardDetailModalUsesThemeTokensAndAccessibleBehavior(t *testing.T)
 		`box-shadow: var(--mt-shadow-card);`,
 		`@media (max-width: 719px)`,
 		`max-width: min(68vw, 16rem);`,
+		`#card-detail-modal .mt-card-detail-modal__printing-grid`,
 		`grid-template-columns: repeat(3, minmax(0, 1fr));`,
+		`grid-auto-rows: 12.75rem;`,
+		`width: min(100%, 30rem);`,
+		`height: 13.9rem;`,
+		`gap: 0.8rem;`,
+		`overflow-y: auto;`,
+		`overscroll-behavior: contain;`,
+		`#card-detail-modal .mt-card-detail-modal__printing-choice[aria-selected="true"] img`,
+		`box-shadow: 0 0 0 2px var(--mt-accent-strong);`,
 		`object-fit: contain;`,
 	} {
 		if !strings.Contains(component, needle) {
