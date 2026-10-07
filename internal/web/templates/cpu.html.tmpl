@@ -1,0 +1,59 @@
+{{ define "cpu" }}
+{{ template "layout_header" . }}
+<link rel="stylesheet" href="{{ assetURL "cpu.css" }}">
+<div class="cpu-page" id="cpuPage">
+<header class="cpu-header">
+  <div><nav><a id="returnDeck" href="/decks" hidden>← Return to deck</a><a href="/extras">Extras</a><a href="/decks">My decks</a><span>/</span><span>Playtest</span></nav><h1>Commander table</h1><p class="cpu-intro">Your deck. A real opponent. Room to experiment.</p></div>
+  <div class="cpu-header-actions"><button id="openHelp" type="button">Guide</button><details class="match-tools"><summary><svg class="table-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg><span>Game options</span></summary><div class="toolbar"><button id="reconnect">Reconnect</button><button id="cancel" hidden>End game</button><button id="confirmCancel" hidden>Confirm end game (cannot restore)</button><button id="requestConcede" hidden>Concede at next priority</button><button id="confirmConcedeRequest" hidden>Confirm queued concession</button><span id="concedePending" role="status"></span><button id="diagnostics">Download session diagnostics</button><span id="expiry"></span></div>
+</details></div>
+</header>
+<p id="phone">A tablet or larger screen is recommended.</p>
+<p id="error" class="error" role="alert"></p><a id="signinAgain" href="/login?next=%2Fcpu" hidden>Sign in to resume your session</a>
+<p id="status" class="session-status" role="status">Checking for an existing session…</p>
+<section id="setup" hidden><div class="setup">
+<fieldset><legend>Your deck</legend><label>Saved Commander deck <select id="humanSaved"><option value="">Paste a deck below</option></select></label><label>Commander(s), one per line<textarea id="humanCommanders" style="min-height:70px"></textarea></label><label>Main deck, one “quantity card name” per line<textarea id="humanMain"></textarea></label></fieldset>
+<fieldset><legend>CPU deck</legend><label>Choose an opponent <select id="default"><option value="feline-ferocity">Feline Ferocity — Arahbo</option><option value="open-hostility">Open Hostility — Saskia</option><option value="arcane-wizardry">Arcane Wizardry — Inalla</option><option value="draconic-domination">Draconic Domination — The Ur-Dragon</option><option value="vampiric-bloodlust">Vampiric Bloodlust — Edgar Markov</option><option value="">Custom deck</option></select></label><button id="inspectDefault" type="button">Inspect default list</button><p id="defaultStyle">Cats and equipment; creature combat.</p><pre id="defaultList" hidden></pre><div id="customCPU" hidden><label>Saved Commander deck <select id="cpuSaved"><option value="">Paste a deck below</option></select></label><label>Commander(s), one per line<textarea id="cpuCommanders" style="min-height:70px"></textarea></label><label>Main deck<textarea id="cpuMain"></textarea></label></div></fieldset>
+</div><p>Both decks must contain 100 cards including commander(s). Forge validates cards, color identity and commander pairing. Decks are copied for this game; your saved deck is never changed. This engine pin may not include newer cards.</p><button id="start">Start game</button></section>
+
+<section id="game" class="game" aria-label="Commander game table" hidden>
+  <div class="turn-bar"><div class="turn-heading"><span id="turnOwner">Preparing the table</span><strong id="turnNumber"></strong><span id="priorityBadge" class="priority-badge"></span></div><ol id="phases" class="phases" aria-label="Turn phases"></ol></div>
+  <div class="table-layout">
+    <div class="table-surface">
+      <div id="boardNotice" class="board-notice" role="status" hidden></div>
+      <div id="players" class="players"></div><svg id="combatArrows" class="combat-arrows" aria-hidden="true"></svg>
+      <section id="zoneBrowser" class="zone-browser" aria-labelledby="zoneBrowserTitle" hidden>
+        <header><div><p class="panel-kicker">Zone browser</p><h2 id="zoneBrowserTitle"></h2></div><button id="closeZoneBrowser" type="button" aria-label="Close zone browser">×</button></header>
+        <p id="zoneBrowserHint" class="zone-browser-hint"></p><div id="zoneBrowserCards" class="cards"></div>
+      </section>
+    </div>
+    <aside class="decision-rail" aria-label="Game decisions"><div class="decision-content">
+      <div id="prompt" class="prompt" tabindex="-1" aria-label="Current decision" hidden></div>
+      <section id="stack" class="stack" aria-label="The stack"></section>
+      <details class="activity-panel"><summary>Recent activity</summary><ol id="activity"></ol></details>
+    </div></aside>
+    <aside class="preview-rail" aria-label="Card preview"><div class="preview-content">
+      <section class="preview-picture"><h2 class="panel-heading">Card picture</h2><div id="cardPicture" class="preview-art"><span class="preview-placeholder">M<span>Explore the table</span><small>Hover or focus a card in any visible zone.</small></span></div></section>
+      <section class="preview-detail"><h2 class="panel-heading">Card detail</h2><div id="cardDetail"><p class="preview-hint">Hover over a card to see its details.</p></div></section>
+      <p class="preview-footer">Hover to preview · ↗ to expand</p>
+    </div></aside>
+  </div>
+</section>
+<dialog id="playGuide" class="cpu-help" aria-labelledby="playGuideTitle"><button id="closeHelp" type="button">Close guide</button><h2 id="playGuideTitle">Play guide & shortcuts</h2>
+<p>Use a desktop or tablet. Hover or focus a card to preview its art and rules. Click a zone icon to browse its visible cards. Select a card to see Forge's offered actions; read the current decision beside the board. Select a player for player targets. The expand arrow opens a card’s art and rules in a larger view. Hidden cards stay hidden.</p>
+<p>Floating mana appears beside each player’s life total. During payment, click your available mana symbols to spend it, or select untapped lands and other mana sources. Use “Auto-pay mana” when Forge offers it to pay the remaining cost automatically. You can still choose mana sources manually and cancel a payment when its Cancel button is available.</p>
+<p>The phase column beside each player controls where you want priority on that player’s turn. Lit stops are enabled. Required decisions and responses to spells can still interrupt skipped phases; untap and cleanup follow the game’s priority rules.</p>
+<p>A checkmark marks a selected card. Attack arrows point toward the defender; block arrows connect blockers to their attackers. Dashed arrows show planned blocks before they are confirmed.</p>
+<p>Choose every required option, target or number before submitting. Ordering prompts say whether position 1 is applied first, resolves first, or belongs at a particular library destination. Choices are never remembered automatically. End Turn uses Forge's yield for the current turn; required decisions can still interrupt it.</p>
+<p>Reconnect or reload to resume the same live game. A second tab cannot reuse a decision already answered. If a request fails, reconnect before submitting another action. Leaving the page does not pause Forge. Read the live expiry time; disconnected sessions normally end after five minutes and games have a maximum lifetime of two hours.</p>
+<p>Concede at a human priority decision records a Forge loss. During CPU work, “Concede at next priority” requests the same Forge loss at its next safe priority boundary. The request is not a completed concession: a required choice may still need your reply, or you can End game immediately. If the game ends first, Forge’s actual result stands. End game cancels the process and is available during CPU work or a blocked prompt; cancellation cannot be undone and is not recorded as a gameplay loss. Finished or ended games cannot be restored. Your saved decks are unchanged, and this tab retains the last submitted lists for a fresh game.</p>
+<p>If Forge fails or exceeds its configured time without a human decision (normally 90 seconds), the game ends and capacity is reclaimed. Download session diagnostics for a report; it contains build and decision metadata, not decklists, hands or private prompt text. Describe the visible actions that led to the problem. The pinned engine may lack new cards or make imperfect CPU decisions; unsupported input fails visibly instead of choosing for you.</p>
+<p>Gameplay is powered by <a href="https://github.com/Card-Forge/forge/tree/26d8aff87509dde8a9d5017852339382d7ab3e83" target="_blank" rel="noopener noreferrer">Forge (pinned source, GPL-3.0-or-later)</a>. Card names and text belong to their respective owners. The bundled runtime includes corresponding source and component notices.</p>
+</dialog>
+
+<pre id="diagnosticPreview" hidden aria-label="Sanitized diagnostic preview"></pre>
+<dialog id="cardInspector" class="card-inspector" aria-labelledby="inspectorTitle"><button id="closeInspector" type="button" class="inspector-close" aria-label="Close card details">×</button><div id="inspectorContent"></div></dialog>
+<script src="{{ assetURL "cpu-table.js" }}" defer></script>
+<script src="{{ assetURL "cpu.js" }}" defer></script>
+</div>
+{{ template "layout_footer" . }}
+{{ end }}

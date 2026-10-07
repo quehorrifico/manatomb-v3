@@ -1,10 +1,13 @@
 package web
 
 import (
+	"crypto/sha256"
 	"embed"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 //go:embed assets/*
@@ -32,4 +35,20 @@ func AssetHandler() http.Handler {
 		w.Header().Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400")
 		http.StripPrefix("/assets/", fileServer).ServeHTTP(w, r)
 	})
+}
+
+var assetDigests sync.Map
+
+func assetURL(name string) string {
+	if cached, ok := assetDigests.Load(name); ok {
+		return cached.(string)
+	}
+	data, err := embeddedAssets.ReadFile("assets/" + name)
+	if err != nil {
+		return "/assets/" + name
+	}
+	sum := sha256.Sum256(data)
+	url := fmt.Sprintf("/assets/%s?v=%x", name, sum[:8])
+	assetDigests.Store(name, url)
+	return url
 }

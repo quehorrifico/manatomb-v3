@@ -1,0 +1,19 @@
+{
+  "scope": "Turn 3 CPU UPKEEP through blocked view; sampled boundaries nominal 1 s, includes human thinking; not engine elapsed latency",
+  "start_seconds": 79.180555162,
+  "end_seconds": 498.455456145,
+  "memory": {
+    "n": 1632,
+    "min_mib": 709.21484375,
+    "median_mib": 772.8125,
+    "max_mib": 808.77734375
+  },
+  "last_60_seconds_live_memory": {
+    "n": 235,
+    "min_mib": 801.53515625,
+    "median_mib": 803.61328125,
+    "max_mib": 808.77734375
+  },
+  "cgroup_cpu_seconds_delta": 62.499997,
+  "decision_scope": "Full process 109 instrumented calls, including earlier CPU turn; no timestamp alignment to supervisor invented"
+}

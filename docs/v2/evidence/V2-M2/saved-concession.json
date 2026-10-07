@@ -1,0 +1,27 @@
+{
+  "scenario": "Both seats selected from owned saved deck; actual Forge concession at priority",
+  "coverage": "Actual browser: saved player and CPU snapshots, Keep, stable priority, explicit Concede confirmation; not a natural finish.",
+  "status": "finished",
+  "turn": 1,
+  "result": "CPU",
+  "engine_image": "sha256:c74ffb62f28e0065533bcaf3af6a2a8c2a5d6c6911cf164d7d61d75391fe4643",
+  "web_image": "sha256:d792718338f278ffae20c502ed41a6abc63b0792dd6268ae162c3ec0e45c6675",
+  "runtime_identity_sha256": "dbc6b31ea5a7cccbb15cf4d37f4e7da6415d23bcb4d17eb05e3d37c44bd2b1b8",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "memory_current_and_container_lifetime_peak_bytes": [
+    60149760,
+    414597120
+  ],
+  "processes_after_end": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_end": [],
+  "platform": "Linux AMD64 on Docker Desktop ARM64/Rosetta; warm or unspecified cache; not native provider capacity",
+  "conceded": true
+}

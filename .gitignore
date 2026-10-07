@@ -6,3 +6,5 @@ node_modules/
 *.sqlite
 ops-notes.md
 /server
+__pycache__/
+*.pyc

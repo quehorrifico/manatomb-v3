@@ -29,7 +29,7 @@ const (
 	scryfallMaxRetryDelay   = 30 * time.Second
 	defaultBulkSyncInterval = 24 * time.Hour
 	cardSyncAdvisoryLockKey = int64(91342817)
-	cardSyncDataVersion     = 7
+	cardSyncDataVersion     = 8
 	staleCardPrintDeleteSQL = `
 		DELETE FROM card_prints cp
 		WHERE NOT EXISTS (
@@ -292,9 +292,6 @@ func isCommanderCandidate(sc scryfallCard) bool {
 	if sc.Legalities == nil || !strings.EqualFold(strings.TrimSpace(sc.Legalities["commander"]), "legal") {
 		return false
 	}
-	if !supportsPaper(sc.Games) {
-		return false
-	}
 	// A transforming Battle can have a legendary creature on its reverse face,
 	// but Battles are never legal commander choices.
 	if isBattleCard(sc) {
@@ -316,9 +313,9 @@ func shouldIncludeOracleCard(sc scryfallCard, c Card) bool {
 	if strings.TrimSpace(c.OracleID) == "" || strings.TrimSpace(c.Name) == "" {
 		return false
 	}
-	if !supportsPaper(sc.Games) {
-		return false
-	}
+	// Oracle bulk contains one arbitrary printing per card. Its games field
+	// describes that printing, not every printing of the Oracle identity. Paper
+	// availability is checked against the print bulk after both streams decode.
 	return true
 }
 
@@ -829,6 +826,36 @@ func decodePrintRowsFromDecoder(dec *bulkJSONDecoder, maxRows int) ([]printBulkR
 		return strings.ToLower(rows[i].CollectorNumber) < strings.ToLower(rows[j].CollectorNumber)
 	})
 	return rows, nil
+}
+
+// selectPaperBulkRows joins canonical identities to eligible paper printings.
+// Apply the development limit after this join so digital-only identities do
+// not consume the sample and every selected card keeps all its printings.
+func selectPaperBulkRows(oracleRows []oracleBulkRow, printRows []printBulkRow, maxRows int) ([]oracleBulkRow, []printBulkRow) {
+	paperIDs := make(map[string]struct{}, len(printRows))
+	for _, row := range printRows {
+		paperIDs[strings.ToLower(strings.TrimSpace(row.OracleID))] = struct{}{}
+	}
+	selectedIDs := make(map[string]struct{}, len(oracleRows))
+	selectedOracles := make([]oracleBulkRow, 0, len(oracleRows))
+	for _, row := range oracleRows {
+		id := strings.ToLower(strings.TrimSpace(row.OracleID))
+		if _, ok := paperIDs[id]; !ok {
+			continue
+		}
+		selectedOracles = append(selectedOracles, row)
+		selectedIDs[id] = struct{}{}
+		if maxRows > 0 && len(selectedOracles) >= maxRows {
+			break
+		}
+	}
+	selectedPrints := make([]printBulkRow, 0, len(printRows))
+	for _, row := range printRows {
+		if _, ok := selectedIDs[strings.ToLower(strings.TrimSpace(row.OracleID))]; ok {
+			selectedPrints = append(selectedPrints, row)
+		}
+	}
+	return selectedOracles, selectedPrints
 }
 
 func withCardSyncLock(ctx context.Context, db *sql.DB, fn func() error) error {
@@ -1436,54 +1463,23 @@ func SyncCardsFromScryfallBulk(ctx context.Context, db *sql.DB, options CardBulk
 			printsDescriptor.UpdatedAt.UTC().Format(time.RFC3339),
 		)
 
-		oracleRows, err := decodeOracleRows(ctx, oracleDescriptor.DownloadURI, options.MaxRows)
+		oracleRows, err := decodeOracleRows(ctx, oracleDescriptor.DownloadURI, 0)
 		if err != nil {
 			return err
 		}
 		logger.Printf("cards sync phase: decoded oracle rows=%d", len(oracleRows))
 
-		printLimit := options.MaxRows
-		if options.MaxRows > 0 {
-			// Limited canonical mode still needs complete print coverage for sampled
-			// oracle ids so version dropdown/art/price remain coherent.
-			printLimit = 0
-		}
-		printRows, err := decodePrintRows(ctx, printsDescriptor.DownloadURI, printLimit)
+		printRows, err := decodePrintRows(ctx, printsDescriptor.DownloadURI, 0)
 		if err != nil {
 			return err
 		}
 		logger.Printf("cards sync phase: decoded print rows=%d", len(printRows))
 
-		// In limited mode, oracle/default streams can diverge on which records are
-		// sampled first. Keep only printings whose oracle_id exists in the sampled
-		// canonical set so FK inserts remain valid.
-		oracleIDs := make(map[string]struct{}, len(oracleRows))
-		for _, row := range oracleRows {
-			id := strings.ToLower(strings.TrimSpace(row.OracleID))
-			if id == "" {
-				continue
-			}
-			oracleIDs[id] = struct{}{}
+		oracleRows, printRows = selectPaperBulkRows(oracleRows, printRows, options.MaxRows)
+		logger.Printf("cards sync phase: selected paper cards=%d printings=%d", len(oracleRows), len(printRows))
+		if len(oracleRows) == 0 || len(printRows) == 0 {
+			return errors.New("bulk sync contains no matching paper cards and printings; refusing to replace card database")
 		}
-		filteredPrints := make([]printBulkRow, 0, len(printRows))
-		for _, row := range printRows {
-			id := strings.ToLower(strings.TrimSpace(row.OracleID))
-			if id == "" {
-				continue
-			}
-			if _, ok := oracleIDs[id]; !ok {
-				continue
-			}
-			filteredPrints = append(filteredPrints, row)
-		}
-		if len(filteredPrints) != len(printRows) {
-			logger.Printf(
-				"cards sync phase: filtered print rows to match oracle set (%d -> %d)",
-				len(printRows),
-				len(filteredPrints),
-			)
-		}
-		printRows = filteredPrints
 
 		if err := applyBulkRows(ctx, db, oracleRows, printRows, sourceUpdatedAt, options.MaxRows == 0); err != nil {
 			return err

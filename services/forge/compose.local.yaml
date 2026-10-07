@@ -1,0 +1,55 @@
+name: manatomb-v2-local
+services:
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_DB: manatomb
+      POSTGRES_USER: manatomb
+      POSTGRES_PASSWORD: local-only-not-for-hosting
+    volumes:
+      - local-db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U manatomb -d manatomb']
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  forge:
+    platform: linux/amd64
+    build:
+      context: ../..
+      dockerfile: services/forge/Dockerfile
+      additional_contexts:
+        forge-runtime: ${FORGE_RUNTIME_BUNDLE:?Set absolute path to the prepared bundle}
+    environment:
+      FORGE_SERVICE_SECRET: ${FORGE_SERVICE_SECRET:?Set a random local service secret of at least 32 characters}
+      FORGE_MAX_GAMES: '1'
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 1
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777,noexec,nosuid
+    expose: ['8081']
+    stop_grace_period: 10s
+  web:
+    platform: linux/amd64
+    build:
+      context: ../..
+    environment:
+      DATABASE_URL: postgres://manatomb:local-only-not-for-hosting@postgres:5432/manatomb?sslmode=disable
+      PORT: '8080'
+      PUBLIC_BASE_URL: http://127.0.0.1:18880
+      CPU_PLAY_ENABLED: ${CPU_PLAY_ENABLED:-false}
+      FORGE_SERVICE_URL: http://forge:8081
+      FORGE_SERVICE_SECRET: ${FORGE_SERVICE_SECRET:?Set the shared local service secret}
+      CARD_SYNC_ENABLED: 'false'
+      CARD_SYNC_ON_START: 'false'
+    ports: ['127.0.0.1:18880:8080']
+    mem_limit: 512m
+    cpus: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  local-db:

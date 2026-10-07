@@ -33,3 +33,8 @@ Magic card back. Ordinary page chrome should always use a `--mt-*` role.
 The settings page reads the catalog automatically, so a catalog entry and its
 palette block are enough to expose a new persisted choice to signed-in users.
 Unknown or missing stored values safely fall back to Tomb Brass.
+
+The shared header/footer monogram uses the `mark` path from
+`internal/web/assets/manatomb-square-logo.svg` with `currentColor`, colored by
+`--mt-accent`. Keep the source mark transparent and single-color. `brand.js`
+colors the browser favicon from the same accent and follows Appearance changes.

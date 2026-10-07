@@ -1,0 +1,84 @@
+{
+  "result": "passed",
+  "scope": "captured DTO/protocol evidence invariants; not browser automation or exhaustive privacy proof",
+  "runs": {
+    "realistic": {
+      "events": 202,
+      "human_projections": 0,
+      "inputs": [
+        "InputConfirmMulligan",
+        "InputLondonMulligan",
+        "InputPassPriority"
+      ],
+      "choices": [
+        "getAbilityToPlay",
+        "reveal"
+      ],
+      "natural_results": 0,
+      "sha256": "6c34be07aa28ce770081212360a225c992a89cb8afb75ff9b3d57c0966441230",
+      "bytes": 12942
+    },
+    "focused": {
+      "events": 640,
+      "human_projections": 73,
+      "inputs": [
+        "InputAttack",
+        "InputConfirm",
+        "InputConfirmMulligan",
+        "InputPassPriority",
+        "InputPayManaOfCostPayment",
+        "InputSelectTargets"
+      ],
+      "choices": [
+        "getAbilityToPlay",
+        "manipulateCardList"
+      ],
+      "natural_results": 1,
+      "sha256": "b83aa95bbe6d7e519550c0d901ac94ef17e45918cdc3d7a7ac6454472720f846",
+      "bytes": 477404
+    },
+    "blocking": {
+      "events": 275,
+      "human_projections": 18,
+      "inputs": [
+        "InputBlock",
+        "InputConfirmMulligan",
+        "InputPassPriority",
+        "InputPayManaOfCostPayment"
+      ],
+      "choices": [
+        "getAbilityToPlay",
+        "manipulateCardList"
+      ],
+      "natural_results": 0,
+      "sha256": "8a2bf1a551e2d83664e0c5eb5d922cac22d5156594094b2ce1d8aeb76a7e413d",
+      "bytes": 120281
+    },
+    "final-blocking": {
+      "events": 574,
+      "human_projections": 57,
+      "inputs": [
+        "InputAttack",
+        "InputBlock",
+        "InputConfirmMulligan",
+        "InputLondonMulligan",
+        "InputPassPriority",
+        "InputPayManaOfCostPayment",
+        "InputSelectTargets"
+      ],
+      "choices": [
+        "getAbilityToPlay",
+        "manipulateCardList"
+      ],
+      "natural_results": 1,
+      "sha256": "7ee91027454c9c301e0b6fbac44a11d422519f01acf1e4c0a18a5c068e889d8a",
+      "bytes": 368321
+    }
+  },
+  "final_result": {
+    "status": "finished",
+    "result": "Human",
+    "turn": 2,
+    "phase": "COMBAT_DAMAGE"
+  }
+}

@@ -1,0 +1,359 @@
+{
+  "name": "Open Hostility",
+  "commanders": [
+    {
+      "name": "Saskia the Unyielding",
+      "quantity": 1
+    }
+  ],
+  "main": [
+    {
+      "name": "Wight of Precinct Six",
+      "quantity": 1
+    },
+    {
+      "name": "Den Protector",
+      "quantity": 1
+    },
+    {
+      "name": "Quirion Explorer",
+      "quantity": 1
+    },
+    {
+      "name": "Sakura-Tribe Elder",
+      "quantity": 1
+    },
+    {
+      "name": "Sylvok Explorer",
+      "quantity": 1
+    },
+    {
+      "name": "Korozda Guildmage",
+      "quantity": 1
+    },
+    {
+      "name": "Zhur-Taa Druid",
+      "quantity": 1
+    },
+    {
+      "name": "Selesnya Guildmage",
+      "quantity": 1
+    },
+    {
+      "name": "Mentor of the Meek",
+      "quantity": 1
+    },
+    {
+      "name": "Mirror Entity",
+      "quantity": 1
+    },
+    {
+      "name": "Alesha, Who Smiles at Death",
+      "quantity": 1
+    },
+    {
+      "name": "Taurean Mauler",
+      "quantity": 1
+    },
+    {
+      "name": "Managorger Hydra",
+      "quantity": 1
+    },
+    {
+      "name": "Wild Beastmaster",
+      "quantity": 1
+    },
+    {
+      "name": "Wilderness Elemental",
+      "quantity": 1
+    },
+    {
+      "name": "Dauntless Escort",
+      "quantity": 1
+    },
+    {
+      "name": "Brutal Hordechief",
+      "quantity": 1
+    },
+    {
+      "name": "Thelonite Hermit",
+      "quantity": 1
+    },
+    {
+      "name": "Iroas, God of Victory",
+      "quantity": 1
+    },
+    {
+      "name": "Mycoloth",
+      "quantity": 1
+    },
+    {
+      "name": "Ankle Shanker",
+      "quantity": 1
+    },
+    {
+      "name": "Thunderfoot Baloth",
+      "quantity": 1
+    },
+    {
+      "name": "Stalking Vengeance",
+      "quantity": 1
+    },
+    {
+      "name": "Farseek",
+      "quantity": 1
+    },
+    {
+      "name": "Rampant Growth",
+      "quantity": 1
+    },
+    {
+      "name": "Shamanic Revelation",
+      "quantity": 1
+    },
+    {
+      "name": "Clan Defiance",
+      "quantity": 1
+    },
+    {
+      "name": "Lavalanche",
+      "quantity": 1
+    },
+    {
+      "name": "Terminate",
+      "quantity": 1
+    },
+    {
+      "name": "Artifact Mutation",
+      "quantity": 1
+    },
+    {
+      "name": "Boros Charm",
+      "quantity": 1
+    },
+    {
+      "name": "Aura Mutation",
+      "quantity": 1
+    },
+    {
+      "name": "Abzan Charm",
+      "quantity": 1
+    },
+    {
+      "name": "Naya Charm",
+      "quantity": 1
+    },
+    {
+      "name": "Crackling Doom",
+      "quantity": 1
+    },
+    {
+      "name": "Grab the Reins",
+      "quantity": 1
+    },
+    {
+      "name": "Utter End",
+      "quantity": 1
+    },
+    {
+      "name": "Order // Chaos",
+      "quantity": 1
+    },
+    {
+      "name": "Skullclamp",
+      "quantity": 1
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1
+    },
+    {
+      "name": "Fellwar Stone",
+      "quantity": 1
+    },
+    {
+      "name": "Gruul Signet",
+      "quantity": 1
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1
+    },
+    {
+      "name": "Commander's Sphere",
+      "quantity": 1
+    },
+    {
+      "name": "Sunforger",
+      "quantity": 1
+    },
+    {
+      "name": "Blind Obedience",
+      "quantity": 1
+    },
+    {
+      "name": "Necrogenesis",
+      "quantity": 1
+    },
+    {
+      "name": "Beastmaster Ascension",
+      "quantity": 1
+    },
+    {
+      "name": "Everlasting Torment",
+      "quantity": 1
+    },
+    {
+      "name": "Breath of Fury",
+      "quantity": 1
+    },
+    {
+      "name": "Caves of Koilos",
+      "quantity": 1
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1
+    },
+    {
+      "name": "Dragonskull Summit",
+      "quantity": 1
+    },
+    {
+      "name": "Evolving Wilds",
+      "quantity": 1
+    },
+    {
+      "name": "Exotic Orchard",
+      "quantity": 1
+    },
+    {
+      "name": "Grand Coliseum",
+      "quantity": 1
+    },
+    {
+      "name": "Gruul Turf",
+      "quantity": 1
+    },
+    {
+      "name": "Jungle Shrine",
+      "quantity": 1
+    },
+    {
+      "name": "Karplusan Forest",
+      "quantity": 1
+    },
+    {
+      "name": "Mosswort Bridge",
+      "quantity": 1
+    },
+    {
+      "name": "Nomad Outpost",
+      "quantity": 1
+    },
+    {
+      "name": "Orzhov Basilica",
+      "quantity": 1
+    },
+    {
+      "name": "Rootbound Crag",
+      "quantity": 1
+    },
+    {
+      "name": "Sandsteppe Citadel",
+      "quantity": 1
+    },
+    {
+      "name": "Savage Lands",
+      "quantity": 1
+    },
+    {
+      "name": "Spinerock Knoll",
+      "quantity": 1
+    },
+    {
+      "name": "Sunpetal Grove",
+      "quantity": 1
+    },
+    {
+      "name": "Terramorphic Expanse",
+      "quantity": 1
+    },
+    {
+      "name": "Windbrisk Heights",
+      "quantity": 1
+    },
+    {
+      "name": "Plains",
+      "quantity": 3
+    },
+    {
+      "name": "Swamp",
+      "quantity": 3
+    },
+    {
+      "name": "Mountain",
+      "quantity": 5
+    },
+    {
+      "name": "Forest",
+      "quantity": 5
+    },
+    {
+      "name": "Tymna the Weaver",
+      "quantity": 1
+    },
+    {
+      "name": "Charging Cinderhorn",
+      "quantity": 1
+    },
+    {
+      "name": "Tana, the Bloodsower",
+      "quantity": 1
+    },
+    {
+      "name": "Ravos, Soultender",
+      "quantity": 1
+    },
+    {
+      "name": "Stonehoof Chieftain",
+      "quantity": 1
+    },
+    {
+      "name": "Primeval Protector",
+      "quantity": 1
+    },
+    {
+      "name": "Conqueror's Flail",
+      "quantity": 1
+    },
+    {
+      "name": "Evolutionary Escalation",
+      "quantity": 1
+    },
+    {
+      "name": "Frenzied Fugue",
+      "quantity": 1
+    },
+    {
+      "name": "Sylvan Reclamation",
+      "quantity": 1
+    },
+    {
+      "name": "Divergent Transformations",
+      "quantity": 1
+    },
+    {
+      "name": "Grave Upheaval",
+      "quantity": 1
+    },
+    {
+      "name": "Treacherous Terrain",
+      "quantity": 1
+    },
+    {
+      "name": "Ash Barrens",
+      "quantity": 1
+    }
+  ]
+}

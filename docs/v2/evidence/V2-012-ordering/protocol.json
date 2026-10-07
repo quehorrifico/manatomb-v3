@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "actualController": "PlayerControllerHuman.orderSimultaneousSa",
+  "thread": "AWT-EventQueue-0",
+  "invalidPermutationsRejected": 10,
+  "competingRepliesAccepted": 1,
+  "originalViewAndAbilityIdentity": true,
+  "rememberDisabledAndReprompted": true,
+  "otherOrderingRejected": true,
+  "stackResolution": "Verified separately by focused real-browser fixture"
+}

@@ -1,0 +1,30 @@
+{
+  "resource_and_lifecycle_invariants": "passed",
+  "cycles": 20,
+  "natural_AI_games": 7,
+  "all_containers_removed": true,
+  "fault_probes": {
+    "replacement": {
+      "old_token_status": 409,
+      "new_token_old_session_status": 409,
+      "new_token_old_session_error": "{\"error\":\"Stale prompt or revision\"}",
+      "replacement_unchanged": true,
+      "elapsed_seconds": 0.4162288330262527
+    },
+    "interrupt": {
+      "same_session_prompt_revision": true,
+      "elapsed_seconds": 0.36019466700963676
+    },
+    "capacity": {
+      "rejected": true,
+      "exit_code": 2
+    },
+    "stuck": {
+      "worker_stopped": true,
+      "status": 200,
+      "worker_reap_response_seconds": 3.1082195839844644,
+      "elapsed_seconds": 3.3545844999607652
+    }
+  },
+  "representative_human_workload": "blocked; do not treat this audit as overall V2-012 acceptance"
+}

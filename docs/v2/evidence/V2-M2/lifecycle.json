@@ -1,0 +1,107 @@
+{
+  "kind": "local API lifecycle/fault tests, not browser gameplay",
+  "cycles": [
+    {
+      "mode": "startup-cancel",
+      "index": 0,
+      "readiness_seconds": null,
+      "cleanup_seconds": 0.454,
+      "elapsed_seconds": 0.545,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "input-cancel",
+      "index": 1,
+      "readiness_seconds": 18.186,
+      "cleanup_seconds": 0.926,
+      "elapsed_seconds": 19.355,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "duplicate-create",
+      "index": 2,
+      "readiness_seconds": 16.213,
+      "cleanup_seconds": 0.945,
+      "elapsed_seconds": 17.467,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "forced-death",
+      "index": 3,
+      "readiness_seconds": 16.163,
+      "cleanup_seconds": 0.888,
+      "elapsed_seconds": 17.31,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "stopped-worker-cancel",
+      "index": 4,
+      "readiness_seconds": 15.264,
+      "cleanup_seconds": 3.941,
+      "elapsed_seconds": 19.469,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "lost-ack",
+      "index": 5,
+      "readiness_seconds": 15.168,
+      "cleanup_seconds": 0.916,
+      "elapsed_seconds": 16.866,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "service-restart",
+      "index": 6,
+      "readiness_seconds": 15.165,
+      "cleanup_seconds": 1.602,
+      "elapsed_seconds": 17.029,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "input-cancel",
+      "index": 7,
+      "readiness_seconds": 16.242,
+      "cleanup_seconds": 0.871,
+      "elapsed_seconds": 17.418,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "input-cancel",
+      "index": 8,
+      "readiness_seconds": 18.231,
+      "cleanup_seconds": 0.938,
+      "elapsed_seconds": 19.439,
+      "no_worker_or_session_files": true
+    },
+    {
+      "mode": "input-cancel",
+      "index": 9,
+      "readiness_seconds": 16.24,
+      "cleanup_seconds": 0.906,
+      "elapsed_seconds": 17.414,
+      "no_worker_or_session_files": true
+    }
+  ],
+  "traffic": {
+    "requests": 207,
+    "sent_body_bytes": 8312,
+    "received_body_bytes": 69468
+  },
+  "passed": true,
+  "image": "sha256:3c1883a10a2841f1b74b371c514043472c4903d773a4dea68edcc588658e595e",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000,
+    "PidsLimit": 256
+  },
+  "forge": "26d8aff87509dde8a9d5017852339382d7ab3e83",
+  "adapter_sha256": "ccd469a67f8d69588a2ba7af8950d4ee1d04b16c52e4215a72fc1a2a269a5f5c",
+  "limitations": [
+    "Linux AMD64 emulated via Rosetta on ARM64",
+    "Readiness samples begin after create/admission checks; warm unspecified storage caches",
+    "Traffic counts response/request bodies only, excludes headers and deliberately dropped request",
+    "No natural-game or CPU-turn cancellation coverage in this runner; natural game recorded separately",
+    "No per-cycle memory samples in this lifecycle run"
+  ]
+}

@@ -1,0 +1,359 @@
+{
+  "name": "Vampiric Bloodlust",
+  "commanders": [
+    {
+      "name": "Edgar Markov",
+      "quantity": 1
+    }
+  ],
+  "main": [
+    {
+      "name": "Akoum Refuge",
+      "quantity": 1
+    },
+    {
+      "name": "Ambition's Cost",
+      "quantity": 1
+    },
+    {
+      "name": "Anowon, the Ruin Sage",
+      "quantity": 1
+    },
+    {
+      "name": "Black Market",
+      "quantity": 1
+    },
+    {
+      "name": "Blade of the Bloodchief",
+      "quantity": 1
+    },
+    {
+      "name": "Blind Obedience",
+      "quantity": 1
+    },
+    {
+      "name": "Blood Artist",
+      "quantity": 1
+    },
+    {
+      "name": "Blood Baron of Vizkopa",
+      "quantity": 1
+    },
+    {
+      "name": "Blood Tribute",
+      "quantity": 1
+    },
+    {
+      "name": "Bloodfell Caves",
+      "quantity": 1
+    },
+    {
+      "name": "Bloodhusk Ritualist",
+      "quantity": 1
+    },
+    {
+      "name": "Bloodline Necromancer",
+      "quantity": 1
+    },
+    {
+      "name": "Bloodlord of Vaasgoth",
+      "quantity": 1
+    },
+    {
+      "name": "Bloodsworn Steward",
+      "quantity": 1
+    },
+    {
+      "name": "Bojuka Bog",
+      "quantity": 1
+    },
+    {
+      "name": "Boros Garrison",
+      "quantity": 1
+    },
+    {
+      "name": "Boros Guildgate",
+      "quantity": 1
+    },
+    {
+      "name": "Boros Signet",
+      "quantity": 1
+    },
+    {
+      "name": "Butcher of Malakir",
+      "quantity": 1
+    },
+    {
+      "name": "Captivating Vampire",
+      "quantity": 1
+    },
+    {
+      "name": "Cinder Barrens",
+      "quantity": 1
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1
+    },
+    {
+      "name": "Consuming Vapors",
+      "quantity": 1
+    },
+    {
+      "name": "Crackling Doom",
+      "quantity": 1
+    },
+    {
+      "name": "Crimson Honor Guard",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Disturbance",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Vitality",
+      "quantity": 1
+    },
+    {
+      "name": "Damnable Pact",
+      "quantity": 1
+    },
+    {
+      "name": "Dark Impostor",
+      "quantity": 1
+    },
+    {
+      "name": "Disrupt Decorum",
+      "quantity": 1
+    },
+    {
+      "name": "Door of Destinies",
+      "quantity": 1
+    },
+    {
+      "name": "Drana, Kalastria Bloodchief",
+      "quantity": 1
+    },
+    {
+      "name": "Evolving Wilds",
+      "quantity": 1
+    },
+    {
+      "name": "Falkenrath Noble",
+      "quantity": 1
+    },
+    {
+      "name": "Fell the Mighty",
+      "quantity": 1
+    },
+    {
+      "name": "Forsaken Sanctuary",
+      "quantity": 1
+    },
+    {
+      "name": "Go for the Throat",
+      "quantity": 1
+    },
+    {
+      "name": "Heirloom Blade",
+      "quantity": 1
+    },
+    {
+      "name": "Kabira Crossroads",
+      "quantity": 1
+    },
+    {
+      "name": "Kheru Mind-Eater",
+      "quantity": 1
+    },
+    {
+      "name": "Kindred Boon",
+      "quantity": 1
+    },
+    {
+      "name": "Kindred Charge",
+      "quantity": 1
+    },
+    {
+      "name": "Licia, Sanguine Tribune",
+      "quantity": 1
+    },
+    {
+      "name": "Malakir Bloodwitch",
+      "quantity": 1
+    },
+    {
+      "name": "Mathas, Fiend Seeker",
+      "quantity": 1
+    },
+    {
+      "name": "Merciless Eviction",
+      "quantity": 1
+    },
+    {
+      "name": "Mortify",
+      "quantity": 1
+    },
+    {
+      "name": "Mountain",
+      "quantity": 4
+    },
+    {
+      "name": "New Blood",
+      "quantity": 1
+    },
+    {
+      "name": "Nomad Outpost",
+      "quantity": 1
+    },
+    {
+      "name": "Opal Palace",
+      "quantity": 1
+    },
+    {
+      "name": "Orzhov Basilica",
+      "quantity": 1
+    },
+    {
+      "name": "Orzhov Guildgate",
+      "quantity": 1
+    },
+    {
+      "name": "Orzhov Signet",
+      "quantity": 1
+    },
+    {
+      "name": "Outpost Siege",
+      "quantity": 1
+    },
+    {
+      "name": "Path of Ancestry",
+      "quantity": 1
+    },
+    {
+      "name": "Patron of the Vein",
+      "quantity": 1
+    },
+    {
+      "name": "Pawn of Ulamog",
+      "quantity": 1
+    },
+    {
+      "name": "Plains",
+      "quantity": 3
+    },
+    {
+      "name": "Rakdos Carnarium",
+      "quantity": 1
+    },
+    {
+      "name": "Rakdos Guildgate",
+      "quantity": 1
+    },
+    {
+      "name": "Rakdos Signet",
+      "quantity": 1
+    },
+    {
+      "name": "Rakish Heir",
+      "quantity": 1
+    },
+    {
+      "name": "Read the Bones",
+      "quantity": 1
+    },
+    {
+      "name": "Return to Dust",
+      "quantity": 1
+    },
+    {
+      "name": "Sangromancer",
+      "quantity": 1
+    },
+    {
+      "name": "Sanguine Bond",
+      "quantity": 1
+    },
+    {
+      "name": "Scoured Barrens",
+      "quantity": 1
+    },
+    {
+      "name": "Skeletal Scrying",
+      "quantity": 1
+    },
+    {
+      "name": "Skeletal Vampire",
+      "quantity": 1
+    },
+    {
+      "name": "Skullclamp",
+      "quantity": 1
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1
+    },
+    {
+      "name": "Stone Quarry",
+      "quantity": 1
+    },
+    {
+      "name": "Stromkirk Captain",
+      "quantity": 1
+    },
+    {
+      "name": "Swamp",
+      "quantity": 8
+    },
+    {
+      "name": "Swords to Plowshares",
+      "quantity": 1
+    },
+    {
+      "name": "Syphon Mind",
+      "quantity": 1
+    },
+    {
+      "name": "Teferi's Protection",
+      "quantity": 1
+    },
+    {
+      "name": "Terramorphic Expanse",
+      "quantity": 1
+    },
+    {
+      "name": "Tithe Drinker",
+      "quantity": 1
+    },
+    {
+      "name": "Underworld Connections",
+      "quantity": 1
+    },
+    {
+      "name": "Urborg Volcano",
+      "quantity": 1
+    },
+    {
+      "name": "Vampire Nighthawk",
+      "quantity": 1
+    },
+    {
+      "name": "Vein Drinker",
+      "quantity": 1
+    },
+    {
+      "name": "Well of Lost Dreams",
+      "quantity": 1
+    },
+    {
+      "name": "Wind-Scarred Crag",
+      "quantity": 1
+    },
+    {
+      "name": "Worn Powerstone",
+      "quantity": 1
+    }
+  ]
+}

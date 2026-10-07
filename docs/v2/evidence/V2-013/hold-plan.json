@@ -1,0 +1,13 @@
+{
+  "defined_utc": "2026-09-18T03:02:24.070210+00:00",
+  "run": "duration-hold-1024",
+  "cap_mib": 1024,
+  "cpu": 1,
+  "heap_mib": 512,
+  "boundary": "First human turn-12 UPKEEP InputPassPriority reached by unchanged real-browser sequence",
+  "hold_seconds": 600,
+  "fixed": "Same Forge pin, adapter, decks, seed, JVM argv, timer, supervisor, 200ms browser polling and 250ms cgroup sampler throughout. No game action during hold.",
+  "observations": "Existing cgroup current/peak/anon/file/kernel and worker RSS/threads; extra read-only process RSS/status and NMT+heap probes at 0/300/600 s. Probe overhead stays in overall peak; no forced GC.",
+  "stop": "One experiment only; stop on OOM/worker death/new blocked state. At 600s cancel via existing supervisor. Existing 1800s runner deadline remains. Continuing growth is a finding, not authorization for more trials.",
+  "interpretation": "Compare time windows within same unchanged held game. No causal attribution for prior run differences. Finite observed plateau only, not leak absence or native/production capacity."
+}

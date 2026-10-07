@@ -1,0 +1,27 @@
+{
+  "scenario": "Focused real-browser X=2 Ballista, Scales then Season gives six counters, Evolution Charm flying, kicked Vines, attack and activated counter-cost damage; natural Human result turn 2",
+  "coverage": "Agent-operated real browser; passive human pass/discard strategy unless separately described. No representative human-deck performance claim.",
+  "status": "finished",
+  "turn": 2,
+  "result": "Human",
+  "conceded": false,
+  "engine_image": "sha256:e50e706aff88ef2ec6d34dec3eccb2f0ef2d3fb2758b851a09500156bc6aecac",
+  "web_image": "sha256:107838f86c98fed85c241a76504079c2fef2da161d869ca216661e76f1e6255c",
+  "runtime_identity_sha256": "8773ecd09158425db45b7fdbcc707e9d6dcb0d6f33014350366ed5ce683c4e73",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "memory_current_and_container_lifetime_peak_bytes": [
+    120770560,
+    509857792
+  ],
+  "processes_after_end": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_end": [],
+  "platform": "Linux AMD64 on Docker Desktop ARM64/Rosetta; warm or unspecified cache; not native provider capacity"
+}

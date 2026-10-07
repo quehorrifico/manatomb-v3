@@ -99,6 +99,14 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if action == "save_overview" {
+			name := current.Name
+			if _, ok := r.Form["name"]; ok {
+				name = strings.TrimSpace(r.Form.Get("name"))
+				if name == "" || len([]rune(name)) > 120 {
+					http.Error(w, "Deck name must contain between 1 and 120 characters.", http.StatusBadRequest)
+					return
+				}
+			}
 			format := current.Format
 			if _, ok := r.Form["format"]; ok {
 				format = defaultDeckFormat(r.Form.Get("format"), current.CommanderName, "")
@@ -120,7 +128,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			powerBracket := defaultDeckPowerBracket(current.PowerBracket, format)
 
 			if err := decks.UpdateDeckWithOptions(r.Context(), a.DB, id, decks.DeckInput{
-				Name:          current.Name,
+				Name:          name,
 				Description:   strings.TrimSpace(r.Form.Get("description")),
 				Tags:          strings.TrimSpace(r.Form.Get("tags")),
 				Format:        format,

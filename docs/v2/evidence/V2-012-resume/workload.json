@@ -1,0 +1,13 @@
+{
+  "defined_at_utc": "2026-09-14T07:05:54.442094+00:00",
+  "adapter_sha256": "f857c0ad0b7173e050abcdbcd8e1140eb8e7cdd76f6a053d43f9158fe32dac58",
+  "mode": "real human controller, browser controls operated by agent; no HTTP gameplay driver",
+  "environment": "Linux AMD64 Rosetta, 1024 MiB entire engine/supervisor cgroup, no swap, one CPU, Xmx512m",
+  "decks": "Unchanged V2-010 Feline Ferocity vs Open Hostility, 99+1, Default AI, seed 20260912",
+  "coverage_pilot": "corrected-browser starts measured active segment at held CPU turn 3 UPKEEP after correction/boundary proof; prior startup and diagnostic overlap excluded from timing claims",
+  "planned_repetitions": 5,
+  "workload": "Fresh normal game, acknowledge authorized warning, keep recorded hand. Develop one legal land each human turn; cast available Cat/creature and equipment when mana permits, activate/equip and declare legal attacks/blocks through actual controls. Select identified public trigger and target prompts intentionally. Yield only when choosing to take no more actions. Reach at least global turn 12 (six CPU turns); include meaningful human spells, payment, targeting and combat and at least two CPU turns after turn 4. No manufactured draws, substitutions, rules or default answers. Abort after fixed endpoint.",
+  "stop": "First unsupported or ambiguous prompt: preserve, classify, cancel, no broad adapter expansion. No five repetitions of a known coverage failure. If pilot does not reach meaningful coverage, human acceptance remains blocked.",
+  "metrics": "Startup measured separately fresh-process/warm-or-unspecified-storage. Active memory sampled from segment-start marker to endpoint. CPU latency is bracketed chooseSpellAbilityToPlay calls, admission ACK is proxy timing, never human time. Wall-clock duration includes agent thinking/tool latency and is not engine latency. Payload bytes exclude headers, internal probes and failed proxy exchanges; log bytes separate. Retain peak for entire process separately.",
+  "reuse": "Prior five idle, five AI and twenty lifecycle cycles remain historical evidence; adapter only changes ability labels, duplicate-label fail-closed and sanitized diagnostic logging. Unchanged Forge/CPU/supervisor mechanics retain relevance but old numbers are not rebranded as new-adapter measurements. No site or native-provider gate upgrade."
+}

@@ -1,0 +1,27 @@
+{
+  "scenario": "Tablet landscape 1024x768: real CPU Siege Mastodon attack; keyboard-declared Goblin Piker and Storm Crow blocks; Unsummon during declare-blockers priority, explicit target and blue payment; Forge returned attacker to hidden CPU hand, both blockers survived and human stayed 40 through combat end. Explicit cancellation after this bounded corpus; not a natural result. Focus loss discovered before corrective web build.",
+  "coverage": "Agent-operated real browser; passive human pass/discard strategy unless separately described. No representative human-deck performance claim.",
+  "status": "cancelled",
+  "turn": 1,
+  "result": null,
+  "conceded": false,
+  "engine_image": "sha256:37684bb41fda1d46231f36701b062e154df68d46ca17811fd29506f125c5d030",
+  "web_image": "sha256:d2279455ff5f37914dc8d911537e6be35563a2d74dc8a518572aae0ac0368380",
+  "runtime_identity_sha256": "c2f63934647678869cb5987237ca64f24cf108864dee508305a125b8230bdd94",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "memory_current_and_container_lifetime_peak_bytes": [
+    164626432,
+    553984000
+  ],
+  "processes_after_end": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_end": [],
+  "platform": "Linux AMD64 on Docker Desktop ARM64/Rosetta; warm or unspecified cache; not native provider capacity"
+}

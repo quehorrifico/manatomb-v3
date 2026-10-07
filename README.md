@@ -5,6 +5,9 @@ Search cards from a local Scryfall-powered database, build decks across formats,
 
 This project also serves as a full‑stack learning environment focused on **Go**, **PostgreSQL**, **TailwindCSS**, and maintainable backend architecture.
 
+The [v2 Commander CPU playtesting roadmap](docs/v2/README.md) documents the next
+release's scope, Forge feasibility gates, task status, and agent workflow.
+
 > ManaTomb is a non-commercial project. All card data and images are provided by Scryfall.
 
 ---
@@ -14,6 +17,9 @@ This project also serves as a full‑stack learning environment focused on **Go*
 - Card search with local canonical card data and print-version browsing
 - Commander search plus local deck creation for other MTG formats
 - Deck builder with saved decks, guest decks, maybeboard support, and import flows
+- Signed-in decks save to the account when the editor opens. Card edits save
+  immediately; names, notes, tags, and format autosave with local recovery and
+  connection retries. Save Deck submits any pending metadata immediately.
 - Public deck publishing, browse, detail pages, and fork-to-account flow
 - Deck analytics with format-aware validation warnings
 - Goldfish playtest with mulligans, drag/drop zones, coin flip, dice roll, and token creation
@@ -112,6 +118,11 @@ go run ./cmd/server
 ```
 
 The app reads `.env` automatically when you run it from the repo root.
+
+CPU Commander play also needs the local Forge service and its three `.env`
+settings. Follow [the Forge development setup](services/forge/README.md#using-the-usual-go-run-cmdserver-workflow)
+to keep using this command, your existing local database, and port 8080.
+CPU play is disabled by default; changing `.env` requires restarting the server.
 
 To force a full Scryfall bulk sync immediately on startup:
 

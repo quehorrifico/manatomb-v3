@@ -18,6 +18,7 @@ import (
 	"manatomb/app/internal/config"
 	"manatomb/app/internal/db"
 	"manatomb/app/internal/decks"
+	"manatomb/app/internal/forge"
 	"manatomb/app/internal/quickbuild"
 	"manatomb/app/internal/web"
 )
@@ -96,6 +97,7 @@ func registerHomeAndAuthRoutes(mux *http.ServeMux, app *web.App) {
 	mux.HandleFunc("/sitemap.xml", app.HandleSitemapXML)
 	mux.HandleFunc("/healthz", app.HandleHealthz)
 	mux.HandleFunc("/changelog", app.HandleChangelog)
+	mux.HandleFunc("/extras", app.HandleExtras)
 	mux.HandleFunc("/privacy", app.HandlePrivacy)
 	mux.HandleFunc("/terms", app.HandleTerms)
 	mux.HandleFunc("/users/", app.HandleProfileShow)
@@ -190,6 +192,8 @@ func registerCardAndRulesRoutes(mux *http.ServeMux, app *web.App) {
 
 // registerRoutes wires up all HTTP routes for the application.
 func registerRoutes(mux *http.ServeMux, app *web.App) {
+	mux.HandleFunc("/cpu", app.CPUPage)
+	mux.HandleFunc("/api/cpu/", app.CPUAPI)
 	mux.Handle("/assets/", web.AssetHandler())
 	registerHomeAndAuthRoutes(mux, app)
 	registerSettingsRoutes(mux, app)
@@ -243,7 +247,12 @@ func run(opts runOptions) error {
 		MaxRows: cfg.CardSyncMaxRows,
 	})
 
+	engine, engineErr := forge.NewClient(cfg.CPUEnabled, cfg.ForgeServiceURL, cfg.ForgeServiceSecret)
+	if engineErr != nil {
+		log.Print(engineErr)
+	}
 	app := &web.App{
+		Forge:               engine,
 		DB:                  database,
 		Renderer:            web.NewRenderer(cfg.PublicBaseURL),
 		SessionCookieSecure: cfg.SessionCookieSecure,

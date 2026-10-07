@@ -1,0 +1,24 @@
+{
+  "forge": "26d8aff87509dde8a9d5017852339382d7ab3e83",
+  "platform": "linux/amd64 under Rosetta on ARM64 macOS",
+  "runtimeIdentity": "cd54147f9ee47305fde24412ea218e44e262d6a8d32b253a1f7c6619a3896b26",
+  "browserTestRuntimeIdentity": "19c09554f90ec45a0c8b73f06100ceced871e75a3270b9c830b30f00448db0e1",
+  "overlayEqualsFinalClasses": true,
+  "images": {
+    "manatomb-web:v2-qa": {
+      "id": "sha256:52f371c2b27cba83888593dcd41419e76db757e171b3ba4c67137b6439d99bcd",
+      "sizeBytes": 21467393
+    },
+    "manatomb-forge:v2-verified": {
+      "id": "sha256:b7ed641949b4a7a52eb7d2b4b865dd7fed5117de7d19fd4c1dd6ffa8f0ca5ae7",
+      "sizeBytes": 669494797
+    }
+  },
+  "files": {
+    "services/forge/src/ForgeWorker.java": "a2a23e393f9ad2f8bb3a66f07fc4991d18c9cd565ef1f0b72a3fb97df6ac75d9",
+    "internal/web/assets/cpu.js": "547db2059509e0e0b41630cd51078b90d005e1425dc17e661761eb5ef31b463c",
+    "internal/web/assets/cpu.test.cjs": "5c234ec55c7a24a20c25a541b2c7cfdb04fb1f44fe0396ab030b10179916bb8d",
+    "services/forge/package.py": "746517093761d2b0eb1fabea428a23cb57b3782bc20dd1673d54ba50860843c5",
+    "services/forge/prepare-runtime.py": "35de6ecfbf4fccbd18cee875461aa422ce651c0fb94919359d50b2548fd40a7c"
+  }
+}

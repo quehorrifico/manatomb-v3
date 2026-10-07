@@ -1,0 +1,132 @@
+{
+  "artifact_audit": "passed",
+  "scope": "Fixed turn-12 automated real-browser workload and ordering boundary; not broad Commander compatibility or hosting acceptance",
+  "runs": {
+    "human-1024-1": {
+      "projected_views_checked": 115,
+      "turn12_endpoint": true,
+      "selected_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "resolved_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "original_option_indices": [
+        0,
+        1
+      ],
+      "transcript_sha256": "e8c9cd2ae823dee6b8a1c864c25042214d2fe13b4f0d7005ebd31c5fb9246e64",
+      "command_sha256": "5bd645650582013dca070231b3f8edccd7d2e7251899bddd82c4baa869434f3d"
+    },
+    "human-1024-2": {
+      "projected_views_checked": 115,
+      "turn12_endpoint": true,
+      "selected_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "resolved_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "original_option_indices": [
+        0,
+        1
+      ],
+      "transcript_sha256": "82229484ed60d55c26340e6b197b55ef5c19aa6fcd5798856707bcbbe67cea61",
+      "command_sha256": "ad949b6d0edea7bbf21526039e2a6a2c1a3f4117b71739ec1790f4aa19e080da"
+    },
+    "human-1024-3": {
+      "projected_views_checked": 115,
+      "turn12_endpoint": true,
+      "selected_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "resolved_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "original_option_indices": [
+        0,
+        1
+      ],
+      "transcript_sha256": "b821735f2274edabf73f8eaf41d6f7163cddb9631dd7c1ea53910c91a51057d5",
+      "command_sha256": "29f427591bc1d8259d94d31df2fc95920f0ebc0774bee4222d5ea866965c3c57"
+    },
+    "human-1024-4": {
+      "projected_views_checked": 115,
+      "turn12_endpoint": true,
+      "selected_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "resolved_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "original_option_indices": [
+        0,
+        1
+      ],
+      "transcript_sha256": "1a95e7a24e0d4c42956d4e6506bb790c421896e8b5705b1d8db38b2e74bd5012",
+      "command_sha256": "a77daa731385f8a3a6422f128db43a2c2937c0b40edeb8a89aee1530a3860e5f"
+    },
+    "human-1024-5": {
+      "projected_views_checked": 115,
+      "turn12_endpoint": true,
+      "selected_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "resolved_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "original_option_indices": [
+        0,
+        1
+      ],
+      "transcript_sha256": "6e8cdddeb0979e7f5ba9f1d46ec47d6689b7749b9f9f329f79c071f596da9aab",
+      "command_sha256": "66096a4d16f9f82eb24b75dec5fddf47acc575a503ebb1cd50cd1e4187207503"
+    },
+    "human-2048-comparison": {
+      "projected_views_checked": 115,
+      "turn12_endpoint": true,
+      "selected_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "resolved_sources": [
+        "Sword of the Animist",
+        "Arahbo, Roar of the World"
+      ],
+      "original_option_indices": [
+        0,
+        1
+      ],
+      "transcript_sha256": "f3be12b33e5ecfdf30ebe592d80c9809ed39f593778279a7719b71168cb7b893",
+      "command_sha256": "a3af077c283fceac8b3af8f37d226d09baa44f4d80b0f4c7c2a023cda7b5492c"
+    }
+  },
+  "preserved_preexisting_files": 41,
+  "authorized_changed_preexisting_files": [
+    "docs/v2/STATUS.md",
+    "docs/v2/evidence/V2-012.md",
+    "tools/forge-browser-spike/regression.py",
+    "tools/forge-browser-spike/index.html",
+    "tools/forge-browser-spike/README.md",
+    "tools/forge-benchmark/run.py",
+    "tools/forge-benchmark/README.md",
+    "tools/forge-browser-spike/src/BrowserSpike.java"
+  ],
+  "source_hashes": {
+    "tools/forge-browser-spike/src/BrowserSpike.java": "b846f3167e49dc2c0939f5a15e90c9a6889e78999e2f53020926bff1c938ce36",
+    "tools/forge-browser-spike/index.html": "36bf7820d0729ad82b6641212daab33c4abfd8a2f3991f8da7401daaadb78c1a",
+    "tools/forge-browser-spike/src/OrderingProtocolRegression.java": "c287303e31b29bf5d4689dae7ff61f7e0fb5ad4337bc584541836dd78a487917",
+    "tools/forge-benchmark/verify_ordering.py": "c5510cf761ceb6867accd0c5f390710f70026bce281d804bcace187b0579f017",
+    "tools/forge-benchmark/finish_workload.py": "36cc6538f1c13cca4604db2368660f3ed115e4ad01d196264ad0920d345e7688"
+  }
+}

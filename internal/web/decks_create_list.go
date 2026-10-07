@@ -207,8 +207,14 @@ func (a *App) HandleDeckNewPost(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/decks/"+strconv.FormatInt(d.ID, 10), http.StatusSeeOther)
 }
 
-// HandleDeckWorkbench renders the local unsaved deck workspace.
+// HandleDeckWorkbench starts account decks before opening the editor. Guests
+// and explicit local-draft imports retain the browser recovery workspace.
 func (a *App) HandleDeckWorkbench(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	flash := readFlash(w, r)
 	user := CurrentUser(r)
 
@@ -243,6 +249,25 @@ func (a *App) HandleDeckWorkbench(w http.ResponseWriter, r *http.Request) {
 				fakeDeck.CommanderPrintID = ""
 			}
 		}
+	}
+
+	if user != nil && r.URL.Query().Get("save_guest") != "1" {
+		if commanderName != "" && decks.FormatRequiresCommander(format) &&
+			(commanderCard == nil || !isCommanderCandidateAllowed(commanderCard.IsCommanderCandidate, commanderCard.TypeLine)) {
+			setFlash(w, "That card cannot be used as a commander.")
+			http.Redirect(w, r, commanderDeckBuilderPath(commanderDeckBuilderState{Query: commanderName}), http.StatusSeeOther)
+			return
+		}
+		deck, err := decks.CreateDeckWithOptions(r.Context(), a.DB, user.ID, decks.DeckInput{
+			Name: deckName, Format: format, CommanderName: commanderName,
+			CommanderPrintID: commanderPrintID, PowerBracket: defaultDeckPowerBracket("", format),
+		})
+		if err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
+		http.Redirect(w, r, "/decks/"+strconv.FormatInt(deck.ID, 10), http.StatusSeeOther)
+		return
 	}
 
 	data := TemplateData{

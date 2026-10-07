@@ -1,0 +1,18 @@
+{{ define "extras" }}
+{{ template "layout_header" . }}
+<section class="py-6 space-y-6" aria-labelledby="extras-title">
+  <div class="space-y-3"><p class="mt-kicker">More at ManaTomb</p><h1 id="extras-title" class="mt-title">Extras</h1><p class="mt-text-muted">Take a deck for a spin, test your card knowledge, or crack a pack.</p></div>
+  <section class="mt-action-card space-y-3" aria-labelledby="extras-playtest">
+    <h2 id="extras-playtest" class="mt-text-primary text-xl font-semibold">Playtest</h2>
+    <p class="mt-text-muted">Play your Commander deck against a CPU, with Magic’s rules handled by Forge. Choose a saved deck or bring a decklist.</p>
+    <a href="/cpu" class="mt-btn mt-btn--primary mt-btn--sm">Play against a CPU</a>
+    <a href="/decks/new" class="mt-btn mt-btn--secondary mt-btn--sm">Build a deck</a>
+  </section>
+  <div class="grid gap-3 sm:grid-cols-3">
+    <a href="/games/guess-card" class="mt-action-card space-y-2"><h2 class="mt-text-primary font-semibold">Guess the Card, Win the Card</h2><p class="mt-text-muted text-sm">Ask yes-or-no clues, then name the hidden card.</p></a>
+    <a href="/games/spellify" class="mt-action-card space-y-2"><h2 class="mt-text-primary font-semibold">Tombscript</h2><p class="mt-text-muted text-sm">Reveal characters to decode a hidden Commander staple.</p></a>
+    <a href="/games/pack-opening" class="mt-action-card space-y-2"><h2 class="mt-text-primary font-semibold">Pack Crack</h2><p class="mt-text-muted text-sm">Choose a set and reveal a simulated booster pack.</p></a>
+  </div>
+</section>
+{{ template "layout_footer" . }}
+{{ end }}

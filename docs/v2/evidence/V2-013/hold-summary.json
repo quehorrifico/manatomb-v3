@@ -1,0 +1,367 @@
+{
+  "scope": "One fixed turn-12 state under AMD64 emulation; includes diagnostic processes, supervisor, cache and kernel. Window trends are descriptive, not causal attribution or proof of indefinite plateau.",
+  "requested_hold_seconds": 600,
+  "observed_including_final_probe_seconds": 604.7910266670006,
+  "sampled_interval_seconds": 604.688498,
+  "whole_run_peak_mib": 1024.0,
+  "headroom_fraction": 0.0,
+  "start_current_mib": 933.15234375,
+  "pre_final_probe_current_mib": 974.98828125,
+  "worker_exit": {
+    "memory_events": "low 0\nhigh 0\nmax 58\noom 0\noom_kill 0\noom_group_kill 0",
+    "exit": 143
+  },
+  "end_current_mib": 1020.30859375,
+  "hold_cgroup_cpu_seconds": 47.65356,
+  "minute_windows": [
+    {
+      "hold_minute": 1,
+      "sample_count": 233,
+      "median_mib": {
+        "memory_current": 942.7421875,
+        "anon": 635.83984375,
+        "file": 224.3125,
+        "kernel": 81.4765625,
+        "worker_rss_kib": 434.15234375
+      },
+      "min_mib": 933.15234375,
+      "max_mib": 999.7734375,
+      "proxy_state_requests": 303,
+      "proxy_response_payload_bytes": 1779822
+    },
+    {
+      "hold_minute": 2,
+      "sample_count": 235,
+      "median_mib": {
+        "memory_current": 947.28125,
+        "anon": 639.84375,
+        "file": 224.328125,
+        "kernel": 81.51953125,
+        "worker_rss_kib": 434.15234375
+      },
+      "min_mib": 943.85546875,
+      "max_mib": 949.9375,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 3,
+      "sample_count": 235,
+      "median_mib": {
+        "memory_current": 951.91796875,
+        "anon": 644.51953125,
+        "file": 224.34765625,
+        "kernel": 81.515625,
+        "worker_rss_kib": 434.27734375
+      },
+      "min_mib": 948.62890625,
+      "max_mib": 960.875,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 4,
+      "sample_count": 236,
+      "median_mib": {
+        "memory_current": 962.16015625,
+        "anon": 653.3046875,
+        "file": 224.3671875,
+        "kernel": 81.5234375,
+        "worker_rss_kib": 438.0390625
+      },
+      "min_mib": 959.5234375,
+      "max_mib": 964.078125,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 5,
+      "sample_count": 235,
+      "median_mib": {
+        "memory_current": 974.6171875,
+        "anon": 661.828125,
+        "file": 224.38671875,
+        "kernel": 81.7265625,
+        "worker_rss_kib": 434.609375
+      },
+      "min_mib": 961.0546875,
+      "max_mib": 980.74609375,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 6,
+      "sample_count": 236,
+      "median_mib": {
+        "memory_current": 970.20703125,
+        "anon": 661.00390625,
+        "file": 219.73046875,
+        "kernel": 81.7265625,
+        "worker_rss_kib": 434.609375
+      },
+      "min_mib": 969.05859375,
+      "max_mib": 1023.7265625,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 7,
+      "sample_count": 235,
+      "median_mib": {
+        "memory_current": 972.234375,
+        "anon": 663.5703125,
+        "file": 219.74609375,
+        "kernel": 81.71484375,
+        "worker_rss_kib": 434.609375
+      },
+      "min_mib": 969.28125,
+      "max_mib": 973.5390625,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 8,
+      "sample_count": 235,
+      "median_mib": {
+        "memory_current": 973.30859375,
+        "anon": 664.11328125,
+        "file": 219.765625,
+        "kernel": 81.73828125,
+        "worker_rss_kib": 434.609375
+      },
+      "min_mib": 972.26953125,
+      "max_mib": 973.91015625,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 9,
+      "sample_count": 236,
+      "median_mib": {
+        "memory_current": 973.466796875,
+        "anon": 664.16796875,
+        "file": 219.78515625,
+        "kernel": 81.73828125,
+        "worker_rss_kib": 434.609375
+      },
+      "min_mib": 972.34765625,
+      "max_mib": 973.984375,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    },
+    {
+      "hold_minute": 10,
+      "sample_count": 235,
+      "median_mib": {
+        "memory_current": 974.515625,
+        "anon": 665.234375,
+        "file": 219.8046875,
+        "kernel": 81.73828125,
+        "worker_rss_kib": 434.609375
+      },
+      "min_mib": 972.765625,
+      "max_mib": 975.08203125,
+      "proxy_state_requests": 302,
+      "proxy_response_payload_bytes": 1773948
+    }
+  ],
+  "probes": [
+    {
+      "scheduled_seconds": 0,
+      "actual_start_seconds": 0.012635208000574494,
+      "duration_seconds": 5.29116016700209,
+      "return_codes": {
+        "cgroup": 0,
+        "worker-status": 0,
+        "supervisor-status": 0,
+        "processes": 0,
+        "worker-nmt": 0,
+        "worker-heap": 0,
+        "supervisor-heap": 0
+      },
+      "before": {
+        "seconds": "312.704449",
+        "memory_current": "978481152",
+        "memory_peak": "992604160",
+        "anon": "661430272",
+        "file": "231350272",
+        "kernel": "85245952",
+        "cpu_usec": "81946404",
+        "worker_rss_kib": "444572",
+        "worker_threads": "22",
+        "worker_alive": "true"
+      },
+      "after": {
+        "seconds": "317.863376",
+        "memory_current": "1048338432",
+        "memory_peak": "1048354816",
+        "anon": "725561344",
+        "file": "235229184",
+        "kernel": "86405120",
+        "cpu_usec": "86060503",
+        "worker_rss_kib": "444572",
+        "worker_threads": "23",
+        "worker_alive": "true"
+      },
+      "jvm": {
+        "worker": {
+          "rss_mib": 434.15234375,
+          "threads": 22,
+          "heap_committed_mib": 137.77734375,
+          "heap_used_mib": 92.4228515625
+        },
+        "supervisor": {
+          "rss_mib": 244.2421875,
+          "threads": 26,
+          "heap_committed_mib": 13.609375,
+          "heap_used_mib": 10.984375
+        }
+      },
+      "worker_nmt_mib": {
+        "reserved": 1899.4501953125,
+        "committed": 236.8408203125,
+        "heap_committed": 142.52734375,
+        "tracked_nonheap_committed": 94.3134765625
+      }
+    },
+    {
+      "scheduled_seconds": 300,
+      "actual_start_seconds": 300.0357771250019,
+      "duration_seconds": 4.556903832999524,
+      "return_codes": {
+        "cgroup": 0,
+        "worker-status": 0,
+        "supervisor-status": 0,
+        "processes": 0,
+        "worker-nmt": 0,
+        "worker-heap": 0,
+        "supervisor-heap": 0
+      },
+      "before": {
+        "seconds": "612.731298",
+        "memory_current": "1022136320",
+        "memory_peak": "1049071616",
+        "anon": "692961280",
+        "file": "235298816",
+        "kernel": "85708800",
+        "cpu_usec": "106209338",
+        "worker_rss_kib": "445040",
+        "worker_threads": "23",
+        "worker_alive": "true"
+      },
+      "after": {
+        "seconds": "617.287827",
+        "memory_current": "1016131584",
+        "memory_peak": "1073741824",
+        "anon": "692965376",
+        "file": "230391808",
+        "kernel": "85676032",
+        "cpu_usec": "109627655",
+        "worker_rss_kib": "445040",
+        "worker_threads": "23",
+        "worker_alive": "true"
+      },
+      "jvm": {
+        "worker": {
+          "rss_mib": 434.609375,
+          "threads": 23,
+          "heap_committed_mib": 137.77734375,
+          "heap_used_mib": 110.07421875
+        },
+        "supervisor": {
+          "rss_mib": 273.83203125,
+          "threads": 26,
+          "heap_committed_mib": 13.609375,
+          "heap_used_mib": 10.5849609375
+        }
+      },
+      "worker_nmt_mib": {
+        "reserved": 1896.876953125,
+        "committed": 234.458984375,
+        "heap_committed": 142.52734375,
+        "tracked_nonheap_committed": 91.931640625
+      }
+    },
+    {
+      "scheduled_seconds": 600,
+      "actual_start_seconds": 600.0415530419996,
+      "duration_seconds": 4.731921165999665,
+      "return_codes": {
+        "cgroup": 0,
+        "worker-status": 0,
+        "supervisor-status": 0,
+        "processes": 0,
+        "worker-nmt": 0,
+        "worker-heap": 0,
+        "supervisor-heap": 0
+      },
+      "before": {
+        "seconds": "912.736476",
+        "memory_current": "1022349312",
+        "memory_peak": "1073741824",
+        "anon": "697643008",
+        "file": "230494208",
+        "kernel": "85716992",
+        "cpu_usec": "125838902",
+        "worker_rss_kib": "445040",
+        "worker_threads": "23",
+        "worker_alive": "true"
+      },
+      "after": {
+        "seconds": "917.392947",
+        "memory_current": "1069871104",
+        "memory_peak": "1073741824",
+        "anon": "754380800",
+        "file": "221368320",
+        "kernel": "86720512",
+        "cpu_usec": "129599964",
+        "worker_rss_kib": "445040",
+        "worker_threads": "23",
+        "worker_alive": "true"
+      },
+      "jvm": {
+        "worker": {
+          "rss_mib": 434.609375,
+          "threads": 23,
+          "heap_committed_mib": 137.77734375,
+          "heap_used_mib": 88.4912109375
+        },
+        "supervisor": {
+          "rss_mib": 278.30859375,
+          "threads": 27,
+          "heap_committed_mib": 13.609375,
+          "heap_used_mib": 10.052734375
+        }
+      },
+      "worker_nmt_mib": {
+        "reserved": 1899.9677734375,
+        "committed": 237.6123046875,
+        "heap_committed": 142.52734375,
+        "tracked_nonheap_committed": 95.0849609375
+      }
+    }
+  ],
+  "http": {
+    "state_get_count": 3045,
+    "successful_response_payload_bytes": 17886330,
+    "request_payload_bytes": 0,
+    "includes": "200ms browser polling plus explicit observer reads; excludes internal supervisor probes and wire framing"
+  },
+  "file_growth_bytes": {
+    "samples.csv": 204753,
+    "decisions.csv": 0,
+    "events.jsonl": 477078,
+    "transcript.json": 0,
+    "engine.log": 0
+  },
+  "transcript_unchanged_size": true,
+  "oom_killed": false,
+  "supervision": {
+    "reason": "worker-exit",
+    "elapsed_seconds": 920.8145401250003,
+    "cleanup_seconds": 1.2518795000032696,
+    "container_removed": true,
+    "retained_files": 44,
+    "retained_bytes": 1905035
+  }
+}

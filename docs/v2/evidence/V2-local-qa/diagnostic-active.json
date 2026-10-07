@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "file": "manatomb-session-diagnostics (2).json",
+  "bytes": 421,
+  "sha256": "d44cc12d06f8f8856eca6090970b772dc2db22ce5eb268aa59944d795f85aadd",
+  "previewEqual": true,
+  "duringLiveAuthorizedReveal": true,
+  "exactMetadataAllowlist": true,
+  "data": {
+    "format": "manatomb-diagnostics/v1",
+    "protocol": "manatomb-forge/v1",
+    "forge": "26d8aff87509dde8a9d5017852339382d7ab3e83",
+    "build": "19c09554f90ec45a0c8b73f06100ceced871e75a3270b9c830b30f00448db0e1",
+    "sessionReference": "54ceb6aa-e79c-462a-a811-97641d65491c",
+    "status": "input",
+    "turn": 2,
+    "phase": "MAIN1",
+    "promptKind": "InputConfirm",
+    "failureCode": null,
+    "result": null,
+    "conceded": false
+  }
+}

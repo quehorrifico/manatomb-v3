@@ -1,0 +1,29 @@
+{
+  "kind": "actual browser controls, fixed initial fixture; not representative deck performance",
+  "status": "finished",
+  "turn": 2,
+  "result": "Human",
+  "worker_sha256": "d989fa97f9aea34d7155d7627035b6a14e7691f6a40c51eb21a885a2ff3b5f49",
+  "engine_image": "sha256:0284a3fe790ee76927545a8761f6f60378f96dd7dfdaa8d8354a8098b54b4e36",
+  "web_image": "sha256:19a5f3fbe2cbc7a3924b81b10866bc58489fb68f1ffe526d0dece24f7d2d5e2b",
+  "fixture": "focused",
+  "checks": [
+    "real keep choice",
+    "manual mana payment",
+    "Opt scry explicit Bottom and Finish; library identity hidden again",
+    "Lightning Bolt targets CPU",
+    "Shock cast with Bolt and Balmor trigger unresolved; four stack entries",
+    "Shock resolves CPU 8 to 6; Bolt 6 to 3",
+    "Storm Crow attack; Forge natural result"
+  ],
+  "memory_current_and_lifetime_peak": [
+    "247828480",
+    "653135872"
+  ],
+  "processes": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files": []
+}

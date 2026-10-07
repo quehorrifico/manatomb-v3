@@ -150,6 +150,7 @@
       }
 
       var nextParams = new URLSearchParams();
+      {{ if .CurrentUser }}nextParams.set('save_guest', '1');{{ end }}
       if (payload && payload.format) {
         nextParams.set('format', payload.format);
       }

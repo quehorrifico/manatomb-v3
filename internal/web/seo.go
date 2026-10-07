@@ -11,6 +11,7 @@ var sitemapPublicPaths = []string{
 	"/",
 	"/cards/search",
 	"/decks/public",
+	"/extras",
 	"/games/guess-card",
 	"/games/spellify",
 	"/games/pack-opening",

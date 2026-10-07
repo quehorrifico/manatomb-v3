@@ -16,6 +16,7 @@ import (
 
 	"manatomb/app/internal/account"
 	"manatomb/app/internal/decks"
+	"manatomb/app/internal/forge"
 
 	"github.com/google/uuid"
 )
@@ -41,6 +42,7 @@ type notFoundRecorder struct {
 }
 
 type App struct {
+	Forge               *forge.Client
 	DB                  *sql.DB
 	Renderer            *Renderer
 	SessionCookieSecure bool
@@ -101,7 +103,7 @@ func CurrentUser(r *http.Request) *account.User {
 }
 
 // authNextPath sends ordinary authentication to My Decks. The only resumable
-// exception is a marked guest-workbench save, whose draft remains in this
+// exceptions are CPU reconnect and a marked guest-workbench save, whose draft remains in this
 // browser until the returned workbench imports it into the signed-in account.
 func authNextPath(raw string) string {
 	const fallback = "/decks"
@@ -110,6 +112,9 @@ func authNextPath(raw string) string {
 	parsed, err := url.Parse(path)
 	if err != nil {
 		return fallback
+	}
+	if parsed.Path == "/cpu" {
+		return "/cpu"
 	}
 	if parsed.Path != "/decks/new/workbench" {
 		return fallback
@@ -612,6 +617,11 @@ func (r *notFoundRecorder) Write(b []byte) (int, error) {
 
 func (a *App) WithNotFoundMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// CPU API errors are structured protocol replies, including missing/ended sessions.
+		if strings.HasPrefix(r.URL.Path, "/api/cpu/") {
+			next.ServeHTTP(w, r)
+			return
+		}
 		rec := &notFoundRecorder{
 			rw:     w,
 			status: http.StatusOK,

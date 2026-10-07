@@ -112,6 +112,70 @@ func TestDecodeOracleRowsRetainsLegacyJSONArraySupport(t *testing.T) {
 	}
 }
 
+func TestPaperBulkSelectionUsesAllPrintingsForOracleAvailability(t *testing.T) {
+	t.Parallel()
+	// Spawning Pit's Oracle representative is the MTGO-only TD2 printing.
+	// A paper card and a digital-only card must be distinguished by print bulk.
+	oracleJSON := `[
+		{"id":"digital","oracle_id":"digital-only","name":"A Digital Card","games":["arena"]},
+		{"id":"splendor","oracle_id":"splendor-oracle","name":"Gleaming Splendor","lang":"en","games":["paper","mtgo","arena"],"legalities":{"commander":"legal"}},
+		{"id":"pit-mtgo","oracle_id":"pit-oracle","name":"Spawning Pit","lang":"en","games":["mtgo"],"type_line":"Artifact","legalities":{"commander":"legal"}},
+		{"id":"commander-mtgo","oracle_id":"commander-oracle","name":"Z Test Commander","games":["mtgo"],"type_line":"Legendary Creature — Human","legalities":{"commander":"legal"}}
+	]`
+	printJSON := `[
+		{"id":"digital","oracle_id":"digital-only","name":"A Digital Card","lang":"en","games":["arena"]},
+		{"id":"splendor","oracle_id":"splendor-oracle","name":"Gleaming Splendor","lang":"en","games":["paper"]},
+		{"id":"pit-mtgo","oracle_id":"pit-oracle","name":"Spawning Pit","lang":"en","games":["mtgo"]},
+		{"id":"pit-paper-1","oracle_id":"pit-oracle","name":"Spawning Pit","lang":"en","games":["paper"]},
+		{"id":"pit-paper-2","oracle_id":"pit-oracle","name":"Spawning Pit","lang":"en","games":["paper"]},
+		{"id":"commander-paper","oracle_id":"commander-oracle","name":"Z Test Commander","lang":"en","games":["paper"]},
+		{"id":"orphan","oracle_id":"missing-oracle","name":"Orphan Print","lang":"en","games":["paper"]}
+	]`
+	oracleDecoder, cleanup, err := newBulkJSONDecoderFromReader(strings.NewReader(oracleJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	oracles, err := decodeOracleRowsFromDecoder(oracleDecoder, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	printDecoder, cleanupPrints, err := newBulkJSONDecoderFromReader(strings.NewReader(printJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanupPrints()
+	prints, err := decodePrintRowsFromDecoder(printDecoder, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected, selectedPrints := selectPaperBulkRows(oracles, prints, 0)
+	if len(selected) != 3 || len(selectedPrints) != 4 {
+		t.Fatalf("selected %d cards and %d prints, want 3 and 4", len(selected), len(selectedPrints))
+	}
+	if selected[0].Name != "Gleaming Splendor" || selected[1].Name != "Spawning Pit" || !selected[1].CommanderLegal || !selected[2].IsCommanderCandidate {
+		t.Fatalf("paper identities or commander metadata lost: %#v", selected)
+	}
+	for _, print := range selectedPrints {
+		if print.ScryfallID == "pit-mtgo" || print.ScryfallID == "digital" || print.ScryfallID == "orphan" {
+			t.Fatalf("ineligible printing selected: %#v", print)
+		}
+	}
+	// A digital-only identity must not consume a limited sample; both Spawning
+	// Pit paper versions must survive and unrelated commander prints must not.
+	limited, limitedPrints := selectPaperBulkRows(oracles, prints, 2)
+	if len(limited) != 2 || limited[1].Name != "Spawning Pit" || len(limitedPrints) != 3 {
+		t.Fatalf("limited selection = %#v, %#v; want Splendor and Pit with all three prints", limited, limitedPrints)
+	}
+}
+
+func TestCardSyncDataVersionIncludesPaperOracleBackfill(t *testing.T) {
+	t.Parallel()
+	if cardSyncDataVersion < 8 {
+		t.Fatalf("cardSyncDataVersion = %d, want at least 8 for paper Oracle backfill", cardSyncDataVersion)
+	}
+}
+
 func TestShouldIncludePrintAllowsOnlyHobbitEternalDwarvishPrints(t *testing.T) {
 	t.Parallel()
 

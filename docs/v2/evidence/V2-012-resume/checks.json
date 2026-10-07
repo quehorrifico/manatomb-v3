@@ -1,0 +1,37 @@
+{
+  "artifact_audit": "passed",
+  "new_active_workload": "blocked, not five completed repetitions",
+  "projected_views_checked": 100,
+  "cpu_library_excluded": true,
+  "authorized_search_views_sorted": true,
+  "reveals_limited_to_actual_prompt_scopes": true,
+  "all_recorded_actions_accepted_by_forge": true,
+  "source_hashes": {
+    "tools/forge-browser-spike/src/BrowserSpike.java": "f857c0ad0b7173e050abcdbcd8e1140eb8e7cdd76f6a053d43f9158fe32dac58",
+    "tools/forge-browser-spike/src/AbilityProjectionRegression.java": "7ea21900f1191bbbe71fbc5a457c0275fa9c94e17e68c6fb8f5e5bdaf29e6541",
+    "tools/forge-browser-spike/regression.py": "04cddcff830ba02b9e59546c70d9c5e9438b52c728a483bbc1c95f86a22ad6b7",
+    "tools/forge-benchmark/verify_resume.py": "71af2bbd988e16f5b5a5ef2df4f410e021f4beaa9251c8ea7728170dd032c306"
+  },
+  "preserved_preexisting_files": 34,
+  "authorized_changed_preexisting_files": [
+    "docs/v2/STATUS.md",
+    "docs/v2/evidence/V2-012.md",
+    "tools/forge-browser-spike/README.md",
+    "tools/forge-benchmark/README.md",
+    "tools/forge-browser-spike/src/BrowserSpike.java"
+  ],
+  "runs": {
+    "original-reproduction": {
+      "command_sha256": "0ba5a3c53dda6564ec28405c0d1b41efc7bc4f07be856869f833c12729508d24",
+      "transcript_sha256": "6a9818bfcbe0106431c26a4597ec56715202b4fd6016a6fde5bf5176638504d9"
+    },
+    "corrected-browser": {
+      "command_sha256": "f0be465aa8cc214bbbb4ea4827f0a144dd7d911e9b13c507ee133f4b069ce0d8",
+      "transcript_sha256": "8fe91bd2c725ccd4d30457ada8ad1f7c0ccfcdce5b8da40db223bd18b9c701d1"
+    },
+    "human-pilot-2": {
+      "command_sha256": "81f53687144161f540f1bc94243e0d0d5f18447bd885aaa5781bad7336ccc856",
+      "transcript_sha256": "de1f114239b0a7fb70ba26c5f3261049e03e655479a59aeee9155dd3ca3be068"
+    }
+  }
+}

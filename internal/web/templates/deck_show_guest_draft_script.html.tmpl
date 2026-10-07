@@ -2784,8 +2784,8 @@
         }
         syncGuestAuthSaveLinks();
         if (guestOverviewStatus) {
-          guestOverviewStatus.textContent = '';
-          guestOverviewStatus.setAttribute('data-save-state', 'saved');
+          guestOverviewStatus.textContent = isSignedIn ? 'Local draft on this device. Select Save deck to save to your account.' : 'Local draft on this device. Sign in to save to your account.';
+          guestOverviewStatus.setAttribute('data-save-state', 'local-only');
         }
         return true;
       } catch (e) {
@@ -3710,7 +3710,7 @@
       if (guestFormatField) guestFormatField.value = dd.format;
       saveDraft(dd);
       render(dd);
-      if (guestOverviewStatus) guestOverviewStatus.textContent = '';
+      // saveDraft owns the local-only or persistence-error status.
     }
 
     async function runGuestQuickBuild() {
@@ -4866,8 +4866,9 @@
         return;
       }
 
-      var savedOverviewTimer = null;
-      var savedOverviewPayload = null;
+      var savedOverview = null;
+      var savedMutationTail = Promise.resolve();
+      var savedMutationCount = 0;
       var savedCommanderDetailCache = {};
       var deckMenuReturnFocus = null;
 
@@ -4906,11 +4907,39 @@
         }, 1800);
       }
 
-      async function postSavedMutation(url, params) {
+      function postSavedMutation(url, params) {
+        // Serialize writes so an older request cannot commit after a newer one.
+        savedMutationCount++;
+        if (guestOverviewStatus && !(savedOverview && savedOverview.hasPending())) {
+          guestOverviewStatus.textContent = 'Saving deck changes…';
+          guestOverviewStatus.setAttribute('data-save-state', 'saving');
+        }
+        var request = savedMutationTail.then(function () { return performSavedMutation(url, params); });
+        request = request.then(function (next) {
+          savedMutationCount--;
+          if (!savedMutationCount && guestOverviewStatus && !(savedOverview && savedOverview.hasPending())) {
+            guestOverviewStatus.textContent = 'Saved to your account.';
+            guestOverviewStatus.setAttribute('data-save-state', 'saved');
+          }
+          return next;
+        }, function (error) {
+          savedMutationCount--;
+          if (guestOverviewStatus && !(savedOverview && savedOverview.hasPending())) {
+            guestOverviewStatus.textContent = 'That change could not be saved. Check your connection and try it again.';
+            guestOverviewStatus.setAttribute('data-save-state', 'error');
+          }
+          throw error;
+        });
+        savedMutationTail = request.catch(function () {});
+        return request;
+      }
+
+      async function performSavedMutation(url, params) {
         try {
           var res = await fetch(url, {
             method: 'POST',
             credentials: 'same-origin',
+            keepalive: true,
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
@@ -4924,10 +4953,12 @@
             } catch (e) {
               errorText = '';
             }
-            throw new Error(normalizeName(errorText) || 'Request failed.');
+            var mutationError = new Error(normalizeName(errorText) || 'Request failed.');
+            mutationError.retryable = res.status >= 500 || res.status === 429;
+            throw mutationError;
           }
           var next = await res.json();
-          savedDraft = normalizeSavedState(next);
+          savedDraft = normalizeSavedState(savedOverview ? savedOverview.overlay(next) : next);
           return savedDraft;
         } catch (e) {
           throw e;
@@ -5137,24 +5168,11 @@
           deckMenuNameInput.focus();
           return;
         }
-        if (savedDraft && nextName === normalizeName(savedDraft.name || '')) {
-          if (guestOverviewStatus) guestOverviewStatus.textContent = 'Changes save automatically.';
-          return;
+        if (nextName !== normalizeName(savedDraft.name || '')) {
+          savedOverview.update({ name: nextName });
+          savedDraft = savedOverview.overlay(savedDraft);
         }
-
-        var params = new URLSearchParams();
-        params.set('id', String(savedDraft.id));
-        params.set('name', nextName);
-
-        try {
-          var next = await postSavedMutation('/decks/settings', params);
-          renderSaved(next);
-          setDeckMenuStatus('Deck name updated.');
-          if (guestOverviewStatus) guestOverviewStatus.textContent = 'Deck name saved.';
-        } catch (e) {
-          setDeckMenuStatus(e && e.message ? e.message : 'Could not update deck name.');
-          if (guestOverviewStatus) guestOverviewStatus.textContent = 'Could not save the deck name.';
-        }
+        await savedOverview.flush();
       }
 
       async function copySavedDecklist() {
@@ -5486,41 +5504,68 @@
         }
       }
 
-      function submitSavedOverviewNow() {
-        if (!savedOverviewPayload) return;
-        var fields = savedOverviewPayload;
-        savedOverviewPayload = null;
-
-        var params = new URLSearchParams();
-        params.set('action', 'save_overview');
-        params.set('format', normalizeGuestFormat(fields.format || savedDraft.format || 'Sandbox'));
-        params.set('tags', String(fields.tags || ''));
-        params.set('description', String(fields.description || ''));
-
-        postSavedMutation('/decks/' + savedDraft.id, params).then(function (next) {
-          commanderName = currentSavedCommander(next);
-          renderSaved(next);
-        }).catch(function () {
-          // keep the current UI state; the next successful save will resync it
-        });
-      }
-
+      var recoveryStorage;
+      try { recoveryStorage = window.localStorage; } catch (_) { recoveryStorage = null; }
+      var overviewRetry = document.getElementById('deck-overview-retry');
+      savedOverview = window.ManaTombSavedOverview.create({
+        key: 'mt:saved-overview:{{ if .CurrentUser }}{{ .CurrentUser.ID }}{{ end }}:' + savedDraft.id,
+        initial: savedDraft,
+        storage: recoveryStorage,
+        setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window),
+        status: function (state, message) {
+          if (state === 'saved' && savedMutationCount > 0) {
+            state = 'saving'; message = 'Saving deck changes…';
+          }
+          if (guestOverviewStatus) {
+            guestOverviewStatus.textContent = message;
+            guestOverviewStatus.setAttribute('data-save-state', state);
+          }
+          if (overviewRetry) overviewRetry.hidden = state === 'saved' || state === 'saving';
+        },
+        send: function (fields) {
+          var params = new URLSearchParams();
+          params.set('action', 'save_overview');
+          params.set('format', normalizeGuestFormat(fields.format));
+          params.set('tags', fields.tags);
+          params.set('description', fields.description);
+          if (Object.prototype.hasOwnProperty.call(fields, 'name')) params.set('name', fields.name);
+          return postSavedMutation('/decks/' + savedDraft.id, params);
+        },
+        render: renderSaved
+      });
+      if (overviewRetry) overviewRetry.addEventListener('click', function () { savedOverview.flush(); });
+      window.addEventListener('online', function () { savedOverview.flush(); });
+      // Start a final keepalive request while the page is still active. The
+      // verified local journal remains until an account acknowledgment arrives.
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') savedOverview.flush();
+      });
+      window.addEventListener('pagehide', function () { savedOverview.flush(); });
+      var saveDeckButton = document.getElementById('deck-save');
+      if (saveDeckButton) saveDeckButton.addEventListener('click', async function () {
+        saveDeckButton.disabled = true;
+        try {
+          await saveSavedDeckName();
+          await savedOverview.flush();
+          await savedMutationTail;
+        } finally { saveDeckButton.disabled = false; }
+      });
+      window.addEventListener('beforeunload', function (event) {
+        if (!savedOverview.hasPending()) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
       window.mtDeckWorkspaceUpdateOverview = function (fields) {
         if (!fields || typeof fields !== 'object') return;
-        savedDraft.tags = String(fields.tags || '');
-        savedDraft.description = String(fields.description || '');
-        savedDraft.format = normalizeGuestFormat(fields.format || savedDraft.format || 'Sandbox');
-        savedOverviewPayload = {
-          tags: savedDraft.tags,
-          description: savedDraft.description,
-          format: savedDraft.format
-        };
-        if (savedOverviewTimer) window.clearTimeout(savedOverviewTimer);
-        savedOverviewTimer = window.setTimeout(submitSavedOverviewNow, 180);
+        fields.format = normalizeGuestFormat(fields.format || savedDraft.format || 'Sandbox');
+        savedOverview.update(fields);
+        savedDraft = savedOverview.overlay(savedDraft);
       };
 
       function renderSaved(d) {
-        d = normalizeSavedState(d);
+        if (savedOverview) savedOverview.adopt(d);
+        d = normalizeSavedState(savedOverview ? savedOverview.overlay(d) : d);
+        if (descEl && descEl.value !== (d.description || '')) descEl.value = d.description || '';
         savedDraft = d;
         commanderName = currentSavedCommander(d);
         allowsCommanderCardAction = formatUsesCommander(d.format);
@@ -5792,6 +5837,12 @@
         });
       }
       if (deckMenuNameInput) {
+        deckMenuNameInput.addEventListener('input', function () {
+          var name = normalizeName(deckMenuNameInput.value);
+          if (!name) return;
+          savedOverview.update({ name: name });
+          savedDraft = savedOverview.overlay(savedDraft);
+        });
         deckMenuNameInput.addEventListener('keydown', function (event) {
           if (event.key === 'Enter') {
             event.preventDefault();
@@ -5869,6 +5920,15 @@
 
       renderSaved(savedDraft);
     }
+
+    var cpuLaunchButton=document.getElementById('deck-analysis-cpu');
+    fetch('/api/cpu/config').then(function(response){return response.ok?response.json():null;}).then(function(config){
+      if(cpuLaunchButton && config && config.enabled){cpuLaunchButton.hidden=false;cpuLaunchButton.addEventListener('click',function(){
+        var draft=isGuest?(loadDraft()||{}):(window.mtDeckCurrentSavedDraft||savedDeckSeed||{});
+        if(isGuest)saveDraft(draft);
+        if(window.ManaTombCPU)window.ManaTombCPU.launch(draft,config.owner);
+      });}
+    }).catch(function(){});
 
     if (!isGuest) {
       initSavedDeckWorkspace();

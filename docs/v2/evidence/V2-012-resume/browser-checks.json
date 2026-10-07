@@ -1,0 +1,14 @@
+{
+  "original": "turn 2 COMBAT_BEGIN, getAbilityToPlay, option 0 label [Phase: ], min0 max1",
+  "corrected": "Arahbo source and exact Forge Oracle text, option 0 min0 max1",
+  "invalid_http": [
+    409,
+    409
+  ],
+  "competing_http": [
+    409,
+    200
+  ],
+  "next_view": "turn 3 CPU UPKEEP InputPassPriority",
+  "automated": "Actual browser radio/buttons via CUA; not manual owner playthrough"
+}

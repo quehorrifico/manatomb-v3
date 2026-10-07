@@ -1,0 +1,1201 @@
+{
+  "runs": [
+    {
+      "name": "fault-cpu-cancel",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 98,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 614.671875,
+      "sampled_memory_mib": {
+        "n": 98,
+        "p50": 353.6640625,
+        "p95": 600.29296875,
+        "max": 613.4296875
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 354.5,
+      "worker_peak_threads": 15,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.18235516700000076,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 30.60905470896978,
+        "cleanup_seconds": 1.346599958022125,
+        "container_removed": true,
+        "retained_files": 16,
+        "retained_bytes": 157366
+      },
+      "http_request_payload_bytes": 2,
+      "http_response_payload_bytes": 2,
+      "file_bytes": {
+        "samples.csv": 7966,
+        "decisions.csv": 91,
+        "worker-exit.json": 88,
+        "events.jsonl": 693,
+        "engine.log": 946
+      },
+      "headroom_fraction": 0.3997344970703125
+    },
+    {
+      "name": "fault-cpu-kill",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 97,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 617.36328125,
+      "sampled_memory_mib": {
+        "n": 97,
+        "p50": 358.99609375,
+        "p95": 605.32421875,
+        "max": 616.953125
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 358.3125,
+      "worker_peak_threads": 16,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.08742512499999933,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 29.23461437493097,
+        "cleanup_seconds": 1.2206848339410499,
+        "container_removed": true,
+        "retained_files": 16,
+        "retained_bytes": 157215
+      },
+      "http_request_payload_bytes": 2,
+      "http_response_payload_bytes": 2,
+      "file_bytes": {
+        "samples.csv": 7883,
+        "decisions.csv": 91,
+        "worker-exit.json": 88,
+        "events.jsonl": 692,
+        "engine.log": 946
+      },
+      "headroom_fraction": 0.3971061706542969
+    },
+    {
+      "name": "fault-stuck-human",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 97,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 24.088305137,
+      "host_readiness": {
+        "host_observed_seconds": 25.609577500028536,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 637.953125,
+      "sampled_memory_mib": {
+        "n": 97,
+        "p50": 369.96875,
+        "p95": 632.42578125,
+        "max": 635.6328125
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 370.0859375,
+      "worker_peak_threads": 20,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 3.0688980840000006,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 32.5730675420491,
+        "cleanup_seconds": 1.1925266670295969,
+        "container_removed": true,
+        "retained_files": 21,
+        "retained_bytes": 160580
+      },
+      "http_request_payload_bytes": 446,
+      "http_response_payload_bytes": 19071,
+      "file_bytes": {
+        "samples.csv": 7882,
+        "worker-exit.json": 88,
+        "events.jsonl": 2519,
+        "transcript.json": 2344,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.3769989013671875
+    },
+    {
+      "name": "final-mount-smoke",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 101,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 25.10056172,
+      "host_readiness": {
+        "host_observed_seconds": 26.960385084035806,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 615.26171875,
+      "sampled_memory_mib": {
+        "n": 101,
+        "p50": 387.140625,
+        "p95": 614.0703125,
+        "max": 615.26171875
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 353.91796875,
+      "worker_peak_threads": 23,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.28347841600000123,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 30.78566470905207,
+        "cleanup_seconds": 1.5196025420445949,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 158662
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 8215,
+        "worker-exit.json": 88,
+        "events.jsonl": 666,
+        "transcript.json": 2344,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.3991584777832031
+    },
+    {
+      "name": "focused-1024-human",
+      "mode": "human",
+      "scenario": "focused",
+      "cap_mib": 1024,
+      "sample_count": 3485,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 23.726144636,
+      "host_readiness": {
+        "host_observed_seconds": 25.65199116698932,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 743.9921875,
+      "sampled_memory_mib": {
+        "n": 3485,
+        "p50": 732.046875,
+        "p95": 741.6953125,
+        "max": 743.74609375
+      },
+      "post_ready_memory_mib": {
+        "n": 3381,
+        "p50": 732.24609375,
+        "p95": 741.75390625,
+        "max": 743.74609375
+      },
+      "worker_peak_rss_mib": 391.5390625,
+      "worker_peak_threads": 25,
+      "cpu_decision_ms": {
+        "n": 14,
+        "p50": 28.827417,
+        "p95": 267.811875,
+        "max": 267.811875
+      },
+      "successful_command_ack_ms": {
+        "n": 18,
+        "p50": 12.282458,
+        "p95": 46.775542,
+        "max": 46.775542
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.5244377089999261,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "deadline",
+        "elapsed_seconds": 902.4211871669395,
+        "cleanup_seconds": 1.813926792005077,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 649177
+      },
+      "http_request_payload_bytes": 4163,
+      "http_response_payload_bytes": 2360310,
+      "file_bytes": {
+        "samples.csv": 288813,
+        "decisions.csv": 865,
+        "events.jsonl": 76742,
+        "transcript.json": 135504,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.27344512939453125
+    },
+    {
+      "name": "idle-1024-1",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 150,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 23.934671595,
+      "host_readiness": {
+        "host_observed_seconds": 25.719590208027512,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 634.80859375,
+      "sampled_memory_mib": {
+        "n": 150,
+        "p50": 579.3359375,
+        "p95": 625.09375,
+        "max": 628.48046875
+      },
+      "post_ready_memory_mib": {
+        "n": 47,
+        "p50": 624.38671875,
+        "p95": 625.53125,
+        "max": 626.53515625
+      },
+      "worker_peak_rss_mib": 371.2890625,
+      "worker_peak_threads": 20,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.5050882090000002,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 43.623224167036824,
+        "cleanup_seconds": 1.7769760419614613,
+        "container_removed": true,
+        "retained_files": 14,
+        "retained_bytes": 162042
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 12239,
+        "events.jsonl": 666,
+        "transcript.json": 2344,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.3800697326660156
+    },
+    {
+      "name": "idle-1024-2",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 157,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 26.356029679,
+      "host_readiness": {
+        "host_observed_seconds": 27.813144749961793,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 625.08984375,
+      "sampled_memory_mib": {
+        "n": 157,
+        "p50": 561.515625,
+        "p95": 624.01953125,
+        "max": 624.69921875
+      },
+      "post_ready_memory_mib": {
+        "n": 45,
+        "p50": 623.3359375,
+        "p95": 624.4296875,
+        "max": 624.69921875
+      },
+      "worker_peak_rss_mib": 364.390625,
+      "worker_peak_threads": 20,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.17269908400000133,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 44.97078324994072,
+        "cleanup_seconds": 1.0306392079219222,
+        "container_removed": true,
+        "retained_files": 14,
+        "retained_bytes": 162606
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 12803,
+        "events.jsonl": 665,
+        "transcript.json": 2344,
+        "engine.log": 535
+      },
+      "headroom_fraction": 0.3895606994628906
+    },
+    {
+      "name": "idle-1024-3",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 157,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 26.509580096,
+      "host_readiness": {
+        "host_observed_seconds": 27.924997915979475,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 625.28515625,
+      "sampled_memory_mib": {
+        "n": 157,
+        "p50": 561.171875,
+        "p95": 624.1640625,
+        "max": 624.2890625
+      },
+      "post_ready_memory_mib": {
+        "n": 45,
+        "p50": 623.5625,
+        "p95": 624.19140625,
+        "max": 624.2890625
+      },
+      "worker_peak_rss_mib": 361.6796875,
+      "worker_peak_threads": 20,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.33613979200000443,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 45.218490583007224,
+        "cleanup_seconds": 1.1755882920697331,
+        "container_removed": true,
+        "retained_files": 14,
+        "retained_bytes": 162615
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 12811,
+        "events.jsonl": 666,
+        "transcript.json": 2344,
+        "engine.log": 535
+      },
+      "headroom_fraction": 0.3893699645996094
+    },
+    {
+      "name": "idle-1024-4",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 150,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 23.787053803,
+      "host_readiness": {
+        "host_observed_seconds": 25.75863845902495,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 621.2890625,
+      "sampled_memory_mib": {
+        "n": 150,
+        "p50": 558.875,
+        "p95": 612.3671875,
+        "max": 614.01171875
+      },
+      "post_ready_memory_mib": {
+        "n": 46,
+        "p50": 611.109375,
+        "p95": 612.9140625,
+        "max": 613.7578125
+      },
+      "worker_peak_rss_mib": 354.1796875,
+      "worker_peak_threads": 20,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.47019537500000297,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 43.63427966705058,
+        "cleanup_seconds": 1.7471671249950305,
+        "container_removed": true,
+        "retained_files": 14,
+        "retained_bytes": 162037
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 12237,
+        "events.jsonl": 666,
+        "transcript.json": 2344,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.39327239990234375
+    },
+    {
+      "name": "idle-1024-5",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 157,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 25.451904971,
+      "host_readiness": {
+        "host_observed_seconds": 27.851904042065144,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 634.15625,
+      "sampled_memory_mib": {
+        "n": 157,
+        "p50": 597.75390625,
+        "p95": 622.69921875,
+        "max": 627.91796875
+      },
+      "post_ready_memory_mib": {
+        "n": 49,
+        "p50": 621.31640625,
+        "p95": 622.85546875,
+        "max": 623.23828125
+      },
+      "worker_peak_rss_mib": 367.5546875,
+      "worker_peak_threads": 20,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.3662113749999989,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 45.55267454206478,
+        "cleanup_seconds": 1.590920125017874,
+        "container_removed": true,
+        "retained_files": 14,
+        "retained_bytes": 162616
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 12813,
+        "events.jsonl": 666,
+        "transcript.json": 2344,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.380706787109375
+    },
+    {
+      "name": "interactive-1024-1",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 947,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 26.720303095,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 757.31640625,
+      "sampled_memory_mib": {
+        "n": 947,
+        "p50": 675.3203125,
+        "p95": 724.6875,
+        "max": 755.828125
+      },
+      "post_ready_memory_mib": {
+        "n": 833,
+        "p50": 692.140625,
+        "p95": 724.78125,
+        "max": 755.828125
+      },
+      "worker_peak_rss_mib": 390.14453125,
+      "worker_peak_threads": 25,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 8,
+        "p50": 17.164209,
+        "p95": 105.526417,
+        "max": 105.526417
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.12508900000000267,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 250.98503541608807,
+        "cleanup_seconds": 1.2267492089886218,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 406878
+      },
+      "http_request_payload_bytes": 1818,
+      "http_response_payload_bytes": 2384538,
+      "file_bytes": {
+        "samples.csv": 78164,
+        "worker-exit.json": 88,
+        "events.jsonl": 142077,
+        "transcript.json": 35602,
+        "engine.log": 535
+      },
+      "headroom_fraction": 0.2604331970214844
+    },
+    {
+      "name": "screen-1024-ai",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 164,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 681.75,
+      "sampled_memory_mib": {
+        "n": 164,
+        "p50": 603.80078125,
+        "p95": 677.1015625,
+        "max": 679.984375
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 423.6171875,
+      "worker_peak_threads": 16,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": 24375,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.008089583000000289,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 48.2374167079106,
+        "cleanup_seconds": 1.0057038749800995,
+        "container_removed": true,
+        "retained_files": 14,
+        "retained_bytes": 215863
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 13380,
+        "worker-exit.json": 86,
+        "events.jsonl": 379,
+        "engine.log": 27994
+      },
+      "headroom_fraction": 0.334228515625
+    },
+    {
+      "name": "screen-1024-human",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 152,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 25.151564511,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 701.65234375,
+      "sampled_memory_mib": {
+        "n": 152,
+        "p50": 631.3125,
+        "p95": 699.15234375,
+        "max": 700.6953125
+      },
+      "post_ready_memory_mib": {
+        "n": 44,
+        "p50": 698.38671875,
+        "p95": 700.34765625,
+        "max": 700.6953125
+      },
+      "worker_peak_rss_mib": 361.2890625,
+      "worker_peak_threads": 21,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.46359133299999655,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 44.57500987499952,
+        "cleanup_seconds": 1.714906792039983,
+        "container_removed": true,
+        "retained_files": 13,
+        "retained_bytes": 162288
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 12570,
+        "events.jsonl": 666,
+        "transcript.json": 2344,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.3147926330566406
+    },
+    {
+      "name": "screen-512-human",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 512,
+      "sample_count": 171,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 30.298829555,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 512.00390625,
+      "sampled_memory_mib": {
+        "n": 171,
+        "p50": 461.98828125,
+        "p95": 511.9140625,
+        "max": 511.9921875
+      },
+      "post_ready_memory_mib": {
+        "n": 47,
+        "p50": 464.06640625,
+        "p95": 465.98828125,
+        "max": 466.04296875
+      },
+      "worker_peak_rss_mib": 360.62890625,
+      "worker_peak_threads": 20,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.46043487500000424,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "idle-complete",
+        "elapsed_seconds": 50.476982334046625,
+        "cleanup_seconds": 1.663336749887094,
+        "container_removed": true,
+        "retained_files": 13,
+        "retained_bytes": 163547
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 13869,
+        "events.jsonl": 666,
+        "transcript.json": 2344,
+        "engine.log": 535
+      },
+      "headroom_fraction": -7.62939453125e-06
+    },
+    {
+      "name": "site-ai-1024",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 162,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 685.62109375,
+      "sampled_memory_mib": {
+        "n": 162,
+        "p50": 581.91015625,
+        "p95": 682.7734375,
+        "max": 684.55859375
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 424.04296875,
+      "worker_peak_threads": 16,
+      "cpu_decision_ms": {
+        "n": 387,
+        "p50": 9.195458,
+        "p95": 95.406459,
+        "max": 708.442126
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": 22879,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.008951709000001529,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 47.289294666959904,
+        "cleanup_seconds": 1.207661124994047,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 237956
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 13212,
+        "decisions.csv": 21937,
+        "worker-exit.json": 86,
+        "events.jsonl": 379,
+        "engine.log": 27994
+      },
+      "headroom_fraction": 0.3304481506347656
+    },
+    {
+      "name": "timed-ai-1024-1",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 196,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 714.3671875,
+      "sampled_memory_mib": {
+        "n": 196,
+        "p50": 638.65234375,
+        "p95": 707.4140625,
+        "max": 713.96484375
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 424.6015625,
+      "worker_peak_threads": 16,
+      "cpu_decision_ms": {
+        "n": 387,
+        "p50": 9.01875,
+        "p95": 109.588667,
+        "max": 588.823666
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": 31488,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.013168749999998397,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 58.56227066600695,
+        "cleanup_seconds": 1.3236854589777067,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 261132
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 16000,
+        "decisions.csv": 21946,
+        "worker-exit.json": 86,
+        "events.jsonl": 20657,
+        "engine.log": 27995
+      },
+      "headroom_fraction": 0.30237579345703125
+    },
+    {
+      "name": "timed-ai-1024-2",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 169,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 708.04296875,
+      "sampled_memory_mib": {
+        "n": 169,
+        "p50": 590.984375,
+        "p95": 703.21875,
+        "max": 707.79296875
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 420.125,
+      "worker_peak_threads": 17,
+      "cpu_decision_ms": {
+        "n": 387,
+        "p50": 9.335,
+        "p95": 93.875084,
+        "max": 673.834959
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": 23017,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.006573374999994996,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 49.77254891593475,
+        "cleanup_seconds": 1.1987532089697197,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 255644
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 13783,
+        "decisions.csv": 21940,
+        "worker-exit.json": 86,
+        "events.jsonl": 17397,
+        "engine.log": 27994
+      },
+      "headroom_fraction": 0.3085517883300781
+    },
+    {
+      "name": "timed-ai-1024-3",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 170,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 703.1015625,
+      "sampled_memory_mib": {
+        "n": 170,
+        "p50": 588.203125,
+        "p95": 697.12109375,
+        "max": 700.515625
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 419.2109375,
+      "worker_peak_threads": 16,
+      "cpu_decision_ms": {
+        "n": 387,
+        "p50": 9.008292,
+        "p95": 92.588625,
+        "max": 600.553875
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": 23917,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.007277083000005291,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 49.415840375004336,
+        "cleanup_seconds": 1.1931834580609575,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 255728
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 13858,
+        "decisions.csv": 21938,
+        "worker-exit.json": 86,
+        "events.jsonl": 17408,
+        "engine.log": 27994
+      },
+      "headroom_fraction": 0.31337738037109375
+    },
+    {
+      "name": "timed-ai-1024-4",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 169,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 719.2578125,
+      "sampled_memory_mib": {
+        "n": 169,
+        "p50": 592.66796875,
+        "p95": 710.13671875,
+        "max": 718.07421875
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 429.61328125,
+      "worker_peak_threads": 16,
+      "cpu_decision_ms": {
+        "n": 387,
+        "p50": 9.81125,
+        "p95": 92.671584,
+        "max": 605.246042
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": 23683,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.009836915999997586,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 49.46849587489851,
+        "cleanup_seconds": 1.268939625006169,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 255731
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 13778,
+        "decisions.csv": 21943,
+        "worker-exit.json": 86,
+        "events.jsonl": 17483,
+        "engine.log": 27994
+      },
+      "headroom_fraction": 0.29759979248046875
+    },
+    {
+      "name": "timed-ai-1024-5",
+      "mode": "ai",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 171,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": null,
+      "host_readiness": null,
+      "whole_cgroup_peak_mib": 706.52734375,
+      "sampled_memory_mib": {
+        "n": 171,
+        "p50": 596.03515625,
+        "p95": 703.484375,
+        "max": 705.03515625
+      },
+      "post_ready_memory_mib": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "worker_peak_rss_mib": 421.5078125,
+      "worker_peak_threads": 16,
+      "cpu_decision_ms": {
+        "n": 387,
+        "p50": 9.073625,
+        "p95": 94.65275,
+        "max": 622.105167
+      },
+      "successful_command_ack_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "ai_natural_game_ms": 23989,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.0074508330000000456,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 49.52183966699522,
+        "cleanup_seconds": 1.236204041983001,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 255892
+      },
+      "http_request_payload_bytes": 0,
+      "http_response_payload_bytes": 0,
+      "file_bytes": {
+        "samples.csv": 13952,
+        "decisions.csv": 21937,
+        "worker-exit.json": 86,
+        "events.jsonl": 17476,
+        "engine.log": 27994
+      },
+      "headroom_fraction": 0.3100318908691406
+    }
+  ],
+  "scope": "Engine plus local supervisor in same capped cgroup; excludes browser and existing ManaTomb. Post-ready rows in interactive runs include gameplay/thinking, not a pure idle statistic."
+}

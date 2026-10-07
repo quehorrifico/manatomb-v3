@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+root="${FORGE_BUNDLE:-/opt/forge}"
+session="$1"
+port="$2"
+mkdir -p "$session/assets" "$session/user/preferences" "$session/cache" "$session/decks"
+ln -s "$root/res" "$session/assets/res"
+printf 'userDir=%s/user\ncacheDir=%s/cache\ndecksDir=%s/decks\n' "$session" "$session" "$session" > "$session/assets/forge.profile.properties"
+cp "$root/forge.preferences" "$session/user/preferences/forge.preferences"
+classpath="$root/classes"
+for entry in "$root"/lib/*; do classpath="$classpath:$entry"; done
+# shellcheck disable=SC2046
+exec "${JAVA_HOME:+$JAVA_HOME/bin/}java" -Djava.awt.headless=true -Dsentry.enabled=false -Xms64m -Xmx1024m -XX:ActiveProcessorCount=1 -XX:+ExitOnOutOfMemoryError $(cat "$root/jvm-opens") "-Dmanatomb.assets=$session/assets" -cp "$classpath" ForgeWorker "$session/human.json" "$session/cpu.json" "$port" /dev/null "$session" realistic

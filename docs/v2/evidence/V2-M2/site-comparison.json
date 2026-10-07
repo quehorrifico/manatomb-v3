@@ -1,0 +1,493 @@
+{
+  "scope": "Local separate web/engine/PostgreSQL on ARM64 with emulated AMD64 app and engine; no production traffic. Fixed keep/mulligan prompt versus no worker, not demanding CPU load. Same images and limits. Tiny synthetic catalog; warm/unspecified cache. Ten samples per endpoint in each pass; one request/second.",
+  "baseline": {
+    "mode": "baseline",
+    "passed": true,
+    "scope": "Local Linux AMD64 containers under Rosetta on ARM64; separate web/engine/database. Fixed idle human prompt when present. Warm/unspecified cache; small synthetic catalog; not production capacity or active CPU decision load. At most one site request/second; browser polling is additional and not included in these body byte totals.",
+    "images": {
+      "manatomb-web-release-local": "sha256:d2279455ff5f37914dc8d911537e6be35563a2d74dc8a518572aae0ac0368380",
+      "manatomb-forge-release-local": "sha256:37684bb41fda1d46231f36701b062e154df68d46ca17811fd29506f125c5d030",
+      "manatomb-bug-regression": "sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7"
+    },
+    "samples": [
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 44.441,
+        "response_body_bytes": 129547,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 89.724,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 28.933,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 30.364,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 59.865,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 12.659,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 19.139,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 61.515,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 30.994,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 32.338,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 40.162,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 28.71,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 32.359,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 46.971,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 26.319,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 32.893,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 28.945,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 19.332,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 33.288,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 41.305,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 29.66,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 31.264,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 45.656,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 22.487,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 27.351,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 34.667,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 13.364,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 25.247,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 30.04,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 21.556,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      }
+    ],
+    "summary": {
+      "search": {
+        "n": 10,
+        "p50_ms": 31.264,
+        "p95_ms": 44.441,
+        "max_ms": 44.441
+      },
+      "deck": {
+        "n": 10,
+        "p50_ms": 41.305,
+        "p95_ms": 89.724,
+        "max_ms": 89.724
+      },
+      "save": {
+        "n": 10,
+        "p50_ms": 22.487,
+        "p95_ms": 30.994,
+        "max_ms": 30.994
+      }
+    },
+    "duration_seconds": 29.503,
+    "fixture_overview_preserved": true,
+    "prompt_kind": null
+  },
+  "human_prompt": {
+    "mode": "human-prompt",
+    "passed": true,
+    "scope": "Local Linux AMD64 containers under Rosetta on ARM64; separate web/engine/database. Fixed idle human prompt when present. Warm/unspecified cache; small synthetic catalog; not production capacity or active CPU decision load. At most one site request/second; browser polling is additional and not included in these body byte totals.",
+    "images": {
+      "manatomb-web-release-local": "sha256:d2279455ff5f37914dc8d911537e6be35563a2d74dc8a518572aae0ac0368380",
+      "manatomb-forge-release-local": "sha256:37684bb41fda1d46231f36701b062e154df68d46ca17811fd29506f125c5d030",
+      "manatomb-bug-regression": "sha256:7c688148e5e156d0e86df7ba8ae5a05a2386aaec1e2ad8e6d11bdf10504b1fb7"
+    },
+    "samples": [
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 17.337,
+        "response_body_bytes": 129547,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 40.873,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 24.829,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 26.969,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 29.251,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 25.053,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 19.206,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 28.997,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 21.203,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 29.835,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 27.556,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 29.245,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 27.442,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 19.989,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 22.032,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 27.328,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 42.787,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 24.304,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 22.286,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 28.889,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 24.814,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 27.199,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 44.138,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 25.234,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 11.012,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 29.047,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 19.596,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      },
+      {
+        "kind": "search",
+        "status": 200,
+        "milliseconds": 32.992,
+        "response_body_bytes": 129433,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "deck",
+        "status": 200,
+        "milliseconds": 28.221,
+        "response_body_bytes": 429920,
+        "request_body_bytes": 0
+      },
+      {
+        "kind": "save",
+        "status": 200,
+        "milliseconds": 12.863,
+        "response_body_bytes": 5062,
+        "request_body_bytes": 130
+      }
+    ],
+    "summary": {
+      "search": {
+        "n": 10,
+        "p50_ms": 26.969,
+        "p95_ms": 32.992,
+        "max_ms": 32.992
+      },
+      "deck": {
+        "n": 10,
+        "p50_ms": 28.997,
+        "p95_ms": 44.138,
+        "max_ms": 44.138
+      },
+      "save": {
+        "n": 10,
+        "p50_ms": 24.304,
+        "p95_ms": 29.245,
+        "max_ms": 29.245
+      }
+    },
+    "duration_seconds": 29.406,
+    "fixture_overview_preserved": true,
+    "prompt_kind": "InputConfirmMulligan"
+  }
+}

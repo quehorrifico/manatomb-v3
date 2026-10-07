@@ -1,0 +1,205 @@
+{
+  "forge_pin": "26d8aff87509dde8a9d5017852339382d7ab3e83",
+  "manatomb_head": "0ab74245912407e98f2cb5131a431a67cfed0f1f",
+  "branch": "codex/v2-012-resource-lifecycle",
+  "environment": {
+    "host": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "host_machine": "arm64",
+    "docker": {
+      "ServerVersion": "27.5.1",
+      "Architecture": "aarch64",
+      "KernelVersion": "6.12.5-linuxkit",
+      "OperatingSystem": "Docker Desktop",
+      "NCPU": 8,
+      "MemTotal": 4109344768,
+      "CgroupVersion": "2",
+      "MemoryLimit": true,
+      "SwapLimit": true,
+      "CpuCfsQuota": true
+    },
+    "image": {
+      "Id": "sha256:24a8854594eea72c16822953e6cb96c78d10fc3c77b7b8a60ce8e5ac440a2337",
+      "RepoDigests": [
+        "eclipse-temurin@sha256:24a8854594eea72c16822953e6cb96c78d10fc3c77b7b8a60ce8e5ac440a2337"
+      ],
+      "Architecture": "amd64",
+      "Os": "linux",
+      "RootFS": {
+        "Type": "layers",
+        "Layers": [
+          "sha256:65c636ce09f299ba8ea7157c8d126dfd5b115fa7bbc5d634a91b34786958546e",
+          "sha256:37b3c075f39aa5e2ee2d5ac9d007e8ac048b55d07859c816ee50b883ba58b753",
+          "sha256:9ea6473ff6b66c217ba5d9e77bccfb45ce561806d444a320007c7c6fb23d6761",
+          "sha256:fd1c227f3ca04039c3fab2aa3cde1be8375f97f51fb94ba8cf8ce0735a5f4a2f",
+          "sha256:a5c9494ae1c32a5645c1908d4be87906c8c827e3b602290c41cd3802e1d8ac62"
+        ]
+      },
+      "Size": 7187
+    },
+    "emulation": "Rosetta: /proc/20/exe readlink returned /run/rosetta/rosetta in the capped AMD64 worker",
+    "limits_verified": {
+      "memory_max": 536870912,
+      "memory_swap_max": 0,
+      "cpu_max": "100000 100000"
+    },
+    "java": "Temurin 21.0.6+7-LTS amd64 Linux",
+    "note": "Image inspect Size is manifest metadata on this Docker snapshotter; not a trustworthy uncompressed runtime size."
+  },
+  "linux_jdk_apparent_bytes": 306844033,
+  "source_files": {
+    "tools/forge-benchmark/run.py": {
+      "bytes": 10249,
+      "sha256": "f00cc46f0979bc41a8dcc4553ddd99c72181622b066c563263bc02b621e029b9"
+    },
+    "tools/forge-benchmark/site_load.py": {
+      "bytes": 1907,
+      "sha256": "c2a8ac2bca44ae3774cbf58fb0ca29d55aea0409a48050e7b7de0c2ad559dc67"
+    },
+    "tools/forge-benchmark/summarize.py": {
+      "bytes": 3359,
+      "sha256": "34694f4073b266667a19abe4a8ea80dc1940588e536e1bb43acff66ee7a46749"
+    },
+    "tools/forge-benchmark/README.md": {
+      "bytes": 8461,
+      "sha256": "dcfdef902cce8abe0a410ae2aebad743b9862cc02141b7c72503c55e54efd354"
+    },
+    "tools/forge-benchmark/DecisionTimer.java": {
+      "bytes": 2394,
+      "sha256": "2e4165ff61f8da79e28ace8e4ca067def4f331171eacfe8130670405529ec4d0"
+    },
+    "tools/forge-benchmark/Supervisor.java": {
+      "bytes": 7164,
+      "sha256": "6724f3ef97897fcbcbdc7ee51087d5dadd3d70813d48d6e07832ce8b14f267ed"
+    },
+    "tools/forge-benchmark/verify.py": {
+      "bytes": 2435,
+      "sha256": "fb954c1ab37694bd66048bef5a5e44194a37c3ffc3a7228a2278d2e246ce7c6d"
+    },
+    "tools/forge-benchmark/faults.py": {
+      "bytes": 3523,
+      "sha256": "697cd27d3b95acb2c2ce20251eff3102b8d83fffae69dcaaa79478b9b4f022b7"
+    }
+  },
+  "compiled_instrumentation": {
+    "adapter_sha256": "bd6138b333e8923c2c01519692699a364a3a8906ad34d0aa4fca62c237998363",
+    "supervisor_sha256": "6724f3ef97897fcbcbdc7ee51087d5dadd3d70813d48d6e07832ce8b14f267ed",
+    "javac": "javac 21.0.6",
+    "timer_sha256": "0b96ac570d580e5a2c4934cf15cc874714d5bebc0a3464cb71d61c8772b053a3",
+    "timer_source_sha256": "2e4165ff61f8da79e28ace8e4ca067def4f331171eacfe8130670405529ec4d0",
+    "files": {
+      "Supervisor.class": "e4761263e450702782bdded8e7fb2394945f68a7bc0337ddc08eafed59ccab0e",
+      "BrowserSpike.class": "3a09481e5807f132e6d8fb35150cde296230437ed609b852412423b92086e9b2",
+      "BrowserSpike$Desktop.class": "2d5f05cb9796bf8c4ed33ead5b9c642f90477596fc76427a8f17e09fef9784e7",
+      "BrowserSpike$Pending.class": "2680a838f0678cc8f22c4717683604610c4425b8c76f67d5ee42e8f0a0fdf70d"
+    }
+  },
+  "runs": {
+    "fault-cpu-cancel": {
+      "command_sha256": "e4365acf2e023a111dbcfa7cf5956cf9375c0977aa8765b3c90a6ad9ddd75483",
+      "samples_sha256": "9f3904891e7c3045eba119f6576bb912d8dc69f1be7a52e03da6819745e0f857",
+      "container_removed": true
+    },
+    "fault-cpu-kill": {
+      "command_sha256": "c20f39d17f30138d3da1301c331e416d1980ab3d78a6ea05f8c26a4f2fa4cf79",
+      "samples_sha256": "50043bc0ac68938f976ffa02aa3f216ba990b4eb106e1fc95497aecf15b2b003",
+      "container_removed": true
+    },
+    "fault-stuck-human": {
+      "command_sha256": "eb4825fbe41a0257232211f8ecbbd8b269c57452ab44da7db7c00ce9c38c9904",
+      "samples_sha256": "ae6e9eb0fcffea1ccf5c5a13c9b5b3b2c978b94b0ea6f42be34da2c77e40f83c",
+      "container_removed": true
+    },
+    "final-mount-smoke": {
+      "command_sha256": "e3fb3735696dfc4ae6fcfc96d04aac3be281743a609a5f42d6213f7843128246",
+      "samples_sha256": "5ddbcb351f290d7a95b3e79cb5478f39af3f377af6b9cd81eb35bfb14931cd47",
+      "container_removed": true
+    },
+    "focused-1024-human": {
+      "command_sha256": "4b67df90fb0a1cd8dc702556d66f147b9a8adde5d9f63252a285252b649a3b7e",
+      "samples_sha256": "d62a86596384e98fee83b00ccdac793cb6e60a5cf4b96df77b444439aa999acb",
+      "container_removed": true
+    },
+    "idle-1024-1": {
+      "command_sha256": "4c9c9d10ac98d08e2aea7921fdd6b674819fdfc9dc0fb40afe9b75d0e582dd57",
+      "samples_sha256": "eb400a0ad56ca0c30cd58330cea00f554517d4ffd773b1fd65fd58c4b227e25f",
+      "container_removed": true
+    },
+    "idle-1024-2": {
+      "command_sha256": "9b9e0808678aa25c7653456685738ccc9be393581dbf923dbcaeb8b1b8aa69ed",
+      "samples_sha256": "f97711200b8c9b8cff121a806927ee38faa91f2d80ccf31bef42b92e1add3d61",
+      "container_removed": true
+    },
+    "idle-1024-3": {
+      "command_sha256": "e5971a183def7900cb39dfb6e6185349990970ca9793f1a963f741a3fe508e89",
+      "samples_sha256": "15dda44b0a7734f27e02a39f5e537529fd59f5fca1854aaaeaf6fe38ebf71127",
+      "container_removed": true
+    },
+    "idle-1024-4": {
+      "command_sha256": "3a3f785618d9a9121737394f3d0f3919491af25038227d524762606c75463432",
+      "samples_sha256": "9170fbca4c23bc1a9b0bfdb87305862fb2b3b11ba657be73c65a6e97d907622c",
+      "container_removed": true
+    },
+    "idle-1024-5": {
+      "command_sha256": "ea06765f5570ddd96590e2abf87fb51de558908c8f7470b407832c3283cb7f91",
+      "samples_sha256": "6c071e8bc5fa244b14200b9decf505b935610bea7775eb3a5324a0569d0a5108",
+      "container_removed": true
+    },
+    "interactive-1024-1": {
+      "command_sha256": "6b0627449569eae27dab6658d5b3c039a4241d87687117cf829daa03ec238626",
+      "samples_sha256": "a56746c0fe66c4bb8dc9cb1f2ff178a1c3cad82e18e31626c1f7e4e033cac983",
+      "container_removed": true
+    },
+    "screen-1024-ai": {
+      "command_sha256": "965a4cb4fcc5640d1259763015a2d1b687259cbaf0f0fc46a18ec36c28c6f234",
+      "samples_sha256": "c4e0e7f99f32cacf85a63785ece73f00c08261e2d8660400795f0b2cc8d22c75",
+      "container_removed": true
+    },
+    "screen-1024-human": {
+      "command_sha256": "1af956d265508facd2ed3829a3301f35cabfa84ad5cc0785cfabd36afb77cbf6",
+      "samples_sha256": "6be34fb5484fc78a107797605033488dfdb5c257928d4e31ead2824cad107c1d",
+      "container_removed": true
+    },
+    "screen-512-human": {
+      "command_sha256": "ca1b62c128d1114458cf6e31dee3a91ad630c1eaab2e2536bad1f570c60d30d7",
+      "samples_sha256": "641618b216b586417d5b5b5b361bd813f524a755737dc0368de5a18e675caaf5",
+      "container_removed": true
+    },
+    "site-ai-1024": {
+      "command_sha256": "a020b01675b459461eae0a8f1225ab8f210b60a7e17761274ba145cb99575020",
+      "samples_sha256": "98cdf25fff99ee1d8cdd16c3a2e3590c611627ebf88a1d3399dacbf9df5dffb6",
+      "container_removed": true
+    },
+    "timed-ai-1024-1": {
+      "command_sha256": "b1416e4f67d4baa1cc7be30f33a2bbc9bbdcd6d1d457c970aaf2c24b7c60a884",
+      "samples_sha256": "a6c7e551479f73ee689a3f70391c76c16fda540f8e9b59e2423939a47e69a7b2",
+      "container_removed": true
+    },
+    "timed-ai-1024-2": {
+      "command_sha256": "1f8089be2e5bf5db77d2d1fa14aba7e5de12552ab9895546c87c6bdff6d55485",
+      "samples_sha256": "4706724f7001ba8a4df26b543eaec2d957978a4526358f649dee4caf7bde899d",
+      "container_removed": true
+    },
+    "timed-ai-1024-3": {
+      "command_sha256": "3cce9da04fed22be4c7d388841d67f90459d6c5f6f0e87b55000dd0a19bb1443",
+      "samples_sha256": "af2098aa2269bd94fa2f769c3739842203081e81127c7180cccd21869634adcb",
+      "container_removed": true
+    },
+    "timed-ai-1024-4": {
+      "command_sha256": "bf6d0b35ff48a0ac265566b94b801ef594d6c8416071e813a1171274603fa036",
+      "samples_sha256": "58bf197a04afc78bcb242f3a7a948107ab61c40686b4608098006717940e39a1",
+      "container_removed": true
+    },
+    "timed-ai-1024-5": {
+      "command_sha256": "b34210f0b2d409afd3a457594f8ac42e962d38a074fc21785207a65c45b9a583",
+      "samples_sha256": "5368b3948b1cd8bc21223b45ea2352a1ea47c78c8ca9c40a5984afc78f99866a",
+      "container_removed": true
+    }
+  },
+  "original_adapter_sha256": "bd6138b333e8923c2c01519692699a364a3a8906ad34d0aa4fca62c237998363",
+  "local_artifacts": "/Users/zeusborrego/Developer/forge/v2-012",
+  "notes": [
+    "All prior Forge configuration hashes verified by runner on each launch.",
+    "Final mount smoke exposes only spike directory under /repo/tools/forge-browser-spike; original measurements used a broader read-only project mount.",
+    "Source/build cache and Java image not republished. Production image not assembled."
+  ]
+}

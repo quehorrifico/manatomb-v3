@@ -1,0 +1,28 @@
+{
+  "checked_utc": "2026-09-18T03:11:08.811383+00:00",
+  "digitalocean_connector_available": false,
+  "doctl_installed": false,
+  "standard_doctl_config_present": false,
+  "standard_token_environment_present": false,
+  "existing_browser_session": "Existing Safari app settings tab titled themonolith redirected to DigitalOcean login; no authenticated allocation details obtained. No credentials requested or extracted.",
+  "web": {
+    "source": "owner-reported; not verified",
+    "memory": "512 MB",
+    "cpu": "1 shared vCPU",
+    "instances": 1,
+    "transfer": "50 GB"
+  },
+  "database": {
+    "source": "owner-reported; not verified",
+    "engine": "PostgreSQL",
+    "memory": "1 GB",
+    "disk": "10 GiB"
+  },
+  "native_amd64_test_capacity": "Unavailable to verify; none identified, not proof none exists",
+  "missing": [
+    "Current web component size slug/count/region and actual usage metrics",
+    "Current database plan/type/count/storage use; separate from engine capacity",
+    "Existing nonproduction AMD64 host inventory, free memory/CPU/disk, safe access and authorization for tests",
+    "Actual current invoice/credits/taxes to compute account-specific incremental bill"
+  ]
+}

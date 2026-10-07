@@ -1,0 +1,27 @@
+{
+  "scenario": "Final package: normal shuffle custom/custom Silvos, browser Keep via Enter, CPU first-turn human priority, focused prompt outline, explicit cancellation and cleanup",
+  "coverage": "Agent-operated real browser; passive human pass/discard strategy unless separately described. No representative human-deck performance claim.",
+  "status": "cancelled",
+  "turn": 1,
+  "result": null,
+  "conceded": false,
+  "engine_image": "sha256:9187566a906ea21f654eda02d1678bd052c085f7f5e696849aaecc11f567ac49",
+  "web_image": "sha256:d3a97829592b6eaebb63204b410b635c6e4bfcd84932c662715adab2f022d006",
+  "runtime_identity_sha256": "e9817ff25e2158de6c20233ab2240ff97a87567b75713f3a9edb6cea0e1c7b9f",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "memory_current_and_container_lifetime_peak_bytes": [
+    181387264,
+    534810624
+  ],
+  "processes_after_end": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_end": [],
+  "platform": "Linux AMD64 on Docker Desktop ARM64/Rosetta; warm or unspecified cache; not native provider capacity"
+}

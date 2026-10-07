@@ -1,0 +1,27 @@
+{
+  "scenario": "Normal-shuffle saved decks: explicit Play/Keep, main-phase Forest ability choice. Confirmed queued concession while synchronous choice remained unchanged and visible; explicit Choose none then unblocked Forge, which recorded the actual CPU concession result at the next priority boundary. No automatic choice, HTTP gameplay mutation or forced outcome. This proves the blocked-choice handoff, not an active CPU compute timing sample.",
+  "coverage": "Agent-operated real browser; passive human pass/discard strategy unless separately described. No representative human-deck performance claim.",
+  "status": "finished",
+  "turn": 1,
+  "result": "CPU",
+  "conceded": true,
+  "engine_image": "sha256:42522a6b52172d049460daf59e4e684246fa497b26c5d940da736bfd82020d48",
+  "web_image": "sha256:2b6284234c48e58c89436525032ba354e035af48bc6ad6536168864e1b2aa518",
+  "runtime_identity_sha256": "3ca2a6a12903bd01804625f012f3df39d881b8190d46b54ffb3f838e8bdaf708",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "memory_current_and_container_lifetime_peak_bytes": [
+    127664128,
+    478126080
+  ],
+  "processes_after_end": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_end": [],
+  "platform": "Linux AMD64 on Docker Desktop ARM64/Rosetta; warm or unspecified cache; not native provider capacity"
+}
