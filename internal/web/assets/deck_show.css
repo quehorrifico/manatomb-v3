@@ -1725,16 +1725,19 @@ body[data-page="deck-show"] .mt-deck-editor__menu-close {
   }
 
   body[data-page="deck-show"] .mt-deck-editor__header-actions {
-    margin-left: auto;
+    width: 100%;
+    margin-left: 0;
   }
 
   body[data-page="deck-show"] .mt-deck-editor__actions .mt-btn {
     min-height: 2.6rem;
-    flex: 1 1 8rem;
+    flex: 1 1 0;
     justify-content: center;
   }
 
   body[data-page="deck-show"] .mt-deck-editor__actions {
+    width: 100%;
+    flex-wrap: nowrap;
     justify-content: flex-start;
   }
 

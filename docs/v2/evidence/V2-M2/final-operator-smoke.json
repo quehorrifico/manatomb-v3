@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "image": "sha256:9187566a906ea21f654eda02d1678bd052c085f7f5e696849aaecc11f567ac49",
+  "build": "e9817ff25e2158de6c20233ab2240ff97a87567b75713f3a9edb6cea0e1c7b9f",
+  "checks": [
+    "unauthenticated operator rejected",
+    "drain rejects new session without worker",
+    "liveness remains 200 while readiness 503",
+    "resume readiness 200"
+  ],
+  "activeWorkers": 0
+}

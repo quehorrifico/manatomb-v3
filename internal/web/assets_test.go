@@ -64,7 +64,7 @@ func TestAssetHandlerServesFavicon(t *testing.T) {
 	}
 }
 
-func TestAssetHandlerServesRoundedManaTombTabLogo(t *testing.T) {
+func TestAssetHandlerServesPlainManaTombMonogram(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/assets/manatomb-square-logo.svg", nil)
 	rr := httptest.NewRecorder()
 
@@ -73,8 +73,8 @@ func TestAssetHandlerServesRoundedManaTombTabLogo(t *testing.T) {
 		t.Fatalf("tab logo status = %d", rr.Code)
 	}
 	body := rr.Body.String()
-	if !strings.Contains(body, `rx="267"`) || strings.Contains(body, `<rect width="1254" height="1254" fill="#000"/>`) {
-		t.Fatalf("tab logo should preserve transparent rounded corners: %s", body)
+	if !strings.Contains(body, `id="mark"`) || !strings.Contains(body, `fill="currentColor"`) || strings.Contains(body, `<rect`) || strings.Contains(body, `Gradient`) {
+		t.Fatalf("tab logo should be a plain single-color mark on a transparent background: %s", body)
 	}
 }
 

@@ -182,3 +182,22 @@ func TestImportDraftRequestDecodesCommanderPrinting(t *testing.T) {
 		t.Fatalf("workbench import payload omitted commander printing: %s", encoded)
 	}
 }
+
+func TestSavedOverviewRecoveryWiringAndOwnerScope(t *testing.T) {
+	body := renderTemplate(t, "deck_show", TemplateData{
+		CurrentUser: &account.User{ID: 7},
+		Data:        deckPageData{Deck: &decks.Deck{ID: 42, Name: "Recovery fixture", Format: "Commander"}},
+	})
+	for _, needle := range []string{
+		assetURL("saved_overview.js"), `id="deck-overview-retry"`, `key: 'mt:saved-overview:7:' + savedDraft.id`,
+		`noteField.addEventListener('input', queueOverviewSave)`, `savedMutationTail.then`,
+		`savedOverview.overlay(d)`, `window.addEventListener('beforeunload'`,
+	} {
+		if !strings.Contains(body, needle) {
+			t.Fatalf("missing saved overview wiring %q", needle)
+		}
+	}
+	if strings.Contains(body, "Changes save automatically.") {
+		t.Fatal("misleading unconditional save status remains")
+	}
+}

@@ -14,7 +14,8 @@ func TestSharedLayoutUsesManaTombBrand(t *testing.T) {
 		`<title>Sign In | ManaTomb</title>`,
 		`<meta property="og:site_name" content="ManaTomb">`,
 		`<span class="mt-site-brand__name">ManaTomb</span>`,
-		`src="/assets/manatomb-square-logo.svg"`,
+		`class="mt-site-brand__logo mt-brand-mark"`,
+		assetURL("manatomb-square-logo.svg") + `#mark`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("shared layout missing ManaTomb branding %q: %s", want, body)

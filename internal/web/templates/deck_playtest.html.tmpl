@@ -2392,7 +2392,7 @@
         isWorkbenchPlaytest: {{ if $ctx.WorkbenchMode }}true{{ else }}false{{ end }}
       };
     </script>
-    <script src="/assets/playtest.js"></script>
+    <script src="{{ assetURL "playtest.js" }}"></script>
   </div>
 
   {{ template "layout_footer" . }}

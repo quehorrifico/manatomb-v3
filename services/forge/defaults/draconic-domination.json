@@ -1,0 +1,355 @@
+{
+  "name": "Draconic Domination",
+  "commanders": [
+    {
+      "name": "The Ur-Dragon",
+      "quantity": 1
+    }
+  ],
+  "main": [
+    {
+      "name": "Arcane Sanctum",
+      "quantity": 1
+    },
+    {
+      "name": "Armillary Sphere",
+      "quantity": 1
+    },
+    {
+      "name": "Atarka, World Render",
+      "quantity": 1
+    },
+    {
+      "name": "Bladewing the Risen",
+      "quantity": 1
+    },
+    {
+      "name": "Boneyard Scourge",
+      "quantity": 1
+    },
+    {
+      "name": "Broodmate Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1
+    },
+    {
+      "name": "Commander's Sphere",
+      "quantity": 1
+    },
+    {
+      "name": "Crosis, the Purger",
+      "quantity": 1
+    },
+    {
+      "name": "Crucible of Fire",
+      "quantity": 1
+    },
+    {
+      "name": "Crucible of the Spirit Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Crumbling Necropolis",
+      "quantity": 1
+    },
+    {
+      "name": "Crux of Fate",
+      "quantity": 1
+    },
+    {
+      "name": "Cultivate",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Bounty",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Opulence",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Verbosity",
+      "quantity": 1
+    },
+    {
+      "name": "Darksteel Ingot",
+      "quantity": 1
+    },
+    {
+      "name": "Deathbringer Regent",
+      "quantity": 1
+    },
+    {
+      "name": "Dragon Tempest",
+      "quantity": 1
+    },
+    {
+      "name": "Dragonlord's Servant",
+      "quantity": 1
+    },
+    {
+      "name": "Dragonspeaker Shaman",
+      "quantity": 1
+    },
+    {
+      "name": "Dreamstone Hedron",
+      "quantity": 1
+    },
+    {
+      "name": "Dromoka, the Eternal",
+      "quantity": 1
+    },
+    {
+      "name": "Earthquake",
+      "quantity": 1
+    },
+    {
+      "name": "Elemental Bond",
+      "quantity": 1
+    },
+    {
+      "name": "Farseek",
+      "quantity": 1
+    },
+    {
+      "name": "Fist of Suns",
+      "quantity": 1
+    },
+    {
+      "name": "Forest",
+      "quantity": 3
+    },
+    {
+      "name": "Fortunate Few",
+      "quantity": 1
+    },
+    {
+      "name": "Fractured Identity",
+      "quantity": 1
+    },
+    {
+      "name": "Frontier Bivouac",
+      "quantity": 1
+    },
+    {
+      "name": "Frontier Siege",
+      "quantity": 1
+    },
+    {
+      "name": "Haven of the Spirit Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Hellkite Charger",
+      "quantity": 1
+    },
+    {
+      "name": "Herald's Horn",
+      "quantity": 1
+    },
+    {
+      "name": "Intet, the Dreamer",
+      "quantity": 1
+    },
+    {
+      "name": "Island",
+      "quantity": 3
+    },
+    {
+      "name": "Jungle Shrine",
+      "quantity": 1
+    },
+    {
+      "name": "Kindred Discovery",
+      "quantity": 1
+    },
+    {
+      "name": "Kodama's Reach",
+      "quantity": 1
+    },
+    {
+      "name": "Kolaghan, the Storm's Fury",
+      "quantity": 1
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1
+    },
+    {
+      "name": "Mirror of the Forebears",
+      "quantity": 1
+    },
+    {
+      "name": "Monastery Siege",
+      "quantity": 1
+    },
+    {
+      "name": "Mountain",
+      "quantity": 6
+    },
+    {
+      "name": "Mystic Monastery",
+      "quantity": 1
+    },
+    {
+      "name": "Nihil Spellbomb",
+      "quantity": 1
+    },
+    {
+      "name": "Niv-Mizzet, Dracogenius",
+      "quantity": 1
+    },
+    {
+      "name": "Nomad Outpost",
+      "quantity": 1
+    },
+    {
+      "name": "O-Kagachi, Vengeful Kami",
+      "quantity": 1
+    },
+    {
+      "name": "Ojutai, Soul of Winter",
+      "quantity": 1
+    },
+    {
+      "name": "Opulent Palace",
+      "quantity": 1
+    },
+    {
+      "name": "Orator of Ojutai",
+      "quantity": 1
+    },
+    {
+      "name": "Painful Truths",
+      "quantity": 1
+    },
+    {
+      "name": "Palace Siege",
+      "quantity": 1
+    },
+    {
+      "name": "Path of Ancestry",
+      "quantity": 1
+    },
+    {
+      "name": "Plains",
+      "quantity": 3
+    },
+    {
+      "name": "Rain of Thorns",
+      "quantity": 1
+    },
+    {
+      "name": "Ramos, Dragon Engine",
+      "quantity": 1
+    },
+    {
+      "name": "Ryusei, the Falling Star",
+      "quantity": 1
+    },
+    {
+      "name": "Sandsteppe Citadel",
+      "quantity": 1
+    },
+    {
+      "name": "Savage Lands",
+      "quantity": 1
+    },
+    {
+      "name": "Savage Ventmaw",
+      "quantity": 1
+    },
+    {
+      "name": "Scalelord Reckoner",
+      "quantity": 1
+    },
+    {
+      "name": "Scion of the Ur-Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Scourge of Valkas",
+      "quantity": 1
+    },
+    {
+      "name": "Seaside Citadel",
+      "quantity": 1
+    },
+    {
+      "name": "Silumgar, the Drifting Death",
+      "quantity": 1
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1
+    },
+    {
+      "name": "Spellbound Dragon",
+      "quantity": 1
+    },
+    {
+      "name": "Steel Hellkite",
+      "quantity": 1
+    },
+    {
+      "name": "Sunscorch Regent",
+      "quantity": 1
+    },
+    {
+      "name": "Swamp",
+      "quantity": 3
+    },
+    {
+      "name": "Taigam, Ojutai Master",
+      "quantity": 1
+    },
+    {
+      "name": "Teneb, the Harvester",
+      "quantity": 1
+    },
+    {
+      "name": "Territorial Hellkite",
+      "quantity": 1
+    },
+    {
+      "name": "Tyrant's Familiar",
+      "quantity": 1
+    },
+    {
+      "name": "Utvara Hellkite",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Crag",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Grove",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Marsh",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Meadow",
+      "quantity": 1
+    },
+    {
+      "name": "Wasitora, Nekoru Queen",
+      "quantity": 1
+    },
+    {
+      "name": "Wayfarer's Bauble",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Creek",
+      "quantity": 1
+    }
+  ]
+}

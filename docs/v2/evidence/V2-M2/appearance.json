@@ -1,0 +1,102 @@
+{
+  "scope": "Actual local IAB controls changed and persisted each test-account theme, CPU page reloaded, computed rendered colors read. Original tomb theme restored. One tablet screenshot inspected. This is not full browser-family, physical-touch or screen-reader coverage.",
+  "themes": [
+    {
+      "theme": "classic",
+      "button_foreground_rgb": [
+        248,
+        250,
+        252
+      ],
+      "button_background_rgb": [
+        15,
+        23,
+        42
+      ],
+      "text_contrast_ratio": 17.06,
+      "width_equals_scroll_width": 457
+    },
+    {
+      "theme": "moonlit",
+      "button_foreground_rgb": [
+        246,
+        241,
+        247
+      ],
+      "button_background_rgb": [
+        25,
+        20,
+        31
+      ],
+      "text_contrast_ratio": 16.23,
+      "width_equals_scroll_width": 457
+    },
+    {
+      "theme": "verdigris",
+      "button_foreground_rgb": [
+        239,
+        246,
+        243
+      ],
+      "button_background_rgb": [
+        17,
+        28,
+        25
+      ],
+      "text_contrast_ratio": 15.9,
+      "width_equals_scroll_width": 457
+    },
+    {
+      "theme": "cinder",
+      "button_foreground_rgb": [
+        247,
+        241,
+        236
+      ],
+      "button_background_rgb": [
+        32,
+        23,
+        19
+      ],
+      "text_contrast_ratio": 15.71,
+      "width_equals_scroll_width": 457
+    },
+    {
+      "theme": "ash",
+      "button_foreground_rgb": [
+        242,
+        243,
+        245
+      ],
+      "button_background_rgb": [
+        23,
+        25,
+        29
+      ],
+      "text_contrast_ratio": 15.85,
+      "width_equals_scroll_width": 457
+    },
+    {
+      "theme": "tomb",
+      "button_foreground_rgb": [
+        245,
+        240,
+        232
+      ],
+      "button_background_rgb": [
+        26,
+        21,
+        31
+      ],
+      "text_contrast_ratio": 15.81,
+      "width_equals_scroll_width": 457
+    }
+  ],
+  "viewports": {
+    "landscape_1024x768": "no overflow; prompt buttons 46px",
+    "portrait_768x1024": "no overflow; one board column",
+    "phone_390x844": "no overflow; advice visible"
+  },
+  "keyboard": "Actual Play/Keep prompt transitions retain focus after correction; earlier combat selected blockers and target with Enter.",
+  "web_image": "sha256:b867bdf3691525ab4fd0d37ec23104909a6b022ba7d6573190cb4ed34e7bc70d"
+}

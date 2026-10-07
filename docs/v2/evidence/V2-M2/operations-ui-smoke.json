@@ -1,0 +1,27 @@
+{
+  "scenario": "Operations/UI smoke: authentication expiry returned through login to /cpu; owned saved snapshots for both seats; actual Play and Keep keyboard controls retained focus on new prompt; diagnostic preview showed only allowlisted build/prompt metadata; 1024 landscape, 768 portrait and 390 phone checks showed no horizontal overflow, phone advice visible; actual Forge concession at priority, CPU result, worker reclaimed. Not another natural-game or capacity sample.",
+  "coverage": "Agent-operated real browser; passive human pass/discard strategy unless separately described. No representative human-deck performance claim.",
+  "status": "finished",
+  "turn": 1,
+  "result": "CPU",
+  "conceded": true,
+  "engine_image": "sha256:37d59ee873192497b0415ff9ab97fd45028e3d16448b058cf5ac7d882878926c",
+  "web_image": "sha256:b867bdf3691525ab4fd0d37ec23104909a6b022ba7d6573190cb4ed34e7bc70d",
+  "runtime_identity_sha256": "ffaaf0e04d6c0de7572e2df14fdf39faeaa08b339fc5bd2899638bea5b968aa0",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "memory_current_and_container_lifetime_peak_bytes": [
+    78929920,
+    435752960
+  ],
+  "processes_after_end": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_end": [],
+  "platform": "Linux AMD64 on Docker Desktop ARM64/Rosetta; warm or unspecified cache; not native provider capacity"
+}

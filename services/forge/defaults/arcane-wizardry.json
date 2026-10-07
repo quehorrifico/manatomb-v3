@@ -1,0 +1,339 @@
+{
+  "name": "Arcane Wizardry",
+  "commanders": [
+    {
+      "name": "Inalla, Archmage Ritualist",
+      "quantity": 1
+    }
+  ],
+  "main": [
+    {
+      "name": "Apprentice Necromancer",
+      "quantity": 1
+    },
+    {
+      "name": "Arcanis the Omnipotent",
+      "quantity": 1
+    },
+    {
+      "name": "Archaeomancer",
+      "quantity": 1
+    },
+    {
+      "name": "Azami, Lady of Scrolls",
+      "quantity": 1
+    },
+    {
+      "name": "Bloodline Necromancer",
+      "quantity": 1
+    },
+    {
+      "name": "Body Double",
+      "quantity": 1
+    },
+    {
+      "name": "Cauldron Dance",
+      "quantity": 1
+    },
+    {
+      "name": "Chaos Warp",
+      "quantity": 1
+    },
+    {
+      "name": "Clone Legion",
+      "quantity": 1
+    },
+    {
+      "name": "Comet Storm",
+      "quantity": 1
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1
+    },
+    {
+      "name": "Commander's Sphere",
+      "quantity": 1
+    },
+    {
+      "name": "Corpse Augur",
+      "quantity": 1
+    },
+    {
+      "name": "Crosis's Charm",
+      "quantity": 1
+    },
+    {
+      "name": "Crumbling Necropolis",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Disturbance",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Opulence",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Verbosity",
+      "quantity": 1
+    },
+    {
+      "name": "Darksteel Ingot",
+      "quantity": 1
+    },
+    {
+      "name": "Decree of Pain",
+      "quantity": 1
+    },
+    {
+      "name": "Dimir Aqueduct",
+      "quantity": 1
+    },
+    {
+      "name": "Dismal Backwater",
+      "quantity": 1
+    },
+    {
+      "name": "Etherium-Horn Sorcerer",
+      "quantity": 1
+    },
+    {
+      "name": "Evolving Wilds",
+      "quantity": 1
+    },
+    {
+      "name": "Exotic Orchard",
+      "quantity": 1
+    },
+    {
+      "name": "Fellwar Stone",
+      "quantity": 1
+    },
+    {
+      "name": "Galecaster Colossus",
+      "quantity": 1
+    },
+    {
+      "name": "Go for the Throat",
+      "quantity": 1
+    },
+    {
+      "name": "Grixis Panorama",
+      "quantity": 1
+    },
+    {
+      "name": "Harbinger of the Tides",
+      "quantity": 1
+    },
+    {
+      "name": "Havengul Lich",
+      "quantity": 1
+    },
+    {
+      "name": "Into the Roil",
+      "quantity": 1
+    },
+    {
+      "name": "Island",
+      "quantity": 10
+    },
+    {
+      "name": "Izzet Boilerworks",
+      "quantity": 1
+    },
+    {
+      "name": "Izzet Chemister",
+      "quantity": 1
+    },
+    {
+      "name": "Izzet Chronarch",
+      "quantity": 1
+    },
+    {
+      "name": "Jwar Isle Refuge",
+      "quantity": 1
+    },
+    {
+      "name": "Kess, Dissident Mage",
+      "quantity": 1
+    },
+    {
+      "name": "Kindred Dominance",
+      "quantity": 1
+    },
+    {
+      "name": "Magus of the Abyss",
+      "quantity": 1
+    },
+    {
+      "name": "Magus of the Mind",
+      "quantity": 1
+    },
+    {
+      "name": "Mairsil, the Pretender",
+      "quantity": 1
+    },
+    {
+      "name": "Marchesa, the Black Rose",
+      "quantity": 1
+    },
+    {
+      "name": "Memory Plunder",
+      "quantity": 1
+    },
+    {
+      "name": "Merchant of Secrets",
+      "quantity": 1
+    },
+    {
+      "name": "Mercurial Chemister",
+      "quantity": 1
+    },
+    {
+      "name": "Mirror of the Forebears",
+      "quantity": 1
+    },
+    {
+      "name": "Mountain",
+      "quantity": 4
+    },
+    {
+      "name": "Mystifying Maze",
+      "quantity": 1
+    },
+    {
+      "name": "Necromantic Selection",
+      "quantity": 1
+    },
+    {
+      "name": "Nevinyrral's Disk",
+      "quantity": 1
+    },
+    {
+      "name": "Nin, the Pain Artist",
+      "quantity": 1
+    },
+    {
+      "name": "Niv-Mizzet, the Firemind",
+      "quantity": 1
+    },
+    {
+      "name": "Nivix Guildmage",
+      "quantity": 1
+    },
+    {
+      "name": "Opportunity",
+      "quantity": 1
+    },
+    {
+      "name": "Path of Ancestry",
+      "quantity": 1
+    },
+    {
+      "name": "Polymorphist's Jest",
+      "quantity": 1
+    },
+    {
+      "name": "Portal Mage",
+      "quantity": 1
+    },
+    {
+      "name": "Puppeteer Clique",
+      "quantity": 1
+    },
+    {
+      "name": "Rakdos Carnarium",
+      "quantity": 1
+    },
+    {
+      "name": "Rakdos Charm",
+      "quantity": 1
+    },
+    {
+      "name": "Reality Shift",
+      "quantity": 1
+    },
+    {
+      "name": "Sea Gate Oracle",
+      "quantity": 1
+    },
+    {
+      "name": "Serendib Sorcerer",
+      "quantity": 1
+    },
+    {
+      "name": "Shadowmage Infiltrator",
+      "quantity": 1
+    },
+    {
+      "name": "Shifting Shadow",
+      "quantity": 1
+    },
+    {
+      "name": "Silumgar's Command",
+      "quantity": 1
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1
+    },
+    {
+      "name": "Spelltwine",
+      "quantity": 1
+    },
+    {
+      "name": "Swamp",
+      "quantity": 6
+    },
+    {
+      "name": "Swiftwater Cliffs",
+      "quantity": 1
+    },
+    {
+      "name": "Taigam, Sidisi's Hand",
+      "quantity": 1
+    },
+    {
+      "name": "Temple of the False God",
+      "quantity": 1
+    },
+    {
+      "name": "Terminate",
+      "quantity": 1
+    },
+    {
+      "name": "Terramorphic Expanse",
+      "quantity": 1
+    },
+    {
+      "name": "Unstable Obelisk",
+      "quantity": 1
+    },
+    {
+      "name": "Vela the Night-Clad",
+      "quantity": 1
+    },
+    {
+      "name": "Vindictive Lich",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Crag",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Creek",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Marsh",
+      "quantity": 1
+    },
+    {
+      "name": "Worn Powerstone",
+      "quantity": 1
+    }
+  ]
+}

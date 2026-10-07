@@ -1,0 +1,56 @@
+{
+  "forge": "26d8aff87509dde8a9d5017852339382d7ab3e83",
+  "normalization": "Names/counts preserved; edition and trailing foil marker removed; gameplay printing resolved by pinned Forge. No cards substituted.",
+  "decks": [
+    {
+      "id": "arcane-wizardry",
+      "name": "Arcane Wizardry",
+      "style": "Wizards, enter-the-battlefield effects and graveyard value.",
+      "source": "forge-gui/res/quest/commanderprecons/Arcane Wizardry [C17] [2017].dck",
+      "source_sha256": "2107b6666975f64945336f2dbbbfd6e02f9dff6fcd6d90f0ce03e4854e6d3dbd",
+      "deck_sha256": "41f6ddba0836c5efb2ae19979fbb350d311455442bb2199fcbb4a11e699ee158",
+      "main_count": 99,
+      "commander_count": 1
+    },
+    {
+      "id": "draconic-domination",
+      "name": "Draconic Domination",
+      "style": "Five-color ramp into large Dragons.",
+      "source": "forge-gui/res/quest/commanderprecons/Draconic Domination [C17] [2017].dck",
+      "source_sha256": "a50909153f7f07ea9077df668e452408b5762cf8fb9a9d43001282fe6deae86c",
+      "deck_sha256": "ae2546c6fb445d4ba26565e424ed8f86ed1a5217a3ccdc76917ab89f88fe61f6",
+      "main_count": 99,
+      "commander_count": 1
+    },
+    {
+      "id": "feline-ferocity",
+      "name": "Feline Ferocity",
+      "style": "Cats and equipment; creature combat.",
+      "source": "forge-gui/res/quest/commanderprecons/Feline Ferocity [C17] [2017].dck",
+      "source_sha256": "4b50d0eabb3c64793b1a4f65b43eb1d61a6e5950dc088695bf7ae07820a01b91",
+      "deck_sha256": "1a95c0da91cc62a81f59f20dd71758817977b85be25de84f020e25004d87476a",
+      "main_count": 99,
+      "commander_count": 1
+    },
+    {
+      "id": "open-hostility",
+      "name": "Open Hostility",
+      "style": "Four-color creature pressure and attack rewards.",
+      "source": "forge-gui/res/quest/commanderprecons/Open Hostility [C16] [2016].dck",
+      "source_sha256": "77727b5cb7167157c1e3c78cc91b6805c95b73f5ce544cf3c3a0982c31680bcf",
+      "deck_sha256": "705d110ad417d4df5589cb566a989842310dc3e3695f500c46d035b786585e11",
+      "main_count": 99,
+      "commander_count": 1
+    },
+    {
+      "id": "vampiric-bloodlust",
+      "name": "Vampiric Bloodlust",
+      "style": "Vampires, token production and sacrifice value.",
+      "source": "forge-gui/res/quest/commanderprecons/Vampiric Bloodlust [C17] [2017].dck",
+      "source_sha256": "d9b5cb2a98511f13082b7e19bd3fa62fdaac63b4b702c869777609d589778476",
+      "deck_sha256": "cd90d9bdfab7efd95d51f45a588d997025a7cae2e289080ebced15a216d3a4e5",
+      "main_count": 99,
+      "commander_count": 1
+    }
+  ]
+}

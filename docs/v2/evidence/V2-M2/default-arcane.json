@@ -1,0 +1,26 @@
+{
+  "scenario": "Arcane Wizardry unchanged default; Silvos and 99 Forest",
+  "coverage": "Agent-operated real browser; passive human pass/discard strategy unless separately described. No representative human-deck performance claim.",
+  "status": "finished",
+  "turn": 19,
+  "result": "CPU",
+  "engine_image": "sha256:0284a3fe790ee76927545a8761f6f60378f96dd7dfdaa8d8354a8098b54b4e36",
+  "web_image": "sha256:19a5f3fbe2cbc7a3924b81b10866bc58489fb68f1ffe526d0dece24f7d2d5e2b",
+  "runtime_identity_sha256": "c331bb59d4c6aa7bf00de576442f6d63bbd5eadbc991660f08633d579cd35092",
+  "limits": {
+    "Memory": 2147483648,
+    "MemorySwap": 2147483648,
+    "NanoCpus": 1000000000
+  },
+  "memory_current_and_container_lifetime_peak_bytes": [
+    100810752,
+    515444736
+  ],
+  "processes_after_end": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_end": [],
+  "platform": "Linux AMD64 on Docker Desktop ARM64/Rosetta; warm or unspecified cache; not native provider capacity"
+}

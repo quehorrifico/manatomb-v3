@@ -1,4 +1,5 @@
 {{ define "deck_show" }}
+<script src="{{ assetURL "cpu-launch.js" }}" defer></script>
   {{ $ctx := .Data }}
   {{ $d := $ctx.Deck }}
   {{ $c := $ctx.Commander }}
@@ -50,18 +51,20 @@
         </div>
 
         {{ if and $isGuest (not .CurrentUser) }}
-          <p id="deck-overview-status" class="mt-deck-editor__save-state" role="status"></p>
+          <p id="deck-overview-status" class="mt-deck-editor__save-state" role="status">Local draft on this device. Sign in to save to your account.</p>
         {{ else }}
           <div class="mt-deck-editor__meta">
             <p id="deck-overview-status" class="mt-deck-editor__save-state" role="status">
-              {{ if not $isGuest }}Changes save automatically.{{ end }}
+              {{ if not $isGuest }}Saved to your account.{{ else }}Local draft on this device. Select Save deck to save to your account.{{ end }}
             </p>
 
+            {{ if not $isGuest }}<button type="button" id="deck-overview-retry" class="mt-btn mt-btn--secondary mt-btn--sm" hidden>Retry save</button>{{ end }}
             <div class="mt-deck-editor__header-actions">
               <div class="mt-deck-editor__actions">
                 {{ if $isGuest }}
                   <button type="button" id="guest-save-to-account" class="mt-btn mt-btn--primary mt-btn--sm">Save deck</button>
                 {{ else }}
+                  <button type="button" id="deck-save" class="mt-btn mt-btn--primary mt-btn--sm">Save Deck</button>
                   <button type="button"
                           id="deck-menu-open"
                           class="mt-btn mt-btn--secondary mt-btn--sm"
@@ -235,6 +238,7 @@
                 {{ end }}
               </select>
             </label>
+            <button type="button" id="deck-analysis-cpu" class="mt-btn mt-btn--secondary mt-btn--sm" hidden>Play vs CPU</button>
             {{ if $isGuest }}
               <button type="button"
                       id="deck-analysis-playtest"
@@ -642,6 +646,7 @@
   </script>
 
   <script src="/assets/deck_browser.js"></script>
+  <script src="{{ assetURL "saved_overview.js" }}"></script>
   {{ template "card_detail_modal_script" . }}
   {{ template "deck_show_guest_draft_script" . }}
 
@@ -1060,16 +1065,8 @@
       }
 
       if (noteField) {
-        var noteTimer = null;
-        noteField.addEventListener('input', function () {
-          if (noteTimer) window.clearTimeout(noteTimer);
-          noteTimer = window.setTimeout(function () {
-                    queueOverviewSave();
-                    if (overviewStatus) {
-                      overviewStatus.textContent = isGuest ? '' : 'Changes save automatically.';
-                    }
-          }, 140);
-        });
+        // Journal every edit immediately; the saved transport owns its debounce.
+        noteField.addEventListener('input', queueOverviewSave);
       }
 
       if (addForm && addInput && suggestions) {

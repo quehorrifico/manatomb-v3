@@ -42,7 +42,7 @@ func TestChangelogRendersFlatPublicReleaseHistory(t *testing.T) {
 		`<title>Changelog | ManaTomb</title>`,
 		`href="/assets/static_pages.css"`,
 		`class="mt-static-title">Changelog</h1>`,
-		`class="mt-changelog-current">v1.0<span class="sr-only">, current version</span>`,
+		`class="mt-changelog-current">v2.0<span class="sr-only">, current version</span>`,
 		`<article class="mt-changelog-release"`,
 		`<time datetime="2026-08-25">August 25, 2026</time>`,
 		`ManaTomb 1.0 brings card discovery, deck building and sharing`,

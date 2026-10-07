@@ -1,0 +1,29 @@
+{
+  "checked_date": "2026-09-18",
+  "currency": "USD",
+  "scope": "Base compute, no account verification, taxes/optional services excluded. No purchase approved.",
+  "app_platform": {
+    "official_source": "https://docs.digitalocean.com/products/app-platform/details/pricing/",
+    "plans": {
+      "apps-s-1vcpu-0.5gb": 5,
+      "apps-s-1vcpu-1gb-fixed": 10,
+      "apps-s-1vcpu-2gb": 25
+    },
+    "monthly_prices_per_instance": true
+  },
+  "droplet_regular_basic_bundled": {
+    "official_source": "https://www.digitalocean.com/pricing/droplets",
+    "2GiB_1vCPU": {
+      "monthly": 12,
+      "hourly": 0.01786
+    },
+    "4GiB_2vCPU": {
+      "monthly": 24,
+      "hourly": 0.03571
+    },
+    "billing_source": "https://docs.digitalocean.com/products/droplets/details/pricing/",
+    "v5_warning": "Do not apply bundled quotes to v5 per-resource pricing; check region and exact available SKU."
+  },
+  "routing_source": "https://docs.digitalocean.com/products/app-platform/how-to/manage-internal-routing/",
+  "limits_source": "https://docs.digitalocean.com/products/app-platform/details/limits/"
+}

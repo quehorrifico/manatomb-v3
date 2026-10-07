@@ -1,0 +1,1683 @@
+{
+  "schema": "v2-010-evidence-1",
+  "created_utc": "2026-09-12",
+  "forge_commit": "26d8aff87509dde8a9d5017852339382d7ab3e83",
+  "forge_tree": "e56a6f572296568a36d1439f2bb6dbd4953d828f",
+  "tree_hash_definition": "SHA256 of concatenated sorted UTF-8 lines: <file SHA256><two spaces><relative POSIX path><LF>; timestamps ignored",
+  "archives": {
+    "forge-source.tar.gz": {
+      "bytes": 246149860,
+      "sha256": "b82f437c3933c96e473fcd4b090e0cc7542c78352a391b0cf23aaee5188c804e"
+    },
+    "apache-maven-3.9.9-bin.tar.gz": {
+      "bytes": 9102945,
+      "sha256": "7a9cdf674fc1703d6382f5f330b3d110ea1b512b51f1652846d9e4e8a588d766"
+    }
+  },
+  "resource_trees": {
+    "forge-gui/res": {
+      "files": 55056,
+      "bytes": 303091136,
+      "sha256_path_manifest": "cbb4fdea6b8a36822f0a1fb3cf0b3225b6899b5948f277797e055e129328652f"
+    },
+    "forge-gui/res/cardsfolder": {
+      "files": 33714,
+      "bytes": 24457431,
+      "sha256_path_manifest": "943c6071770d4f1f5889a9fdcc83d2cd4936380f0104f14653119842ea5d8605"
+    },
+    "forge-gui/res/editions": {
+      "files": 679,
+      "bytes": 4066349,
+      "sha256_path_manifest": "c06d6a60a60c738889dfa3401a05177d7e60112bef3d20839f0dc52f265831e3"
+    },
+    "forge-gui/res/tokenscripts": {
+      "files": 840,
+      "bytes": 147802,
+      "sha256_path_manifest": "49051d35654eefb8814cb14b0bceeb87acd28f50fdcb0daab9bdc90108748eb1"
+    },
+    "forge-gui/res/ai": {
+      "files": 4,
+      "bytes": 81108,
+      "sha256_path_manifest": "8acc1d9461393b78bfdf13cae5403789b30037b58d2cfe9efbb815523ad858f8"
+    },
+    "forge-gui/res/formats": {
+      "files": 1328,
+      "bytes": 1863523,
+      "sha256_path_manifest": "144f5621273bdcb4558ef0826121590740eff175bdaeb1b8dc4bf07694c8e5f7"
+    }
+  },
+  "compiled_modules": {
+    "forge-core": {
+      "files": 228,
+      "bytes": 1109206,
+      "sha256_path_manifest": "33786236d0865f7298ac36bf8b2fb1fed4fd4835f2ee3187946d0d5ffb6292fb"
+    },
+    "forge-game": {
+      "files": 899,
+      "bytes": 5496669,
+      "sha256_path_manifest": "efcd5ef45564b511f21212e471cf4171a593443bd5ad29f9c10f58f8bc9fec9a"
+    },
+    "forge-ai": {
+      "files": 262,
+      "bytes": 2242165,
+      "sha256_path_manifest": "f9530c9a1262c4c98bb2474a560b35ff7d553f5997d147cc90e9c73f6970caff"
+    },
+    "forge-gui": {
+      "files": 740,
+      "bytes": 3640689,
+      "sha256_path_manifest": "d6efa03c9f01ca1e539e5ebe8d1b35e86cf4c39ec4943b73dc16b7515719ff7a"
+    },
+    "forge-gui-desktop": {
+      "files": 933,
+      "bytes": 4224666,
+      "sha256_path_manifest": "423f76b8c341942175c5141c2de69441389a8aad0908c0bc300be42dc6bcc56a"
+    }
+  },
+  "configuration": {
+    "forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-gui/forge.profile.properties": {
+      "bytes": 193,
+      "sha256": "2b976f45f303051bdeb95bf43929d3abe0013ba21062fb34c7019a1888e6e817"
+    },
+    "runtime/user/preferences/forge.preferences": {
+      "bytes": 120,
+      "sha256": "01cd037544c9f7824e952d34bf0602622d93d881bd02d81558a796ed92de3f23"
+    },
+    "runtime/decks/commander/feline.dck": {
+      "bytes": 2449,
+      "sha256": "9c5835e779dffb514c7451f84b02ecd81c8e82a8b8e7818acbff4319950560f4"
+    },
+    "runtime/decks/commander/hostility.dck": {
+      "bytes": 2315,
+      "sha256": "e42707f142c2248b76a241a92f9d6d72d0ed3255b7e11936b3352edb17434707"
+    }
+  },
+  "runtime_dependencies": [
+    {
+      "maven_path": "com/google/guava/guava/33.3.1-android/guava-33.3.1-android.jar",
+      "bytes": 2918070,
+      "sha256": "2c3e41d1b380f2044d257947a3aa82dabf3ae4b978622745254aa18b6cf89ab0",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/google/guava/guava-parent/33.3.1-android/guava-parent-33.3.1-android.pom",
+        "pom_sha256": "6e11986ea7250b51f847157e2dc937f32a306804dfce0007a5e81ddb9b95c579"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/google/guava/failureaccess/1.0.2/failureaccess-1.0.2.jar",
+      "bytes": 4740,
+      "sha256": "8a8f81cf9b359e3f6dfa691a1e776985c061ef2f223c9b2c80753e1b458e8064",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The Apache Software License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/google/guava/guava-parent/26.0-android/guava-parent-26.0-android.pom",
+        "pom_sha256": "f8698ab46ca996ce889c1afc8ca4f25eb8ac6b034dc898d4583742360016cc04"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar",
+      "bytes": 2199,
+      "sha256": "b372a037d4230aa57fbeffdef30fd6123f9c0c2db85d0aced00c91b974f33f99",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The Apache Software License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/google/guava/guava-parent/26.0-android/guava-parent-26.0-android.pom",
+        "pom_sha256": "f8698ab46ca996ce889c1afc8ca4f25eb8ac6b034dc898d4583742360016cc04"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar",
+      "bytes": 19936,
+      "sha256": "766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The Apache Software License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.pom",
+        "pom_sha256": "19889dbdf1b254b2601a5ee645b8147a974644882297684c798afe5d63d78dfe"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/checkerframework/checker-qual/3.43.0/checker-qual-3.43.0.jar",
+      "bytes": 231525,
+      "sha256": "3fbc2e98f05854c3df16df9abaa955b91b15b3ecac33623208ed6424640ef0f6",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The MIT License",
+            "url": "http://opensource.org/licenses/MIT"
+          }
+        ],
+        "from_pom": "org/checkerframework/checker-qual/3.43.0/checker-qual-3.43.0.pom",
+        "pom_sha256": "9313bf53b3efd8aaca266eea8b96e307976b65c0b16510cc6f02319fbaebed43"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE.txt": "e90eaa08dea089df10f2bf7f9dba63a5f6237c01562c4741e2e86773e78582d5"
+      }
+    },
+    {
+      "maven_path": "com/google/errorprone/error_prone_annotations/2.28.0/error_prone_annotations-2.28.0.jar",
+      "bytes": 19370,
+      "sha256": "f3fc8a3a0a4020706a373b00e7f57c2512dd26d1f83d28c7d38768f8682b231e",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/google/errorprone/error_prone_annotations/2.28.0/error_prone_annotations-2.28.0.pom",
+        "pom_sha256": "0ce909f13a568148476e5ee200f380f98c75ba08971aaf15db295eb77598ef3a"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/google/j2objc/j2objc-annotations/3.0.0/j2objc-annotations-3.0.0.jar",
+      "bytes": 12467,
+      "sha256": "88241573467ddca44ffd4d74aa04c2bbfd11bf7c17e0c342c94c9de7a70a7c64",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/google/j2objc/j2objc-annotations/3.0.0/j2objc-annotations-3.0.0.pom",
+        "pom_sha256": "23b3d039e168ad89dd114698e6dd7be383f4a2c577b8877d82c73a6515e74a17"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar",
+      "bytes": 702952,
+      "sha256": "4eeeae8d20c078abb64b015ec158add383ac581571cddc45c68f0c9ae0230720",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/apache/apache/35/apache-35.pom",
+        "pom_sha256": "ea297dcd114136e8b8e8b630230d52a76c2fc69f6c5db25d672b1857000728b8"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE.txt": "b1d2870f1a00e4d7f56576e5f0870cba109e041f8af66866cf5b499478e654e7",
+        "META-INF/NOTICE.txt": "64bc8696af3f6c770521412b85d3a733fa44b2ef5b0f4bd739e0c4d02eca492a"
+      }
+    },
+    {
+      "maven_path": "org/apache/commons/commons-text/1.12.0/commons-text-1.12.0.jar",
+      "bytes": 251227,
+      "sha256": "de023257ff166044a56bd1aa9124e843cd05dac5806cc705a9311f3556d5a15f",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/apache/apache/31/apache-31.pom",
+        "pom_sha256": "555d0c9eaa69c042aff924927b9381e8f8174136d355eead445224452e6291cc"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "META-INF/NOTICE.txt": "fd51c935f770c3298580cd241639cb3650d14b6645e9e352d1e61578a811aa7e"
+      }
+    },
+    {
+      "maven_path": "com/apptasticsoftware/rssreader/3.8.2/rssreader-3.8.2.jar",
+      "bytes": 70590,
+      "sha256": "23fceecaf0fb11cd9e28068bc66c38651f85ebd11b4a9315e01df7c372be49da",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "MIT License",
+            "url": "https://raw.githubusercontent.com/w3stling/rssreader/master/LICENSE"
+          }
+        ],
+        "from_pom": "com/apptasticsoftware/rssreader/3.8.2/rssreader-3.8.2.pom",
+        "pom_sha256": "2064bee4eb7b508d8f26e6980d9d8b3514e83aff7ef3da1002750ac9ca6d68a8"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/tinylog/slf4j-tinylog/2.7.0/slf4j-tinylog-2.7.0.jar",
+      "bytes": 14517,
+      "sha256": "51d3aa73a986bfc9853eea91cd71877b97891f01c85f69b42a27b5bb96295de2",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The Apache Software License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/tinylog/slf4j-tinylog/2.7.0/slf4j-tinylog-2.7.0.pom",
+        "pom_sha256": "9bf6a494976e5de6d9f50aa6f03d89dc855e0671bd306bef80974031b1241f2b"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/tinylog/tinylog-api/2.7.0/tinylog-api-2.7.0.jar",
+      "bytes": 64752,
+      "sha256": "eb5111e02a6b5324b5fd4e434cbe6b93119be05ad2dba3d21cf0045b3a97540c",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The Apache Software License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/tinylog/tinylog-api/2.7.0/tinylog-api-2.7.0.pom",
+        "pom_sha256": "b5250cb58dcdfed1e6df1ae597dc6929d35fba47b34c49aa28e4b8893ca18d24"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/tinylog/tinylog-impl/2.7.0/tinylog-impl-2.7.0.jar",
+      "bytes": 135284,
+      "sha256": "37e532f706a01bb76a98454ccd71d1ffa2e83f2befe1c309e5c67e3c474bedba",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The Apache Software License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/tinylog/tinylog-impl/2.7.0/tinylog-impl-2.7.0.pom",
+        "pom_sha256": "99f9b2223a451270fe3a24b70e47d25d2e3a1d6c985b4031cd1788fe5d63b7c4"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/sentry/sentry/8.21.1/sentry-8.21.1.jar",
+      "bytes": 1081411,
+      "sha256": "31932885c77c693a23dd9d77486e5b0a8a73633099aae54f8c4f8250dea875c8",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "MIT",
+            "url": "http://www.opensource.org/licenses/mit-license.php"
+          }
+        ],
+        "from_pom": "io/sentry/sentry/8.21.1/sentry-8.21.1.pom",
+        "pom_sha256": "54c13ee87834cdd90de7189225ae74215090ce6853bedcdab58e210b7657eabf"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/jgrapht/jgrapht-core/1.5.2/jgrapht-core-1.5.2.jar",
+      "bytes": 1267450,
+      "sha256": "dfa596e9f0d0838f1b5e81dd0cd60e3a76c2c290ac25a0a029ffde58cf5e4c14",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "GNU Lesser General Public License Version 2.1, February 1999",
+            "url": "http://jgrapht.sourceforge.net/LGPL.html"
+          },
+          {
+            "name": "Eclipse Public License (EPL) 2.0",
+            "url": "http://www.eclipse.org/legal/epl-v20.html"
+          }
+        ],
+        "from_pom": "org/jgrapht/jgrapht-core/1.5.2/jgrapht-core-1.5.2.pom",
+        "pom_sha256": "47e32519791d0d06e5c6c88da8c519800f4effd336c7d6d5604fdfd74f927fca"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/jheaps/jheaps/0.14/jheaps-0.14.jar",
+      "bytes": 153258,
+      "sha256": "49a9898da3758659388f1333c53ccadb6fbd142a7d18aa7b1a33577090684279",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/jheaps/jheaps/0.14/jheaps-0.14.pom",
+        "pom_sha256": "1607b620e1f2b4e1a0f4891010b3490b1fb4a83e713ac4d38b08dc2c67fa3e51"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/apfloat/apfloat/1.10.1/apfloat-1.10.1.jar",
+      "bytes": 556428,
+      "sha256": "a1480f560f37355f6c0458c523bda46658da4cd3e23cc64e309fedcd7b0782ba",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "MIT License",
+            "url": "https://opensource.org/licenses/MIT"
+          }
+        ],
+        "from_pom": "org/apfloat/apfloat-parent/1.10.1/apfloat-parent-1.10.1.pom",
+        "pom_sha256": "ac70c12fe709b570eeaca3994f835ba469e725a59bbe36110d3a412261e052df"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar",
+      "bytes": 2213560,
+      "sha256": "1e56d7b058d28b65abd256b8458e3885b674c1d588fa43cd7d1cbb9c7ef2b308",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/apache/apache/16/apache-16.pom",
+        "pom_sha256": "9f85ff2fd7d6cb3097aa47fb419ee7f0ebe869109f98aba9f4eca3f49e74a40e"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE.txt": "64f23963615950bad9ddd31569a7f09afbbe11b81d94873ffd9b1cac6081a11d",
+        "META-INF/NOTICE.txt": "5495442a32bfc2b93b4a8f2c34c5c218d16cca434aa5684fb953d9419120e3fa"
+      }
+    },
+    {
+      "maven_path": "xmlpull/xmlpull/1.1.3.4a/xmlpull-1.1.3.4a.jar",
+      "bytes": 7312,
+      "sha256": "e62496dee7ae032aafc776a87650b1eb8eb090af39b264ccf09b8ddc327a1797",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Public Domain",
+            "url": "http://www.xmlpull.org/v1/download/unpacked/LICENSE.txt"
+          }
+        ],
+        "from_pom": "xmlpull/xmlpull/1.1.3.4a/xmlpull-1.1.3.4a.pom",
+        "pom_sha256": "921f4c877c7eb143289f0ab6fd88a7f64d0ac61d82f6a589189820ffaf25405a"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/thoughtworks/xstream/xstream/1.4.21/xstream-1.4.21.jar",
+      "bytes": 646504,
+      "sha256": "f56586f3de59ae2a49430acbc9f27942b8c5cebec9245c869fae7136733333ec",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "BSD-3-Clause",
+            "url": "http://x-stream.github.io/license.html"
+          }
+        ],
+        "from_pom": "com/thoughtworks/xstream/xstream-parent/1.4.21/xstream-parent-1.4.21.pom",
+        "pom_sha256": "00157e30fc1dcfe5e6543e88cb8763db6dca566e52589ced852bbf798dacdde6"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/github/x-stream/mxparser/1.2.2/mxparser-1.2.2.jar",
+      "bytes": 29680,
+      "sha256": "aeeee23a3303d811bca8790ea7f25b534314861c03cff36dafdcc2180969eb97",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Indiana University Extreme! Lab Software License",
+            "url": "https://raw.githubusercontent.com/x-stream/mxparser/master/LICENSE.txt"
+          }
+        ],
+        "from_pom": "io/github/x-stream/mxparser/1.2.2/mxparser-1.2.2.pom",
+        "pom_sha256": "235022424e12f33181f62ada19cc4428019b697657c3c392ce357160a422faa8"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE": "79f77e2e1ab271375ee45e3d9673fc78c024fe781ba6e3212d76f98bf3e60734"
+      }
+    },
+    {
+      "maven_path": "io/netty/netty-all/4.1.115.Final/netty-all-4.1.115.Final.jar",
+      "bytes": 4555,
+      "sha256": "c1c3092e02e8037c18d14034919af68d573a71e7118db48129e6f299b9a71adc",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-all/4.1.115.Final/netty-all-4.1.115.Final.pom",
+        "pom_sha256": "63bc9f25de4e53d6b7fee665fa5e4c73236a4015af3d388db99038b84f79fef5"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-buffer/4.1.115.Final/netty-buffer-4.1.115.Final.jar",
+      "bytes": 337801,
+      "sha256": "4a7b331d3770c566ab70eb02a0d1feed63b95cf6e4d68c8fe778c4c9de2d116d",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec/4.1.115.Final/netty-codec-4.1.115.Final.jar",
+      "bytes": 352900,
+      "sha256": "cd189afb70ec6eacfcdfdd3a5f472b4e705a5c91d5bd3ef0386421f2ae15ec77",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-dns/4.1.115.Final/netty-codec-dns-4.1.115.Final.jar",
+      "bytes": 67107,
+      "sha256": "23dd6806bcc326855f13e69838c6411d0490e6b1aeb12e217a19a3dd6ad3f10d",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-haproxy/4.1.115.Final/netty-codec-haproxy-4.1.115.Final.jar",
+      "bytes": 37790,
+      "sha256": "7514f1d10dda3af9468b57bbb0f63fe0b8abb55dbb8190bede95319f37228322",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-http/4.1.115.Final/netty-codec-http-4.1.115.Final.jar",
+      "bytes": 668310,
+      "sha256": "e6dbe971c59373bbae9802021c63b9bc1d8800fead382863d67e79e79b023166",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-http2/4.1.115.Final/netty-codec-http2-4.1.115.Final.jar",
+      "bytes": 490385,
+      "sha256": "cbed9829a5d582e91e314e209edce9a0c2eb369f23bb4fb74a5bc8b7990222c2",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-memcache/4.1.115.Final/netty-codec-memcache-4.1.115.Final.jar",
+      "bytes": 44736,
+      "sha256": "c44561d5cdb0e28e63b00dccb51c8f293c8b23012e0299042804e054e2b05fab",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-mqtt/4.1.115.Final/netty-codec-mqtt-4.1.115.Final.jar",
+      "bytes": 113752,
+      "sha256": "54202f894eea7f235b8f9032b32a09396bbf92a68cb32a486981ced96eb85222",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-redis/4.1.115.Final/netty-codec-redis-4.1.115.Final.jar",
+      "bytes": 46013,
+      "sha256": "eddc930ecb65055a202b4d959f7b6636085a468d45daf283725037d466fa4de1",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-smtp/4.1.115.Final/netty-codec-smtp-4.1.115.Final.jar",
+      "bytes": 21342,
+      "sha256": "caa622c91fae41a0396b576c3803955371ae9ccde3ba6bf46117f4b641d0f737",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-socks/4.1.115.Final/netty-codec-socks-4.1.115.Final.jar",
+      "bytes": 121031,
+      "sha256": "e9b1cc744dc6195894450b1fd4d271a821ab167fe21ae3c459b27cdadc70e81f",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-stomp/4.1.115.Final/netty-codec-stomp-4.1.115.Final.jar",
+      "bytes": 34637,
+      "sha256": "9470312b5e263595a4d0a6a3cb3e64e5d11e87285fbfc267b845118d1c26fc7a",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-codec-xml/4.1.115.Final/netty-codec-xml-4.1.115.Final.jar",
+      "bytes": 19824,
+      "sha256": "e1c5f043f027ca5f853076df16c233665011be60a81f5a6f7336093790a9dced",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-common/4.1.115.Final/netty-common-4.1.115.Final.jar",
+      "bytes": 718162,
+      "sha256": "39f1b5a2aaa4eab5d036dfd0486e35a4276df412e092d36b2d88b494705a134d",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-handler/4.1.115.Final/netty-handler-4.1.115.Final.jar",
+      "bytes": 578357,
+      "sha256": "5972028cc863b74927ce0d11fb8d58f65da2560bef5602fe8ce8903bd306ca07",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-native-unix-common/4.1.115.Final/netty-transport-native-unix-common-4.1.115.Final.jar",
+      "bytes": 44158,
+      "sha256": "4b03e716272657c296b0204b57c140b2b2ca96b1a746c92da41f595892ec6d88",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-handler-proxy/4.1.115.Final/netty-handler-proxy-4.1.115.Final.jar",
+      "bytes": 25650,
+      "sha256": "807e67cfb17136927d11db42df62031169d1fa0883e13f254906994c84ffbe87",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-handler-ssl-ocsp/4.1.115.Final/netty-handler-ssl-ocsp-4.1.115.Final.jar",
+      "bytes": 26835,
+      "sha256": "d958f728bffe9a2f23f32a70917a2842feb4fac59baec581f89411c734b59cfe",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-resolver/4.1.115.Final/netty-resolver-4.1.115.Final.jar",
+      "bytes": 37841,
+      "sha256": "7b3455d14f59828765a00573bc3967dc59379e874bd62a67eb1926d6512109d1",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-resolver-dns/4.1.115.Final/netty-resolver-dns-4.1.115.Final.jar",
+      "bytes": 188264,
+      "sha256": "4aca31593e5896c64ab7e041bbc6c0d851bd9634ec3a4354208141a35576619f",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport/4.1.115.Final/netty-transport-4.1.115.Final.jar",
+      "bytes": 521369,
+      "sha256": "c3d71faaa736ffd2c9260ab0b498024b814c39c7d764bea8113fa98de6e2bdd2",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-rxtx/4.1.115.Final/netty-transport-rxtx-4.1.115.Final.jar",
+      "bytes": 18242,
+      "sha256": "33e80b3c468be74f448416d59edbf4618ea4917d697a3cbc4a53e13516bfd5ed",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-sctp/4.1.115.Final/netty-transport-sctp-4.1.115.Final.jar",
+      "bytes": 50815,
+      "sha256": "016e8596b4b2357c2671a8691cafaaab7650689d01715cda2a0b85631f22f3c6",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-udt/4.1.115.Final/netty-transport-udt-4.1.115.Final.jar",
+      "bytes": 32190,
+      "sha256": "c505809dbb2d1b159eb1732dfa10c68f05da41ea9a479416690ff9a76908e4fb",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-classes-epoll/4.1.115.Final/netty-transport-classes-epoll-4.1.115.Final.jar",
+      "bytes": 147620,
+      "sha256": "40aa67b4463cca0ab346e393c87f6c37e8954d18ec8b78567d95b55aa1f2b3aa",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-classes-kqueue/4.1.115.Final/netty-transport-classes-kqueue-4.1.115.Final.jar",
+      "bytes": 108542,
+      "sha256": "77d3a0930f86870b48e668635e214e0c81205f90f2012dc70c8417b59a839d04",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-resolver-dns-classes-macos/4.1.115.Final/netty-resolver-dns-classes-macos-4.1.115.Final.jar",
+      "bytes": 9145,
+      "sha256": "5fbac6346b3fc2fbdce7f7f24bb96a1b3190aa14d50021303a0a4437f3d373bc",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-native-epoll/4.1.115.Final/netty-transport-native-epoll-4.1.115.Final-linux-x86_64.jar",
+      "bytes": 40595,
+      "sha256": "f0ffa992e676025e2202643b3be490f595c19ca8f91031b7fde502e7874c2b55",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-native-epoll/4.1.115.Final/netty-transport-native-epoll-4.1.115.Final-linux-aarch_64.jar",
+      "bytes": 42291,
+      "sha256": "82051543cbb328b5b45803229ccddf921f3e1897f9d75358ea76143a65a82e48",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-native-epoll/4.1.115.Final/netty-transport-native-epoll-4.1.115.Final-linux-riscv64.jar",
+      "bytes": 36628,
+      "sha256": "635298af6e7f9f1aac417a5a65c29da8e88d1d4fc176aa8b047107730ab49f83",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-native-kqueue/4.1.115.Final/netty-transport-native-kqueue-4.1.115.Final-osx-x86_64.jar",
+      "bytes": 25169,
+      "sha256": "2ed228b9c42d4d139217abd64c944424a517b005887d705b8984a6e7fe5e6f92",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-transport-native-kqueue/4.1.115.Final/netty-transport-native-kqueue-4.1.115.Final-osx-aarch_64.jar",
+      "bytes": 25739,
+      "sha256": "bd71c4e8f14098057963a0342ba0ce2e39592d9558f1cd0cfdea81f9686901f0",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-resolver-dns-native-macos/4.1.115.Final/netty-resolver-dns-native-macos-4.1.115.Final-osx-x86_64.jar",
+      "bytes": 19630,
+      "sha256": "849d362370a74e14990a1a7cbcfd9fdbb2e1dbefc64a49d11fac34d8db36b859",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "io/netty/netty-resolver-dns-native-macos/4.1.115.Final/netty-resolver-dns-native-macos-4.1.115.Final-osx-aarch_64.jar",
+      "bytes": 19827,
+      "sha256": "a386a63e9c3d5a66130d1eebe9818820ca04d79769ab18b65d934e6e3a74e4e5",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "io/netty/netty-parent/4.1.115.Final/netty-parent-4.1.115.Final.pom",
+        "pom_sha256": "d832942b8e2a71c2ccfdd0247a8b840105ce40aaeec4b8de36358f28d93941e3"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/jupnp/org.jupnp/3.0.5/org.jupnp-3.0.5.jar",
+      "bytes": 701484,
+      "sha256": "a6f76dc1baa3d4a4e14c55bcaa93a1bd1915b2040c1ed52e25bdbd8892daa1eb",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "CDDL-1.0",
+            "url": "https://opensource.org/license/cddl-1-0/"
+          }
+        ],
+        "from_pom": "org/jupnp/jupnp/3.0.5/jupnp-3.0.5.pom",
+        "pom_sha256": "f36bb8c7dc001b546f5f793b4b856cf62db2524c8efe3c38af039751d37bfd70"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/jupnp/org.jupnp.support/3.0.5/org.jupnp.support-3.0.5.jar",
+      "bytes": 433273,
+      "sha256": "b3f41b88dd3c28497959e2ee2e5cca146e53322bf7212043671d9ce078c5c652",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "CDDL-1.0",
+            "url": "https://opensource.org/license/cddl-1-0/"
+          }
+        ],
+        "from_pom": "org/jupnp/jupnp/3.0.5/jupnp-3.0.5.pom",
+        "pom_sha256": "f36bb8c7dc001b546f5f793b4b856cf62db2524c8efe3c38af039751d37bfd70"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "at/yawk/lz4/lz4-java/1.10.2/lz4-java-1.10.2.jar",
+      "bytes": 1002267,
+      "sha256": "252dabd586d22149a31661a8afc1a50747714eb1a298bd4a6e780c8c91a13866",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "at/yawk/lz4/lz4-java/1.10.2/lz4-java-1.10.2.pom",
+        "pom_sha256": "ee8d5bc318ea548e554fc23f826d45a28ab9004a46a99e1d91a648431b877007"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-client/9.4.57.v20241219/jetty-client-9.4.57.v20241219.jar",
+      "bytes": 327934,
+      "sha256": "acacb4b9b4cc1bf5f6fc0e3369a87d74ad12c69f3a04b8781773bab8ede7af73",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-http/9.4.57.v20241219/jetty-http-9.4.57.v20241219.jar",
+      "bytes": 249911,
+      "sha256": "02c6514977f0051dfdecf8d0799acf7a88fd8008a5fd9320a92f2e5db45d297b",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-util/9.4.57.v20241219/jetty-util-9.4.57.v20241219.jar",
+      "bytes": 588962,
+      "sha256": "6ccbf678716778e316cc097d8aada4fe2a2e16c0bbfd8a1763204d6724b423f4",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-io/9.4.57.v20241219/jetty-io-9.4.57.v20241219.jar",
+      "bytes": 183011,
+      "sha256": "f6246a2cf0abcee7f0971217c0ce4cd30d8ce15a91530363457113907ab38690",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-server/9.4.57.v20241219/jetty-server-9.4.57.v20241219.jar",
+      "bytes": 739348,
+      "sha256": "ba957ae07da647023cfa52c923732aea1c67f5273a594cee1863365dfebb9a02",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "javax/servlet/javax.servlet-api/3.1.0/javax.servlet-api-3.1.0.jar",
+      "bytes": 95806,
+      "sha256": "af456b2dd41c4e82cf54f3e743bc678973d9fe35bd4d3071fa05c7e5333b8482",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "CDDL + GPLv2 with classpath exception",
+            "url": "https://glassfish.dev.java.net/nonav/public/CDDL+GPL.html"
+          }
+        ],
+        "from_pom": "javax/servlet/javax.servlet-api/3.1.0/javax.servlet-api-3.1.0.pom",
+        "pom_sha256": "b31109e22ea3f2df1ad7955432e718a35def50ae6c19698034afa8a0cf9e9069"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE.txt": "a4c80869daf4350b6773bd5e6ee1d0a6cc52b63db3a3d2dc20961b0cdd272a5c"
+      }
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-servlet/9.4.57.v20241219/jetty-servlet-9.4.57.v20241219.jar",
+      "bytes": 146064,
+      "sha256": "c5e9517974dec9e4606b2d810f4995ea81091b1e24bd9640cb45d8b2aefd722c",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-security/9.4.57.v20241219/jetty-security-9.4.57.v20241219.jar",
+      "bytes": 118496,
+      "sha256": "af923d4f395a73bf8ddcb754f42d7617c6b7055e37e5a6b625ed894f73107ae9",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "org/eclipse/jetty/jetty-util-ajax/9.4.57.v20241219/jetty-util-ajax-9.4.57.v20241219.jar",
+      "bytes": 66643,
+      "sha256": "67af50dd7714803b1bcdfabac181dd8b279d0ba6ba7fd27ea80c5b2099016542",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache Software License - Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          },
+          {
+            "name": "Eclipse Public License - Version 1.0",
+            "url": "https://www.eclipse.org/org/documents/epl-v10.php"
+          }
+        ],
+        "from_pom": "org/eclipse/jetty/jetty-project/9.4.57.v20241219/jetty-project-9.4.57.v20241219.pom",
+        "pom_sha256": "ba9c9bf64fae535dc6fa8a34f8d552f884ff7811b09f94b2c18963cbed52a21d"
+      },
+      "bundled_notice_files": {
+        "META-INF/NOTICE.txt": "b31f0921de534f7b8035b374d05176f248caf4dae6f39d34c5da446f2f7cc12d",
+        "META-INF/LICENSE": "41cee10347b097e5d5358ad56b427c49751df3ae959bfce47d512c352c3c3979"
+      }
+    },
+    {
+      "maven_path": "com/google/code/gson/gson/2.13.2/gson-2.13.2.jar",
+      "bytes": 289901,
+      "sha256": "dd0ce1b55a3ed2080cb70f9c655850cda86c206862310009dcb5e5c95265a5e0",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache-2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/google/code/gson/gson/2.13.2/gson-2.13.2.pom",
+        "pom_sha256": "3aa06aa7c0f9af092961a42d09578e4324be146348a0ee6ed47857f7c2677b76"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/miglayout/miglayout-swing/4.2/miglayout-swing-4.2.jar",
+      "bytes": 14580,
+      "sha256": "7731416056d350b54ed5a5209d9a8728b5400080ccbd1f62b5b0d54d0d8435dd",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "BSD",
+            "url": "http://www.debian.org/misc/bsd.license"
+          }
+        ],
+        "from_pom": "com/miglayout/miglayout-parent/4.2/miglayout-parent-4.2.pom",
+        "pom_sha256": "4718f26e03d73e41fb17d6e38e6f8ece6bb5a5f4c6d97f25fc37a99c941a2194"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/miglayout/miglayout-core/4.2/miglayout-core-4.2.jar",
+      "bytes": 66663,
+      "sha256": "bf69005361e7c282ac7508ce9e5b6caad46d7ada9946cd9b317ddbd3ebf9b2a2",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "BSD",
+            "url": "http://www.debian.org/misc/bsd.license"
+          }
+        ],
+        "from_pom": "com/miglayout/miglayout-parent/4.2/miglayout-parent-4.2.pom",
+        "pom_sha256": "4718f26e03d73e41fb17d6e38e6f8ece6bb5a5f4c6d97f25fc37a99c941a2194"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/mortennobel/java-image-scaling/0.8.6/java-image-scaling-0.8.6.jar",
+      "bytes": 43656,
+      "sha256": "fabd02916eed5cd1cd5881d94970ea3c74e140b4c21acc6b640ddf3ed1472b95",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The BSD 3-Clause License",
+            "url": "http://opensource.org/licenses/BSD-3-Clause"
+          }
+        ],
+        "from_pom": "com/mortennobel/java-image-scaling/0.8.6/java-image-scaling-0.8.6.pom",
+        "pom_sha256": "b567fa2dae5a7ecbcb64d935a990727ca92236779b51ddfae96dbd45cb596f5e"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/jhlabs/filters/2.0.235/filters-2.0.235.jar",
+      "bytes": 340318,
+      "sha256": "be6a1d54ebb043495e31e25e72b440f69156a5624cdd7e1c55c47e30d4fae308",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ],
+        "from_pom": "com/jhlabs/filters/2.0.235/filters-2.0.235.pom",
+        "pom_sha256": "b19a3da13f976143b4572f1ccf31cd13296c1f17e3abd1811855b5de5cf82569"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.jar",
+      "bytes": 69435,
+      "sha256": "a12578dde1ba00bd9b816d388a0b879928d00bab3c83c240f7013bf4196c579a",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "MIT License",
+            "url": "http://www.opensource.org/licenses/mit-license.php"
+          }
+        ],
+        "from_pom": "org/slf4j/slf4j-bom/2.0.16/slf4j-bom-2.0.16.pom",
+        "pom_sha256": "0566048ec825cdf28758620af64d9e14ae38a9cd8748dd6fafa6df4a4194c279"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE.txt": "4e7f90c86ab51278228bce153122f1d8df30149d13ce9ef524c8444a84c32dcc"
+      }
+    },
+    {
+      "maven_path": "net/bytebuddy/byte-buddy/1.15.5/byte-buddy-1.15.5.jar",
+      "bytes": 8300817,
+      "sha256": "7fb8dbd0da63bb4a5b12c75f020f6a5324120a3991c2291be54f6a96cf419570",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "net/bytebuddy/byte-buddy-parent/1.15.5/byte-buddy-parent-1.15.5.pom",
+        "pom_sha256": "2a9971f032f3c726004a02695270a812378453e5395cf1b6ebb9082cd295e5c3"
+      },
+      "bundled_notice_files": {
+        "META-INF/licenses/ASM": "337e92fd361effe495d03978a34a3cd44681a63b8329adfd99c8996b306b2a8c",
+        "META-INF/NOTICE": "cfb119f8db2decb24e756fddec0e089029eaa73a7be594b2dd9676433d95d6e5",
+        "META-INF/LICENSE": "33605c3e6b852df0521b241ac797d03f4bb6bc77b40dc4fa0e22282194cb7123"
+      }
+    },
+    {
+      "maven_path": "org/freemarker/freemarker/2.3.33/freemarker-2.3.33.jar",
+      "bytes": 1877365,
+      "sha256": "ab829182363e747a1530a368436242f4cca7ff309dd29bfca638a1fdc7b6771d",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "org/freemarker/freemarker/2.3.33/freemarker-2.3.33.pom",
+        "pom_sha256": "f8d10620a17a0601e812f70faf5295d78adddb11433af472044271bc3c5e5856"
+      },
+      "bundled_notice_files": {
+        "META-INF/LICENSE": "3ddf9be5c28fe27dad143a5dc76eea25222ad1dd68934a047064e56ed2fa40c5"
+      }
+    },
+    {
+      "maven_path": "com/googlecode/soundlibs/jlayer/1.0.1.4/jlayer-1.0.1.4.jar",
+      "bytes": 140987,
+      "sha256": "863a51470ab4d581c6269dcd5a0471a226932ec5b2ef3f79fe86ab559387ac5c",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "LGPL 2.1 license",
+            "url": "http://www.opensource.org/licenses/lgpl-2.1.php"
+          }
+        ],
+        "from_pom": "com/googlecode/soundlibs/soundlibs/1.4/soundlibs-1.4.pom",
+        "pom_sha256": "c7226b52a222da4e16e90fe93e8a6b98ef13df04c103df1434c7b2a357e0bb99"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "junit/junit/3.8.2/junit-3.8.2.jar",
+      "bytes": 120640,
+      "sha256": "ecdcc08183708ea3f7b0ddc96f19678a0db8af1fb397791d484aed63200558b0",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Common Public License Version 1.0",
+            "url": "http://www.opensource.org/licenses/cpl1.0.txt"
+          }
+        ],
+        "from_pom": "junit/junit/3.8.2/junit-3.8.2.pom",
+        "pom_sha256": "aede67999f02ac851c2a2ae8cec58f9d801f826ba20994df23a1d9fbecc47f0f"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/beust/jcommander/1.82/jcommander-1.82.jar",
+      "bytes": 88407,
+      "sha256": "deeac157c8de6822878d85d0c7bc8467a19cc8484d37788f7804f039dde280b1",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/beust/jcommander/1.82/jcommander-1.82.pom",
+        "pom_sha256": "246344170b513b801ccf812234d4e1324a0f6ed2a81e90aa618913b66b9cc173"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/sipgate/mp3-wav/1.0.4/mp3-wav-1.0.4.jar",
+      "bytes": 5729,
+      "sha256": "bb4b17520540873741fa08614ff5b92c14b140b325002f5e9318473c47d88eee",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "Apache License, Version 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.txt"
+          }
+        ],
+        "from_pom": "com/sipgate/mp3-wav/1.0.4/mp3-wav-1.0.4.pom",
+        "pom_sha256": "bcc1eb51d145136914b2db7e636c975663b84910f18650a276e4f0a61c742afc"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "javazoom/jlayer/1.0.1/jlayer-1.0.1.jar",
+      "bytes": 143624,
+      "sha256": "850508c837454a1b06017c32a36876fae516de1e89a829f725fee1e6dcc52000",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "GNU Lesser General Public License",
+            "url": "http://www.gnu.org/copyleft/lesser.html"
+          }
+        ],
+        "from_pom": "javazoom/jlayer/1.0.1/jlayer-1.0.1.pom",
+        "pom_sha256": "9446b97a9756af75e825cbc078c803e673a7c319ad7ca8b65f3aa9ef155d5c3a"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/googlecode/soundlibs/mp3spi/1.9.5.4/mp3spi-1.9.5.4.jar",
+      "bytes": 34298,
+      "sha256": "f2bd4d0b63532b52eaf9c086528ed8379e5a8805af759c4dbdea5b7a40e4e87e",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "LGPL 2.1 license",
+            "url": "http://www.opensource.org/licenses/lgpl-2.1.php"
+          }
+        ],
+        "from_pom": "com/googlecode/soundlibs/soundlibs/1.4/soundlibs-1.4.pom",
+        "pom_sha256": "c7226b52a222da4e16e90fe93e8a6b98ef13df04c103df1434c7b2a357e0bb99"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/googlecode/soundlibs/tritonus-share/0.3.7.4/tritonus-share-0.3.7.4.jar",
+      "bytes": 132760,
+      "sha256": "6f626b41dc72074656059de1a25bc6f1c5abb202b57d37c538f5714f54efdab4",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "LGPL 2.1 license",
+            "url": "http://www.opensource.org/licenses/lgpl-2.1.php"
+          }
+        ],
+        "from_pom": "com/googlecode/soundlibs/soundlibs/1.4/soundlibs-1.4.pom",
+        "pom_sha256": "c7226b52a222da4e16e90fe93e8a6b98ef13df04c103df1434c7b2a357e0bb99"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/twelvemonkeys/imageio/imageio-jpeg/3.12.0/imageio-jpeg-3.12.0.jar",
+      "bytes": 94514,
+      "sha256": "fc62f5d7df04d1af27dc7e5b74ea5f93c23b1013064ddd4e74879d709a9d859e",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The BSD License",
+            "url": "https://github.com/haraldk/TwelveMonkeys#license"
+          }
+        ],
+        "from_pom": "com/twelvemonkeys/twelvemonkeys/3.12.0/twelvemonkeys-3.12.0.pom",
+        "pom_sha256": "b6d09874fbddd9bb250d17817a931ef8e093bc18e74286ff06b040541980c730"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/twelvemonkeys/imageio/imageio-core/3.12.0/imageio-core-3.12.0.jar",
+      "bytes": 119909,
+      "sha256": "34c6f91bf3b217ed0115bce8283238fbd0264562aa682b4226a3960d0ede9815",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The BSD License",
+            "url": "https://github.com/haraldk/TwelveMonkeys#license"
+          }
+        ],
+        "from_pom": "com/twelvemonkeys/twelvemonkeys/3.12.0/twelvemonkeys-3.12.0.pom",
+        "pom_sha256": "b6d09874fbddd9bb250d17817a931ef8e093bc18e74286ff06b040541980c730"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/twelvemonkeys/imageio/imageio-metadata/3.12.0/imageio-metadata-3.12.0.jar",
+      "bytes": 83615,
+      "sha256": "797d026b67d07e6d5eb00a1ab53a55acaab6f80a71c5ee325572093eb90c0caa",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The BSD License",
+            "url": "https://github.com/haraldk/TwelveMonkeys#license"
+          }
+        ],
+        "from_pom": "com/twelvemonkeys/twelvemonkeys/3.12.0/twelvemonkeys-3.12.0.pom",
+        "pom_sha256": "b6d09874fbddd9bb250d17817a931ef8e093bc18e74286ff06b040541980c730"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/twelvemonkeys/common/common-lang/3.12.0/common-lang-3.12.0.jar",
+      "bytes": 121817,
+      "sha256": "5c65e504b5b64d80683e0fa70a1dd154dd83d4de7da37f21e950f5a9c03bc66d",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The BSD License",
+            "url": "https://github.com/haraldk/TwelveMonkeys#license"
+          }
+        ],
+        "from_pom": "com/twelvemonkeys/twelvemonkeys/3.12.0/twelvemonkeys-3.12.0.pom",
+        "pom_sha256": "b6d09874fbddd9bb250d17817a931ef8e093bc18e74286ff06b040541980c730"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/twelvemonkeys/common/common-io/3.12.0/common-io-3.12.0.jar",
+      "bytes": 92346,
+      "sha256": "bfacfeb02acac47dbfd1fab0002eaeca65547d04249498b654320c9e0fdf6647",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The BSD License",
+            "url": "https://github.com/haraldk/TwelveMonkeys#license"
+          }
+        ],
+        "from_pom": "com/twelvemonkeys/twelvemonkeys/3.12.0/twelvemonkeys-3.12.0.pom",
+        "pom_sha256": "b6d09874fbddd9bb250d17817a931ef8e093bc18e74286ff06b040541980c730"
+      },
+      "bundled_notice_files": {}
+    },
+    {
+      "maven_path": "com/twelvemonkeys/common/common-image/3.12.0/common-image-3.12.0.jar",
+      "bytes": 79655,
+      "sha256": "62a3821c724fadfda346c1e2d83b0c506a0c4074be269a52bf4e3192c7dd92bc",
+      "license_metadata": {
+        "declared": [
+          {
+            "name": "The BSD License",
+            "url": "https://github.com/haraldk/TwelveMonkeys#license"
+          }
+        ],
+        "from_pom": "com/twelvemonkeys/twelvemonkeys/3.12.0/twelvemonkeys-3.12.0.pom",
+        "pom_sha256": "b6d09874fbddd9bb250d17817a931ef8e093bc18e74286ff06b040541980c730"
+      },
+      "bundled_notice_files": {}
+    }
+  ],
+  "logs": {
+    "build-attempt-1.log": {
+      "bytes": 13551,
+      "sha256": "fa2d483379ba811a6de37e1e6f779a143381360647c506c9d2bb0e04ff8496aa"
+    },
+    "commander-simulation.log": {
+      "bytes": 27993,
+      "sha256": "6afd0d571317d5e09a79f4994bd6883ac1a1056533de47a592a06b3078c4d9b6"
+    },
+    "resource-probe.log": {
+      "bytes": 780,
+      "sha256": "ab44a60951569e0c570119c5519482c18da0bf820a880ad3eb7fff74f56b3316"
+    },
+    "simulation-command.json": {
+      "bytes": 17222,
+      "sha256": "8e27a7b6758a9d20056994aa537464f039898791f7bab36d04798dfd7de75c3f"
+    },
+    "simulation-result.json": {
+      "bytes": 49,
+      "sha256": "8cd3ea9e66d98e652aa0779a6047998e46556c749cdf9487a2fe1b952208484f"
+    },
+    "probe-command.json": {
+      "bytes": 17113,
+      "sha256": "c6724f61447988429e98a8be0286b3587cca10a2d5e35b12b9521b7c5731ef6d"
+    }
+  },
+  "local_sizes": {
+    "/Users/zeusborrego/Developer/forge/v2-010/m2": 98882971,
+    "/Users/zeusborrego/Developer/forge/v2-010/apache-maven-3.9.9": 10635235,
+    "/Users/zeusborrego/Developer/forge/v2-010/runtime": 32877,
+    "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home": 349933052
+  },
+  "source_integrity": {
+    "archive_files_compared": 58054,
+    "modified_or_missing": [],
+    "added_setup_file": "forge-gui/forge.profile.properties; target build outputs excluded from archive comparison"
+  },
+  "source_notices": {
+    "LICENSE": {
+      "bytes": 35148,
+      "sha256": "8b1ba204bb69a0ade2bfcf65ef294a920f6bb361b317dba43c7ef29d96332b9b"
+    },
+    "forge-gui/res/licenses/multiline-label-license.txt": {
+      "bytes": 1078,
+      "sha256": "79d2ede826f28b420ae9ec95cb13a8cb6273dd17f9baaa91a7db195349e407ae"
+    },
+    "forge-gui/res/licenses/tinylog-license.txt": {
+      "bytes": 10174,
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    "forge-gui/res/licenses/xpp3-license.txt": {
+      "bytes": 2177,
+      "sha256": "bcbc8dea67a371b046136f6dbf0b9f6897cf9560c6c120f716007ba437bf08c2"
+    },
+    "forge-gui/res/licenses/xstream-license.txt": {
+      "bytes": 1527,
+      "sha256": "7404dd4ae0807231e9d54cc7f2a1e84f5cff760a237be00ba4ea45f779d86bfc"
+    },
+    "forge-gui/res/adventure/common/particle_effects/Particle Park License.txt": {
+      "bytes": 16558,
+      "sha256": "6929b9c9d65738104962c7fd9cd40517ec6d95884df68ea19aa5d364fb77bb22"
+    }
+  },
+  "toolchain": {
+    "os": "macOS 26.5.2 aarch64",
+    "java": "Temurin 21.0.6+7-LTS; source release 17",
+    "maven": "3.9.9 (8e8579a9e76f7d015ee5ec7bfcdc97d260186937)",
+    "python": "3.14.0",
+    "maven_archive_sha512": "a555254d6b53d267965a3404ecb14e53c3827c09c3b94b5678835887ab404556bfaf78dcfe03ba76fa2508649dca8531c74bca4d5846513522404d48e8c4ac8b"
+  },
+  "observations": {
+    "simulation": {
+      "exit_code": 0,
+      "elapsed_seconds": 8.364
+    },
+    "natural_outcome": "Feline Ferocity won on turn 8; Open Hostility lost to life total <=0; game 2905 ms",
+    "initialization": "34968 names indexed from 33711 card script files; 840 token files; probe editions 680; both Commander conformance PASS",
+    "compiled_classpath_entries": 94,
+    "dependency_note": "89 third-party JARs plus five Forge target/classes directories. This inventories availability on the runtime classpath, not every class actually loaded."
+  }
+}

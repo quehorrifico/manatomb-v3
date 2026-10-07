@@ -1,0 +1,363 @@
+{
+  "name": "Feline Ferocity",
+  "commanders": [
+    {
+      "name": "Arahbo, Roar of the World",
+      "quantity": 1
+    }
+  ],
+  "main": [
+    {
+      "name": "Abundance",
+      "quantity": 1
+    },
+    {
+      "name": "Alms Collector",
+      "quantity": 1
+    },
+    {
+      "name": "Argentum Armor",
+      "quantity": 1
+    },
+    {
+      "name": "Balan, Wandering Knight",
+      "quantity": 1
+    },
+    {
+      "name": "Behemoth Sledge",
+      "quantity": 1
+    },
+    {
+      "name": "Blighted Woodland",
+      "quantity": 1
+    },
+    {
+      "name": "Bloodforged Battle-Axe",
+      "quantity": 1
+    },
+    {
+      "name": "Blossoming Sands",
+      "quantity": 1
+    },
+    {
+      "name": "Command Tower",
+      "quantity": 1
+    },
+    {
+      "name": "Condemn",
+      "quantity": 1
+    },
+    {
+      "name": "Crushing Vines",
+      "quantity": 1
+    },
+    {
+      "name": "Cultivate",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Bounty",
+      "quantity": 1
+    },
+    {
+      "name": "Curse of Vitality",
+      "quantity": 1
+    },
+    {
+      "name": "Divine Reckoning",
+      "quantity": 1
+    },
+    {
+      "name": "Dreamstone Hedron",
+      "quantity": 1
+    },
+    {
+      "name": "Elfhame Palace",
+      "quantity": 1
+    },
+    {
+      "name": "Evolving Wilds",
+      "quantity": 1
+    },
+    {
+      "name": "Fleecemane Lion",
+      "quantity": 1
+    },
+    {
+      "name": "Forest",
+      "quantity": 6
+    },
+    {
+      "name": "Grappling Hook",
+      "quantity": 1
+    },
+    {
+      "name": "Grasslands",
+      "quantity": 1
+    },
+    {
+      "name": "Graypelt Refuge",
+      "quantity": 1
+    },
+    {
+      "name": "Hammer of Nazahn",
+      "quantity": 1
+    },
+    {
+      "name": "Harmonize",
+      "quantity": 1
+    },
+    {
+      "name": "Hedron Archive",
+      "quantity": 1
+    },
+    {
+      "name": "Heirloom Blade",
+      "quantity": 1
+    },
+    {
+      "name": "Herald's Horn",
+      "quantity": 1
+    },
+    {
+      "name": "Hero's Blade",
+      "quantity": 1
+    },
+    {
+      "name": "Hungry Lynx",
+      "quantity": 1
+    },
+    {
+      "name": "Hunter's Prowess",
+      "quantity": 1
+    },
+    {
+      "name": "Jareth, Leonine Titan",
+      "quantity": 1
+    },
+    {
+      "name": "Jazal Goldmane",
+      "quantity": 1
+    },
+    {
+      "name": "Jedit Ojanen of Efrava",
+      "quantity": 1
+    },
+    {
+      "name": "Kemba, Kha Regent",
+      "quantity": 1
+    },
+    {
+      "name": "Kindred Summons",
+      "quantity": 1
+    },
+    {
+      "name": "Krosan Verge",
+      "quantity": 1
+    },
+    {
+      "name": "Leonin Arbiter",
+      "quantity": 1
+    },
+    {
+      "name": "Leonin Relic-Warder",
+      "quantity": 1
+    },
+    {
+      "name": "Leonin Shikari",
+      "quantity": 1
+    },
+    {
+      "name": "Lightning Greaves",
+      "quantity": 1
+    },
+    {
+      "name": "Loxodon Warhammer",
+      "quantity": 1
+    },
+    {
+      "name": "Mirari's Wake",
+      "quantity": 1
+    },
+    {
+      "name": "Mirri, Weatherlight Duelist",
+      "quantity": 1
+    },
+    {
+      "name": "Mosswort Bridge",
+      "quantity": 1
+    },
+    {
+      "name": "Myriad Landscape",
+      "quantity": 1
+    },
+    {
+      "name": "Nazahn, Revered Bladesmith",
+      "quantity": 1
+    },
+    {
+      "name": "Nissa's Pilgrimage",
+      "quantity": 1
+    },
+    {
+      "name": "Opal Palace",
+      "quantity": 1
+    },
+    {
+      "name": "Oreskos Explorer",
+      "quantity": 1
+    },
+    {
+      "name": "Path of Ancestry",
+      "quantity": 1
+    },
+    {
+      "name": "Phantom Nishoba",
+      "quantity": 1
+    },
+    {
+      "name": "Plains",
+      "quantity": 7
+    },
+    {
+      "name": "Qasali Pridemage",
+      "quantity": 1
+    },
+    {
+      "name": "Qasali Slingers",
+      "quantity": 1
+    },
+    {
+      "name": "Quietus Spike",
+      "quantity": 1
+    },
+    {
+      "name": "Raksha Golden Cub",
+      "quantity": 1
+    },
+    {
+      "name": "Relic Crush",
+      "quantity": 1
+    },
+    {
+      "name": "Rogue's Passage",
+      "quantity": 1
+    },
+    {
+      "name": "Rout",
+      "quantity": 1
+    },
+    {
+      "name": "Saltcrusted Steppe",
+      "quantity": 1
+    },
+    {
+      "name": "Secluded Steppe",
+      "quantity": 1
+    },
+    {
+      "name": "Seht's Tiger",
+      "quantity": 1
+    },
+    {
+      "name": "Selesnya Guildgate",
+      "quantity": 1
+    },
+    {
+      "name": "Selesnya Sanctuary",
+      "quantity": 1
+    },
+    {
+      "name": "Skullclamp",
+      "quantity": 1
+    },
+    {
+      "name": "Sol Ring",
+      "quantity": 1
+    },
+    {
+      "name": "Soul's Majesty",
+      "quantity": 1
+    },
+    {
+      "name": "Spirit of the Hearth",
+      "quantity": 1
+    },
+    {
+      "name": "Staff of Nin",
+      "quantity": 1
+    },
+    {
+      "name": "Stalking Leonin",
+      "quantity": 1
+    },
+    {
+      "name": "Stirring Wildwood",
+      "quantity": 1
+    },
+    {
+      "name": "Sunspear Shikari",
+      "quantity": 1
+    },
+    {
+      "name": "Swiftfoot Boots",
+      "quantity": 1
+    },
+    {
+      "name": "Sword of the Animist",
+      "quantity": 1
+    },
+    {
+      "name": "Sword of Vengeance",
+      "quantity": 1
+    },
+    {
+      "name": "Taj-Nar Swordsmith",
+      "quantity": 1
+    },
+    {
+      "name": "Temple of the False God",
+      "quantity": 1
+    },
+    {
+      "name": "Temur Sabertooth",
+      "quantity": 1
+    },
+    {
+      "name": "Terramorphic Expanse",
+      "quantity": 1
+    },
+    {
+      "name": "Tranquil Expanse",
+      "quantity": 1
+    },
+    {
+      "name": "Tranquil Thicket",
+      "quantity": 1
+    },
+    {
+      "name": "Traverse the Outlands",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Grove",
+      "quantity": 1
+    },
+    {
+      "name": "Vivid Meadow",
+      "quantity": 1
+    },
+    {
+      "name": "White Sun's Zenith",
+      "quantity": 1
+    },
+    {
+      "name": "Wing Shards",
+      "quantity": 1
+    },
+    {
+      "name": "Zendikar Resurgent",
+      "quantity": 1
+    }
+  ]
+}

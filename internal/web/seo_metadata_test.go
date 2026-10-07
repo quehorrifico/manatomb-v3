@@ -49,6 +49,7 @@ func TestStablePublicPagesUseConfiguredCanonicalOrigin(t *testing.T) {
 		"home":         "/",
 		"cards_search": "/cards/search",
 		"decks_public": "/decks/public",
+		"extras":       "/extras",
 		"guess_card":   "/games/guess-card",
 		"spellify":     "/games/spellify",
 		"pack_opening": "/games/pack-opening",

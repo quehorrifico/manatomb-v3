@@ -1,0 +1,19 @@
+{
+  "defined_at_utc": "2026-09-14T07:05:54.442094+00:00",
+  "adapter_sha256": "b846f3167e49dc2c0939f5a15e90c9a6889e78999e2f53020926bff1c938ce36",
+  "mode": "real human controller, browser controls operated by agent; no HTTP gameplay driver",
+  "environment": "Linux AMD64 Rosetta, 1024 MiB entire engine/supervisor cgroup, no swap, one CPU, Xmx512m",
+  "decks": "Unchanged V2-010 Feline Ferocity vs Open Hostility, 99+1, Default AI, seed 20260912",
+  "coverage_pilot": "One unchanged realistic pilot must reach turn 12 before five fresh repetitions. No fixture substitutions in realistic runs. Stop on a new unsupported or ambiguous prompt.",
+  "planned_repetitions": 5,
+  "workload": "Fresh normal game, acknowledge authorized warning, keep recorded hand. Develop one legal land each human turn; cast available Cat/creature and equipment when mana permits, activate/equip and declare legal attacks/blocks through actual controls. Select identified public trigger and target prompts intentionally. Yield only when choosing to take no more actions. Reach at least global turn 12 (six CPU turns); include meaningful human spells, payment, targeting and combat and at least two CPU turns after turn 4. No manufactured draws, substitutions, rules or default answers. Abort after fixed endpoint.",
+  "stop": "First unsupported or ambiguous prompt: preserve, classify, cancel, no broad adapter expansion. No five repetitions of a known coverage failure. If pilot does not reach meaningful coverage, human acceptance remains blocked.",
+  "metrics": "Startup measured separately fresh-process/warm-or-unspecified-storage. Active memory sampled from segment-start marker to endpoint. CPU latency is bracketed chooseSpellAbilityToPlay calls, admission ACK is proxy timing, never human time. Wall-clock duration includes agent thinking/tool latency and is not engine latency. Payload bytes exclude headers, internal probes and failed proxy exchanges; log bytes separate. Retain peak for entire process separately.",
+  "reuse": "Original idle/AI/lifecycle evidence remains historical; no full suite rerun. New adapter, UI and fixture hashes distinguish new measurements.",
+  "ordering_pass_defined_utc": "2026-09-15T13:39:44.099320+00:00",
+  "ui_sha256": "36bf7820d0729ad82b6641212daab33c4abfd8a2f3991f8da7401daaadb78c1a",
+  "ordering_choice": "Explicitly choose Sword of the Animist to resolve before Arahbo for simultaneous attack triggers; confirm/pay or decline optional effects intentionally as offered, no saved ordering.",
+  "endpoint": "First human turn-12 priority prompt, after six CPU turns. No need to complete turn 12 or claim a natural game result.",
+  "performance": "Keep 30 s startup and >=20% memory headroom targets. A completed workload may fail these. If 1 GiB completed workload fails memory criterion, one bounded 2 GiB comparison is allowed. No optimization loop.",
+  "active_window": "Retain whole-process memory/CPU/ACK samples including opening. Derived active view window is CPU turn 3 UPKEEP through turn-12 endpoint or first failure. CPU-call nanoseconds not aligned to supervisor clock; report full-process method samples distinctly."
+}

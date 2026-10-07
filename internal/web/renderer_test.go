@@ -820,7 +820,7 @@ func TestSharedFooterRendersCompactNavigationAndAttribution(t *testing.T) {
 		`href="#top" class="mt-footer-link shrink-0">Back to top</a>`,
 		`Card data &copy;`,
 		`card images &copy;`,
-		`Changelog <span aria-hidden="true">&middot; v1.0</span>`,
+		`Changelog <span aria-hidden="true">&middot; v2.0</span>`,
 	} {
 		if !strings.Contains(body, needle) {
 			t.Fatalf("shared footer missing %q: %s", needle, body)

@@ -1,0 +1,71 @@
+{
+  "coverage_blocker": {
+    "status": "choice",
+    "turn": 2,
+    "phase": "COMBAT_BEGIN",
+    "turnPlayer": "Human",
+    "prompt": {
+      "kind": "getAbilityToPlay",
+      "text": "Choose an ability",
+      "options": [
+        {
+          "id": 0,
+          "label": " [Phase: ]"
+        }
+      ]
+    }
+  },
+  "coarse_view_observation": {
+    "samples_ms": [
+      2356.1325009999905,
+      832.6589170000034,
+      3811.7086259999837,
+      804.6192079999912,
+      435.1187080000045,
+      156.14570799999683,
+      893.4402499999976,
+      631.4083750000066
+    ],
+    "note": "Next prompt observation after acknowledgement, nominal one-second sampling; not isolated engine/network computation latency."
+  },
+  "site": {
+    "baseline": {
+      "scope": "Native Mac Go site and local PostgreSQL; separate-process exploratory test, not capped Linux cohosting",
+      "target": "http://localhost:18080",
+      "offered_requests_per_second": 10,
+      "seconds": 45,
+      "n": 451,
+      "p50_ms": 4.629375063814223,
+      "p95_ms": 7.056834059767425,
+      "max_ms": 49.64237497188151,
+      "errors": 99,
+      "response_payload_bytes": 23424,
+      "max_schedule_lag_ms": 6.504292017780244
+    },
+    "with-engine": {
+      "scope": "Native Mac Go site and local PostgreSQL; separate-process exploratory test, not capped Linux cohosting",
+      "target": "http://localhost:18080",
+      "offered_requests_per_second": 10,
+      "seconds": 45,
+      "n": 451,
+      "p50_ms": 2.6659169234335423,
+      "p95_ms": 4.06700000166893,
+      "max_ms": 23.784541990607977,
+      "errors": 99,
+      "response_payload_bytes": 23424,
+      "max_schedule_lag_ms": 5.953207961283624
+    }
+  },
+  "site_identity": {
+    "go": "go version go1.24.10 darwin/arm64",
+    "binary_sha256": "f3180754fe658bf49cafb4efea0733b17d5ef4becdf72cc76cd9f8bae6014129",
+    "head": "0ab74245912407e98f2cb5131a431a67cfed0f1f",
+    "native_mac_uncapped": true,
+    "db": "existing populated local PostgreSQL; credentials not copied",
+    "server_restarted_between_samples": true,
+    "workload": "451 read-only requests over 45 seconds: 3 card autocomplete requests per 1 health request, offered 10/sec"
+  },
+  "completed_cycle_count": 20,
+  "natural_AI_completions": 7,
+  "all_containers_removed": true
+}

@@ -35,7 +35,8 @@ type DBCard struct {
 
 // NormalizeName normalizes user-entered card names into a search-friendly form.
 // DB-side normalization also applies unaccent; this function keeps local
-// normalization consistent for batching and map keys.
+// normalization stable for local map keys. Database lookups must also apply
+// normalize_card_name to these keys; Unicode accents are retained here.
 func NormalizeName(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
@@ -46,7 +47,7 @@ func NormalizeName(value string) string {
 	b.Grow(len(value))
 	lastWasSpace := true
 	for _, r := range value {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r) {
 			b.WriteRune(r)
 			lastWasSpace = false
 			continue
@@ -139,7 +140,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 				) AS rn
 			FROM input i
 			JOIN oracle_cards oc
-			  ON oc.name_search = i.q
+			  ON oc.name_search = normalize_card_name(i.q)
 			LEFT JOIN card_prints cp
 			  ON cp.scryfall_id = oc.default_print_id
 		)

@@ -1,0 +1,15 @@
+{
+  "fixed_view_all_21_observations": true,
+  "no_game_commands_during_hold": true,
+  "same_engine_jvm_configuration_and_instrumentation_as_previous_1g_run": true,
+  "same_enforced_1g_one_cpu_no_swap": true,
+  "prior_files_preserved_except_authorized_status": 60,
+  "container_removed": true,
+  "command_sha256": "764c9b480ea1569e81a3805bb8b7ffbcbc658b233429ab7c088b1ecdc7a47915",
+  "source_hashes": {
+    "tools/forge-benchmark/observe_hold.py": "37ad40c15cebc179f7d9fd5bc6419e3e98e1afc0b2d596c726a9b75cc45ef0ba",
+    "tools/forge-benchmark/summarize_hold.py": "d9de40ba39d66ad4e8c1a623bb99dcab4d6529499a55223b30606da1d70b61a6",
+    "tools/forge-browser-spike/src/BrowserSpike.java": "b846f3167e49dc2c0939f5a15e90c9a6889e78999e2f53020926bff1c938ce36",
+    "tools/forge-browser-spike/index.html": "36bf7820d0729ad82b6641212daab33c4abfd8a2f3991f8da7401daaadb78c1a"
+  }
+}

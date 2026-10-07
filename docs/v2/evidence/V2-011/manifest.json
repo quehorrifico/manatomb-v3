@@ -1,0 +1,133 @@
+{
+  "forge_pin": "26d8aff87509dde8a9d5017852339382d7ab3e83",
+  "manatomb_head": "0ab74245912407e98f2cb5131a431a67cfed0f1f",
+  "branch": "codex/v2-011-human-browser",
+  "retained_configuration_sha256": {
+    "forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-gui/forge.profile.properties": "2b976f45f303051bdeb95bf43929d3abe0013ba21062fb34c7019a1888e6e817",
+    "runtime/user/preferences/forge.preferences": "01cd037544c9f7824e952d34bf0602622d93d881bd02d81558a796ed92de3f23",
+    "runtime/decks/commander/feline.dck": "9c5835e779dffb514c7451f84b02ecd81c8e82a8b8e7818acbff4319950560f4",
+    "runtime/decks/commander/hostility.dck": "e42707f142c2248b76a241a92f9d6d72d0ed3255b7e11936b3352edb17434707"
+  },
+  "harness_files": {
+    "tools/forge-browser-spike/README.md": {
+      "bytes": 7836,
+      "sha256": "5f376b6883f13e4d0fe7d6c3d12c70ee87e588339f42a92742eb7563ec84fe70"
+    },
+    "tools/forge-browser-spike/fixtures/blocking-cpu.dck": {
+      "bytes": 186,
+      "sha256": "2864e18db38037048ed23452fd8c775587918bbe47e6d534bc9c2736f2e202cf"
+    },
+    "tools/forge-browser-spike/fixtures/cpu.dck": {
+      "bytes": 169,
+      "sha256": "e55811d8b1ffef260462c46d5b48b257dd46c7cd6551092e6b797e0f685d5ed6"
+    },
+    "tools/forge-browser-spike/fixtures/human.dck": {
+      "bytes": 192,
+      "sha256": "a3e1da29cbb198ecc18d9a083322d4c5927178ee02955e460fbc8e9b3b7f83ef"
+    },
+    "tools/forge-browser-spike/index.html": {
+      "bytes": 5113,
+      "sha256": "f06612ea13ce7ab20b7a7be0cf06d8cd3f197ef1bb24bedb2619889545509612"
+    },
+    "tools/forge-browser-spike/run.py": {
+      "bytes": 2566,
+      "sha256": "b3854de820690c25b246c6f0f47ec275893943554e32018f384f60e6bf3bc9c2"
+    },
+    "tools/forge-browser-spike/src/BrowserSpike.java": {
+      "bytes": 26601,
+      "sha256": "bd6138b333e8923c2c01519692699a364a3a8906ad34d0aa4fca62c237998363"
+    },
+    "tools/forge-browser-spike/verify_evidence.py": {
+      "bytes": 4428,
+      "sha256": "3e7a1ee50fb9d9f002d40dfff95a39b74fa6acc70d4a2ffbe368acd5d54d481d"
+    }
+  },
+  "harness_total_bytes": 47091,
+  "local_artifacts": {
+    "realistic": {
+      "files": 5,
+      "bytes": 65646,
+      "transcript_sha256": "6c34be07aa28ce770081212360a225c992a89cb8afb75ff9b3d57c0966441230"
+    },
+    "focused": {
+      "files": 5,
+      "bytes": 533358,
+      "transcript_sha256": "b83aa95bbe6d7e519550c0d901ac94ef17e45918cdc3d7a7ac6454472720f846"
+    },
+    "blocking": {
+      "files": 5,
+      "bytes": 176843,
+      "transcript_sha256": "8a2bf1a551e2d83664e0c5eb5d922cac22d5156594094b2ce1d8aeb76a7e413d"
+    },
+    "final-blocking": {
+      "files": 6,
+      "bytes": 434629,
+      "transcript_sha256": "7ee91027454c9c301e0b6fbac44a11d422519f01acf1e4c0a18a5c068e889d8a"
+    }
+  },
+  "local_work": "/Users/zeusborrego/Developer/forge/v2-011",
+  "final_run": {
+    "cwd": "/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-gui-desktop",
+    "argv": [
+      "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java",
+      "-Djava.awt.headless=true",
+      "-Dsentry.enabled=false",
+      "-Xmx2g",
+      "--add-opens",
+      "java.desktop/java.beans=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/javax.swing.border=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/javax.swing.event=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/sun.swing=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/java.awt.image=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/java.awt.color=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/sun.awt.image=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/javax.swing=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/java.awt=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.util=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.lang=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.lang.reflect=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.text=ALL-UNNAMED",
+      "--add-opens",
+      "java.desktop/java.awt.font=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/jdk.internal.misc=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.nio=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.math=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.util.concurrent=ALL-UNNAMED",
+      "--add-opens",
+      "java.base/java.net=ALL-UNNAMED",
+      "-cp",
+      "/Users/zeusborrego/Developer/forge/v2-011/final-blocking/classes:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-gui-desktop/target/classes:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-core/target/classes:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/google/guava/guava/33.3.1-android/guava-33.3.1-android.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/google/guava/failureaccess/1.0.2/failureaccess-1.0.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/checkerframework/checker-qual/3.43.0/checker-qual-3.43.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/google/errorprone/error_prone_annotations/2.28.0/error_prone_annotations-2.28.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/google/j2objc/j2objc-annotations/3.0.0/j2objc-annotations-3.0.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/apache/commons/commons-lang3/3.18.0/commons-lang3-3.18.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/apache/commons/commons-text/1.12.0/commons-text-1.12.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/apptasticsoftware/rssreader/3.8.2/rssreader-3.8.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/tinylog/slf4j-tinylog/2.7.0/slf4j-tinylog-2.7.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/tinylog/tinylog-api/2.7.0/tinylog-api-2.7.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/tinylog/tinylog-impl/2.7.0/tinylog-impl-2.7.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-game/target/classes:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/sentry/sentry/8.21.1/sentry-8.21.1.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/jgrapht/jgrapht-core/1.5.2/jgrapht-core-1.5.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/jheaps/jheaps/0.14/jheaps-0.14.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/apfloat/apfloat/1.10.1/apfloat-1.10.1.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-ai/target/classes:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/forge-gui/target/classes:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/xmlpull/xmlpull/1.1.3.4a/xmlpull-1.1.3.4a.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/thoughtworks/xstream/xstream/1.4.21/xstream-1.4.21.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/github/x-stream/mxparser/1.2.2/mxparser-1.2.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-all/4.1.115.Final/netty-all-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-buffer/4.1.115.Final/netty-buffer-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec/4.1.115.Final/netty-codec-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-dns/4.1.115.Final/netty-codec-dns-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-haproxy/4.1.115.Final/netty-codec-haproxy-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-http/4.1.115.Final/netty-codec-http-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-http2/4.1.115.Final/netty-codec-http2-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-memcache/4.1.115.Final/netty-codec-memcache-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-mqtt/4.1.115.Final/netty-codec-mqtt-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-redis/4.1.115.Final/netty-codec-redis-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-smtp/4.1.115.Final/netty-codec-smtp-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-socks/4.1.115.Final/netty-codec-socks-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-stomp/4.1.115.Final/netty-codec-stomp-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-codec-xml/4.1.115.Final/netty-codec-xml-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-common/4.1.115.Final/netty-common-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-handler/4.1.115.Final/netty-handler-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-native-unix-common/4.1.115.Final/netty-transport-native-unix-common-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-handler-proxy/4.1.115.Final/netty-handler-proxy-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-handler-ssl-ocsp/4.1.115.Final/netty-handler-ssl-ocsp-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-resolver/4.1.115.Final/netty-resolver-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-resolver-dns/4.1.115.Final/netty-resolver-dns-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport/4.1.115.Final/netty-transport-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-rxtx/4.1.115.Final/netty-transport-rxtx-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-sctp/4.1.115.Final/netty-transport-sctp-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-udt/4.1.115.Final/netty-transport-udt-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-classes-epoll/4.1.115.Final/netty-transport-classes-epoll-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-classes-kqueue/4.1.115.Final/netty-transport-classes-kqueue-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-resolver-dns-classes-macos/4.1.115.Final/netty-resolver-dns-classes-macos-4.1.115.Final.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-native-epoll/4.1.115.Final/netty-transport-native-epoll-4.1.115.Final-linux-x86_64.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-native-epoll/4.1.115.Final/netty-transport-native-epoll-4.1.115.Final-linux-aarch_64.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-native-epoll/4.1.115.Final/netty-transport-native-epoll-4.1.115.Final-linux-riscv64.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-native-kqueue/4.1.115.Final/netty-transport-native-kqueue-4.1.115.Final-osx-x86_64.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-transport-native-kqueue/4.1.115.Final/netty-transport-native-kqueue-4.1.115.Final-osx-aarch_64.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-resolver-dns-native-macos/4.1.115.Final/netty-resolver-dns-native-macos-4.1.115.Final-osx-x86_64.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/io/netty/netty-resolver-dns-native-macos/4.1.115.Final/netty-resolver-dns-native-macos-4.1.115.Final-osx-aarch_64.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/jupnp/org.jupnp/3.0.5/org.jupnp-3.0.5.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/jupnp/org.jupnp.support/3.0.5/org.jupnp.support-3.0.5.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/at/yawk/lz4/lz4-java/1.10.2/lz4-java-1.10.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-client/9.4.57.v20241219/jetty-client-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-http/9.4.57.v20241219/jetty-http-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-util/9.4.57.v20241219/jetty-util-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-io/9.4.57.v20241219/jetty-io-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-server/9.4.57.v20241219/jetty-server-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/javax/servlet/javax.servlet-api/3.1.0/javax.servlet-api-3.1.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-servlet/9.4.57.v20241219/jetty-servlet-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-security/9.4.57.v20241219/jetty-security-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/eclipse/jetty/jetty-util-ajax/9.4.57.v20241219/jetty-util-ajax-9.4.57.v20241219.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/google/code/gson/gson/2.13.2/gson-2.13.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/miglayout/miglayout-swing/4.2/miglayout-swing-4.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/miglayout/miglayout-core/4.2/miglayout-core-4.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/mortennobel/java-image-scaling/0.8.6/java-image-scaling-0.8.6.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/jhlabs/filters/2.0.235/filters-2.0.235.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/slf4j/slf4j-api/2.0.16/slf4j-api-2.0.16.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/net/bytebuddy/byte-buddy/1.15.5/byte-buddy-1.15.5.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/org/freemarker/freemarker/2.3.33/freemarker-2.3.33.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/googlecode/soundlibs/jlayer/1.0.1.4/jlayer-1.0.1.4.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/junit/junit/3.8.2/junit-3.8.2.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/beust/jcommander/1.82/jcommander-1.82.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/sipgate/mp3-wav/1.0.4/mp3-wav-1.0.4.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/javazoom/jlayer/1.0.1/jlayer-1.0.1.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/googlecode/soundlibs/mp3spi/1.9.5.4/mp3spi-1.9.5.4.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/googlecode/soundlibs/tritonus-share/0.3.7.4/tritonus-share-0.3.7.4.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/twelvemonkeys/imageio/imageio-jpeg/3.12.0/imageio-jpeg-3.12.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/twelvemonkeys/imageio/imageio-core/3.12.0/imageio-core-3.12.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/twelvemonkeys/imageio/imageio-metadata/3.12.0/imageio-metadata-3.12.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/twelvemonkeys/common/common-lang/3.12.0/common-lang-3.12.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/twelvemonkeys/common/common-io/3.12.0/common-io-3.12.0.jar:/Users/zeusborrego/Developer/forge/v2-010/forge-26d8aff87509dde8a9d5017852339382d7ab3e83/../m2/com/twelvemonkeys/common/common-image/3.12.0/common-image-3.12.0.jar",
+      "BrowserSpike",
+      "/Users/zeusborrego/Developer/manatomb-v3/tools/forge-browser-spike/fixtures/human.dck",
+      "/Users/zeusborrego/Developer/manatomb-v3/tools/forge-browser-spike/fixtures/blocking-cpu.dck",
+      "18711",
+      "/Users/zeusborrego/Developer/manatomb-v3/tools/forge-browser-spike/index.html",
+      "/Users/zeusborrego/Developer/forge/v2-011/final-blocking",
+      "blocking"
+    ],
+    "adapter_sha256": "bd6138b333e8923c2c01519692699a364a3a8906ad34d0aa4fca62c237998363",
+    "decks": {
+      "/Users/zeusborrego/Developer/manatomb-v3/tools/forge-browser-spike/fixtures/human.dck": "a3e1da29cbb198ecc18d9a083322d4c5927178ee02955e460fbc8e9b3b7f83ef",
+      "/Users/zeusborrego/Developer/manatomb-v3/tools/forge-browser-spike/fixtures/blocking-cpu.dck": "2864e18db38037048ed23452fd8c775587918bbe47e6d534bc9c2736f2e202cf"
+    }
+  },
+  "measurement_scope": "File sizes only; no RSS, heap, capacity or production-image claim"
+}

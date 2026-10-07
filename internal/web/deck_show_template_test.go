@@ -23,7 +23,7 @@ func TestDeckShowUsesPrimaryDecklistWorkspaceAndSharedAssets(t *testing.T) {
 
 	for _, needle := range []string{
 		`data-theme="tomb"`,
-		`href="/assets/deck_show.css"`,
+		`href="` + assetURL("deck_show.css") + `"`,
 		`src="/assets/deck_show.js"`,
 		`id="deck-editor-heading"`,
 		`id="deck-import-warning-toast"`,
@@ -177,7 +177,6 @@ func TestDeckShowUsesPrimaryDecklistWorkspaceAndSharedAssets(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{
-		"Local draft",
 		"Draft saved on this device.",
 		"Save this draft and continue anywhere.",
 		`id="guest-panel-login-to-save"`,

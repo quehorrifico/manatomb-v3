@@ -9,6 +9,9 @@ import (
 )
 
 type Config struct {
+	CPUEnabled          bool
+	ForgeServiceURL     string
+	ForgeServiceSecret  string
 	DatabaseURL         string
 	Port                string
 	SessionCookieSecure bool
@@ -28,6 +31,9 @@ func Load() *Config {
 	loadDotEnv(".env")
 
 	cfg := &Config{
+		CPUEnabled:          getEnvBool("CPU_PLAY_ENABLED", false),
+		ForgeServiceURL:     getEnv("FORGE_SERVICE_URL", ""),
+		ForgeServiceSecret:  getEnv("FORGE_SERVICE_SECRET", ""),
 		DatabaseURL:         mustEnv("DATABASE_URL"),
 		Port:                getEnv("PORT", "8080"),
 		SessionCookieSecure: getEnvBool("SESSION_COOKIE_SECURE", false),

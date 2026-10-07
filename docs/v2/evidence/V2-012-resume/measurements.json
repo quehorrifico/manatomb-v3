@@ -1,0 +1,191 @@
+{
+  "runs": [
+    {
+      "name": "corrected-browser",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 9308,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 27.106929721,
+      "host_readiness": {
+        "host_observed_seconds": 29.117189208045602,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 792.57421875,
+      "sampled_memory_mib": {
+        "n": 9308,
+        "p50": 768.19921875,
+        "p95": 774.1640625,
+        "max": 792.5390625
+      },
+      "post_ready_memory_mib": {
+        "n": 9192,
+        "p50": 768.24609375,
+        "p95": 774.16796875,
+        "max": 792.5390625
+      },
+      "worker_peak_rss_mib": 417.82421875,
+      "worker_peak_threads": 25,
+      "cpu_decision_ms": {
+        "n": 31,
+        "p50": 43.87775,
+        "p95": 302.105751,
+        "max": 391.804
+      },
+      "successful_command_ack_ms": {
+        "n": 16,
+        "p50": 19.1155,
+        "p95": 105.469792,
+        "max": 105.469792
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.5653347919997032,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "deadline",
+        "elapsed_seconds": 2402.105415625032,
+        "cleanup_seconds": 1.8827079590409994,
+        "container_removed": true,
+        "retained_files": 16,
+        "retained_bytes": 1215021
+      },
+      "http_request_payload_bytes": 4344,
+      "http_response_payload_bytes": 3374754,
+      "file_bytes": {
+        "samples.csv": 778772,
+        "decisions.csv": 1834,
+        "events.jsonl": 212719,
+        "transcript.json": 73559,
+        "engine.log": 534
+      },
+      "headroom_fraction": 0.22600173950195312
+    },
+    {
+      "name": "human-pilot-2",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 1927,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 29.964323473,
+      "host_readiness": {
+        "host_observed_seconds": 32.84301162499469,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 809.2421875,
+      "sampled_memory_mib": {
+        "n": 1927,
+        "p50": 760.5546875,
+        "p95": 804.18359375,
+        "max": 808.91015625
+      },
+      "post_ready_memory_mib": {
+        "n": 1804,
+        "p50": 769.9921875,
+        "p95": 804.4609375,
+        "max": 808.91015625
+      },
+      "worker_peak_rss_mib": 430.06640625,
+      "worker_peak_threads": 26,
+      "cpu_decision_ms": {
+        "n": 109,
+        "p50": 29.622541,
+        "p95": 157.453209,
+        "max": 303.369875
+      },
+      "successful_command_ack_ms": {
+        "n": 99,
+        "p50": 14.058667,
+        "p95": 45.353583,
+        "max": 134.799625
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": false,
+      "cancel_to_reap_seconds": 0.2835890420000169,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "terminal-view",
+        "elapsed_seconds": 502.3053371660644,
+        "cleanup_seconds": 1.6620904579758644,
+        "container_removed": true,
+        "retained_files": 15,
+        "retained_bytes": 1255465
+      },
+      "http_request_payload_bytes": 22794,
+      "http_response_payload_bytes": 11020432,
+      "file_bytes": {
+        "samples.csv": 159571,
+        "decisions.csv": 6278,
+        "events.jsonl": 392282,
+        "transcript.json": 548618,
+        "engine.log": 1577
+      },
+      "headroom_fraction": 0.20972442626953125
+    },
+    {
+      "name": "original-reproduction",
+      "mode": "human",
+      "scenario": "realistic",
+      "cap_mib": 1024,
+      "sample_count": 677,
+      "nominal_sample_interval_ms": 250,
+      "supervisor_ready_seconds": 27.865072513,
+      "host_readiness": {
+        "host_observed_seconds": 30.60903508402407,
+        "sampling_detection_interval_seconds": 1
+      },
+      "whole_cgroup_peak_mib": 728.9140625,
+      "sampled_memory_mib": {
+        "n": 677,
+        "p50": 698.5703125,
+        "p95": 725.71484375,
+        "max": 728.47265625
+      },
+      "post_ready_memory_mib": {
+        "n": 557,
+        "p50": 706.28125,
+        "p95": 726.26953125,
+        "max": 728.47265625
+      },
+      "worker_peak_rss_mib": 387.69140625,
+      "worker_peak_threads": 24,
+      "cpu_decision_ms": {
+        "n": 0,
+        "p50": null,
+        "p95": null,
+        "max": null
+      },
+      "successful_command_ack_ms": {
+        "n": 8,
+        "p50": 13.011542,
+        "p95": 111.743292,
+        "max": 111.743292
+      },
+      "ai_natural_game_ms": null,
+      "sampled_worker_gone": true,
+      "cancel_to_reap_seconds": 0.23929116700000463,
+      "oom_killed": false,
+      "supervision": {
+        "reason": "worker-exit",
+        "elapsed_seconds": 181.65613066696096,
+        "cleanup_seconds": 1.278871332993731,
+        "container_removed": true,
+        "retained_files": 16,
+        "retained_bytes": 357895
+      },
+      "http_request_payload_bytes": 1818,
+      "http_response_payload_bytes": 2017374,
+      "file_bytes": {
+        "samples.csv": 55746,
+        "worker-exit.json": 88,
+        "events.jsonl": 118621,
+        "transcript.json": 35602,
+        "engine.log": 535
+      },
+      "headroom_fraction": 0.28816986083984375
+    }
+  ],
+  "scope": "Engine plus local supervisor in same capped cgroup; excludes browser and existing ManaTomb. Post-ready rows in interactive runs include gameplay/thinking, not a pure idle statistic."
+}

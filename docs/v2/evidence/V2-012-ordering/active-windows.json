@@ -1,0 +1,125 @@
+{
+  "scope": "First sampled view at/after CPU turn 3 through endpoint cancellation; coarse sampler misses turn 3 in some runs (flagged individually), so exact active-window boundary is unverified there. Includes human/tool thinking, not engine latency. Last 30 seconds is a live sample window, not proof of long-game plateau.",
+  "runs": {
+    "human-1024-1": {
+      "first_observed_turn": 3,
+      "exact_turn3_boundary_observed": true,
+      "start_seconds": 272.524325873,
+      "end_seconds": 521.268854902,
+      "sample_count": 975,
+      "memory_mib": {
+        "n": 975,
+        "p50": 922.8515625,
+        "p95": 964.12890625,
+        "max": 966.58203125
+      },
+      "last_30_seconds_memory_mib": {
+        "n": 118,
+        "p50": 960.3359375,
+        "p95": 965.2421875,
+        "max": 965.39453125
+      },
+      "cgroup_cpu_seconds": 40.65898
+    },
+    "human-1024-2": {
+      "first_observed_turn": 4,
+      "exact_turn3_boundary_observed": false,
+      "start_seconds": 63.153330862,
+      "end_seconds": 439.996958616,
+      "sample_count": 1470,
+      "memory_mib": {
+        "n": 1470,
+        "p50": 768.484375,
+        "p95": 816.33984375,
+        "max": 829.15234375
+      },
+      "last_30_seconds_memory_mib": {
+        "n": 116,
+        "p50": 818.16015625,
+        "p95": 828.80078125,
+        "max": 829.15234375
+      },
+      "cgroup_cpu_seconds": 57.210022
+    },
+    "human-1024-3": {
+      "first_observed_turn": 3,
+      "exact_turn3_boundary_observed": true,
+      "start_seconds": 47.150934938,
+      "end_seconds": 137.454817354,
+      "sample_count": 351,
+      "memory_mib": {
+        "n": 351,
+        "p50": 740.0078125,
+        "p95": 781.54296875,
+        "max": 784.0390625
+      },
+      "last_30_seconds_memory_mib": {
+        "n": 117,
+        "p50": 775.8046875,
+        "p95": 783.5,
+        "max": 784.0390625
+      },
+      "cgroup_cpu_seconds": 35.652525
+    },
+    "human-1024-4": {
+      "first_observed_turn": 4,
+      "exact_turn3_boundary_observed": false,
+      "start_seconds": 95.797916376,
+      "end_seconds": 190.468194753,
+      "sample_count": 367,
+      "memory_mib": {
+        "n": 367,
+        "p50": 738.7578125,
+        "p95": 775.74609375,
+        "max": 781.29296875
+      },
+      "last_30_seconds_memory_mib": {
+        "n": 116,
+        "p50": 773.54296875,
+        "p95": 779.5234375,
+        "max": 781.29296875
+      },
+      "cgroup_cpu_seconds": 34.071199
+    },
+    "human-1024-5": {
+      "first_observed_turn": 4,
+      "exact_turn3_boundary_observed": false,
+      "start_seconds": 66.143156489,
+      "end_seconds": 149.617173902,
+      "sample_count": 324,
+      "memory_mib": {
+        "n": 324,
+        "p50": 742.90234375,
+        "p95": 769.79296875,
+        "max": 773.23828125
+      },
+      "last_30_seconds_memory_mib": {
+        "n": 116,
+        "p50": 768.1875,
+        "p95": 772.36328125,
+        "max": 773.23828125
+      },
+      "cgroup_cpu_seconds": 33.181122
+    },
+    "human-2048-comparison": {
+      "first_observed_turn": 4,
+      "exact_turn3_boundary_observed": false,
+      "start_seconds": 108.203594507,
+      "end_seconds": 187.263929626,
+      "sample_count": 306,
+      "memory_mib": {
+        "n": 306,
+        "p50": 739.0078125,
+        "p95": 772.33203125,
+        "max": 777.1328125
+      },
+      "last_30_seconds_memory_mib": {
+        "n": 117,
+        "p50": 761.9453125,
+        "p95": 776.5625,
+        "max": 777.1328125
+      },
+      "cgroup_cpu_seconds": 34.050588
+    }
+  }
+}

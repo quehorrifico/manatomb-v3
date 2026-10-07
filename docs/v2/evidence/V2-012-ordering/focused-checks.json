@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "browser": "Real controls via CUA, not owner manual acceptance",
+  "explicit_positions": [
+    "Sword of the Animist",
+    "Arahbo, Roar of the World"
+  ],
+  "returned_indices": [
+    1,
+    0
+  ],
+  "placement": [
+    "Arahbo, Roar of the World",
+    "Sword of the Animist"
+  ],
+  "stack_top_first": [
+    "Sword of the Animist",
+    "Arahbo, Roar of the World"
+  ],
+  "actual_resolution": [
+    "Sword of the Animist",
+    "Arahbo, Roar of the World"
+  ],
+  "effects": "Forest search completed, then paid 1WG and Leonin became 12/12",
+  "rememberDecision": false,
+  "browser_stale_invalid_competing_codes": [
+    409,
+    409,
+    200,
+    409
+  ],
+  "adapter_sha256": "b846f3167e49dc2c0939f5a15e90c9a6889e78999e2f53020926bff1c938ce36",
+  "protocol_final_passed": true,
+  "projection_final_passed": true
+}

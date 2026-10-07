@@ -1,0 +1,32 @@
+{
+  "kind": "packaged browser ordering fixture; not representative performance",
+  "worker_sha256": "d989fa97f9aea34d7155d7627035b6a14e7691f6a40c51eb21a885a2ff3b5f49",
+  "fixture": "ordering",
+  "human": "Arahbo; 48 Forest, 49 Plains, Leonin Shikari, Sword of the Animist",
+  "cpu": "Isamaru; 99 Plains",
+  "checks": {
+    "blank_positions_require_explicit_choice": true,
+    "duplicate_positions_disable_submit": true,
+    "submitted_resolution_order": [
+      "Sword of the Animist",
+      "Arahbo, Roar of the World"
+    ],
+    "placement_order": [
+      "Arahbo, Roar of the World",
+      "Sword of the Animist"
+    ],
+    "resolution_observed": [
+      "Sword search confirmed and Forest moved to battlefield tapped",
+      "Arahbo 1WG explicitly paid; Leonin became 12/12"
+    ],
+    "library_hidden_after_search": true,
+    "refresh_preserves_same_prompt": true,
+    "end_game": "browser cancellation, not concession or natural result"
+  },
+  "processes_after_cancel": [
+    "COMMAND",
+    "forge-service",
+    "ps"
+  ],
+  "session_files_after_cancel": []
+}

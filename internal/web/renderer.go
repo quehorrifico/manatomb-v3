@@ -161,6 +161,7 @@ func deckTagThemeMap() map[string]deckTagTheme {
 
 func NewRenderer(publicBaseURLs ...string) *Renderer {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
+		"assetURL":                  assetURL,
 		"buildableFormats":          decks.BuildableFormats,
 		"formatIsBuildable":         decks.FormatIsBuildable,
 		"supportedFormats":          decks.SupportedFormats,
@@ -286,6 +287,8 @@ func defaultCanonicalPath(name string) string {
 		return "/cards/search"
 	case "decks_public":
 		return "/decks/public"
+	case "extras":
+		return "/extras"
 	case "guess_card":
 		return "/games/guess-card"
 	case "spellify":
@@ -413,6 +416,11 @@ func defaultPageMeta(name string) *PageMeta {
 		return &PageMeta{
 			Title:       "Guess the Card",
 			Description: "Ask questions, reveal clues, and identify the hidden Magic card.",
+		}
+	case "extras":
+		return &PageMeta{
+			Title:       "Extras",
+			Description: "Play ManaTomb games and playtest your Commander deck against a CPU.",
 		}
 	case "spellify":
 		return &PageMeta{

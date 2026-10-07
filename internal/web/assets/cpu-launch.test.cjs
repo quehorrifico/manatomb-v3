@@ -1,0 +1,6 @@
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+test('CPU launch copies main/commander only, scopes snapshot to owner, preserves original draft',()=>{
+ const storage=new Map();let destination;const context={window:{},sessionStorage:{setItem:(k,v)=>storage.set(k,v)},location:{href:'http://local.test/decks/new/workbench?format=Commander&reset=1',assign:v=>destination=v},URL,alert:()=>assert.fail('unexpected storage error')};vm.runInNewContext(fs.readFileSync(__dirname+'/cpu-launch.js','utf8'),context);
+ const draft={name:'Unsaved deck',commanderName:'Isamaru, Hound of Konda',description:'Keep my note',cards:{'Isamaru, Hound of Konda':1,Plains:99},sideboardCards:{Mountain:10},maybeCards:{Swamp:2},cardMeta:{Plains:{printID:'keep-print'}}};const before=JSON.stringify(draft);
+ context.window.ManaTombCPU.launch(draft,42);assert.equal(JSON.stringify(draft),before);assert.equal(destination,'/cpu');const saved=JSON.parse(storage.get('manatomb.cpu.start'));assert.equal(saved.owner,42);assert.deepEqual(saved.deck.main,[{name:'Plains',quantity:99}]);assert.deepEqual(saved.deck.commanders,[{name:'Isamaru, Hound of Konda',quantity:1}]);assert.equal(saved.deck.sideboard,undefined);assert.deepEqual(JSON.parse(storage.get('manatomb.cpu.return')),{owner:42,path:'/decks/new/workbench?format=Commander'});
+});

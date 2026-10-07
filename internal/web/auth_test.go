@@ -19,6 +19,9 @@ func TestAuthNextPath(t *testing.T) {
 		want string
 	}{
 		{name: "blank falls back", raw: "", want: "/decks"},
+		{name: "CPU reconnect resumes", raw: "/cpu", want: "/cpu"},
+		{name: "CPU strips untrusted selectors", raw: "/cpu?owner=99&next=https://evil.example#state", want: "/cpu"},
+		{name: "CPU lookalike falls back", raw: "/cpu/other", want: "/decks"},
 		{name: "generic local path falls back", raw: "/decks/public", want: "/decks"},
 		{name: "generic local query falls back", raw: "/decks/new?format=Commander", want: "/decks"},
 		{name: "settings falls back", raw: " /settings ", want: "/decks"},
