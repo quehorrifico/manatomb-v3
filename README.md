@@ -136,6 +136,8 @@ Sync behavior:
 - The app also runs an immediate startup sync automatically when local card data is missing or on an older app data version.
 - You can force an immediate startup sync with `--sync-now` or `CARD_SYNC_ON_START=true`.
 - `CARD_SYNC_MAX_ROWS` is a non-destructive development aid. Limited syncs upsert sampled cards without deleting the rest of the local card database. Leave it at `0` in production.
+- Printing records stream through a temporary file into PostgreSQL rather than retaining the entire printing catalog in web-service memory. The service needs writable temporary disk space; failed downloads or imports leave the previous catalog intact.
+- To recover a web service that becomes unavailable during a sync, temporarily set `CARD_SYNC_ENABLED=false` and redeploy the web component. This preserves existing cards and decks, but pauses card updates. After deploying the streaming importer, restore `CARD_SYNC_ENABLED=true` and verify the logs reach `cards bulk sync complete`.
 
 Navigate to:
 

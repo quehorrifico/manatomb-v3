@@ -729,13 +729,13 @@ func decodePrintRows(ctx context.Context, downloadURI string, maxRows int) ([]pr
 	return decodePrintRowsFromDecoder(dec, maxRows)
 }
 
-func decodePrintRowsFromDecoder(dec *bulkJSONDecoder, maxRows int) ([]printBulkRow, error) {
-	rows := make([]printBulkRow, 0, 50000)
+func walkPrintRows(dec *bulkJSONDecoder, maxRows int, visit func(printBulkRow) error) error {
+	count := 0
 	for {
 		var raw scryfallCard
 		more, err := dec.DecodeNext(&raw)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !more {
 			break
@@ -763,7 +763,7 @@ func decodePrintRowsFromDecoder(dec *bulkJSONDecoder, maxRows int) ([]printBulkR
 		frameEffectsJSON := stringSliceJSON(raw.FrameEffects)
 		promoTypesJSON := stringSliceJSON(raw.PromoTypes)
 
-		rows = append(rows, printBulkRow{
+		if err := visit(printBulkRow{
 			ScryfallID:      card.ID,
 			OracleID:        card.OracleID,
 			Name:            card.Name,
@@ -798,11 +798,26 @@ func decodePrintRowsFromDecoder(dec *bulkJSONDecoder, maxRows int) ([]printBulkR
 			PriceUSDFoil:     strings.TrimSpace(raw.Prices.USDFoil),
 			PriceUSDEtched:   strings.TrimSpace(raw.Prices.USDEtched),
 			ScryfallURI:      card.ScryfallURI,
-		})
+		}); err != nil {
+			return err
+		}
+		count++
 
-		if maxRows > 0 && len(rows) >= maxRows {
+		if maxRows > 0 && count >= maxRows {
 			break
 		}
+	}
+
+	return nil
+}
+
+func decodePrintRowsFromDecoder(dec *bulkJSONDecoder, maxRows int) ([]printBulkRow, error) {
+	rows := make([]printBulkRow, 0, 50000)
+	if err := walkPrintRows(dec, maxRows, func(row printBulkRow) error {
+		rows = append(rows, row)
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
@@ -908,6 +923,24 @@ func applyBulkRows(
 	db *sql.DB,
 	oracleRows []oracleBulkRow,
 	printRows []printBulkRow,
+	sourceUpdatedAt time.Time,
+	deleteStale bool,
+) error {
+	return applyBulkRowStream(ctx, db, oracleRows, func(visit func(printBulkRow) error) error {
+		for _, row := range printRows {
+			if err := visit(row); err != nil {
+				return err
+			}
+		}
+		return nil
+	}, sourceUpdatedAt, deleteStale)
+}
+
+func applyBulkRowStream(
+	ctx context.Context,
+	db *sql.DB,
+	oracleRows []oracleBulkRow,
+	prints func(func(printBulkRow) error) error,
 	sourceUpdatedAt time.Time,
 	deleteStale bool,
 ) error {
@@ -1092,7 +1125,7 @@ func applyBulkRows(
 	if err != nil {
 		return err
 	}
-	for _, row := range printRows {
+	if err := prints(func(row printBulkRow) error {
 		if _, err := printCopyStmt.Exec(
 			row.ScryfallID,
 			row.OracleID,
@@ -1126,9 +1159,12 @@ func applyBulkRows(
 			row.PriceUSDEtched,
 			row.ScryfallURI,
 		); err != nil {
-			_ = printCopyStmt.Close()
 			return err
 		}
+		return nil
+	}); err != nil {
+		_ = printCopyStmt.Close()
+		return err
 	}
 	if _, err := printCopyStmt.Exec(); err != nil {
 		_ = printCopyStmt.Close()
@@ -1485,25 +1521,38 @@ func SyncCardsFromScryfallBulk(ctx context.Context, db *sql.DB, options CardBulk
 		}
 		logger.Printf("cards sync phase: decoded oracle rows=%d", len(oracleRows))
 
-		printRows, err := decodePrintRows(ctx, printsDescriptor.DownloadURI, 0)
+		logger.Printf("cards sync phase: streaming paper printings to temporary disk storage")
+		dec, cleanup, err := newBulkJSONDecoder(ctx, printsDescriptor.DownloadURI)
 		if err != nil {
 			return err
 		}
-		logger.Printf("cards sync phase: decoded print rows=%d", len(printRows))
-
-		oracleRows, printRows = selectPaperBulkRows(oracleRows, printRows, options.MaxRows)
-		logger.Printf("cards sync phase: selected paper cards=%d printings=%d", len(oracleRows), len(printRows))
-		if len(oracleRows) == 0 || len(printRows) == 0 {
-			return errors.New("bulk sync contains no matching paper cards and printings; refusing to replace card database")
-		}
-
-		if err := applyBulkRows(ctx, db, oracleRows, printRows, sourceUpdatedAt, options.MaxRows == 0); err != nil {
+		defer cleanup()
+		spool, err := spoolPaperPrints(ctx, dec, oracleRows)
+		if err != nil {
 			return err
 		}
+		defer spool.close()
+		logger.Printf("cards sync phase: streamed print rows=%d to temporary disk storage", spool.count)
+
+		oracleRows, selectedIDs := selectPaperOracles(oracleRows, spool.paperIDs, options.MaxRows)
+		if len(oracleRows) == 0 || spool.count == 0 {
+			return errors.New("bulk sync contains no matching paper cards and printings; refusing to replace card database")
+		}
+		printCount := 0
+		prints := func(visit func(printBulkRow) error) error {
+			return spool.walk(ctx, selectedIDs, func(row printBulkRow) error {
+				printCount++
+				return visit(row)
+			})
+		}
+		if err := applyBulkRowStream(ctx, db, oracleRows, prints, sourceUpdatedAt, options.MaxRows == 0); err != nil {
+			return err
+		}
+		logger.Printf("cards sync phase: selected paper cards=%d printings=%d", len(oracleRows), printCount)
 
 		result = CardBulkSyncResult{
 			ImportedCards:     len(oracleRows),
-			ImportedPrintings: len(printRows),
+			ImportedPrintings: printCount,
 			SourceUpdatedAt:   sourceUpdatedAt,
 			OracleDownloadURI: oracleDescriptor.DownloadURI,
 			PrintsDownloadURI: printsDescriptor.DownloadURI,
