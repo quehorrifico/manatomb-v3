@@ -4869,6 +4869,7 @@
       var savedOverview = null;
       var savedMutationTail = Promise.resolve();
       var savedMutationCount = 0;
+      var savedMutationError = null;
       var savedCommanderDetailCache = {};
       var deckMenuReturnFocus = null;
 
@@ -4917,6 +4918,7 @@
         var request = savedMutationTail.then(function () { return performSavedMutation(url, params); });
         request = request.then(function (next) {
           savedMutationCount--;
+          savedMutationError = null;
           if (!savedMutationCount && guestOverviewStatus && !(savedOverview && savedOverview.hasPending())) {
             guestOverviewStatus.textContent = 'Saved to your account.';
             guestOverviewStatus.setAttribute('data-save-state', 'saved');
@@ -4924,6 +4926,7 @@
           return next;
         }, function (error) {
           savedMutationCount--;
+          savedMutationError = error;
           if (guestOverviewStatus && !(savedOverview && savedOverview.hasPending())) {
             guestOverviewStatus.textContent = 'That change could not be saved. Check your connection and try it again.';
             guestOverviewStatus.setAttribute('data-save-state', 'error');
@@ -5541,6 +5544,17 @@
         if (document.visibilityState === 'hidden') savedOverview.flush();
       });
       window.addEventListener('pagehide', function () { savedOverview.flush(); });
+      window.mtDeckSaveForCPU = async function () {
+        if (deckMenuNameInput && !normalizeName(deckMenuNameInput.value)) throw new Error('Deck name cannot be empty.');
+        await saveSavedDeckName();
+        await savedMutationTail;
+        var saved = await savedOverview.flush();
+        await savedMutationTail;
+        if (!saved || savedOverview.hasPending() || savedMutationError) {
+          throw savedMutationError || new Error('Could not save your deck. Please try again before playtesting.');
+        }
+        return savedDraft;
+      };
       var saveDeckButton = document.getElementById('deck-save');
       if (saveDeckButton) saveDeckButton.addEventListener('click', async function () {
         saveDeckButton.disabled = true;
@@ -5923,10 +5937,15 @@
 
     var cpuLaunchButton=document.getElementById('deck-analysis-cpu');
     fetch('/api/cpu/config').then(function(response){return response.ok?response.json():null;}).then(function(config){
-      if(cpuLaunchButton && config && config.enabled){cpuLaunchButton.hidden=false;cpuLaunchButton.addEventListener('click',function(){
+      if(cpuLaunchButton && config && config.enabled){cpuLaunchButton.hidden=false;cpuLaunchButton.addEventListener('click',async function(){
         var draft=isGuest?(loadDraft()||{}):(window.mtDeckCurrentSavedDraft||savedDeckSeed||{});
         if(isGuest)saveDraft(draft);
-        if(window.ManaTombCPU)window.ManaTombCPU.launch(draft,config.owner);
+        cpuLaunchButton.disabled = true;
+        try {
+          if(window.ManaTombCPU) await window.ManaTombCPU.launch(draft,config.owner,window.mtDeckSaveForCPU);
+        } catch (error) {
+          if(addStatus) addStatus.textContent = error.message || 'Could not save your deck before playtesting.';
+        } finally { cpuLaunchButton.disabled = false; }
       });}
     }).catch(function(){});
 

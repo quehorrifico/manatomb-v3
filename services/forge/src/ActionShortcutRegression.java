@@ -40,6 +40,12 @@ public final class ActionShortcutRegression {
         b.controller.getInputQueue().addObserver((source,value)->{synchronized(b.gate){if(b.pending!=null&&b.pending.reply==null){b.pending=null;b.published=b.workingView();}}});
         b.game.setAge(GameStage.Play);b.game.getPhaseHandler().devModeSet(PhaseType.MAIN1,b.human);
         Card forest1=ChoiceRegression.make(b,"Forest",ZoneType.Battlefield),forest2=ChoiceRegression.make(b,"Forest",ZoneType.Battlefield),land=ChoiceRegression.make(b,"Forest",ZoneType.Hand),bear=ChoiceRegression.make(b,"Grizzly Bears",ZoneType.Hand);
+        // The callback itself identifies a sole legal land action, even when
+        // Forge invokes it outside the thread that dispatched the card click.
+        SpellAbility landAction=land.getSpellAbilities().stream().filter(SpellAbility::isLandAbility).findFirst().orElseThrow();
+        landAction.setActivatingPlayer(b.human);
+        var soleLand=ChoiceRegression.call(()->b.controller.getAbilityToPlay(land,List.of(landAction),null));
+        check(soleLand.get(2,TimeUnit.SECONDS)==landAction&&b.pending==null,"Sole land play asked for a redundant choice");
         SpellAbility playLand=click(b,land,"single-land-click");check(playLand.isLandAbility(),"Wrong land action");
         check(CompletableFuture.supplyAsync(()->b.controller.playChosenSpellAbility(playLand)).get(2,TimeUnit.SECONDS)&&land.isInPlay(),"Land did not play directly");
         SpellAbility tap=click(b,land,"single-mana-click");check(tap.isManaAbility(),"Wrong basic land mana action");

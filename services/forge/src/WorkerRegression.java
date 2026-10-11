@@ -43,6 +43,37 @@ public final class WorkerRegression {
         b.game=new Match(rules,List.of(hp,cp),"Projection regression").createGame();b.human=b.game.getPlayers().get(0);
         Card source=CardFactory.getCard(FModel.getMagicDb().getCommonCards().getCard("Arahbo, Roar of the World"),b.human,b.game);
         b.human.getZone(ZoneType.Command).add(source);
+        Card internal=new forge.game.ability.effects.DetachedCardEffect(b.human,"Commander Effect");
+        b.human.getZone(ZoneType.Command).add(internal);
+        Card keywordBookkeeping=b.human.getKeywordCard();
+        check(keywordBookkeeping.getRenderForUI(),"Did not reproduce renderable Keyword Effects bookkeeping");
+        JsonObject projection=JsonParser.parseString(ForgeWorker.JSON.toJson(b.snapshot("test",null))).getAsJsonObject();
+        JsonObject command=null;
+        for(JsonElement z:projection.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonArray("zones"))if(z.getAsJsonObject().get("zone").getAsString().equals("Command"))command=z.getAsJsonObject();
+        check(command!=null&&command.get("count").getAsInt()==1&&command.getAsJsonArray("cards").size()==1,"Internal commander effect inflated command zone");
+        check(!projection.toString().contains("Commander Effect")&&!projection.toString().contains("Keyword Effects")&&projection.toString().contains("Arahbo, Roar of the World"),"Hidden bookkeeping exported or real commander lost");
+        Card emblem=new Card(b.game.nextCardId(),null,b.game);emblem.setOwner(b.human);emblem.setName("Keyword Effects");emblem.setGamePieceType(forge.card.GamePieceType.EFFECT);emblem.setEmblem(true);emblem.setImageKey(forge.ImageKeys.HIDDEN_CARD);
+        check(b.displayCard(emblem,ZoneType.Command),"Name filter hid a real emblem");
+        check(b.displayCard(keywordBookkeeping,ZoneType.Battlefield),"Bookkeeping filter escaped its command-zone scope");
+        // Real token script names include "Token"; Scryfall's identity does not.
+        var eggPaper=forge.StaticData.instance().getAllTokens().getToken("g_0_1_egg_defender","C19");
+        check(eggPaper!=null,"Pinned Egg token missing");
+        Card egg=CardFactory.getCard(eggPaper,b.human,b.game);b.human.getZone(ZoneType.Battlefield).add(egg);
+        Map<String,Object> eggView=b.card(egg.getView(),null);
+        check(Boolean.TRUE.equals(eggView.get("token")) && "Egg".equals(eggView.get("tokenName")) && "0/1".equals(eggView.get("tokenPT")),"Egg token artwork identity not projected: "+eggView);
+        check(ForgeWorker.JSON.toJson(b.snapshot("test",null)).contains("Egg Token"),"Real Egg token missing from battlefield");
+        String print="4e5c0438-e691-4c5f-9d04-1861f9588a09";
+        Path printed=out.resolve("printing-deck.json");Files.writeString(printed,ForgeWorker.JSON.toJson(ForgeWorker.map("name","Printing fixture","commanders",List.of(ForgeWorker.map("name","Arahbo, Roar of the World","quantity",1,"printing",print)),"main",List.of(ForgeWorker.map("name","Forest","quantity",99)))));
+        Deck printedDeck=b.readDeck(printed);b.playerPrintings.put(b.human.getId(),b.deckPrintings.get(printedDeck));
+        check(print.equals(b.card(source.getView(),null).get("printing")),"Saved commander printing lost");
+        Card printedLand=CardFactory.getCard(FModel.getMagicDb().getCommonCards().getCard("Forest"),b.human,b.game);
+        b.playerPrintings.get(b.human.getId()).put(printedLand.getPaperCard().getName(),print);
+        b.human.getZone(ZoneType.Library).add(printedLand);
+        check(!b.card(printedLand.getView(),null).containsKey("printing"),"Hidden printing identity leaked");
+        check(b.focusZones(List.of(printedLand.getView()),true).isEmpty(),"Hidden library auto-focus leaked");
+        b.reveals.get().add(printedLand.getId());
+        check(b.focusZones(List.of(printedLand.getView()),true).equals(List.of(ForgeWorker.map("player",b.human.getId(),"zone","Library"))),"Authorized search did not focus library");
+        check(print.equals(b.card(printedLand.getView(),null).get("printing")),"Revealed saved printing lost");b.reveals.get().clear();
         Trigger trigger=source.getTriggers().stream().filter(t->t.hasParam("Secondary")&&"Command".equals(t.getParam("TriggerZones"))).findFirst().orElseThrow();
         check(!trigger.hasParam("TriggerDescription"),"Pinned secondary trigger unexpectedly has prose");
         SpellAbility underlying=trigger.ensureAbility();underlying.setActivatingPlayer(b.human);
@@ -83,8 +114,8 @@ public final class WorkerRegression {
         check(b.safeText("Chosen Benalish Hero ("+secret.getId()+")").equals("Chosen [hidden card]"),"Hidden raw entity reference leaked");
         var revealDone=new CompletableFuture<String>();
         var method=Arrays.stream(IGuiGame.class.getMethods()).filter(m->m.getName().equals("reveal")).findFirst().orElseThrow();
-        new Thread(()->{try{b.invoke(null,method,new Object[]{null,List.of(secret.getView())});revealDone.complete(b.label(secret.getView()));}catch(Throwable e){revealDone.completeExceptionally(e);}}).start();
-        var rp=await(b);check(b.published.contains("Benalish Hero"),"Legitimate reveal censored");
+        new Thread(()->{try{b.invoke(null,method,new Object[]{"Cards revealed by the game",List.of(secret.getView())});revealDone.complete(b.label(secret.getView()));}catch(Throwable e){revealDone.completeExceptionally(e);}}).start();
+        var rp=await(b);check(b.published.contains("Cards revealed by the game"),"Reveal explanation was lost");check(b.published.contains("Benalish Hero"),"Legitimate reveal censored");
         JsonObject revealView=JsonParser.parseString(b.published).getAsJsonObject();
         boolean temporaryFound=false;
         for(JsonElement player:revealView.getAsJsonArray("players"))for(JsonElement zone:player.getAsJsonObject().getAsJsonArray("zones"))for(JsonElement card:zone.getAsJsonObject().getAsJsonArray("cards")) {
@@ -153,6 +184,45 @@ public final class WorkerRegression {
         var visibleCounters=com.google.common.collect.HashMultiset.<CounterType>create();visibleCounters.add(CounterEnumType.P1P1,2);tiger.setCounters(visibleCounters);tiger.setDamage(1);
         String publicFacts=ForgeWorker.JSON.toJson(b.card(tiger.getView(),null));
         check(publicFacts.contains("\"damage\":1")&&publicFacts.contains("\"count\":2"),"Public damage/counters absent");
+        check(Boolean.TRUE.equals(b.card(tiger.getView(),null).get("statsModified")),"Counter-modified PT not marked");
+        check(b.card(tiger.getView(),null).get("pt").equals(tiger.getNetPower()+"/"+tiger.getNetToughness()),"Displayed PT differs from Forge");
+        b.human.setCounters(CounterEnumType.POISON,3,null,false);b.human.setCounters(CounterEnumType.ENERGY,2,null,false);b.human.setCounters(CounterEnumType.EXPERIENCE,5,null,false);
+        var playerCounters=JsonParser.parseString(ForgeWorker.JSON.toJson(b.snapshot("test",null))).getAsJsonObject().getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("counters");
+        check(playerCounters.get("poison").getAsInt()==3&&playerCounters.get("energy").getAsInt()==2&&playerCounters.get("experience").getAsInt()==5,"Player counters not projected");
+        b.event(new forge.game.event.GameEventLandPlayed(b.human.getView(),egg.getView()));
+        b.event(new forge.game.event.GameEventLandPlayed(cpu.getView(),secret.getView()));
+        check(ForgeWorker.JSON.toJson(b.publicLog).contains("Egg Token")&&!ForgeWorker.JSON.toJson(b.publicLog).contains("Benalish Hero"),"Typed event log exposed a hidden identity");
+        // A normal land play emits a zone event first. Replace precisely that
+        // arrival, while retaining arrivals caused by library/tokens/effects.
+        Card mountain=CardFactory.getCard(FModel.getMagicDb().getCommonCards().getCard("Mountain"),b.human,b.game);
+        b.human.getZone(ZoneType.Battlefield).add(mountain);
+        int logStart=b.publicLog.size();
+        b.event(new forge.game.event.GameEventCardChangeZone(mountain,b.human.getZone(ZoneType.Hand),b.human.getZone(ZoneType.Battlefield)));
+        b.event(new forge.game.event.GameEventCardChangeZone(egg,null,b.human.getZone(ZoneType.Battlefield)));
+        b.event(new forge.game.event.GameEventLandPlayed(b.human.getView(),mountain.getView()));
+        String landLog=ForgeWorker.JSON.toJson(b.publicLog.subList(logStart,b.publicLog.size()));
+        check(b.publicLog.size()==logStart+2 && landLog.contains("You played Mountain") && !landLog.contains("Mountain entered") && landLog.contains("Egg Token entered"),"Land log duplication or meaningful arrival lost: "+landLog);
+        b.event(new forge.game.event.GameEventCardChangeZone(tiger.getView(),new forge.game.zone.ZoneView(b.human.getView(),ZoneType.Stack),b.human.getZone(ZoneType.Battlefield).getView()));
+        b.event(new forge.game.event.GameEventSpellResolved(tiger.getFirstSpellAbility(),false));
+        check(b.publicLog.size()==logStart+2,"Successful permanent repeated cast/arrival/resolution");
+        b.event(new forge.game.event.GameEventSpellResolved(tiger.getFirstSpellAbility(),true));
+        check(b.publicLog.size()==logStart+3 && ForgeWorker.JSON.toJson(b.publicLog).contains("did not resolve"),"Failed resolution was hidden");
+        // Target arrows contain current public projection IDs only. An obsolete
+        // public ID must never recover a card now concealed in a library.
+        Card bolt=CardFactory.getCard(FModel.getMagicDb().getCommonCards().getCard("Lightning Bolt"),b.human,b.game);
+        SpellAbility targeted=bolt.getFirstSpellAbility();targeted.setActivatingPlayer(b.human);
+        targeted.getTargets().add(tiger);targeted.getTargets().add(secret);targeted.getTargets().add(cpu);
+        b.snapshot("test",null);b.publicIds.put(secret.getId(),999999);
+        var projectedTargets=b.stackTargets(new SpellAbilityStackInstance(targeted).getView());
+        check(projectedTargets.size()==2 && projectedTargets.contains(ForgeWorker.map("type","card","id",b.publicIds.get(tiger.getId()))) && projectedTargets.contains(ForgeWorker.map("type","player","id",cpu.getId())),"Public card/player targets missing: "+projectedTargets);
+        check(!ForgeWorker.JSON.toJson(projectedTargets).contains("999999"),"Concealed target exposed a prior reference");b.publicIds.remove(secret.getId());
+        String zoneMarker=" ["+forge.util.Localizer.getInstance().getMessage("lblZoneChanger")+": ";
+        check(b.publicZoneContext(zoneMarker+secret+"]").isEmpty(),"Hidden zone-change context leaked");
+        // Force a prior public projection, then conceal the entity. Neither its
+        // old engine string nor its old cache entry may recover that identity.
+        cpu.getZone(ZoneType.Library).remove(secret);cpu.getZone(ZoneType.Battlefield).add(secret);b.snapshot("test",null);String oldSecret=secret.toString();
+        cpu.getZone(ZoneType.Battlefield).remove(secret);cpu.getZone(ZoneType.Library).add(secret);b.snapshot("test",null);
+        check(b.publicZoneContext(zoneMarker+oldSecret+"]").isEmpty(),"Public history exposed a now-hidden card");
         var skip=new CompletableFuture<Object>();javax.swing.SwingUtilities.invokeLater(()->{try{skip.complete(b.assignCombat(new Object[]{trampler.getView(),List.of(bear.getView()),6,cpu.getView(),false,true}));}catch(Exception e){skip.completeExceptionally(e);}});
         var sk=await(b);check(sk.kind.equals("skipCombatAssignment"),"Optional combat skip not offered");b.accept(reply(b,sk,"skip-assignment",1));check(skip.get(2,TimeUnit.SECONDS)==null,"Skip differs from pinned GUI null result");
         Map<Object,Integer> allocations=new LinkedHashMap<>();allocations.put(b.human.getView(),5);allocations.put(cpu.getView(),7);
@@ -160,7 +230,8 @@ public final class WorkerRegression {
         var dp=await(b);var badAmount=reply(b,dp,"bad-amount");badAmount.add("amounts",JsonParser.parseString("[4,-1]"));reject(b,badAmount);check(!divided.isDone(),"Invalid distribution consumed prompt");
         var amountReply=reply(b,dp,"amounts");amountReply.add("amounts",JsonParser.parseString("[1,2]"));b.accept(amountReply);
         Map<?,?> distribution=(Map<?,?>)divided.get(2,TimeUnit.SECONDS);check(distribution.get(b.human.getView()).equals(1)&&distribution.get(cpu.getView()).equals(2),"Distribution lost original target identity");
-        cpu.getZone(ZoneType.Library).remove(secret);cpu.getZone(ZoneType.Battlefield).add(secret);secret.turnFaceDown(true);
+        cpu.getZone(ZoneType.Library).remove(secret);cpu.getZone(ZoneType.Battlefield).add(secret);b.snapshot("test",null);String faceUpReference=secret.toString();secret.turnFaceDown(true);b.snapshot("test",null);
+        check(b.publicZoneContext(zoneMarker+faceUpReference+"]").isEmpty(),"Public history recovered a face-down identity");
         var facePending=new ForgeWorker.Pending();String facedown=ForgeWorker.JSON.toJson(b.snapshot("test",facePending));
         check(!facedown.contains("Benalish Hero")&&facedown.contains("Face-down card"),"Face-down battlefield identity leaked");
         check(facePending.cards.containsValue(secret.getView()),"Public face-down permanent cannot be targeted");

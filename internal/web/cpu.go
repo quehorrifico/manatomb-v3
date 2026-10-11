@@ -26,11 +26,14 @@ func (a *App) CPUPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.Forge == nil {
-		http.Error(w, "CPU Commander play is not enabled. Your decks and goldfishing remain available.", 503)
+		// A disabled feature is a normal page, not a failed web instance. Some
+		// upstream proxies retry 503 responses and obscure this explanation.
+		w.Header().Set("Cache-Control", "no-store")
+		a.Renderer.Render(w, "cpu_unavailable", TemplateData{CurrentUser: CurrentUser(r), ActiveNav: "extras", Meta: &PageMeta{Title: "CPU play unavailable", Robots: "noindex"}})
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	a.Renderer.Render(w, "cpu", TemplateData{CurrentUser: CurrentUser(r), WideLayout: true, HideHeader: true, HideFooter: true, ActiveNav: "extras", Meta: &PageMeta{Title: "Commander vs CPU", Robots: "noindex"}})
+	a.Renderer.Render(w, "cpu", TemplateData{CurrentUser: CurrentUser(r), WideLayout: true, ActiveNav: "extras", Meta: &PageMeta{Title: "Playtest", Robots: "noindex"}})
 }
 func (a *App) CPUAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
@@ -49,7 +52,7 @@ func (a *App) CPUAPI(w http.ResponseWriter, r *http.Request) {
 		cpuError(w, 503, "CPU play is disabled; ordinary deck tools remain available.")
 		return
 	}
-	if r.Method != "GET" && r.Header.Get("Origin") != a.PublicBaseURL {
+	if r.Method != "GET" && (strings.TrimSpace(r.Header.Get("Origin")) == "" || !unsafeRequestOriginAllowed(r, a.PublicBaseURL)) {
 		cpuError(w, 403, "Invalid request origin.")
 		return
 	}
@@ -90,10 +93,13 @@ func (a *App) CPUAPI(w http.ResponseWriter, r *http.Request) {
 			cpuError(w, 503, "Cannot load deck cards.")
 			return
 		}
-		snapshot := forge.Deck{Name: deck.Name, Commanders: []forge.Card{{Name: deck.CommanderName, Quantity: 1}}, Main: []forge.Card{}}
+		snapshot := forge.Deck{Name: deck.Name, Commanders: []forge.Card{{Name: deck.CommanderName, Quantity: 1, Printing: deck.CommanderPrintID}}, Main: []forge.Card{}}
 		for _, c := range cards {
+			if c.CardName == deck.CommanderName && snapshot.Commanders[0].Printing == "" {
+				snapshot.Commanders[0].Printing = c.PrintID
+			}
 			if c.CardName != deck.CommanderName {
-				snapshot.Main = append(snapshot.Main, forge.Card{Name: c.CardName, Quantity: c.Quantity})
+				snapshot.Main = append(snapshot.Main, forge.Card{Name: c.CardName, Quantity: c.Quantity, Printing: c.PrintID})
 			}
 		}
 		w.Header().Set("Content-Type", "application/json")

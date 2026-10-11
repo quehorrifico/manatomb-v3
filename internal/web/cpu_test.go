@@ -52,6 +52,27 @@ func TestCPUGatewayOwnershipOriginAndUnavailable(t *testing.T) {
 	if call(true, "http://site.test").Code != 200 {
 		t.Fatal("authorized proxy failed")
 	}
+	// The browser's public host can differ from the configured base URL behind
+	// a deployment proxy. Use the site's shared origin policy for that case.
+	app.PublicBaseURL = "http://localhost:8080"
+	r := httptest.NewRequest("POST", "https://manatomb.app/api/cpu/sessions/test/actions", strings.NewReader(`{"action":"ok"}`))
+	r.Header.Set("Origin", "https://manatomb.app")
+	r = r.WithContext(context.WithValue(r.Context(), ctxKeyUser, &account.User{ID: 42}))
+	w := httptest.NewRecorder()
+	app.WithSecurityHeadersMiddleware(http.HandlerFunc(app.CPUAPI)).ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatal("same-host production origin rejected", w.Code, w.Body.String())
+	}
+	app.PublicBaseURL = "http://site.test"
+	before := calls
+	for _, origin := range []string{"", "null", "http://site.test.attacker.test", "http://site.test/invalid", "http://site.test@attacker.test"} {
+		if call(true, origin).Code != 403 {
+			t.Fatalf("invalid origin admitted: %q", origin)
+		}
+	}
+	if calls != before {
+		t.Fatal("invalid origin reached engine")
+	}
 	engine.Close()
 	if call(true, "http://site.test").Code != 503 {
 		t.Fatal("engine outage not contained")
@@ -61,14 +82,17 @@ func TestCPUGatewayOwnershipOriginAndUnavailable(t *testing.T) {
 		t.Fatal("disabled flag bypassed")
 	}
 }
-func TestCPUDisabledConfigurationDoesNotExposePage(t *testing.T) {
-	app := &App{}
+func TestCPUDisabledConfigurationRendersUnavailablePage(t *testing.T) {
+	app := &App{Renderer: NewRenderer("https://site.test")}
 	r := httptest.NewRequest("GET", "/cpu", nil)
 	r = r.WithContext(context.WithValue(r.Context(), ctxKeyUser, &account.User{ID: 1}))
 	w := httptest.NewRecorder()
 	app.CPUPage(w, r)
-	if w.Code != 503 {
-		t.Fatal(w.Code)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "CPU play isn't available yet") || strings.Contains(w.Body.String(), `id="cpuPage"`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("disabled page must not be cached")
 	}
 	r = httptest.NewRequest("GET", "/api/cpu/config", nil).WithContext(r.Context())
 	w = httptest.NewRecorder()

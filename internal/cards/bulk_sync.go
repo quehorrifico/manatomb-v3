@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -859,15 +860,30 @@ func selectPaperBulkRows(oracleRows []oracleBulkRow, printRows []printBulkRow, m
 }
 
 func withCardSyncLock(ctx context.Context, db *sql.DB, fn func() error) error {
+	// Session locks belong to one PostgreSQL connection, not the pool. Reserve
+	// it throughout the sync so another run cannot reenter the same session lock.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	discard := func() { _ = conn.Raw(func(any) error { return driver.ErrBadConn }) }
 	var locked bool
-	if err := db.QueryRowContext(ctx, `SELECT pg_try_advisory_lock($1)`, cardSyncAdvisoryLockKey).Scan(&locked); err != nil {
+	if err := conn.QueryRowContext(ctx, `SELECT pg_try_advisory_lock($1)`, cardSyncAdvisoryLockKey).Scan(&locked); err != nil {
+		// A canceled query may have acquired the lock without returning its result.
+		discard()
 		return err
 	}
 	if !locked {
 		return ErrCardSyncInProgress
 	}
 	defer func() {
-		_, _ = db.ExecContext(context.Background(), `SELECT pg_advisory_unlock($1)`, cardSyncAdvisoryLockKey)
+		unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		var unlocked bool
+		if err := conn.QueryRowContext(unlockCtx, `SELECT pg_advisory_unlock($1)`, cardSyncAdvisoryLockKey).Scan(&unlocked); err != nil || !unlocked {
+			discard() // Never return a possibly locked session to the connection pool.
+		}
 	}()
 	return fn()
 }
@@ -1549,7 +1565,7 @@ func CardSyncDue(ctx context.Context, db *sql.DB, maxAge time.Duration) (bool, e
 	return time.Since(lastSuccess.Time) >= maxAge, nil
 }
 
-func runCardBulkSyncOnce(db *sql.DB, logger *log.Logger, options CardBulkSyncOptions, reason string) {
+func runCardBulkSyncOnce(db *sql.DB, logger *log.Logger, options CardBulkSyncOptions, reason string) error {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -1559,10 +1575,10 @@ func runCardBulkSyncOnce(db *sql.DB, logger *log.Logger, options CardBulkSyncOpt
 	if err != nil {
 		if errors.Is(err, ErrCardSyncInProgress) {
 			logger.Printf("cards bulk sync skipped (%s): already running", reason)
-			return
+			return err
 		}
 		logger.Printf("cards bulk sync failed (%s): %v", reason, err)
-		return
+		return err
 	}
 	logger.Printf(
 		"cards bulk sync complete (%s): %d canonical cards, %d printings (source updated %s)",
@@ -1571,6 +1587,7 @@ func runCardBulkSyncOnce(db *sql.DB, logger *log.Logger, options CardBulkSyncOpt
 		result.ImportedPrintings,
 		result.SourceUpdatedAt.UTC().Format(time.RFC3339),
 	)
+	return nil
 }
 
 func StartCardBulkSyncLoop(db *sql.DB, interval time.Duration, runOnStart bool, logger *log.Logger, options CardBulkSyncOptions) {
@@ -1583,16 +1600,42 @@ func StartCardBulkSyncLoop(db *sql.DB, interval time.Duration, runOnStart bool, 
 	options = normalizeCardBulkSyncOptions(options)
 
 	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-
+		delay, reason := interval, "scheduled"
 		if runOnStart {
-			logger.Printf("cards bulk sync: starting immediate sync because startup sync was requested")
-			runCardBulkSyncOnce(db, logger, options, "startup")
+			delay, reason = 0, "startup"
 		}
-
-		for range ticker.C {
-			runCardBulkSyncOnce(db, logger, options, "scheduled")
+		for {
+			timer := time.NewTimer(delay)
+			<-timer.C
+			if reason == "retry" {
+				// An overlapping deployment may have finished the required full sync.
+				checkCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				due, err := CardSyncDue(checkCtx, db, interval)
+				cancel()
+				if err == nil && !due {
+					delay, reason = interval, "scheduled"
+					continue
+				}
+			}
+			if reason == "startup" {
+				logger.Printf("cards bulk sync: starting immediate sync because startup sync was requested")
+			}
+			err := runCardBulkSyncOnce(db, logger, options, reason)
+			delay, reason = cardBulkSyncNextDelay(interval, err), "scheduled"
+			if err != nil {
+				reason = "retry"
+				logger.Printf("cards bulk sync: retrying in %s", delay)
+			}
 		}
 	}()
+}
+
+func cardBulkSyncNextDelay(interval time.Duration, err error) time.Duration {
+	if errors.Is(err, ErrCardSyncInProgress) {
+		return time.Minute
+	}
+	if err != nil {
+		return 5 * time.Minute
+	}
+	return interval
 }

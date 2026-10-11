@@ -10,13 +10,19 @@ public final class ConcedeRegression {
     static void run(Path out)throws Exception {
         Path human=out.resolve("human.json"),cpu=out.resolve("cpu.json");
         Files.writeString(human,ForgeWorker.JSON.toJson(ForgeWorker.map("name","Concession human","commanders",List.of(ForgeWorker.map("name","Silvos, Rogue Elemental","quantity",1)),"main",List.of(ForgeWorker.map("name","Forest","quantity",99)))));
-        Files.writeString(cpu,ForgeWorker.JSON.toJson(ForgeWorker.map("name","Concession CPU","commanders",List.of(ForgeWorker.map("name","Isamaru, Hound of Konda","quantity",1)),"main",List.of(ForgeWorker.map("name","Plains","quantity",99)))));
+        Files.writeString(cpu,ForgeWorker.JSON.toJson(ForgeWorker.map("name","Concession CPU","commanders",List.of(ForgeWorker.map("name","Isamaru, Hound of Konda","quantity",1)),"main",List.of(ForgeWorker.map("name","Plains","quantity",98),ForgeWorker.map("name","Divine Reckoning","quantity",1)))));
         ForgeWorker b=new ForgeWorker(out);b.start(human,cpu,0,Path.of("/dev/null"));
         ForgeWorker.Pending previous=null;
         for(int step=0;step<6;step++) {
             ForgeWorker.Pending p=null;
             for(int i=0;i<1000;i++){synchronized(b.gate){if(b.pending!=null&&b.pending!=previous){p=b.pending;break;}}Thread.sleep(10);}
             WorkerRegression.check(p!=null,"No next input");
+            if(step==0) {
+                WorkerRegression.check(!b.game.getRules().warnAboutAICards()&&!p.kind.equals("reveal"),"AI advice interrupted game startup");
+                var opponent=b.game.getPlayers().get(1);
+                long copies=java.util.stream.Stream.concat(opponent.getCardsIn(forge.game.zone.ZoneType.Library).stream(),opponent.getCardsIn(forge.game.zone.ZoneType.Hand).stream()).filter(card->card.getName().equals("Divine Reckoning")).count();
+                WorkerRegression.check(copies==1,"Disabling AI advice changed the opponent deck");
+            }
             JsonObject action=WorkerRegression.reply(b,p,"concede-test-"+step);action.addProperty("action",p.concede?"concede":"ok");
             if(!p.concede) {
                 WorkerRegression.check(p.reply==null&&p.ok&&Set.of("Play","Keep").contains(b.okLabel),"Unexpected opening prompt; do not invent an answer");

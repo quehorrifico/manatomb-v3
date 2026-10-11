@@ -8,13 +8,15 @@ import (
 )
 
 func validDeck() Deck {
-	return Deck{Name: "Transport fixture", Commanders: []Card{{"Isamaru, Hound of Konda", 1}}, Main: []Card{{"Plains", 99}}}
+	return Deck{Name: "Transport fixture", Commanders: []Card{{Name: "Isamaru, Hound of Konda", Quantity: 1}}, Main: []Card{{Name: "Plains", Quantity: 99}}}
 }
 func TestDeckTransportValidation(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		change func(*Deck)
-	}{{"injected section", func(d *Deck) { d.Main[0].Name = "Plains\n[Commander]" }}, {"zero quantity", func(d *Deck) { d.Main[0].Quantity = 0 }}, {"missing card", func(d *Deck) { d.Main[0].Quantity = 98 }}, {"duplicate", func(d *Deck) { d.Main = []Card{{"Plains", 49}, {"Plains", 50}} }}, {"too many commanders", func(d *Deck) { d.Commanders = append(d.Commanders, Card{"A", 1}, Card{"B", 1}) }}} {
+	}{{"injected section", func(d *Deck) { d.Main[0].Name = "Plains\n[Commander]" }}, {"zero quantity", func(d *Deck) { d.Main[0].Quantity = 0 }}, {"missing card", func(d *Deck) { d.Main[0].Quantity = 98 }}, {"duplicate", func(d *Deck) { d.Main = []Card{{Name: "Plains", Quantity: 49}, {Name: "Plains", Quantity: 50}} }}, {"too many commanders", func(d *Deck) {
+		d.Commanders = append(d.Commanders, Card{Name: "A", Quantity: 1}, Card{Name: "B", Quantity: 1})
+	}}} {
 		t.Run(tc.name, func(t *testing.T) {
 			d := validDeck()
 			tc.change(&d)
@@ -91,5 +93,17 @@ func TestDiagnosticFailureReferenceDoesNotAcceptRawText(t *testing.T) {
 		if validFailureCode(code) {
 			t.Errorf("accepted unsafe reference %q", code)
 		}
+	}
+}
+
+func TestDeckPrintingTransport(t *testing.T) {
+	d := validDeck()
+	d.Main[0].Printing = "4e5c0438-e691-4c5f-9d04-1861f9588a09"
+	if err := d.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	d.Main[0].Printing = "https://example.test/image"
+	if d.Validate() == nil {
+		t.Fatal("arbitrary printing URL accepted")
 	}
 }
