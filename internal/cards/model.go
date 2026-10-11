@@ -133,6 +133,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 				ROW_NUMBER() OVER (
 					PARTITION BY i.q
 					ORDER BY
+						(lower(oc.name) = lower(btrim(i.q))) DESC,
 						COALESCE(oc.legal_anywhere, true) DESC,
 						CASE WHEN lower(btrim(COALESCE(oc.layout, ''))) IN ('token', 'double_faced_token') THEN 1 ELSE 0 END ASC,
 						COALESCE(oc.edhrec_rank, 999999) ASC,
@@ -271,6 +272,7 @@ func EnsureCardByName(ctx context.Context, db *sql.DB, name string) (*DBCard, er
 		  ON cp.scryfall_id = oc.default_print_id
 		WHERE oc.name_search = normalize_card_name($1)
 		ORDER BY
+			(lower(oc.name) = lower(btrim($1))) DESC,
 			COALESCE(oc.legal_anywhere, true) DESC,
 			CASE WHEN lower(btrim(COALESCE(oc.layout, ''))) IN ('token', 'double_faced_token') THEN 1 ELSE 0 END ASC,
 			COALESCE(oc.edhrec_rank, 999999) ASC,
@@ -349,8 +351,8 @@ func LookupCardsByNames(ctx context.Context, db *sql.DB, names []string) (map[st
 		}
 		seenKey[key] = struct{}{}
 
-		search := NormalizeName(raw)
-		if search == "" {
+		search := key
+		if NormalizeName(raw) == "" {
 			continue
 		}
 

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"github.com/google/uuid"
 )
 
 const Protocol = "manatomb-forge/v1"
@@ -16,6 +18,7 @@ const Pin = "26d8aff87509dde8a9d5017852339382d7ab3e83"
 type Card struct {
 	Name     string `json:"name"`
 	Quantity int    `json:"quantity"`
+	Printing string `json:"printing,omitempty"`
 }
 type Deck struct {
 	Name       string `json:"name"`
@@ -71,6 +74,11 @@ func (d Deck) Validate() error {
 			name := strings.TrimSpace(c.Name)
 			if name == "" || name != c.Name || len(name) > 200 || strings.ContainsAny(name, "\r\n|[]") || strings.IndexFunc(name, unicode.IsControl) >= 0 {
 				return errors.New("invalid card name")
+			}
+			if c.Printing != "" {
+				if id, err := uuid.Parse(c.Printing); err != nil || !strings.EqualFold(id.String(), c.Printing) {
+					return errors.New("invalid card printing")
+				}
 			}
 			if c.Quantity < 1 || c.Quantity > 100 {
 				return errors.New("invalid card quantity")

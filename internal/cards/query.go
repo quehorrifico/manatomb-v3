@@ -837,7 +837,9 @@ func GetCardByName(ctx context.Context, db *sql.DB, name string) (*Card, error) 
 
 	sqlText := canonicalCardSelectSQL() + `
 		WHERE oc.name_search = normalize_card_name($1)
-		ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
+		ORDER BY (lower(oc.name) = lower(btrim($1))) DESC, COALESCE(oc.legal_anywhere, true) DESC,
+			CASE WHEN lower(COALESCE(oc.layout, '')) IN ('token', 'double_faced_token') THEN 1 ELSE 0 END ASC,
+			COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
 		LIMIT 1
 	`
 	rows, err := db.QueryContext(ctx, sqlText, name)
@@ -1005,7 +1007,7 @@ func SearchCardsWithOutcome(ctx context.Context, db *sql.DB, params CardSearchPa
 		plan := buildCardSearchSourcePlan(exactParams, 2)
 		exactSQL := plan.SelectSQL + `
 			WHERE oc.name_search = normalize_card_name($1)` + plan.FilterSQL + `
-			ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
+			ORDER BY (lower(oc.name) = lower(btrim($1))) DESC, COALESCE(oc.legal_anywhere, true) DESC, COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
 			LIMIT 1
 		`
 		exactArgs := append([]any{query}, plan.Args...)
@@ -1027,7 +1029,9 @@ func SearchCardsWithOutcome(ctx context.Context, db *sql.DB, params CardSearchPa
 	exactPlan := buildCardSearchSourcePlan(exactParams, 2)
 	exactSQL := exactPlan.SelectSQL + `
 		WHERE oc.name_search = normalize_card_name($1)` + exactPlan.FilterSQL + `
-		ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
+		ORDER BY (lower(oc.name) = lower(btrim($1))) DESC, COALESCE(oc.legal_anywhere, true) DESC,
+			CASE WHEN lower(COALESCE(oc.layout, '')) IN ('token', 'double_faced_token') THEN 1 ELSE 0 END ASC,
+			COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
 		LIMIT 1
 	`
 	exactArgs := append([]any{query}, exactPlan.Args...)
@@ -1304,7 +1308,7 @@ func SearchCardNamesExactThenFuzzy(
 		exactSQL += ` AND oc.is_commander_candidate = TRUE`
 		exactSQL += ` AND lower(COALESCE(oc.type_line, '')) NOT LIKE '%battle%'`
 	}
-	exactSQL += ` ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC LIMIT 1`
+	exactSQL += ` ORDER BY (lower(oc.name) = lower(btrim($1))) DESC, COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC LIMIT 1`
 
 	exactRows, err := db.QueryContext(ctx, exactSQL, args...)
 	if err != nil {
@@ -1627,6 +1631,29 @@ func GetCardPrintingByScryfallID(ctx context.Context, db *sql.DB, scryfallID str
 	return &card, nil
 }
 
+// GetTokenCardByName keeps tokens separate from same-named playable cards and
+// matches their printed (not anthem-modified) type and power/toughness.
+func GetTokenCardByName(ctx context.Context, db *sql.DB, name, typeLine, pt string) (*Card, error) {
+	typeLine = strings.Join(strings.Fields(strings.TrimPrefix(typeLine, "Token ")), " ")
+	power, toughness, hasPT := strings.Cut(pt, "/")
+	row := db.QueryRowContext(ctx, cardPrintingSelectSQL()+`
+        WHERE oc.name_search = normalize_card_name($1)
+          AND lower(oc.layout) IN ('token', 'double_faced_token')
+          AND ($2 = '' OR lower(btrim(regexp_replace(oc.type_line, '^Token\s+', '', 'i'))) = lower($2))
+          AND (NOT $3 OR (oc.power_text = $4 AND oc.toughness_text = $5))
+          AND COALESCE(cp.lang, 'en') = 'en'
+        ORDER BY cp.released_at DESC NULLS LAST, cp.scryfall_id
+        LIMIT 1`, name, typeLine, hasPT, power, toughness)
+	card, err := scanCardPrinting(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrCardNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &card, nil
+}
+
 // ListCardVersionsByOracleID returns printings for an oracle card id, newest first.
 func ListCardVersionsByOracleID(ctx context.Context, db *sql.DB, oracleID string, limit int) ([]Card, error) {
 	oracleID = strings.TrimSpace(oracleID)
@@ -1700,8 +1727,8 @@ func ResolveCardNamesBatch(
 		}
 		uniqueByKey[key] = struct{}{}
 
-		search := NormalizeName(raw)
-		if search == "" {
+		search := key
+		if NormalizeName(raw) == "" {
 			continue
 		}
 		inputs = append(inputs, inputName{key: key, search: search})
@@ -1739,11 +1766,11 @@ func ResolveCardNamesBatch(
 				COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
 				ROW_NUMBER() OVER (
 					PARTITION BY i.q
-					ORDER BY COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
+					ORDER BY (lower(oc.name) = lower(btrim(i.q))) DESC, COALESCE(oc.legal_anywhere, true) DESC, COALESCE(oc.edhrec_rank, 999999) ASC, oc.name ASC
 				) AS rn
 			FROM input i
 			JOIN oracle_cards oc
-			  ON oc.name_search = i.q
+			  ON oc.name_search = normalize_card_name(i.q)
 		)
 		SELECT
 			q,
@@ -1832,17 +1859,18 @@ func ResolveCardNamesBatch(
 					COALESCE(oc.color_identity, ARRAY[]::text[]) AS color_identity,
 					COALESCE(oc.cmc, 0) AS cmc,
 					COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
-					similarity(oc.name_search, i.q) AS sim,
+					similarity(oc.name_search, normalize_card_name(i.q)) AS sim,
 					ROW_NUMBER() OVER (
 						PARTITION BY i.q
 						ORDER BY
-							similarity(oc.name_search, i.q) DESC,
+							similarity(oc.name_search, normalize_card_name(i.q)) DESC,
+							COALESCE(oc.legal_anywhere, true) DESC,
 							COALESCE(oc.edhrec_rank, 999999) ASC,
 							oc.name ASC
 					) AS rn
 				FROM input i
 				JOIN oracle_cards oc
-				  ON oc.name_search % i.q
+				  ON oc.name_search % normalize_card_name(i.q)
 			)
 			SELECT
 				q,

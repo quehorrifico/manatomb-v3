@@ -1,0 +1,13 @@
+{{ define "cpu_unavailable" }}
+{{ template "layout_header" . }}
+<section class="py-6 space-y-6" aria-labelledby="cpu-unavailable-title">
+  <div class="space-y-3">
+    <p class="mt-kicker">Playtest</p>
+    <h1 id="cpu-unavailable-title" class="mt-title">CPU play isn't available yet</h1>
+    <p class="mt-text-muted">Playing against Forge is not enabled on this site yet. You can keep building decks and use the deck editor's solo playtest.</p>
+  </div>
+  <a href="/decks" class="mt-btn mt-btn--primary mt-btn--sm">My decks</a>
+  <a href="/extras" class="mt-btn mt-btn--secondary mt-btn--sm">Extras</a>
+</section>
+{{ template "layout_footer" . }}
+{{ end }}

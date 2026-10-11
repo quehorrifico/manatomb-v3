@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Assemble retained pinned Forge runtime; compile adapter only, never rebuild Forge."""
+"""Assemble retained pinned Forge runtime; compile adapter and one audited Commander mulligan correction."""
 import argparse,hashlib,json,shutil,subprocess,xml.etree.ElementTree as ET,shlex
 from extract_combat import extract
+from commander_mulligan import extract as extract_mulligan
 from pathlib import Path
 P=argparse.ArgumentParser();P.add_argument('--cache',type=Path,required=True);P.add_argument('--output',type=Path,required=True);P.add_argument('--javac',required=True);a=P.parse_args()
 root=Path(__file__).resolve().parents[2];pin='26d8aff87509dde8a9d5017852339382d7ab3e83';source=a.cache/f'forge-{pin}';out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
@@ -32,7 +33,9 @@ classpath=':'.join(str(x) for x in cp)
 (out/'generated-source').mkdir(exist_ok=True)
 combat=out/'generated-source/PinnedCombatAssignment.java'
 (out/'combat-extraction.json').write_text(json.dumps(extract(source,combat),indent=2)+'\n')
-subprocess.run([a.javac,'--release','17','-cp',classpath,'-d',str(out/'classes'),str(root/'services/forge/src/ForgeWorker.java'),str(combat)],check=True)
+mulligan=out/'generated-source/MulliganService.java'
+(out/'mulligan-correction.json').write_text(json.dumps(extract_mulligan(source,mulligan),indent=2)+'\n')
+subprocess.run([a.javac,'--release','17','-cp',classpath,'-d',str(out/'classes'),str(root/'services/forge/src/ForgeWorker.java'),str(combat),str(mulligan)],check=True)
 if (out/'res').exists():shutil.rmtree(out/'res')
 shutil.copytree(source/'forge-gui/res',out/'res')
 shutil.copy2(a.cache/'runtime/user/preferences/forge.preferences',out/'forge.preferences')

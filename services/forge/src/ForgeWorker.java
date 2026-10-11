@@ -40,10 +40,18 @@ public final class ForgeWorker implements InvocationHandler {
     final String csrf = Objects.requireNonNull(System.getenv("FORGE_WORKER_TOKEN"), "worker token required");
     final LinkedHashMap<String,String> consumed = new LinkedHashMap<>();
     final Map<Integer,Integer> publicIds=new HashMap<>();
+    // Presentation metadata follows the original owner, even when control changes.
+    final Map<Deck,Map<String,String>> deckPrintings=new IdentityHashMap<>();
+    final Map<Integer,Map<String,String>> playerPrintings=new HashMap<>();
     final Map<String,Set<PhaseType>> skippedPhases=new LinkedHashMap<>(Map.of("Human",new HashSet<>(),"CPU",new HashSet<>()));
     int nextPublicId=1;
-    final Set<Integer> selectable = new HashSet<>(), highlighted = new HashSet<>();
+    final Set<Integer> selectable = new HashSet<>(), highlighted = new HashSet<>(), actionable = new HashSet<>(), priorReserveActions = new HashSet<>();
     final List<Map<String,Object>> trace = new ArrayList<>();
+    final List<Map<String,Object>> publicLog = new ArrayList<>();
+    record PublicEntity(int engineId,String label) {}
+    final LinkedHashMap<String,PublicEntity> publicZoneEntities = new LinkedHashMap<>();
+    final Map<Integer,Long> battlefieldEntryEvents = new HashMap<>();
+    long nextLogId=1;
     final Path output;
     final ThreadLocal<Set<Integer>> reveals=ThreadLocal.withInitial(HashSet::new);
     final ThreadLocal<Boolean> revealText=ThreadLocal.withInitial(()->false);
@@ -114,6 +122,9 @@ public final class ForgeWorker implements InvocationHandler {
         FModel.initialize(null,null);
         FModel.getPreferences().setPref(forge.localinstance.properties.ForgePreferences.FPref.PLAYER_NAME,"Human");
         GamePlayerUtil.getGuiPlayer().setName("Human");
+        // Use Forge's own actionable-card projection to focus newly playable
+        // exile/library cards; this changes presentation, not rules or choices.
+        FModel.getPreferences().setPref(forge.localinstance.properties.ForgePreferences.FPref.UI_SHOW_ACTIONABLE_HIGHLIGHTS,true);
         // Production shuffles use Forge randomness; fixtures retain their recorded seed.
         if(focused) MyRandom.setRandom(new Random(20260912));
         Deck h=readDeck(deck1), cpu=readDeck(deck2);
@@ -124,9 +135,15 @@ public final class ForgeWorker implements InvocationHandler {
         var hp=RegisteredPlayer.forCommander(h).setPlayer(new LobbyPlayerHuman("Human"));
         var cp=RegisteredPlayer.forCommander(cpu).setPlayer(GamePlayerUtil.createAiPlayer("CPU",0,"Default"));
         GameRules rules=new GameRules(GameType.Commander); rules.setAppliedVariants(EnumSet.of(GameType.Commander));
+        // This is a desktop AI-advice notice, not a gameplay decision. Keep all
+        // deck cards and actual reveal/target/mode/mulligan decisions unchanged.
+        rules.setWarnAboutAICards(false);
         Match match=new Match(rules,List.of(hp,cp),"ManaTomb Commander");
         game=match.createGame();
-        human=game.getPlayers().get(0); controller=(PlayerControllerHuman)human.getController();
+        human=game.getPlayers().get(0);
+        playerPrintings.put(human.getId(),deckPrintings.getOrDefault(h,Map.of()));
+        playerPrintings.put(game.getPlayers().get(1).getId(),deckPrintings.getOrDefault(cpu,Map.of()));
+        controller=(PlayerControllerHuman)human.getController();
         gui=(IGuiGame)java.lang.reflect.Proxy.newProxyInstance(IGuiGame.class.getClassLoader(),new Class[]{IGuiGame.class},this);
         controller.setGui(gui);
         controller.getInputQueue().addObserver((source,value)->{
@@ -168,6 +185,7 @@ public final class ForgeWorker implements InvocationHandler {
     Deck readDeck(Path path) throws IOException {
         JsonObject input=JsonParser.parseString(Files.readString(path)).getAsJsonObject();
         Deck deck=new Deck(input.get("name").getAsString());
+        Map<String,String> printings=new HashMap<>();deckPrintings.put(deck,printings);
         for(String section:List.of("commanders","main")) {
             CardPool pool=deck.getOrCreate(section.equals("commanders")?DeckSection.Commander:DeckSection.Main);
             for(JsonElement entry:input.getAsJsonArray(section)) {
@@ -177,6 +195,11 @@ public final class ForgeWorker implements InvocationHandler {
                 if(card==null && name.contains(" // "))card=FModel.getMagicDb().getCommonCards().getCard(name.split(" // ")[0]);
                 if(card==null)throw new IllegalArgumentException("Card is unavailable in pinned Forge: "+name);
                 pool.add(card,row.get("quantity").getAsInt());
+                if(row.has("printing") && !row.get("printing").getAsString().isBlank()) {
+                    String printing=row.get("printing").getAsString();
+                    if(!UUID.fromString(printing).toString().equalsIgnoreCase(printing))throw new IllegalArgumentException("Invalid printing ID");
+                    printings.put(card.getName(),printing);
+                }
             }
         }
         return deck;
@@ -236,6 +259,28 @@ public final class ForgeWorker implements InvocationHandler {
             dto.put("temporaryReveal",reveals.get().contains(cv.getId()) && !ordinarilyVisible(cv));
             dto.put("id",publicIds.computeIfAbsent(cv.getId(),k->nextPublicId++));dto.put("mana",cv.getCurrentState().getManaCost().toString());
             dto.put("type",cv.getCurrentState().getType().toString());dto.put("rules",cv.getCurrentState().getOracleText());
+            Card actual=game.findByView(cv);
+            if(actual!=null) {
+                var paper=actual.getPaperCard();
+                if(paper!=null) {
+                    if(cv.isToken() && !cv.isCloned()) {
+                        dto.put("tokenName",paper.getName().replaceFirst("(?i) Token$", ""));
+                        dto.put("tokenType",paper.getRules().getType().toString());
+                        var face=paper.getRules().getMainPart();
+                        if(face.getType().isCreature())dto.put("tokenPT",face.getPower()+"/"+face.getToughness());
+                    } else if(!cv.isCloned() && actual.getOwner()!=null) {
+                        String printing=playerPrintings.getOrDefault(actual.getOwner().getId(),Map.of()).get(paper.getName());
+                        if(printing!=null)dto.put("printing",printing);
+                    }
+                }
+            }
+            if(cv.getZone()==ZoneType.Battlefield && actual!=null) {
+                dto.put("statsModified",cv.getCurrentState().getPower()!=actual.getBasePower() || cv.getCurrentState().getToughness()!=actual.getBaseToughness());
+                List<String> keywords=new ArrayList<>();
+                for(var keyword:List.of(forge.game.keyword.Keyword.FLYING,forge.game.keyword.Keyword.TRAMPLE,forge.game.keyword.Keyword.HASTE,forge.game.keyword.Keyword.VIGILANCE,forge.game.keyword.Keyword.DEATHTOUCH,forge.game.keyword.Keyword.LIFELINK,forge.game.keyword.Keyword.HEXPROOF,forge.game.keyword.Keyword.INDESTRUCTIBLE,forge.game.keyword.Keyword.REACH,forge.game.keyword.Keyword.MENACE,forge.game.keyword.Keyword.FIRST_STRIKE,forge.game.keyword.Keyword.DOUBLE_STRIKE))
+                    if(cv.getCurrentState().hasKeyword(keyword))keywords.add(keyword.toString());
+                dto.put("keywords",keywords);
+            }
             dto.put("token",cv.isToken());dto.put("copy",cv.isCloned());dto.put("backFace",cv.getCurrentState().getState()==forge.card.CardStateName.Backside);
             if(cv.getCurrentState().getType().isCreature())dto.put("pt",cv.getCurrentState().getPower()+"/"+cv.getCurrentState().getToughness());
             dto.put("abilities",safeText(withoutStackMetadata(cv.getCurrentState().getAbilityText())));
@@ -284,7 +329,16 @@ public final class ForgeWorker implements InvocationHandler {
         return result;
     }
     String workingView() {
-        return JSON.toJson(map("status","working","session",incarnation,"revision",++revision,"canRequestConcede",concessionAvailable&&!gameFinished,"concedePending",concessionRequested&&!gameFinished,"phaseStops",phaseStopView()));
+        return JSON.toJson(map("status","working","session",incarnation,"revision",++revision,"canRequestConcede",concessionAvailable&&!gameFinished,"concedePending",concessionRequested&&!gameFinished,"phaseStops",phaseStopView(),"log",new ArrayList<>(publicLog)));
+    }
+    boolean displayCard(Card card,ZoneType zone) {
+        // Player.getKeywordCard() creates a renderable hidden-art EFFECT for
+        // player keyword bookkeeping. It is not a physical command-zone card.
+        // Do not hide emblems, visible spell effects or actual printed cards.
+        return card.getRenderForUI() && !(zone==ZoneType.Command && !card.isEmblem()
+            && card.getGamePieceType()==forge.card.GamePieceType.EFFECT
+            && "Keyword Effects".equals(card.getName())
+            && forge.ImageKeys.HIDDEN_CARD.equals(card.getImageKey()));
     }
     Map<String,Object> snapshot(String status,Pending p) {
         publicIds.clear(); // Entity tokens are scoped to this projection/prompt, never track hidden movements.
@@ -292,28 +346,60 @@ public final class ForgeWorker implements InvocationHandler {
         for(Player player:game.getPlayers()) {
             List<Object> zones=new ArrayList<>();
             for(ZoneType zone:List.of(ZoneType.Hand,ZoneType.Battlefield,ZoneType.Graveyard,ZoneType.Exile,ZoneType.Command,ZoneType.Library)) {
-                var cards=player.getCardsIn(zone); List<Object> shown=new ArrayList<>();
+                var cards=player.getCardsIn(zone).stream().filter(c->displayCard(c,zone)).toList(); List<Object> shown=new ArrayList<>();
                 List<Card> display=new ArrayList<>();for(Card c:cards)if(visible(c.getView()) || (zone==ZoneType.Battlefield && c.isFaceDown()))display.add(c);
                 if(zone==ZoneType.Library || zone==ZoneType.Hand && player!=human)display.sort(Comparator.comparing((Card c)->c.getName()).thenComparingInt(Card::getId));
-                for(Card c:display) if(visible(c.getView()) || (zone==ZoneType.Battlefield && c.isFaceDown())) shown.add(card(c.getView(),p));
+                for(Card c:display) if(visible(c.getView()) || (zone==ZoneType.Battlefield && c.isFaceDown())) {
+                    shown.add(card(c.getView(),p));
+                    if(visible(c.getView()) && List.of(ZoneType.Battlefield,ZoneType.Command,ZoneType.Graveyard,ZoneType.Exile).contains(zone)) {
+                        publicZoneEntities.put(c.toString(),new PublicEntity(c.getId(),label(c.getView())));
+                        while(publicZoneEntities.size()>1000)publicZoneEntities.remove(publicZoneEntities.keySet().iterator().next());
+                    }
+                }
                 // Never export hidden IDs or ordering; visible subsets sorted by public name/id.
                 if(zone==ZoneType.Library || zone==ZoneType.Hand && player!=human) shown.sort(Comparator.comparing(Object::toString));
                 zones.add(map("zone",zone.name(),"count",cards.size(),"cards",shown));
             }
             if(p!=null)p.players.put(player.getView().getId(),player.getView());
             List<Object> commanders=new ArrayList<>();for(Card c:player.getCommanders())if(visible(c.getView()))commanders.add(map("name",c.getName(),"casts",player.getView().getCommanderCast(c.getView()),"damageToHuman",human.getView().getCommanderDamage(c.getView())));
-            players.add(map("id",player.getView().getId(),"name",player==human?"Human":"CPU","life",player.getLife(),"zones",zones,"commanders",commanders,"mana",manaPool(player)));
+            players.add(map("id",player.getView().getId(),"name",player==human?"Human":"CPU","life",player.getLife(),"zones",zones,"commanders",commanders,"mana",manaPool(player),"counters",map("poison",player.getCounters(CounterEnumType.POISON),"energy",player.getCounters(CounterEnumType.ENERGY),"experience",player.getCounters(CounterEnumType.EXPERIENCE))));
         }
         List<Object> stack=new ArrayList<>();
         if(game.getView().getStack()!=null) for(StackItemView item:game.getView().getStack()) {
-            CardView source=item.getSourceCard();stack.add(map("source",visible(source)?cardName(source):"Hidden source","text",visible(source)?safeText(withoutStackMetadata(item.getText())):""));
+            CardView source=item.getSourceCard();
+            Map<String,Object> entry=map("source",visible(source)?cardName(source):"Hidden source","text",visible(source)?safeText(withoutStackMetadata(item.getText())):"");
+            if(visible(source))entry.put("card",card(source,null));
+            stack.add(entry);
+        }
+        if(game.getView().getStack()!=null) {
+            int index=0;
+            for(StackItemView item:game.getView().getStack()) {
+                ((Map<String,Object>)stack.get(index++)).put("targets",stackTargets(item));
+            }
         }
         Map<String,Object> dto=map("status",status,"session",incarnation,"revision",++revision,"players",players,"stack",stack,"turn",game.getPhaseHandler().getTurn(),"phase",String.valueOf(game.getPhaseHandler().getPhase()),"turnPlayer",game.getPhaseHandler().getPlayerTurn()==human?"Human":"CPU");
         dto.put("canRequestConcede",concessionAvailable&&!status.equals("finished"));dto.put("concedePending",concessionRequested&&!status.equals("finished"));
+        dto.put("log",new ArrayList<>(publicLog));
         dto.put("phaseStops",phaseStopView());dto.put("combat",combatView());
         dto.put("priorityPlayer",game.getPhaseHandler().getPriorityPlayer()==null?"None":game.getPhaseHandler().getPriorityPlayer()==human?"Human":"CPU");
         if(status.equals("finished")) {dto.put("result",game.getOutcome().isDraw()?"Draw":game.getOutcome().getWinningLobbyPlayer().getName());dto.put("conceded",human.conceded());}
         return dto;
+    }
+    List<Object> stackTargets(StackItemView stack) {
+        List<Object> targets=new ArrayList<>();
+        for(StackItemView item=stack;item!=null;item=item.getSubInstance()) {
+            if(item.getTargetCards()!=null)for(CardView card:item.getTargetCards()) {
+                Integer id=publicIds.get(card.getId());
+                if(id!=null && (visible(card) || card.isFaceDown() && card.getZone()==ZoneType.Battlefield)) {
+                    Map<String,Object> target=map("type","card","id",id);if(!targets.contains(target))targets.add(target);
+                }
+            }
+            if(item.getTargetPlayers()!=null)for(PlayerView player:item.getTargetPlayers()) {
+                if(!player.equals(human.getView()) && game.getPlayers().stream().noneMatch(p->p.getView().equals(player)))continue;
+                Map<String,Object> target=map("type","player","id",player.getId());if(!targets.contains(target))targets.add(target);
+            }
+        }
+        return targets;
     }
     void publishInput() {
         if(blocked || controller==null || game.isGameOver())return;
@@ -330,12 +416,32 @@ public final class ForgeWorker implements InvocationHandler {
             p.ok=okEnabled;p.cancel=cancelEnabled && !cancelLabel.startsWith("Undo") && !cancelLabel.equals("Auto");
             p.concede=input instanceof InputPassPriority;
             Map<String,Object> dto=snapshot("input",p);p.revision=revision;dto.put("canConcede",p.concede);
-            dto.put("prompt",map("id",p.id,"kind",p.kind,"text",safeText(promptText),"ok",okLabel,"cancel",cancelLabel,"okEnabled",p.ok,"cancelEnabled",p.cancel));
+            dto.put("prompt",map("id",p.id,"kind",p.kind,"text",safeText(promptText),"ok",okLabel,"cancel",cancelLabel,"okEnabled",p.ok,"cancelEnabled",p.cancel,"focusZones",inputFocusZones(p,input)));
             List<Object> mana=new ArrayList<>();if(input instanceof InputPayMana)for(byte color:forge.card.mana.ManaAtom.MANATYPES){int count=human.getView().getMana(color);if(count>0){p.mana.add((int)color);mana.add(map("id",(int)color,"label",forge.card.MagicColor.toLongString(color),"amount",count));}}dto.put("mana",mana);
             dto.put("actionError",actionError);pending=p;shownInput=input;published=JSON.toJson(dto);
             record("projection",dto);
             record("input",map("revision",revision,"kind",p.kind,"turn",game.getPhaseHandler().getTurn()));
         }
+    }
+    List<Object> inputFocusZones(Pending p, Input input) {
+        if(input instanceof InputPassPriority) {
+            // Newly playable reserve cards (e.g. impulse draw) are shown once.
+            // The usual available commander does not interrupt every priority.
+            List<CardView> reserve=p.cards.values().stream().filter(c->actionable.contains(c.getId()) && List.of(ZoneType.Exile,ZoneType.Graveyard,ZoneType.Library).contains(c.getZone())).toList();
+            List<CardView> added=reserve.stream().filter(c->!priorReserveActions.contains(c.getId())).toList();
+            priorReserveActions.clear();reserve.forEach(c->priorReserveActions.add(c.getId()));
+            return focusZones(added,true);
+        }
+        return focusZones(p.cards.values().stream().filter(c->selectable.contains(c.getId())).toList(),!(input instanceof InputPayMana));
+    }
+    List<Object> focusZones(Collection<CardView> offered, boolean permitted) {
+        List<Object> result=new ArrayList<>();
+        if(!permitted)return result;
+        for(Player player:game.getPlayers())for(ZoneType zone:List.of(ZoneType.Library,ZoneType.Exile,ZoneType.Command,ZoneType.Graveyard)) {
+            boolean found=player.getCardsIn(zone).stream().anyMatch(c->c.getRenderForUI() && visible(c.getView()) && offered.stream().anyMatch(view->view.getId()==c.getId()));
+            if(found)result.add(map("player",player.getId(),"zone",zone.name()));
+        }
+        return result;
     }
     String label(Object option) {
         if(option instanceof CardView c)return visible(c)?cardName(c)+(publicIds.containsKey(c.getId())?" [Card "+publicIds.get(c.getId())+"]":""):"Hidden card";
@@ -374,12 +480,17 @@ public final class ForgeWorker implements InvocationHandler {
     String publicDamageEntity(String engineText) {
         // Only translate an exact entity already present in this authorized
         // projection. Never expose raw trigger metadata or tracking IDs.
+        PublicEntity prior=publicZoneEntities.get(engineText);
         for(Player player:game.getPlayers()) {
             if(engineText.equals(player.toString()))return player==human?"Human":"CPU";
-            for(ZoneType zone:ZoneType.values())for(Card card:player.getCardsIn(zone))
-                if(publicIds.containsKey(card.getId()) && visible(card.getView()) && engineText.equals(card.toString()))return label(card.getView());
+            for(ZoneType zone:ZoneType.values())for(Card card:player.getCardsIn(zone)) {
+                if(engineText.equals(card.toString()))return publicIds.containsKey(card.getId()) && visible(card.getView())?label(card.getView()):null;
+                // A face-down or renamed entity can change its engine string.
+                // Historical context cannot recover its concealed identity.
+                if(prior!=null && card.getId()==prior.engineId())return null;
+            }
         }
-        return null;
+        return prior==null?null:prior.label();
     }
     String publicDamageContext(String description) {
         // Pinned TriggerDamageDone.getImportantStackObjects supplies these three
@@ -395,6 +506,13 @@ public final class ForgeWorker implements InvocationHandler {
         if(source==null || target==null)return "";
         return "Damage from "+source+" to "+target+": "+match.group(3);
     }
+    String publicZoneContext(String description) {
+        String marker=" ["+forge.util.Localizer.getInstance().getMessage("lblZoneChanger")+": ";
+        int start=description.lastIndexOf(marker);
+        if(start<0 || !description.endsWith("]"))return "";
+        String entity=publicDamageEntity(description.substring(start+marker.length(),description.length()-1));
+        return entity==null?"":"Zone change: "+entity;
+    }
     String abilityLabel(SpellAbilityView ability) {
         CardView source=ability.getHostCard();
         if(!visible(source))return "Hidden ability";
@@ -405,6 +523,7 @@ public final class ForgeWorker implements InvocationHandler {
         boolean missing=description.replaceAll("\\[[^\\]]*\\]", "").isBlank();
         String result=label(source)+" — "+description;
         String damageContext=publicDamageContext(raw);if(!damageContext.isEmpty())result+=" · "+damageContext;
+        String zoneContext=publicZoneContext(raw);if(!zoneContext.isEmpty())result+=" · "+zoneContext;
         if(missing) {
             String rules=safeText(source.getCurrentState().getOracleText());
             if(rules.isBlank())throw new UnsupportedOperationException("Ability lacks authorized explanatory text");
@@ -430,11 +549,14 @@ public final class ForgeWorker implements InvocationHandler {
             for(int i=0;i<options.size();i++) {
                 String text=label(options.get(i));
                 if(options.get(i) instanceof String)text=refreshReferences(text,priorReferences);
-                if(options.get(i) instanceof SpellAbilityView && !abilityLabels.add(text))
-                    throw new UnsupportedOperationException("Indistinguishable ability options need additional authorized context");
+                if(options.get(i) instanceof SpellAbilityView && !abilityLabels.add(text)) {
+                    if(kind.equals("orderSimultaneousAbilities"))text+=" · Trigger "+(i+1);
+                    else throw new UnsupportedOperationException("Indistinguishable ability options need additional authorized context");
+                }
                 opts.add(map("id",i,"label",text));
             }
             Map<String,Object> prompt=map("id",p.id,"kind",kind,"text",safeText(message),"min",min,"max",max,"options",opts,"ordering",kind.equals("orderSimultaneousAbilities") || kind.equals("orderCards"),"valueType",valueType);
+            prompt.put("focusZones",focusZones(options.stream().filter(CardView.class::isInstance).map(CardView.class::cast).toList(),true));
             prompt.putAll(extra);dto.put("prompt",prompt);
             pending=p;published=JSON.toJson(dto);record("projection",dto);record("choice",map("kind",kind,"revision",revision,"thread",Thread.currentThread().getName()));
         }
@@ -619,11 +741,58 @@ public final class ForgeWorker implements InvocationHandler {
         }
         return "{\"accepted\":true}";
     }
+    String logPlayer(PlayerView player) {return player==null?"A player":player.equals(human.getView())?"You":"Opponent";}
+    String logCard(CardView card) {return visible(card)?cardName(card):"a hidden card";}
+    long logEvent(String text) {
+        synchronized(gate) {
+            int turn=game.getPhaseHandler().getTurn();
+            Player active=game.getPhaseHandler().getPlayerTurn();
+            long id=nextLogId++;
+            publicLog.add(map("id",id,"turn",turn,"player",active==null?"None":active==human?"Human":"CPU","text",text.length()>700?text.substring(0,697)+"…":text));
+            if(publicLog.size()>200) {Object removed=publicLog.remove(0).get("id");battlefieldEntryEvents.values().removeIf(value->value.equals(removed));}
+            return id;
+        }
+    }
     @Subscribe public void event(GameEvent event) {
-        // Event class alone is safe; full event.toString()/game logs are intentionally excluded.
-        if(event instanceof GameEventSpellResolved resolved && visible(resolved.spell().getHostCard()))
-            record("resolved-public-source",map("source",resolved.spell().getHostCard().getCurrentState().getName(),"fizzled",resolved.hasFizzled()));
-        if(event instanceof GameEventSpellAbilityCast || event instanceof GameEventGameOutcome || event instanceof GameEventZone || event instanceof GameEventCombatChanged) record("engine-event",map("type",event.getClass().getSimpleName()));
+        // Capture only authorized public event fields while Forge dispatches them.
+        // Never forward raw event strings, targetDescription, draws or library order.
+        if(event instanceof GameEventTurnBegan e)logEvent(logPlayer(e.turnOwner())+" started turn "+e.turnNumber()+".");
+        else if(event instanceof GameEventLandPlayed e) {
+            synchronized(gate) {
+                // Forge announces the zone move before announcing the actual
+                // land play. Replace that one arrival, never unrelated arrivals.
+                Long arrival=battlefieldEntryEvents.remove(e.land().getId());
+                if(arrival!=null)publicLog.removeIf(row->arrival.equals(row.get("id")));
+                logEvent(logPlayer(e.player())+" played "+logCard(e.land())+".");
+            }
+        }
+        else if(event instanceof GameEventSpellAbilityCast e) {
+            List<String> targets=new ArrayList<>();
+            for(StackItemView item=e.si();item!=null;item=item.getSubInstance()) {
+                if(item.getTargetCards()!=null)for(CardView card:item.getTargetCards())targets.add(logCard(card));
+                if(item.getTargetPlayers()!=null)for(PlayerView player:item.getTargetPlayers())targets.add(logPlayer(player));
+            }
+            String text=logPlayer(e.si().getActivatingPlayer())+(e.sa().isSpell()?" cast ":" used an ability of ")+logCard(e.sa().getHostCard());
+            if(!targets.isEmpty())text+=", targeting "+String.join(", ",targets);
+            logEvent(text+".");
+        } else if(event instanceof GameEventSpellResolved e && e.hasFizzled())logEvent(logCard(e.spell().getHostCard())+" did not resolve.");
+        else if(event instanceof GameEventAttackersDeclared e) {
+            for(var entry:e.attackersMap().entries())logEvent(logPlayer(e.player())+" attacked "+(entry.getKey() instanceof PlayerView player?logPlayer(player):entry.getKey() instanceof CardView card?logCard(card):"a defender")+" with "+logCard(entry.getValue())+".");
+        } else if(event instanceof GameEventBlockersDeclared e) {
+            for(var defenders:e.blockers().values())for(var entry:defenders.entries())logEvent(logPlayer(e.defendingPlayer())+" blocked "+logCard(entry.getKey())+" with "+logCard(entry.getValue())+".");
+        } else if(event instanceof GameEventPlayerDamaged e)logEvent(logCard(e.source())+" dealt "+e.amount()+" "+(e.combat()?"combat ":"")+"damage to "+logPlayer(e.target())+(e.infect()?" as poison counters":"")+".");
+        else if(event instanceof GameEventCardDamaged e)logEvent(logCard(e.source())+" dealt "+e.amount()+" damage to "+logCard(e.card())+".");
+        else if(event instanceof GameEventPlayerLivesChanged e && e.newLives()!=e.oldLives())logEvent(logPlayer(e.player())+(e.newLives()>e.oldLives()?" gained ":" lost ")+Math.abs(e.newLives()-e.oldLives())+" life ("+e.newLives()+" life).");
+        else if(event instanceof GameEventCardChangeZone e && visible(e.card()) && e.to()!=null) {
+            ZoneType from=e.from()==null?null:e.from().zoneType(),to=e.to().zoneType();
+            if(from==ZoneType.Battlefield && to==ZoneType.Graveyard)logEvent(logCard(e.card())+" died.");
+            else if(from==ZoneType.Battlefield && to==ZoneType.Exile)logEvent(logCard(e.card())+" was exiled.");
+            // Normal permanent spells already have a cast event. Keep arrivals
+            // caused by effects (tokens, reanimation, library reveals, etc.).
+            else if(to==ZoneType.Battlefield && from!=ZoneType.Battlefield && from!=ZoneType.Stack) {
+                synchronized(gate){long id=logEvent(logCard(e.card())+" entered the battlefield.");battlefieldEntryEvents.put(e.card().getId(),id);}
+            }
+        }
     }
     @Override public Object invoke(Object proxy,Method method,Object[] args) throws Throwable {
         String name=method.getName();Object[] a=args==null?new Object[0]:args;
@@ -640,6 +809,8 @@ public final class ForgeWorker implements InvocationHandler {
             case "isSelecting":return !selectable.isEmpty();
             case "showPromptMessage":promptText=(String)a[1];paintedInput=controller.getInputQueue().getInput();paintSerial++;return null;
             case "updateButtons":okLabel=(String)a[1];cancelLabel=(String)a[2];okEnabled=(Boolean)a[3];cancelEnabled=(Boolean)a[4];return null;
+            case "setWeaklySelectable":actionable.clear();for(Object c:(Iterable<?>)a[0])actionable.add(((CardView)c).getId());return null;
+            case "clearWeaklySelectable":actionable.clear();return null;
             case "setSelectables":selectable.clear();for(Object c:(Iterable<?>)a[0])selectable.add(((CardView)c).getId());return null;
             case "clearSelectables":selectable.clear();return null;
             case "setHighlighted":for(Object entity:(Iterable<?>)a[0]){int id=((GameEntityView)entity).getId();if((Boolean)a[1])highlighted.add(id);else highlighted.remove(id);}return null;
@@ -648,12 +819,18 @@ public final class ForgeWorker implements InvocationHandler {
                 List<?> items=(List<?>)a[1];
                 for(Object item:items)if(item instanceof CardView c)reveals.get().add(c.getId());
                 revealText.set(true);
-                try {ask(name,"Forge authorized reveal",items,0,0);} finally {reveals.get().clear();revealText.set(false);}
+                try {ask(name,safeText((String)a[0]),items,0,0);} finally {reveals.get().clear();revealText.set(false);}
                 return null;
             }
             case "order":return orderSimultaneous(a);
             case "getAbilityToPlay": {
                 List<SpellAbilityView> offered=(List<SpellAbilityView>)a[1];
+                if(offered!=null && offered.size()==1 && a[0] instanceof CardView host) {
+                    Card card=game.findByView(host);
+                    // A sole legal land play already represents the requested action.
+                    // Resolve its engine identity, never its translated "Play land" label.
+                    if(card!=null && offered.get(0).canPlay() && card.getSpellAbilities().stream().anyMatch(sa->sa.isLandAbility() && sa.getView().getId()==offered.get(0).getId()))return offered.get(0);
+                }
                 if(offered!=null && offered.size()==1 && !offered.get(0).promptIfOnlyPossibleAbility()) {
                     // Match the pinned desktop's sole-action shortcut after a
                     // deliberate card click. Forge's playable view is authoritative.

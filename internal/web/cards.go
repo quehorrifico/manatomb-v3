@@ -2680,7 +2680,30 @@ func (a *App) HandleCardResolve(w http.ResponseWriter, r *http.Request) {
 		card *cards.Card
 		err  error
 	)
-	if exactOnly {
+	printing := r.URL.Query().Get("printing")
+	if printing != "" {
+		id, parseErr := uuid.Parse(printing)
+		if parseErr != nil || !strings.EqualFold(id.String(), printing) {
+			http.Error(w, "invalid printing", http.StatusBadRequest)
+			return
+		}
+		card, err = cards.GetCardPrintingByScryfallID(r.Context(), a.DB, printing)
+		if err == nil {
+			matches := strings.EqualFold(card.Name, query)
+			for _, face := range card.Faces {
+				matches = matches || strings.EqualFold(face.Name, query)
+			}
+			if !matches {
+				err = cards.ErrCardNotFound
+			}
+		}
+	} else if r.URL.Query().Get("token") == "1" {
+		if len(query) > 200 || len(r.URL.Query().Get("type")) > 200 || len(r.URL.Query().Get("pt")) > 40 {
+			http.Error(w, "invalid token", http.StatusBadRequest)
+			return
+		}
+		card, err = cards.GetTokenCardByName(r.Context(), a.DB, query, r.URL.Query().Get("type"), r.URL.Query().Get("pt"))
+	} else if exactOnly {
 		card, err = cards.GetCardByName(r.Context(), a.DB, query)
 	} else {
 		card, err = cards.ResolveCardByNameFuzzy(r.Context(), a.DB, query)
