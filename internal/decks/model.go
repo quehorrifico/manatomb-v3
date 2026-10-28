@@ -27,6 +27,7 @@ type Deck struct {
 }
 
 type DeckInput struct {
+	RoleOverrides    map[string]string
 	Name             string
 	Description      string
 	Tags             string
@@ -39,6 +40,9 @@ type DeckInput struct {
 }
 
 type DeckCard struct {
+	Roles            []string
+	RoleOverride     string
+	RoleSource       string
 	CardID           string
 	CardName         string
 	ManaCost         string
@@ -130,7 +134,7 @@ func adjustDeckCardQty(ctx context.Context, tx *sql.Tx, deckID int64, oracleID, 
 					$2::uuid,
 					$3,
 					$4,
-					(
+					COALESCE((
 						SELECT preferred_print_id
 						FROM deck_cards
 						WHERE deck_id = $1
@@ -138,7 +142,7 @@ func adjustDeckCardQty(ctx context.Context, tx *sql.Tx, deckID int64, oracleID, 
 						  AND preferred_print_id IS NOT NULL
 						ORDER BY board
 						LIMIT 1
-					)
+					), (SELECT default_print_id FROM oracle_cards WHERE oracle_id = $2::uuid))
 				)
 			`, deckID, oracleID, newQty, board)
 		return err
@@ -298,7 +302,7 @@ func SetCardPreferredPrint(ctx context.Context, db *sql.DB, deckID int64, oracle
 	if printID == "" || strings.EqualFold(printID, "default") || strings.EqualFold(printID, "latest") {
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE deck_cards
-			SET preferred_print_id = NULL
+			SET preferred_print_id = (SELECT default_print_id FROM oracle_cards WHERE oracle_id = $2::uuid)
 			WHERE deck_id = $1 AND oracle_id = $2::uuid AND board = $3
 		`, deckID, oracleID, board); err != nil {
 			return err
@@ -396,10 +400,10 @@ func SetCommanderPreferredPrint(ctx context.Context, db *sql.DB, deckID int64, o
 
 	result, err := tx.ExecContext(ctx, `
 		UPDATE decks
-		SET commander_print_id = NULLIF($2, '')::uuid,
+		SET commander_print_id = COALESCE(NULLIF($2, '')::uuid, (SELECT default_print_id FROM oracle_cards WHERE oracle_id = $3::uuid)),
 		    updated_at = NOW()
 		WHERE id = $1
-	`, deckID, commanderPrintID)
+	`, deckID, commanderPrintID, oracleID)
 	if err != nil {
 		return err
 	}
@@ -413,7 +417,7 @@ func SetCommanderPreferredPrint(ctx context.Context, db *sql.DB, deckID int64, o
 
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE deck_cards
-		SET preferred_print_id = NULLIF($3, '')::uuid
+		SET preferred_print_id = COALESCE(NULLIF($3, '')::uuid, (SELECT default_print_id FROM oracle_cards WHERE oracle_id::text = $2))
 		WHERE deck_id = $1
 		  AND oracle_id::text = $2
 		  AND board = 'main'
@@ -647,8 +651,8 @@ func SetMainboard(ctx context.Context, db *sql.DB, deckID int64, cardsIn []DeckC
 	}
 
 	stmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO deck_cards (deck_id, oracle_id, qty, board)
-		VALUES ($1, $2::uuid, $3, 'main')
+		INSERT INTO deck_cards (deck_id, oracle_id, qty, board, preferred_print_id)
+		VALUES ($1, $2::uuid, $3, 'main', (SELECT default_print_id FROM oracle_cards WHERE oracle_id = $2::uuid))
 	`)
 	if err != nil {
 		return err
@@ -1179,6 +1183,14 @@ func EnsureDeckTables(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	if _, err := db.ExecContext(ctx, `
+		UPDATE deck_cards dc SET preferred_print_id = oc.default_print_id
+		FROM oracle_cards oc
+		WHERE dc.oracle_id = oc.oracle_id AND dc.preferred_print_id IS NULL
+		  AND oc.default_print_id IS NOT NULL
+	`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `
 		UPDATE decks AS d
 		SET commander_print_id = COALESCE(
 			(
@@ -1270,7 +1282,7 @@ func EnsureDeckTables(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
-	return nil
+	return EnsureDeckRoleTable(ctx, db)
 }
 
 func scanDeck(scan func(dest ...any) error) (*Deck, error) {
@@ -1422,7 +1434,7 @@ func UpdateDeckWithOptions(ctx context.Context, db *sql.DB, deckID int64, input 
 		    tags = $3,
 		    format = $4,
 		    commander_name = $5,
-		    commander_print_id = NULLIF($6, '')::uuid,
+		    commander_print_id = COALESCE(NULLIF($6, '')::uuid, (SELECT default_print_id FROM oracle_cards WHERE name_search = normalize_card_name($5) ORDER BY COALESCE(edhrec_rank, 2147483647), name LIMIT 1)),
 		    is_public = $7,
 		    public_slug = NULLIF($8, ''),
 		    published_at = $9,
@@ -1471,7 +1483,7 @@ func insertDeckTx(ctx context.Context, tx *sql.Tx, userID int64, input DeckInput
 			published_at,
 			power_bracket
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, '')::uuid, FALSE, NULL, NULL, $8)
+		VALUES ($1, $2, $3, $4, $5, $6, COALESCE(NULLIF($7, '')::uuid, (SELECT default_print_id FROM oracle_cards WHERE name_search = normalize_card_name($6) ORDER BY COALESCE(edhrec_rank, 2147483647), name LIMIT 1)), FALSE, NULL, NULL, $8)
 		RETURNING
 			id,
 			user_id,

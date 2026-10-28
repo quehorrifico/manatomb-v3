@@ -136,6 +136,9 @@ Sync behavior:
 - The app also runs an immediate startup sync automatically when local card data is missing or on an older app data version.
 - You can force an immediate startup sync with `--sync-now` or `CARD_SYNC_ON_START=true`.
 - `CARD_SYNC_MAX_ROWS` is a non-destructive development aid. Limited syncs upsert sampled cards without deleting the rest of the local card database. Leave it at `0` in production.
+- Oracle role tags refresh from Scryfall's Oracle Tags bulk dataset on startup and daily while `CARD_SYNC_ENABLED=true`. Descendant tags inherit their broad roles; failed refreshes preserve the last good snapshot. Text classification remains the fallback for cards without mapped tags.
+- Card role grouping and Analysis use the same resolved roles. A card's action menu lets a player override its primary role for that deck or return to Automatic.
+- Deck cost uses the selected printings' known USD prices for the main deck, commander, and sideboard; the maybeboard is excluded and unpriced copies are reported. Use cheapest printings is an explicit version change; ties and cards with no priced paper alternative remain unchanged.
 - Printing records stream through a temporary file into PostgreSQL rather than retaining the entire printing catalog in web-service memory. The service needs writable temporary disk space; failed downloads or imports leave the previous catalog intact.
 - To recover a web service that becomes unavailable during a sync, temporarily set `CARD_SYNC_ENABLED=false` and redeploy the web component. This preserves existing cards and decks, but pauses card updates. After deploying the streaming importer, restore `CARD_SYNC_ENABLED=true` and verify the logs reach `cards bulk sync complete`.
 
@@ -167,6 +170,41 @@ ManaTomb is deployed on DigitalOcean App Platform.
 - Health checks can target `GET /healthz`.
 
 Sensitive credentials and connection strings should be kept outside this repository.
+
+### Performance logs
+
+Server timing logs are enabled by default and written to the same stdout/stderr
+stream as existing application logs, visible in DigitalOcean runtime logs. Search
+for `perf `, `"event":"slow_query"`, or `"slow":true`.
+
+- `PERF_LOG_ENABLED=false` disables timing instrumentation and logs.
+- `PERF_SLOW_QUERY_MS=100` sets the slow database operation threshold in milliseconds.
+- `PERF_SLOW_REQUEST_MS=500` sets the slow request threshold in milliseconds.
+
+Each dynamic request produces a JSON `request` event with its registered route,
+method, status, response bytes, total `duration_ms`, `db_queries`, and summed
+`db_ms`. `top_queries` lists the five query call sites with the highest cumulative
+database time, including their source file/line, query fingerprint, and count.
+`stages_ms` includes template rendering (`render.<template>`) and saved deck
+workspace loading (`deck_workspace`). Healthy fast `/healthz` and `/assets/`
+requests are omitted; slow or failing ones are logged.
+
+Slow database operations also emit a `slow_query` event with a `source` file/line
+and `query_id`. Match `request_id` to the request summary or the response's
+`X-Request-ID` header. Background database work has an empty request ID.
+SQL text, parameters, query strings, cookies, and request bodies are omitted from
+these timing events.
+
+To diagnose a slow page, compare `duration_ms` with `db_ms`, then inspect
+`top_queries` and `stages_ms`. Database timings cover driver execution and fetching
+rows, excluding application time between row reads and connection pool acquisition.
+Preparations and transaction begin/commit/rollback are counted as database
+operations; bulk COPY streams are aggregated as one operation. Stage times can overlap database time and each other; do not add
+them together. Parallel database work can also exceed total request wall time.
+`db_pool_in_use` and `db_pool_open` are snapshots; `db_pool_wait_count_total` and
+`db_pool_wait_ms_total` are cumulative process-wide pool-wait counters, useful when
+delays increase under concurrent traffic. These are server timings; browser
+rendering, image downloads, and network transit require browser measurements.
 
 ### Production Release Checklist
 

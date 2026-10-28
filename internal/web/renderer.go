@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"manatomb/app/internal/decks"
+	"manatomb/app/internal/perf"
 )
 
 const (
@@ -485,6 +486,7 @@ func applyTemplateDefaultsWithPublicBaseURL(name string, data any, publicBaseURL
 }
 
 func (r *Renderer) Render(w http.ResponseWriter, name string, data any) {
+	defer perf.Stage(perf.WriterContext(w), "render."+name)()
 	var buf bytes.Buffer
 	data = applyTemplateDefaultsWithPublicBaseURL(name, data, r.publicBaseURL)
 

@@ -176,6 +176,7 @@
             <div class="mt-card-detail-modal__printing">
               <div class="mt-card-detail-modal__printing-control" data-field="printing-group">
                 <span class="mt-card-detail-modal__printing-label" data-field="printing-label">Printing</span>
+                {{ template "card_printing_sort" . }}
                 <div class="mt-card-detail-modal__printing-grid"
                      data-field="printing-grid"
                      role="listbox"

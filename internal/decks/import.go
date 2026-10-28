@@ -121,8 +121,20 @@ func CreateImportedDeck(
 
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO deck_cards (deck_id, oracle_id, qty, board, preferred_print_id)
-			VALUES ($1, $2::uuid, $3, $4, NULLIF($5, '')::uuid)
+			VALUES ($1, $2::uuid, $3, $4, COALESCE(NULLIF($5, '')::uuid, (SELECT default_print_id FROM oracle_cards WHERE oracle_id = $2::uuid)))
 		`, deck.ID, item.OracleID, item.Qty, item.Board, item.PreferredPrintID); err != nil {
+			return nil, err
+		}
+	}
+
+	for oracleID, role := range input.RoleOverrides {
+		if role == "" {
+			continue
+		}
+		if !validImportedRole(role) {
+			return nil, fmt.Errorf("invalid imported card role")
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO deck_card_role_overrides(deck_id,oracle_id,role) VALUES($1,$2::uuid,$3)`, deck.ID, oracleID, role); err != nil {
 			return nil, err
 		}
 	}
@@ -131,4 +143,40 @@ func CreateImportedDeck(
 		return nil, err
 	}
 	return deck, nil
+}
+
+// AddImportedDeckCards adds a resolved list atomically without changing existing printings.
+func AddImportedDeckCards(ctx context.Context, db *sql.DB, deckID, userID int64, items []ImportedDeckCardInput) error {
+	normalized, err := normalizeImportedDeckCards(items)
+	if err != nil {
+		return err
+	}
+	if len(normalized) == 0 {
+		return fmt.Errorf("no cards to import")
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var owned int64
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM decks WHERE id = $1 AND user_id = $2 FOR UPDATE`, deckID, userID).Scan(&owned); err != nil {
+		return err
+	}
+	for _, item := range normalized {
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO deck_cards (deck_id, oracle_id, qty, board, preferred_print_id)
+			VALUES ($1, $2::uuid, $3, $4, COALESCE(
+				(SELECT preferred_print_id FROM deck_cards WHERE deck_id = $1 AND oracle_id = $2::uuid AND preferred_print_id IS NOT NULL ORDER BY board LIMIT 1),
+				(SELECT scryfall_id FROM card_prints WHERE scryfall_id = NULLIF($5, '')::uuid AND oracle_id = $2::uuid),
+				(SELECT default_print_id FROM oracle_cards WHERE oracle_id = $2::uuid)))
+			ON CONFLICT (deck_id, oracle_id, board) DO UPDATE SET qty = deck_cards.qty + EXCLUDED.qty
+		`, deckID, item.OracleID, item.Qty, item.Board, item.PreferredPrintID); err != nil {
+			return err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE decks SET updated_at = NOW() WHERE id = $1`, deckID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

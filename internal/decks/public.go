@@ -379,6 +379,10 @@ func ForkDeckToUser(ctx context.Context, db *sql.DB, publicSlug string, userID i
 		return nil, err
 	}
 
+	if _, err := tx.ExecContext(ctx, `INSERT INTO deck_card_role_overrides(deck_id,oracle_id,role) SELECT $1,oracle_id,role FROM deck_card_role_overrides WHERE deck_id=$2`, newDeck.ID, source.ID); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}

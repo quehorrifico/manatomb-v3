@@ -1,5 +1,6 @@
 {{ define "decks_public_show" }}
   {{ template "layout_header" . }}
+  <link rel="stylesheet" href="{{ assetURL "deck_transfer.css" }}">
   {{ $ctx := .Data }}
   {{ $d := $ctx.Deck }}
 
@@ -56,24 +57,8 @@
                 </a>
               {{ end }}
 
-              <div class="mt-public-download-split">
-                <button type="button"
-                        id="public-deck-export-txt"
-                        class="mt-public-download-split__primary">
-                  Download TXT
-                </button>
-                <details id="public-deck-action-menu"
-                         class="mt-action-menu mt-public-download-split__menu">
-                  <summary aria-label="More deck actions">
-                    <span aria-hidden="true">▾</span>
-                  </summary>
-                  <div class="mt-action-menu__panel">
-                    <button type="button" id="public-deck-copy-link" class="mt-action-menu__item">Copy deck link</button>
-                    <button type="button" id="public-deck-copy-list" class="mt-action-menu__item">Copy decklist</button>
-                    <button type="button" id="public-deck-export-csv" class="mt-action-menu__item">Download CSV</button>
-                  </div>
-                </details>
-              </div>
+              <button type="button" id="deck-export-open" class="mt-btn mt-btn--secondary mt-btn--sm" aria-haspopup="dialog">Export deck</button>
+              <button type="button" id="public-deck-copy-link" class="mt-btn mt-btn--secondary mt-btn--sm">Copy deck link</button>
             </div>
             <p id="public-deck-action-status"
                class="mt-public-action-status"
@@ -309,8 +294,10 @@
   </div>
 
   {{ template "card_detail_modal" . }}
+  {{ template "deck_export_modal" . }}
+  <script src="{{ assetURL "deck_transfer.js" }}"></script>
 
-  <script src="/assets/deck_browser.js"></script>
+  <script src="{{ assetURL "deck_browser.js" }}"></script>
   {{ template "card_detail_modal_script" . }}
   <script>
     window.ManatombPublicDeckConfig = {
@@ -333,7 +320,7 @@
       }
     };
   </script>
-  <script src="/assets/public_deck.js"></script>
+  <script src="{{ assetURL "public_deck.js" }}"></script>
 
   {{ template "layout_footer" . }}
 {{ end }}

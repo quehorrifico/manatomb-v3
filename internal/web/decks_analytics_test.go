@@ -2,6 +2,31 @@ package web
 
 import "testing"
 
+func TestComputeDeckAnalytics_AverageManaValueExcludesLands(t *testing.T) {
+	t.Parallel()
+
+	nonlands := []deckAnalyticsCardInput{
+		{Name: "Ornithopter", TypeLine: "Artifact Creature — Thopter", Qty: 1, CMC: 0},
+		{Name: "Grizzly Bears", TypeLine: "Creature — Bear", Qty: 3, CMC: 2},
+		{Name: "Harmonize", TypeLine: "Sorcery", Qty: 1, CMC: 4},
+	}
+	lands := []deckAnalyticsCardInput{
+		{Name: "Forest", TypeLine: "Basic Land — Forest", Qty: 30},
+		// A nonzero value also verifies lands never enter the numerator.
+		{Name: "Test Land", TypeLine: "Land", Qty: 10, CMC: 7},
+	}
+	for _, rows := range [][]deckAnalyticsCardInput{nonlands, append(append([]deckAnalyticsCardInput{}, nonlands...), lands...)} {
+		analytics := computeDeckAnalytics("Sandbox", "", rows)
+		if analytics.AverageCMC != 2 || analytics.AverageCMCDisplay != "2.00" {
+			t.Fatalf("expected quantity-weighted nonland average 2.00, got %v (%s)", analytics.AverageCMC, analytics.AverageCMCDisplay)
+		}
+	}
+	analytics := computeDeckAnalytics("Sandbox", "", lands)
+	if analytics.AverageCMC != 0 || analytics.AverageCMCDisplay != "0.00" {
+		t.Fatalf("expected land-only average 0.00, got %v (%s)", analytics.AverageCMC, analytics.AverageCMCDisplay)
+	}
+}
+
 func TestComputeDeckAnalytics_CommanderWarnings(t *testing.T) {
 	t.Parallel()
 
@@ -273,4 +298,20 @@ func assertStringPresent(t *testing.T, got []string, want string) {
 		}
 	}
 	t.Fatalf("expected %q in %#v", want, got)
+}
+
+func TestCuratedRolesOverrideHeuristicsAndPrimaryRole(t *testing.T) {
+	got := computeDeckAnalytics("Sandbox", "", []deckAnalyticsCardInput{{Name: "Support", TypeLine: "Enchantment", OracleText: "Each creature you control gets +1/+1.", Qty: 1, Roles: []string{"protection"}, RoleOverride: "utility"}, {Name: "Land tutor", TypeLine: "Sorcery", Qty: 2, Roles: []string{"ramp", "tutor"}}})
+	if got.BoardWipeCount != 0 || got.ProtectionCount != 1 || got.RampCount != 2 || got.TutorCount != 2 {
+		t.Fatalf("curated role counts not shared: %#v", got)
+	}
+	found := false
+	for _, category := range got.CategoryBreakdown {
+		if category.Key == "utility" && category.Count == 1 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("deck-specific primary role was ignored")
+	}
 }

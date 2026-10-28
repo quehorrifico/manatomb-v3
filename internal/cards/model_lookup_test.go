@@ -60,7 +60,7 @@ func (cardLookupEmptyRows) Columns() []string {
 	return []string{
 		"name_search", "oracle_id", "name", "mana_cost", "type_line", "oracle_text", "flavor_text",
 		"all_parts_json", "image_uri", "art_crop_uri", "colors", "color_identity", "cmc", "price_usd",
-		"artist", "set_code", "set_name", "collector_number", "is_commander_candidate",
+		"artist", "set_code", "set_name", "collector_number", "is_commander_candidate", "print_id",
 	}
 }
 

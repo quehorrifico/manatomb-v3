@@ -1,0 +1,33 @@
+{{ define "deck_export_modal" }}
+  <dialog id="deck-export-dialog" class="mt-deck-transfer-dialog" aria-labelledby="deck-export-title">
+    <form method="dialog" class="mt-deck-transfer-dialog__close"><button class="mt-btn mt-btn--secondary mt-btn--sm" aria-label="Close export">×</button></form>
+    <p class="mt-kicker">Take your deck with you</p>
+    <h2 id="deck-export-title">Export deck</h2>
+    <label class="mt-deck-transfer-dialog__field">Type
+      <select id="deck-export-type" class="mt-control">
+        <option value="text">Text (.txt)</option>
+        <option value="csv">CSV (.csv)</option>
+        <option value="clipboard">Copy to clipboard</option>
+      </select>
+    </label>
+    <div class="mt-deck-transfer-dialog__options-heading">
+      <h3 id="deck-export-options-label">Export options</h3>
+      <div role="group" aria-label="Select export options">
+        <button type="button" class="mt-deck-transfer-dialog__option-action" data-export-select-all="true">Check all</button>
+        <button type="button" class="mt-deck-transfer-dialog__option-action" data-export-select-all="false">Uncheck all</button>
+      </div>
+    </div>
+    <fieldset class="mt-deck-transfer-dialog__options" aria-labelledby="deck-export-options-label">
+      <label><input type="checkbox" data-export-option="quantity" checked> Include quantity</label>
+      <label><input type="checkbox" data-export-option="set" checked> Include set code</label>
+      <label><input type="checkbox" data-export-option="collector" checked> Include collector number</label>
+      <label><input type="checkbox" data-export-option="uuid"> Include Scryfall UUID</label>
+      <label><input type="checkbox" data-export-option="sections" checked> Include section headers</label>
+    </fieldset>
+    <h3>Live preview <span>(up to 3 card rows)</span></h3>
+    <pre id="deck-export-preview" tabindex="0" aria-live="polite"></pre>
+    <p id="deck-export-status" role="status"></p>
+    <button type="button" id="deck-export-submit" class="mt-btn mt-btn--primary">Download text</button>
+  </dialog>
+
+{{ end }}

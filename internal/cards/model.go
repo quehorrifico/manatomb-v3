@@ -13,6 +13,7 @@ import (
 var ErrCardNotFound = errors.New("card not found")
 
 type DBCard struct {
+	PrintID              string
 	OracleID             string
 	Name                 string
 	ManaCost             string
@@ -129,6 +130,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 				COALESCE(oc.default_set_code, '') AS set_code,
 				COALESCE(oc.default_set_name, '') AS set_name,
 				COALESCE(cp.collector_number, '') AS collector_number,
+				COALESCE(cp.scryfall_id::text, '') AS print_id,
 				COALESCE(oc.is_commander_candidate, false) AS is_commander_candidate,
 				ROW_NUMBER() OVER (
 					PARTITION BY i.q
@@ -164,7 +166,8 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			set_code,
 			set_name,
 			collector_number,
-			is_commander_candidate
+			is_commander_candidate,
+			print_id
 		FROM ranked
 		WHERE rn = 1
 	`, pq.Array(searches))
@@ -176,6 +179,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 	out := make(map[string]DBCard, len(searches))
 	for rows.Next() {
 		var (
+			printID                                                                                        string
 			nameSearch, oracleID, name, manaCost, typeLine, oracleText, flavorText, allPartsJSON, imageURI string
 			artCropURI, priceUSD, artist, setCode, setName, collectorNumber                                string
 			colors, colorIdentity                                                                          []string
@@ -202,6 +206,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			&setName,
 			&collectorNumber,
 			&isCommanderCandidate,
+			&printID,
 		); err != nil {
 			return nil, err
 		}
@@ -217,6 +222,7 @@ func lookupCardsByNameSearches(ctx context.Context, db *sql.DB, searches []strin
 			cmc,
 			isCommanderCandidate,
 		)
+		card.PrintID = strings.TrimSpace(printID)
 		card.FlavorText = strings.TrimSpace(flavorText)
 		card.ArtCropURI = strings.TrimSpace(artCropURI)
 		card.Colors = strings.Join(colors, ",")
@@ -616,5 +622,5 @@ func EnsureCardsTable(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 
-	return nil
+	return EnsureRoleTables(ctx, db)
 }

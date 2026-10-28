@@ -50,6 +50,7 @@
           <div class="mt-card-detail-modal__printing">
             <div class="mt-card-detail-modal__printing-control" data-field="printing-group">
               <span class="mt-card-detail-modal__printing-label" data-field="printing-label">Printing</span>
+              {{ template "card_printing_sort" . }}
               <div class="mt-card-detail-modal__printing-grid"
                    data-field="printing-grid"
                    role="listbox"
@@ -73,4 +74,17 @@
       </div>
     </div>
   </div>
+{{ end }}
+
+{{ define "card_printing_sort" }}
+              <label class="mt-card-detail-modal__printing-sort">Sort printings
+                <select class="mt-control" data-field="printing-sort">
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="price-low">Price: low to high</option>
+                  <option value="price-high">Price: high to low</option>
+                  <option value="set">Set name</option>
+                  <option value="collector">Collector number</option>
+                </select>
+              </label>
 {{ end }}

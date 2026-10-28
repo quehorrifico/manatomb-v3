@@ -5,6 +5,7 @@
     var pending = null, revision = 0, active = null, timer = null, deadline = null, durable = false;
     function fields(value) {
       var out = { description: String(value.description || ''), tags: String(value.tags || ''), format: String(value.format || 'Sandbox') };
+      if (Object.prototype.hasOwnProperty.call(value, 'powerBracket')) out.powerBracket = String(value.powerBracket || '');
       if (Object.prototype.hasOwnProperty.call(value, 'name')) out.name = String(value.name || '');
       return out;
     }

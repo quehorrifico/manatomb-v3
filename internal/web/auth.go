@@ -41,6 +41,8 @@ type notFoundRecorder struct {
 	buf    bytes.Buffer
 }
 
+func (r *notFoundRecorder) Unwrap() http.ResponseWriter { return r.rw }
+
 type App struct {
 	Forge               *forge.Client
 	DB                  *sql.DB

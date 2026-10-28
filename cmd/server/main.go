@@ -19,6 +19,7 @@ import (
 	"manatomb/app/internal/db"
 	"manatomb/app/internal/decks"
 	"manatomb/app/internal/forge"
+	"manatomb/app/internal/perf"
 	"manatomb/app/internal/quickbuild"
 	"manatomb/app/internal/web"
 )
@@ -172,6 +173,7 @@ func registerDeckRoutes(mux *http.ServeMux, app *web.App) {
 }
 
 func registerCardCompatibilityRoutes(mux *http.ServeMux, app *web.App) {
+	mux.HandleFunc("/cards/cheapest", app.HandleCheapestPrintings)
 	mux.HandleFunc("/cards/search/autocomplete", app.HandleCardAutocomplete)
 	mux.HandleFunc("/cards/search/deck", app.HandleCardAutocomplete)
 }
@@ -232,6 +234,7 @@ func startCardSyncWorkers(database *sql.DB, enabled bool, runOnStart bool, optio
 	if options.MaxRows > 0 {
 		log.Printf("cards sync running in limited mode (CARD_SYNC_MAX_ROWS=%d)", options.MaxRows)
 	}
+	cards.StartOracleRoleSyncLoop(database)
 	cards.StartCardBulkSyncLoop(database, 24*time.Hour, runOnStart, log.Default(), options)
 }
 
@@ -271,6 +274,7 @@ func run(opts runOptions) error {
 	registerRoutes(mux, app)
 
 	handler := wrapMiddleware(app, mux)
+	handler = perf.Requests(handler, mux, database)
 	addr := ":" + cfg.Port
 	log.Printf("Listening on %s...", addr)
 	server := &http.Server{

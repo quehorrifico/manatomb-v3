@@ -241,10 +241,8 @@ func decklistCSVColumns(record []string) (map[string]int, bool) {
 	for index, value := range record {
 		columns[normalizeCSVHeader(value)] = index
 	}
-	_, hasBoard := columns["board"]
-	_, hasQuantity := columns["quantity"]
 	_, hasName := columns["name"]
-	return columns, hasBoard && hasQuantity && hasName
+	return columns, hasName
 }
 
 func csvValue(record []string, columns map[string]int, names ...string) string {
@@ -278,7 +276,7 @@ func parseDecklistCSV(input string) (ParsedDecklist, error) {
 	}
 	columns, ok := decklistCSVColumns(header)
 	if !ok {
-		return ParsedDecklist{}, fmt.Errorf("decklist CSV must include Board, Quantity, and Name columns")
+		return ParsedDecklist{}, fmt.Errorf("decklist CSV must include a Name column")
 	}
 
 	result := ParsedDecklist{}
@@ -304,12 +302,15 @@ func parseDecklistCSV(input string) (ParsedDecklist, error) {
 			continue
 		}
 		quantityValue := csvValue(record, columns, "quantity")
+		if _, hasQuantity := columns["quantity"]; !hasQuantity {
+			quantityValue = "1"
+		}
 		quantity, quantityErr := strconv.Atoi(quantityValue)
 		if quantityErr != nil {
 			return ParsedDecklist{}, fmt.Errorf("decklist CSV row %d has an invalid quantity", recordNumber)
 		}
 
-		printID := strings.ToLower(csvValue(record, columns, "print id"))
+		printID := strings.ToLower(csvValue(record, columns, "print id", "scryfall uuid", "scryfall id"))
 		if printID != "" && !reUUID.MatchString(printID) {
 			return ParsedDecklist{}, fmt.Errorf("decklist CSV row %d has an invalid Print ID", recordNumber)
 		}
@@ -317,7 +318,7 @@ func parseDecklistCSV(input string) (ParsedDecklist, error) {
 		result.Items = append(result.Items, ParsedDeckItem{
 			Name:            name,
 			Qty:             quantity,
-			Board:           normalizeImportBoard(ImportBoard(csvValue(record, columns, "board"))),
+			Board:           normalizeImportBoard(ImportBoard(csvValue(record, columns, "board", "section"))),
 			SetCode:         strings.ToUpper(csvValue(record, columns, "set", "set code")),
 			CollectorNumber: csvValue(record, columns, "collector number", "collector"),
 			PrintID:         printID,

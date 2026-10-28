@@ -954,6 +954,18 @@ func applyBulkRowStream(
 	defer tx.Rollback()
 	logger.Printf("cards sync phase: begin transaction")
 
+	// Freeze the printing users currently see before defaults or stale rows change.
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE deck_cards dc
+		SET preferred_print_id = oc.default_print_id
+		FROM oracle_cards oc
+		WHERE dc.oracle_id = oc.oracle_id
+		  AND dc.preferred_print_id IS NULL
+		  AND oc.default_print_id IS NOT NULL
+	`); err != nil {
+		return err
+	}
+
 	if _, err := tx.ExecContext(ctx, `
 		CREATE TEMP TABLE oracle_cards_sync_stage (
 			oracle_id UUID NOT NULL,
@@ -1568,6 +1580,9 @@ func SyncCardsFromScryfallBulk(ctx context.Context, db *sql.DB, options CardBulk
 		return nil, err
 	}
 
+	if err := SyncOracleRoleTags(ctx, db); err != nil {
+		logger.Printf("Oracle role tag sync failed; keeping cached roles: %v", err)
+	}
 	logger.Printf(
 		"cards sync phase: sync total duration %s (oracle=%d printings=%d)",
 		formatSyncDuration(time.Since(totalStart)),
