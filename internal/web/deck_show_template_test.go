@@ -66,15 +66,12 @@ func TestDeckShowUsesPrimaryDecklistWorkspaceAndSharedAssets(t *testing.T) {
 		`class="mt-deck-editor__notes-box"`,
 		`class="mt-deck-editor__selected-tags mt-deck-editor__tag-list"`,
 		`class="mt-deck-editor__analysis-composition-grid"`,
-		`class="mt-power-summary-row"`,
-		`id="deck-power-confidence"`,
 		`id="deck-stat-explorer"`,
+		`id="deck-analytics-cost"`,
+		`id="deck-overview-bracket"`,
+		`id="deck-cheapest-printings"`,
+		`<h3>Issues</h3>`,
 		`aria-controls="deck-analytics-card-list-panel" aria-expanded="false"`,
-		`class="mt-deck-editor__mana-profile"`,
-		`data-mana-profile-bar="pips"`,
-		`data-mana-profile-bar="sources"`,
-		`id="deck-mana-locked-panel"`,
-		`class="mt-kicker">Locked in</p>`,
 		`function renderManaProfiles(analytics)`,
 		`function toggleManaLockedPanel(kind, symbol)`,
 		`renderManaProfiles(a);`,
@@ -109,9 +106,9 @@ func TestDeckShowUsesPrimaryDecklistWorkspaceAndSharedAssets(t *testing.T) {
 		`Start your Standard deck`,
 		`Start with any card`,
 		`function showDeckUndo(message, action)`,
-		`var lines = ['Name: ' + deckName, 'Format: ' + format, ''];`,
-		`value += ' {scryfall:' + printID + '}'`,
-		`'Print ID', 'Deck Name', 'Format'`,
+		`id="deck-export-preview"`,
+		`data-export-option="uuid"`,
+		`window.ManatombDeckTransfer.init({`,
 		`action', 'undo_card_change'`,
 		`config.vertical ? ' mt-deck-action-cluster--vertical'`,
 	} {
@@ -197,6 +194,8 @@ func TestDeckShowUsesPrimaryDecklistWorkspaceAndSharedAssets(t *testing.T) {
 		`id="deck-format-progress"`,
 		`var deckFormatTargets = {`,
 		`function syncDeckFormatProgress(d, mainCount)`,
+		`id="deck-power-panel"`,
+		`class="mt-deck-editor__mana-profile"`,
 		`id="deck-power-summary"`,
 		`id="deck-power-game-changers"`,
 		`id="deck-power-land-denial"`,
@@ -415,7 +414,7 @@ func TestDeckShowPreservesLegacyFormatWithoutOfferingIt(t *testing.T) {
 	}
 }
 
-func TestSavedDeckActionsUseAccessibleDialog(t *testing.T) {
+func TestSavedDeckActionsUseInlineGroup(t *testing.T) {
 	body := renderTemplate(t, "deck_show", TemplateData{
 		CurrentUser: &account.User{ID: 7},
 		Data: deckPageData{
@@ -429,29 +428,29 @@ func TestSavedDeckActionsUseAccessibleDialog(t *testing.T) {
 	})
 
 	for _, needle := range []string{
-		`id="deck-menu-open"`,
-		`aria-haspopup="dialog"`,
-		`aria-expanded="false">Deck actions</button>`,
-		`id="deck-menu-overlay"`,
-		`role="dialog"`,
-		`aria-modal="true"`,
-		`aria-labelledby="deck-menu-title"`,
-		`deckMenuOverlay.addEventListener('keydown'`,
-		`if (event.key === 'Escape')`,
-		`deckMenuReturnFocus.focus()`,
-		`if (deckMenuTitle) deckMenuTitle.textContent = d.name || 'Deck';`,
+		`role="group" aria-label="Deck actions"`,
+		`id="deck-save"`,
+		`id="deck-export-open"`,
+		`id="deck-sharing-toggle"`,
+		`id="deck-delete-form"`,
+		`id="deck-action-status"`,
+		`data-export-select-all="true">Check all</button>`,
+		`data-export-select-all="false">Uncheck all</button>`,
 		`href="/decks/playtest/42"`,
 		`id="deck-analysis-playtest"`,
 		`data-deck-playtest>Playtest</a>`,
 	} {
 		if !strings.Contains(body, needle) {
-			t.Fatalf("saved editor deck-actions dialog missing %q", needle)
+			t.Fatalf("saved editor inline deck actions missing %q", needle)
 		}
 	}
 	if got := strings.Count(body, `data-deck-playtest`); got != 1 {
 		t.Fatalf("saved deck editor rendered %d Playtest actions, want one in the Cards toolbar", got)
 	}
 	for _, forbidden := range []string{
+		`id="deck-menu-open"`,
+		`id="deck-menu-overlay"`,
+		`deckMenuOverlay.addEventListener`,
 		`id="deck-menu-name-save"`,
 		`data-analytics-stat="nonlands"`,
 		`viewButton.textContent = 'View';`,

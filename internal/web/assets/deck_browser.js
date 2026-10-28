@@ -90,6 +90,9 @@
       1
     );
     var card = {
+      roles: Array.isArray(input.roles || input.Roles) ? (input.roles || input.Roles).slice() : [],
+      primaryRole: trim(input.primaryRole || input.RoleOverride),
+      roleSource: trim(input.roleSource || input.RoleSource),
       id: trim(input.id || input.oracleID || input.oracle_id || input.CardID) || ("card-" + String(index || 0)),
       name: trim(input.name || input.cardName || input.CardName) || "Unknown card",
       manaCost: trim(input.manaCost || input.mana_cost || input.ManaCost),
@@ -138,6 +141,7 @@
       rarity: meta.rarity,
       releasedAt: meta.releasedAt,
       artist: meta.artist,
+      roles: meta.roles, primaryRole: meta.primaryRole, roleSource: meta.roleSource,
       source: row
     }, index);
   }
@@ -218,6 +222,7 @@
 
   function categoryKeys(card) {
     card = card || {};
+    if (Array.isArray(card.roles) && card.roles.length) return card.roles.filter(function (key) { return !!CATEGORY_LABELS[key]; });
     var typeLine = trim(card.typeLine).toLowerCase();
     var oracle = trim(card.oracleText).toLowerCase();
     var cmc = numberValue(card.cmc, 0);
@@ -247,6 +252,7 @@
   }
 
   function primaryCategory(card) {
+    if (card && CATEGORY_LABELS[card.primaryRole]) return CATEGORY_LABELS[card.primaryRole];
     var keys = categoryKeys(card);
     for (var i = 0; i < CATEGORY_PRIORITY.length; i++) {
       if (keys.indexOf(CATEGORY_PRIORITY[i]) >= 0) return CATEGORY_LABELS[CATEGORY_PRIORITY[i]];
@@ -503,6 +509,7 @@
     adaptPublicCard: adaptPublicCard,
     alphabetGroup: alphabetGroup,
     categoryKeys: categoryKeys,
+    categoryDefinitions: CATEGORY_DEFINITIONS.slice(),
     compareCards: compareCards,
     csvExport: csvExport,
     displayManaSummary: displayManaSummary,

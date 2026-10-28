@@ -727,6 +727,7 @@
       return {
         commanderName: normalizeName(savedDeckSeed.commanderName || commanderName || ''),
         commanderPrintID: normalizeName(savedDeckSeed.commanderPrintID || commanderPrintID || ''),
+        powerBracket: savedDeckSeed.powerBracket || '',
         format: normalizeGuestFormat(savedDeckSeed.format || deckFormat),
         commanderCandidates: Array.isArray(savedDeckSeed.commanderCandidates) ? savedDeckSeed.commanderCandidates.slice() : [],
         name: normalizeDeckName(savedDeckSeed.name || guestDeckName),
@@ -784,17 +785,11 @@
     var quickBuildSummaryEl = document.getElementById('deck-quick-build-summary');
     var playtestBtn = document.getElementById('deck-analysis-playtest');
     var guestHeaderAuthSaveLink = document.querySelector('[data-guest-auth-save-link]');
+    var bracketField = document.getElementById('deck-overview-bracket');
     var guestTagsField = document.getElementById('deck-overview-tags-hidden');
-    var deckMenuOpenBtn = document.getElementById('deck-menu-open');
-    var deckMenuOverlay = document.getElementById('deck-menu-overlay');
-    var deckMenuCloseBtn = document.getElementById('deck-menu-close');
     var deckMenuNameInput = document.getElementById('deck-menu-name-input');
-    var deckMenuTitle = document.getElementById('deck-menu-title');
-    var deckMenuCopyBtn = document.getElementById('deck-menu-copy');
-    var deckMenuExportTxtBtn = document.getElementById('deck-menu-export-txt');
-    var deckMenuExportCsvBtn = document.getElementById('deck-menu-export-csv');
-    var deckMenuVisibilityBtn = document.getElementById('deck-menu-visibility');
-    var deckMenuStatus = document.getElementById('deck-menu-status');
+    var deckSharingButton = document.getElementById('deck-sharing-toggle');
+    var deckActionStatus = document.getElementById('deck-action-status');
     var commanderTopEl = topCommanderNameEl;
     var commanderTopArtWrap = topCommanderArtWrap;
     var commanderTopArt = topCommanderArtImg;
@@ -1349,6 +1344,7 @@
     function deckBrowserCard(cardMeta, cardName) {
       cardMeta = cardMeta || {};
       return deckBrowser.normalizeCard({
+        roles: cardMeta.roles, primaryRole: cardMeta.primaryRole, roleSource: cardMeta.roleSource,
         id: cardMeta.oracleID || cardMeta.oracleId || cardMeta.id,
         name: cardName || cardMeta.name,
         manaCost: cardMeta.manaCost,
@@ -2580,6 +2576,7 @@
 	      var printID = normalizeName(meta.printID || meta.print_id || meta.scryfallID || meta.scryfall_id || '');
 	      var preferredPrintID = normalizeName(meta.preferredPrintID || meta.preferred_print_id || printID);
 	      return {
+	        roles: Array.isArray(meta.roles) ? meta.roles.slice() : [], primaryRole: normalizeName(meta.primaryRole || ''), roleSource: normalizeName(meta.roleSource || ''),
 	        cardID: normalizeName(meta.cardID || meta.card_id || ''),
 	        name: normalizeName(meta.name || ''),
 	        manaCost: normalizeName(meta.manaCost || meta.mana_cost || ''),
@@ -2634,6 +2631,7 @@
 	      var next = buildDraftCardMeta(version) || {};
 	      var printID = normalizeName(next.printID || (version && (version.scryfall_id || version.scryfallID)) || '');
 	      var merged = {
+	        roles: current.roles, primaryRole: current.primaryRole, roleSource: current.roleSource,
 	        cardID: normalizeName(current.cardID || next.cardID || (version && (version.oracle_id || version.oracleID)) || ''),
 	        name: normalizeName(next.name || current.name || cardName || ''),
 	        manaCost: normalizeName(next.manaCost || current.manaCost || ''),
@@ -2710,6 +2708,9 @@
       if (Object.prototype.hasOwnProperty.call(raw, 'isCommanderCandidate')) {
         merged.isCommanderCandidate = overrideMeta.isCommanderCandidate;
       }
+      if (Array.isArray(overrideMeta.roles) && overrideMeta.roles.length) merged.roles = overrideMeta.roles;
+      if (Object.prototype.hasOwnProperty.call(raw, 'primaryRole')) merged.primaryRole = overrideMeta.primaryRole;
+      if (overrideMeta.roleSource) merged.roleSource = overrideMeta.roleSource;
       if (Array.isArray(overrideMeta.faces) && overrideMeta.faces.length > 0) {
         merged.faces = overrideMeta.faces;
       }
@@ -3365,14 +3366,14 @@
       }, 1800);
     }
 
-    function setDeckMenuStatus(message) {
-      if (!deckMenuStatus) return;
+    function setDeckActionStatus(message) {
+      if (!deckActionStatus) return;
       var text = normalizeName(message);
-      deckMenuStatus.textContent = text;
+      deckActionStatus.textContent = text;
       if (!text) return;
       window.setTimeout(function () {
-        if (deckMenuStatus && deckMenuStatus.textContent === text) {
-          deckMenuStatus.textContent = '';
+        if (deckActionStatus && deckActionStatus.textContent === text) {
+          deckActionStatus.textContent = '';
         }
       }, 2200);
     }
@@ -4203,6 +4204,59 @@
       setAnalyticsField('deck-power-confidence', confidenceLabel);
     }
 
+    var roleOverrideWriter = null;
+    var roleDialog = document.getElementById('deck-role-dialog');
+    var roleSelect = document.getElementById('deck-role-select');
+    var roleEditingName = '', roleEditingMeta = null;
+    if (roleSelect) {
+      deckBrowser.categoryDefinitions.forEach(function (role) { var option=document.createElement('option');option.value=role.key;option.textContent=role.label;roleSelect.appendChild(option); });
+      document.getElementById('deck-role-save').addEventListener('click', async function () {
+        if (!roleOverrideWriter) return;
+        var button=this, status=document.getElementById('deck-role-status');button.disabled=true;status.textContent='Saving…';
+        try { await roleOverrideWriter(roleEditingName,roleEditingMeta,roleSelect.value);roleDialog.close(); }
+        catch(error){status.textContent=error.message || 'Could not save the card role.';}
+        finally{button.disabled=false;}
+      });
+    }
+    function openRolePicker(name,meta) {
+      roleEditingName=name;roleEditingMeta=meta || {};
+      document.getElementById('deck-role-title').textContent='Card role · '+name;
+      roleSelect.value=roleEditingMeta.primaryRole || '';
+      var labels=(roleEditingMeta.roles || []).map(function(key){var def=deckBrowser.categoryDefinitions.find(function(r){return r.key===key});return def?def.label:key;});
+      document.getElementById('deck-role-suggestions').textContent=(labels.length ? 'Suggested roles: '+labels.join(', ')+'. ' : '')+(roleEditingMeta.roleSource==='scryfall'?'From Scryfall tags.':'Estimated from card text.');
+      document.getElementById('deck-role-status').textContent='';
+      roleDialog.showModal();
+    }
+    function applyRoleAssignments(d,assignments) {
+      var changed=false;
+      function update(map) { Object.keys(map || {}).forEach(function(name) {
+        var info=assignments[name.toLowerCase()];if(!info)return;
+        var primary=(d.roleOverrides && d.roleOverrides[name.toLowerCase()]) || info.primaryRole || '';
+        var meta=map[name];if(JSON.stringify(meta.roles || [])!==JSON.stringify(info.roles)||meta.primaryRole!==primary||meta.roleSource!==info.source)changed=true;
+        meta.roles=info.roles;meta.primaryRole=primary;meta.roleSource=info.source;
+      }); }
+      update(d.cardMeta);Object.keys(d.boardCardMeta || {}).forEach(function(board){update(d.boardCardMeta[board]);});
+      return changed;
+    }
+
+    function bindCheapestPrintings(getDeck, apply) {
+      var button = document.getElementById('deck-cheapest-printings');
+      if (!button) return;
+      button.addEventListener('click', async function () {
+        button.disabled = true;
+        setDeckActionStatus('Finding cheapest printings…');
+        try { await apply(getDeck()); clearDeckUndo(); setDeckActionStatus('Cheapest priced paper printings applied. Ties and cards with no priced alternative were kept.'); }
+        catch (error) { setDeckActionStatus(error.message || 'Could not update printings.'); }
+        finally { button.disabled = false; }
+      });
+    }
+
+    function renderDeckCost(d) {
+      var cost = window.ManatombDeckTransfer.deckCost(d);
+      setAnalyticsField('deck-analytics-cost', cost.display);
+      setAnalyticsField('deck-analytics-cost-note', 'Main + sideboard · USD' + (cost.unpriced ? ' · ' + cost.unpriced + ' unpriced' : ''));
+    }
+
     function renderAnalytics(a) {
       if (!a || typeof a !== 'object') return;
       currentDeckAnalytics = a;
@@ -4275,6 +4329,8 @@
       return {
         format: normalizeGuestFormat((d && d.format) ? d.format : deckFormat),
         commander_name: currentCommanderForDraft(d),
+        role_names: Array.from(new Set(Object.keys(d.cards || {}).concat(Object.keys(d.sideboardCards || {}),Object.keys(d.maybeCards || {})))),
+        role_overrides: d.roleOverrides || {},
         cards: cards,
       };
     }
@@ -4305,6 +4361,8 @@
           return res.json();
         }).then(function (analytics) {
           if (reqToken !== analyticsRequestToken) return;
+          var latest=loadDraft() || d;
+          if (analytics.role_assignments && applyRoleAssignments(latest,analytics.role_assignments)) { saveDraft(latest);render(latest); }
           renderAnalytics(analytics);
           if (guestAnalyticsStatus) guestAnalyticsStatus.textContent = '';
         }).catch(function () {
@@ -4575,7 +4633,13 @@
         var meta = buildDraftCardMeta(data);
         if (!meta) continue;
 
+        // A printing may have been selected while this request was in flight.
+        var latestDraft = loadDraft();
+        if (latestDraft) dd = latestDraft;
+        ensureDraftCardMetaMap(dd);
+        if (draftMetaForCard(dd, cardName)) continue;
         dd.cardMeta[cardName] = meta;
+        saveDraft(dd);
         if (meta.name && meta.name.toLowerCase() !== attemptKey) {
           dd.cardMeta[meta.name] = meta;
         }
@@ -4645,6 +4709,9 @@
             onClick: function () {
               openGuestCardVersionPicker(cardName, cardMeta, currentBoard);
             }
+          },
+          {
+            label: 'Set card role', onClick: function () { openRolePicker(cardName, cardMeta); }
           },
           {
             label: 'Change Version',
@@ -4758,6 +4825,8 @@
       renderCommanderControls(d);
       renderQuickBuildState(d);
       syncGuestCommanderOverview(d);
+      renderDeckCost(d);
+      if (bracketField) bracketField.value = d.powerBracket || '';
       window.mtDeckCurrentGuestDraft = d;
       window.mtDeckGuestSyncCommanderOverview = syncGuestCommanderOverview;
       window.mtDeckGuestAdjustCard = adjustGuestCardQuantity;
@@ -4825,6 +4894,7 @@
         if (fields && Object.prototype.hasOwnProperty.call(fields, 'description')) {
           dd.description = String(fields.description || '').trim();
         }
+        if (fields && Object.prototype.hasOwnProperty.call(fields, 'powerBracket')) dd.powerBracket = String(fields.powerBracket || '');
         if (fields && Object.prototype.hasOwnProperty.call(fields, 'tags')) {
           dd.tags = String(fields.tags || '').trim();
         }
@@ -4871,32 +4941,6 @@
       var savedMutationCount = 0;
       var savedMutationError = null;
       var savedCommanderDetailCache = {};
-      var deckMenuReturnFocus = null;
-
-      function setDeckMenuOpen(open) {
-        if (!deckMenuOverlay) return;
-        deckMenuOverlay.classList.toggle('hidden', !open);
-        deckMenuOverlay.classList.toggle('flex', !!open);
-        deckMenuOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
-        if (deckMenuOpenBtn) deckMenuOpenBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        document.body.classList.toggle('mt-deck-dialog-open', !!open);
-        if (open) {
-          deckMenuReturnFocus = document.activeElement;
-          window.setTimeout(function () {
-            var first = deckMenuOverlay.querySelector('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-            var panel = deckMenuOverlay.querySelector('.mt-deck-editor__menu');
-            if (first) first.focus();
-            else if (panel) panel.focus();
-          }, 0);
-        } else if (deckMenuReturnFocus && typeof deckMenuReturnFocus.focus === 'function') {
-          deckMenuReturnFocus.focus();
-          deckMenuReturnFocus = null;
-        }
-        if (!open && deckMenuStatus) {
-          deckMenuStatus.textContent = '';
-        }
-      }
-
       function setSavedStatus(message) {
         if (!addStatus) return;
         addStatus.textContent = normalizeName(message);
@@ -5017,157 +5061,11 @@
         return normalizeName(commanderName);
       }
 
-      function buildDecklistText(d) {
-        var deckName = normalizeName((d && d.name) || 'Untitled Deck');
-        var format = normalizeGuestFormat(d && d.format);
-        var lines = ['Name: ' + deckName, 'Format: ' + format, ''];
-        var rows = deckExportRows(d);
-
-        function textIdentity(row) {
-          var meta = row.meta || {};
-          var value = row.name;
-          var setCode = normalizeName(meta.setCode || '');
-          var collectorNumber = normalizeName(meta.collectorNumber || '');
-          var printID = normalizeName(meta.printID || meta.preferredPrintID || '');
-          if (setCode && collectorNumber) value += ' (' + setCode.toUpperCase() + ') ' + collectorNumber;
-          if (printID) value += ' {scryfall:' + printID + '}';
-          return String(row.qty) + ' ' + value;
-        }
-
-        ['Commander', 'Mainboard', 'Sideboard', 'Maybeboard'].forEach(function (board) {
-          var boardRows = rows.filter(function (row) { return row.board === board; });
-          if (!boardRows.length && board !== 'Mainboard' && !(board === 'Commander' && formatUsesCommander(format))) return;
-          if (lines[lines.length - 1] !== '') lines.push('');
-          lines.push(board + ':');
-          boardRows.forEach(function (row) { lines.push(textIdentity(row)); });
-        });
-
-        return lines.join('\n').trim() + '\n';
-      }
-
-      function deckExportRows(d) {
-        var rows = [];
-        var commanderForExport = currentSavedCommander(d);
-        if (d && formatUsesCommander(d.format) && commanderForExport) {
-          var commanderMeta = Object.assign({}, draftMetaForCard(d, commanderForExport) || {});
-          var commanderExportPrintID = currentCommanderPrintForDraft(d);
-          if (commanderExportPrintID) {
-            commanderMeta.preferredPrintID = commanderExportPrintID;
-            commanderMeta.printID = commanderExportPrintID;
-            // The exact ID is authoritative. Avoid pairing it with stale
-            // default-print set metadata if the commander version changed.
-            commanderMeta.setCode = '';
-            commanderMeta.collectorNumber = '';
-          }
-          rows.push({
-            board: 'Commander',
-            qty: 1,
-            name: commanderForExport,
-            meta: commanderMeta
-          });
-        }
-
-        [
-          { board: 'Mainboard', cards: (d && d.cards) || {}, key: 'main' },
-          { board: 'Sideboard', cards: (d && d.sideboardCards) || {}, key: 'side' },
-          { board: 'Maybeboard', cards: (d && d.maybeCards) || {}, key: 'maybe' }
-        ].forEach(function (section) {
-          var entries = Object.entries(section.cards || {});
-          entries.sort(function (a, b) { return a[0].localeCompare(b[0]); });
-          entries.forEach(function (pair) {
-            var cardName = normalizeName(pair[0]);
-            var qty = Number(pair[1] || 0);
-            if (!cardName || !Number.isFinite(qty) || qty <= 0) return;
-            if (section.key === 'main' && commanderForExport && cardName.toLowerCase() === commanderForExport.toLowerCase()) {
-              qty -= 1;
-            }
-            if (qty <= 0) return;
-            rows.push({
-              board: section.board,
-              qty: qty,
-              name: cardName,
-              meta: draftMetaForBoardCard(d, section.key, cardName) || draftMetaForCard(d, cardName) || {}
-            });
-          });
-        });
-
-        return rows;
-      }
-
-      function csvCell(value) {
-        var text = String(value == null ? '' : value);
-        if (/[",\r\n]/.test(text)) {
-          return '"' + text.replace(/"/g, '""') + '"';
-        }
-        return text;
-      }
-
-      function buildDecklistCSV(d) {
-        var rows = deckExportRows(d);
-        var deckName = normalizeName((d && d.name) || 'Untitled Deck');
-        var format = normalizeGuestFormat(d && d.format);
-        var lines = [['Board', 'Quantity', 'Name', 'Set', 'Collector Number', 'Print ID', 'Deck Name', 'Format'].map(csvCell).join(',')];
-        rows.forEach(function (row) {
-          var meta = row.meta || {};
-          lines.push([
-            row.board,
-            row.qty,
-            row.name,
-            normalizeName(meta.setCode || ''),
-            normalizeName(meta.collectorNumber || ''),
-            normalizeName(meta.printID || meta.preferredPrintID || ''),
-            deckName,
-            format
-          ].map(csvCell).join(','));
-        });
-        return lines.join('\n');
-      }
-
-      function deckExportBaseName(d) {
-        var base = normalizeName((d && d.name) || 'deck').toLowerCase();
-        base = base.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-        return base || 'deck';
-      }
-
-      function downloadDeckFile(filename, content, mimeType) {
-        var blob = new Blob([content], { type: mimeType });
-        var url = URL.createObjectURL(blob);
-        var link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.setTimeout(function () {
-          URL.revokeObjectURL(url);
-        }, 1000);
-      }
-
-      function exportSavedDeck(format) {
-        var kind = normalizeName(format).toLowerCase();
-        if (!savedDraft) return;
-
-        if (kind === 'csv') {
-          var csv = buildDecklistCSV(savedDraft);
-          downloadDeckFile(deckExportBaseName(savedDraft) + '.csv', csv, 'text/csv;charset=utf-8');
-          setDeckMenuStatus('CSV exported.');
-          return;
-        }
-
-        var text = buildDecklistText(savedDraft);
-        if (!text) {
-          setDeckMenuStatus('Nothing to export yet.');
-          return;
-        }
-        downloadDeckFile(deckExportBaseName(savedDraft) + '.txt', text, 'text/plain;charset=utf-8');
-        setDeckMenuStatus('TXT exported.');
-      }
-
       async function saveSavedDeckName() {
         if (!deckMenuNameInput) return;
         var nextName = normalizeName(deckMenuNameInput.value);
         if (!nextName) {
-          setDeckMenuStatus('Deck name cannot be empty.');
+          setDeckActionStatus('Deck name cannot be empty.');
           deckMenuNameInput.focus();
           return;
         }
@@ -5176,33 +5074,6 @@
           savedDraft = savedOverview.overlay(savedDraft);
         }
         await savedOverview.flush();
-      }
-
-      async function copySavedDecklist() {
-        var text = buildDecklistText(savedDraft);
-        if (!text) {
-          setDeckMenuStatus('Nothing to copy yet.');
-          return;
-        }
-
-        try {
-          await navigator.clipboard.writeText(text);
-          setDeckMenuStatus('Decklist copied.');
-        } catch (e) {
-          try {
-            var ta = document.createElement('textarea');
-            ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.left = '-9999px';
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-            setDeckMenuStatus('Decklist copied.');
-          } catch (e2) {
-            setDeckMenuStatus('Could not copy decklist.');
-          }
-        }
       }
 
       async function syncSavedCommanderOverview(d) {
@@ -5530,6 +5401,7 @@
           params.set('action', 'save_overview');
           params.set('format', normalizeGuestFormat(fields.format));
           params.set('tags', fields.tags);
+          if (Object.prototype.hasOwnProperty.call(fields, 'powerBracket')) params.set('power_bracket', fields.powerBracket);
           params.set('description', fields.description);
           if (Object.prototype.hasOwnProperty.call(fields, 'name')) params.set('name', fields.name);
           return postSavedMutation('/decks/' + savedDraft.id, params);
@@ -5581,6 +5453,8 @@
         d = normalizeSavedState(savedOverview ? savedOverview.overlay(d) : d);
         if (descEl && descEl.value !== (d.description || '')) descEl.value = d.description || '';
         savedDraft = d;
+        renderDeckCost(d);
+        if (bracketField) bracketField.value = d.powerBracket || '';
         commanderName = currentSavedCommander(d);
         allowsCommanderCardAction = formatUsesCommander(d.format);
         if (window.mtDeckSetOverviewFormat) window.mtDeckSetOverviewFormat(allowsCommanderCardAction);
@@ -5601,6 +5475,9 @@
             onClick: function () {
                 openSavedCardVersionPicker(cardName, cardMeta, currentBoard);
               }
+            },
+            {
+              label: 'Set card role', onClick: function () { openRolePicker(cardName, cardMeta); }
             },
             {
               label: 'Change Version',
@@ -5711,10 +5588,10 @@
         if (d.analytics) renderAnalytics(d.analytics);
         if (savedDeckNameEl) savedDeckNameEl.textContent = d.name || 'Deck';
         if (deckEditorHeading) deckEditorHeading.textContent = 'Edit ' + (d.name || 'Deck');
-        if (deckMenuTitle) deckMenuTitle.textContent = d.name || 'Deck';
         if (deckMenuNameInput) deckMenuNameInput.value = d.name || '';
-        if (deckMenuVisibilityBtn) {
-          deckMenuVisibilityBtn.textContent = d.isPublic ? 'Set Private' : 'Set Public';
+        if (deckSharingButton) {
+          deckSharingButton.querySelector('[data-sharing-label]').textContent = d.isPublic ? 'Make private' : 'Make public';
+          deckSharingButton.title = d.isPublic ? 'Only you will be able to view this deck' : 'Let other players view this deck';
         }
         renderQuickBuildState(d);
 
@@ -5791,65 +5668,6 @@
         });
       }
 
-      if (deckMenuOpenBtn) {
-        deckMenuOpenBtn.addEventListener('click', function () {
-          setDeckMenuOpen(true);
-        });
-      }
-      if (deckMenuCloseBtn) {
-        deckMenuCloseBtn.addEventListener('click', function () {
-          setDeckMenuOpen(false);
-        });
-      }
-      if (deckMenuOverlay) {
-        deckMenuOverlay.addEventListener('click', function (event) {
-          if (event.target === deckMenuOverlay) {
-            setDeckMenuOpen(false);
-          }
-        });
-        deckMenuOverlay.addEventListener('keydown', function (event) {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            setDeckMenuOpen(false);
-            return;
-          }
-          if (event.key !== 'Tab') return;
-
-          var focusable = Array.prototype.slice.call(deckMenuOverlay.querySelectorAll(
-            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-          )).filter(function (node) {
-            return !node.hidden && node.offsetParent !== null;
-          });
-          if (!focusable.length) {
-            event.preventDefault();
-            return;
-          }
-          var first = focusable[0];
-          var last = focusable[focusable.length - 1];
-          if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first.focus();
-          }
-        });
-      }
-      if (deckMenuCopyBtn) {
-        deckMenuCopyBtn.addEventListener('click', function () {
-          copySavedDecklist();
-        });
-      }
-      if (deckMenuExportTxtBtn) {
-        deckMenuExportTxtBtn.addEventListener('click', function () {
-          exportSavedDeck('txt');
-        });
-      }
-      if (deckMenuExportCsvBtn) {
-        deckMenuExportCsvBtn.addEventListener('click', function () {
-          exportSavedDeck('csv');
-        });
-      }
       if (deckMenuNameInput) {
         deckMenuNameInput.addEventListener('input', function () {
           var name = normalizeName(deckMenuNameInput.value);
@@ -5867,8 +5685,9 @@
           saveSavedDeckName();
         });
       }
-      if (deckMenuVisibilityBtn) {
-        deckMenuVisibilityBtn.addEventListener('click', function () {
+      if (deckSharingButton) {
+        deckSharingButton.addEventListener('click', function () {
+          deckSharingButton.disabled = true;
           var params = new URLSearchParams();
           params.set('id', String(savedDraft.id));
           params.set('sharing_submitted', '1');
@@ -5877,10 +5696,10 @@
           }
           postSavedMutation('/decks/settings', params).then(function (next) {
             renderSaved(next);
-            setDeckMenuStatus(next.isPublic ? 'Deck is now public.' : 'Deck is now private.');
+            setDeckActionStatus(next.isPublic ? 'Deck is now public.' : 'Deck is now private.');
           }).catch(function (e) {
-            setDeckMenuStatus(e && e.message ? e.message : 'Could not update visibility.');
-          });
+            setDeckActionStatus(e && e.message ? e.message : 'Could not update visibility.');
+          }).finally(function () { deckSharingButton.disabled = false; });
         });
       }
 
@@ -5933,6 +5752,27 @@
       }
 
       renderSaved(savedDraft);
+      roleOverrideWriter=async function(name,meta,role) {
+        var params=new URLSearchParams({action:'set_role',card_id:meta.cardID || '',role:role});
+        renderSaved(await postSavedMutation('/decks/'+savedDraft.id,params));
+      };
+      bindCheapestPrintings(function () { return savedDraft; }, async function () {
+        var params = new URLSearchParams({ action: 'cheapest_printings' });
+        renderSaved(await postSavedMutation('/decks/' + savedDraft.id, params));
+      });
+      window.ManatombDeckTransfer.init({
+        getDeck: function () { return savedDraft; },
+        getBoard: function () { return deckBoardMode; },
+        importCards: async function (text, board) {
+          var params = new URLSearchParams();
+          params.set('action', 'bulk_import');
+          params.set('decklist', text);
+          params.set('zone', board);
+          var next = await postSavedMutation('/decks/' + savedDraft.id, params);
+          clearDeckUndo();
+          renderSaved(next);
+        }
+      });
     }
 
     var cpuLaunchButton=document.getElementById('deck-analysis-cpu');
@@ -5987,6 +5827,56 @@
     }
 
     render(draft);
+    roleOverrideWriter=async function(name,meta,role) {
+      var latest=loadDraft() || draft;latest.roleOverrides=latest.roleOverrides || {};
+      if(role)latest.roleOverrides[name.toLowerCase()]=role;else delete latest.roleOverrides[name.toLowerCase()];
+      [latest.cardMeta].concat(Object.values(latest.boardCardMeta || {})).forEach(function(map){Object.keys(map || {}).forEach(function(key){if(key.toLowerCase()===name.toLowerCase())map[key].primaryRole=role;});});
+      if(!saveDraft(latest))throw new Error('Could not save the deck on this device.');render(latest);
+    };
+    bindCheapestPrintings(function () { return loadDraft() || draft; }, async function (d) {
+      var names = Array.from(new Set(Object.keys(d.cards || {}).concat(Object.keys(d.sideboardCards || {}), Object.keys(d.maybeCards || {}), [d.commanderName || '']).filter(Boolean)));
+      var response = await fetch('/cards/cheapest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ names: names }) });
+      if (!response.ok) throw new Error('Could not find cheapest printings.');
+      var printings = await response.json();
+      var latest = window.ManatombDeckTransfer.applyCheapestPrintings(loadDraft() || d, printings);
+      if (!saveDraft(latest)) throw new Error('Could not save the deck on this device.');
+      render(latest);
+    });
+    window.ManatombDeckTransfer.init({
+      getDeck: function () { return loadDraft() || draft; },
+      getBoard: function () { return deckBoardMode; },
+      importCards: async function (text, board) {
+        var params = new URLSearchParams({ intent: 'resolve', decklist: text });
+        var response = await fetch('/decks/import', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: params.toString()
+        });
+        var payload;
+        try { payload = await response.json(); } catch (error) { throw new Error('Could not resolve the card list. Please try again.'); }
+        if (!response.ok) throw new Error(payload.error || 'Could not resolve the card list.');
+        var dd = loadDraft() || draft;
+        ensureDraftCardMetaMap(dd);
+        [['cards', board], ['sideboard_cards', 'side'], ['maybe_cards', 'maybe']].forEach(function (entry) {
+          var quantities = draftBoardMap(dd, entry[1]);
+          if (!dd.boardCardMeta) dd.boardCardMeta = {};
+          if (!dd.boardCardMeta[entry[1]]) dd.boardCardMeta[entry[1]] = {};
+          (payload[entry[0]] || []).forEach(function (card) {
+            var key = draftCardNameKey(quantities, card.name) || card.name;
+            var existingMeta = draftMetaForBoardCard(dd, entry[1], key) || draftMetaForCard(dd, key);
+            quantities[key] = Number(quantities[key] || 0) + Number(card.qty);
+            var meta = existingMeta || normalizeDraftCardMeta(card.meta);
+            if (meta) {
+              dd.boardCardMeta[entry[1]][key] = meta;
+              if (!draftMetaForCard(dd, key)) dd.cardMeta[key] = meta;
+            }
+          });
+        });
+        if (!saveDraft(dd)) throw new Error('Could not save the deck on this device.');
+        clearDeckUndo();
+        render(dd);
+      }
+    });
 
     function commitGuestDeckName() {
       if (!guestDeckNameInput) return;
@@ -6128,7 +6018,7 @@
         }
         var meta = buildDraftCardMeta(cardData);
         if (meta) {
-          dd.cardMeta[canonical] = meta;
+          if (!draftMetaForCard(dd, canonical)) dd.cardMeta[canonical] = meta;
           if (meta.isCommanderCandidate) {
             if (!Array.isArray(dd.commanderCandidates)) dd.commanderCandidates = [];
             if (dd.commanderCandidates.map(function (x) { return String(x || '').toLowerCase(); }).indexOf(canonical.toLowerCase()) < 0) {
@@ -6279,6 +6169,8 @@
         format: normalizeGuestFormat(dd.format || deckFormat),
         name: guestDeckName,
         description: dd.description || '',
+        role_overrides: dd.roleOverrides || {},
+        power_bracket: dd.powerBracket || '',
         tags: dd.tags || '',
         cards: cards,
         sideboard_cards: sideboardCards,
@@ -6331,6 +6223,8 @@
         commander_print_id: currentCommanderPrintForDraft(dd),
         name: normalizeDeckName(dd.name),
         description: dd.description || '',
+        role_overrides: dd.roleOverrides || {},
+        power_bracket: dd.powerBracket || '',
         tags: dd.tags || '',
         cards: cards,
         sideboard_cards: sideboardCards,

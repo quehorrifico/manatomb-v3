@@ -89,3 +89,12 @@ test('continuous typing still saves on the original deadline', async () => {
   assert.equal(f.renders.at(-1).description,'note 99');
   assert.equal(f.model.hasPending(),false);
 });
+test('bracket level is preserved through other metadata edits and can be cleared',async()=>{
+ const f=fixture();
+ f.model.update({powerBracket:'3 - Upgraded'});await f.model.flush();
+ f.model.update({description:'Keep this primer'});await f.model.flush();
+ assert.equal(f.renders.at(-1).powerBracket,'3 - Upgraded');
+ f.model.update({powerBracket:''});await f.model.flush();
+ assert.equal(f.renders.at(-1).powerBracket,'');
+ assert.equal(f.renders.at(-1).description,'Keep this primer');
+});

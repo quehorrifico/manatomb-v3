@@ -80,6 +80,8 @@ func (m importDraftCardMeta) resolvedCollectorNumber() string {
 }
 
 type importDraftRequest struct {
+	RoleOverrides    map[string]string              `json:"role_overrides"`
+	PowerBracket     string                         `json:"power_bracket"`
 	CommanderName    string                         `json:"commander_name"`
 	CommanderPrintID string                         `json:"commander_print_id"`
 	Name             string                         `json:"name"`
@@ -260,6 +262,7 @@ func applyCanonicalImportedPrinting(item *deckImportReviewItem, card cards.DBCar
 	if item == nil {
 		return
 	}
+	item.PreferredPrintID = strings.TrimSpace(card.PrintID)
 	item.SetCode = strings.ToUpper(strings.TrimSpace(card.SetCode))
 	item.CollectorNumber = strings.TrimSpace(card.CollectorNumber)
 	item.PrintingLabel = ""
@@ -418,6 +421,7 @@ func (a *App) buildDeckImportReview(ctx context.Context, parsed decks.ParsedDeck
 		}
 
 		item.resolvedCard = resolved
+		item.PreferredPrintID = resolved.PrintID
 		item.OracleID = resolved.OracleID
 		item.CanonicalName = resolved.Name
 		item.Status = "resolved"
@@ -947,7 +951,7 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 			Description:  strings.TrimSpace(req.Description),
 			Tags:         strings.TrimSpace(req.Tags),
 			Format:       format,
-			PowerBracket: defaultDeckPowerBracket("", format),
+			PowerBracket: defaultDeckPowerBracket(req.PowerBracket, format),
 		})
 		if err != nil {
 			writeImportDraftServerError(w, user.ID, err)
@@ -983,14 +987,22 @@ func (a *App) HandleDeckImportDraft(w http.ResponseWriter, r *http.Request) {
 	if deckName == "" {
 		deckName = randomDeckName()
 	}
+	roleOverrides := map[string]string{}
+	for _, item := range review.Items {
+		role := normalizedRoleOverride(req.RoleOverrides[strings.ToLower(item.resolvedCard.Name)])
+		if role != "" {
+			roleOverrides[item.resolvedCard.OracleID] = role
+		}
+	}
 	deck, err := decks.CreateImportedDeck(r.Context(), a.DB, user.ID, decks.DeckInput{
+		RoleOverrides:    roleOverrides,
 		Name:             deckName,
 		Description:      strings.TrimSpace(req.Description),
 		Tags:             strings.TrimSpace(req.Tags),
 		Format:           format,
 		CommanderName:    commanderName,
 		CommanderPrintID: commanderPrintID,
-		PowerBracket:     defaultDeckPowerBracket("", format),
+		PowerBracket:     defaultDeckPowerBracket(req.PowerBracket, format),
 	}, importedCards)
 	if err != nil {
 		writeImportDraftServerError(w, user.ID, err)
@@ -1035,6 +1047,10 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		parsed, err = decks.ParseDecklist(rawDecklist)
 	}
 	if err != nil {
+		if intent == "resolve" {
+			writeImportDraftError(w, http.StatusBadRequest, err.Error(), nil)
+			return
+		}
 		a.renderDeckImport(w, user, readFlash(w, r), err.Error(), deckImportPageData{
 			Step:     "paste",
 			Decklist: rawDecklist,
@@ -1042,6 +1058,10 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(parsed.Items) > deckImportMaxRows {
+		if intent == "resolve" {
+			writeImportDraftError(w, http.StatusBadRequest, "Import up to 500 card rows at a time.", nil)
+			return
+		}
 		a.renderDeckImport(w, user, readFlash(w, r), "Import up to 500 card rows at a time.", deckImportPageData{
 			Step:     "paste",
 			Decklist: rawDecklist,
@@ -1049,6 +1069,15 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if intent == "resolve" {
+		parsed.Format = "Sandbox"
+		// Bulk adding cards never replaces the deck's commander selection.
+		for i := range parsed.Items {
+			if parsed.Items[i].Board == decks.ImportBoardCommander {
+				parsed.Items[i].Board = decks.ImportBoardMain
+			}
+		}
+	}
 	review, err := a.buildDeckImportReview(r.Context(), parsed, rawDecklist)
 	if err != nil {
 		a.RenderServerError(w, r, err)
@@ -1061,6 +1090,15 @@ func (a *App) HandleDeckImportText(w http.ResponseWriter, r *http.Request) {
 		"",
 		strings.TrimSpace(r.Form.Get("replace_existing_draft")) == "1",
 	)
+	if intent == "resolve" {
+		if len(payload.ImportWarnings) > 0 {
+			writeImportDraftError(w, http.StatusBadRequest, strings.Join(payload.ImportWarnings, "\n"), nil)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(payload)
+		return
+	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		a.RenderServerError(w, r, err)

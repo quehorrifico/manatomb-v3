@@ -13,47 +13,48 @@ import (
 )
 
 type deckAnalyticsData struct {
-	TotalCards            int                       `json:"total_cards"`
-	MainboardCards        int                       `json:"mainboard_cards"`
-	CommanderSet          bool                      `json:"commander_set"`
-	LandCount             int                       `json:"land_count"`
-	NonLandCount          int                       `json:"nonland_count"`
-	AverageCMC            float64                   `json:"average_cmc"`
-	AverageCMCDisplay     string                    `json:"average_cmc_display"`
-	RampCount             int                       `json:"ramp_count"`
-	FastManaCount         int                       `json:"fast_mana_count"`
-	CardDrawCount         int                       `json:"card_draw_count"`
-	TutorCount            int                       `json:"tutor_count"`
-	InteractionCount      int                       `json:"interaction_count"`
-	CheapInteractionCount int                       `json:"cheap_interaction_count"`
-	CounterspellCount     int                       `json:"counterspell_count"`
-	RemovalCount          int                       `json:"removal_count"`
-	BoardWipeCount        int                       `json:"board_wipe_count"`
-	ProtectionCount       int                       `json:"protection_count"`
-	LowCMCNonLandCount    int                       `json:"low_cmc_nonland_count"`
-	CreatureCount         int                       `json:"creature_count"`
-	ArtifactCount         int                       `json:"artifact_count"`
-	EnchantmentCount      int                       `json:"enchantment_count"`
-	InstantCount          int                       `json:"instant_count"`
-	SorceryCount          int                       `json:"sorcery_count"`
-	PlaneswalkerCount     int                       `json:"planeswalker_count"`
-	BattleCount           int                       `json:"battle_count"`
-	Curve0Count           int                       `json:"curve_0_count"`
-	Curve1Count           int                       `json:"curve_1_count"`
-	Curve2Count           int                       `json:"curve_2_count"`
-	Curve3Count           int                       `json:"curve_3_count"`
-	Curve4Count           int                       `json:"curve_4_count"`
-	Curve5Count           int                       `json:"curve_5_count"`
-	Curve6Count           int                       `json:"curve_6_count"`
-	Curve7PlusCount       int                       `json:"curve_7_plus_count"`
-	DeckExtras            []deckAnalyticsExtra      `json:"deck_extras"`
-	CategoryBreakdown     []deckRoleCategory        `json:"category_breakdown,omitempty"`
-	StatCards             map[string][]deckRoleCard `json:"stat_cards,omitempty"`
-	GuideChecks           []deckGuideCheck          `json:"guide_checks,omitempty"`
-	ValidationWarnings    []string                  `json:"validation_warnings,omitempty"`
-	ManaPips              []deckManaColorStat       `json:"mana_pips"`
-	ManaSources           []deckManaColorStat       `json:"mana_sources"`
-	PowerEstimate         deckPowerEstimate         `json:"power_estimate"`
+	RoleAssignments       map[string]cardRoleAssignment `json:"role_assignments,omitempty"`
+	TotalCards            int                           `json:"total_cards"`
+	MainboardCards        int                           `json:"mainboard_cards"`
+	CommanderSet          bool                          `json:"commander_set"`
+	LandCount             int                           `json:"land_count"`
+	NonLandCount          int                           `json:"nonland_count"`
+	AverageCMC            float64                       `json:"average_cmc"`
+	AverageCMCDisplay     string                        `json:"average_cmc_display"`
+	RampCount             int                           `json:"ramp_count"`
+	FastManaCount         int                           `json:"fast_mana_count"`
+	CardDrawCount         int                           `json:"card_draw_count"`
+	TutorCount            int                           `json:"tutor_count"`
+	InteractionCount      int                           `json:"interaction_count"`
+	CheapInteractionCount int                           `json:"cheap_interaction_count"`
+	CounterspellCount     int                           `json:"counterspell_count"`
+	RemovalCount          int                           `json:"removal_count"`
+	BoardWipeCount        int                           `json:"board_wipe_count"`
+	ProtectionCount       int                           `json:"protection_count"`
+	LowCMCNonLandCount    int                           `json:"low_cmc_nonland_count"`
+	CreatureCount         int                           `json:"creature_count"`
+	ArtifactCount         int                           `json:"artifact_count"`
+	EnchantmentCount      int                           `json:"enchantment_count"`
+	InstantCount          int                           `json:"instant_count"`
+	SorceryCount          int                           `json:"sorcery_count"`
+	PlaneswalkerCount     int                           `json:"planeswalker_count"`
+	BattleCount           int                           `json:"battle_count"`
+	Curve0Count           int                           `json:"curve_0_count"`
+	Curve1Count           int                           `json:"curve_1_count"`
+	Curve2Count           int                           `json:"curve_2_count"`
+	Curve3Count           int                           `json:"curve_3_count"`
+	Curve4Count           int                           `json:"curve_4_count"`
+	Curve5Count           int                           `json:"curve_5_count"`
+	Curve6Count           int                           `json:"curve_6_count"`
+	Curve7PlusCount       int                           `json:"curve_7_plus_count"`
+	DeckExtras            []deckAnalyticsExtra          `json:"deck_extras"`
+	CategoryBreakdown     []deckRoleCategory            `json:"category_breakdown,omitempty"`
+	StatCards             map[string][]deckRoleCard     `json:"stat_cards,omitempty"`
+	GuideChecks           []deckGuideCheck              `json:"guide_checks,omitempty"`
+	ValidationWarnings    []string                      `json:"validation_warnings,omitempty"`
+	ManaPips              []deckManaColorStat           `json:"mana_pips"`
+	ManaSources           []deckManaColorStat           `json:"mana_sources"`
+	PowerEstimate         deckPowerEstimate             `json:"power_estimate"`
 }
 
 type deckAnalyticsExtra struct {
@@ -124,14 +125,16 @@ type deckGuideCheck struct {
 }
 
 type deckAnalyticsCardInput struct {
-	Name       string
-	ManaCost   string
-	TypeLine   string
-	OracleText string
-	AllParts   string
-	ColorID    string
-	CMC        float64
-	Qty        int
+	Roles        []string
+	RoleOverride string
+	Name         string
+	ManaCost     string
+	TypeLine     string
+	OracleText   string
+	AllParts     string
+	ColorID      string
+	CMC          float64
+	Qty          int
 }
 
 type deckPowerCardInput struct {
@@ -143,9 +146,11 @@ type deckPowerCardInput struct {
 }
 
 type deckAnalyticsRequest struct {
-	DeckID        int64  `json:"deck_id"`
-	Format        string `json:"format"`
-	CommanderName string `json:"commander_name"`
+	RoleNames     []string          `json:"role_names"`
+	RoleOverrides map[string]string `json:"role_overrides"`
+	DeckID        int64             `json:"deck_id"`
+	Format        string            `json:"format"`
+	CommanderName string            `json:"commander_name"`
 	Cards         []struct {
 		Name string `json:"name"`
 		Qty  int    `json:"qty"`
@@ -160,6 +165,7 @@ func computeDeckAnalyticsFromDeckCards(format, commanderName string, deckCards [
 	rows := make([]deckAnalyticsCardInput, 0, len(deckCards))
 	for _, dc := range deckCards {
 		rows = append(rows, deckAnalyticsCardInput{
+			Roles: dc.Roles, RoleOverride: dc.RoleOverride,
 			Name:       strings.TrimSpace(dc.CardName),
 			ManaCost:   strings.TrimSpace(dc.ManaCost),
 			TypeLine:   strings.TrimSpace(dc.TypeLine),
@@ -292,15 +298,38 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 		isBoardWipe := hasAny(oracle,
 			"destroy all",
 			"exile all",
-			"each creature",
+			"damage to each creature",
 			"all creatures get -",
 		)
+		roleCategories := row.Roles
+		if len(roleCategories) == 0 {
+			roleCategories = classifyDeckRoleCategories(name, typeLine, oracle, row.CMC)
+		}
+		hasRole := func(key string) bool {
+			for _, role := range roleCategories {
+				if key == role {
+					return true
+				}
+			}
+			return false
+		}
+		if len(row.Roles) > 0 {
+			isCounterspell = hasRole("counterspell")
+			isRemoval = hasRole("removal")
+			isBoardWipe = hasRole("board_wipe")
+		}
 		isInteraction := isCounterspell || isRemoval || isBoardWipe
 		isTutor := isTutorCard(oracle)
 		isCardDraw := isCardDrawCard(oracle)
 		isRamp := isRampCard(typeLine, oracle)
 		isFastMana := isFastManaCard(typeLine, oracle, row.CMC)
 		hasProtection := hasProtectionText(oracle)
+		if len(row.Roles) > 0 {
+			isTutor = hasRole("tutor")
+			isCardDraw = hasRole("draw")
+			isRamp = hasRole("ramp")
+			hasProtection = hasRole("protection")
+		}
 		if isInteraction {
 			out.InteractionCount += qty
 			if row.CMC <= 2 {
@@ -332,7 +361,6 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 			out.ProtectionCount += qty
 		}
 
-		roleCategories := classifyDeckRoleCategories(name, typeLine, oracle, row.CMC)
 		roleCard := deckRoleCard{
 			Name:       name,
 			Qty:        qty,
@@ -387,6 +415,9 @@ func computeDeckAnalytics(format, commanderName string, rows []deckAnalyticsCard
 		}
 
 		primaryCategory := primaryDeckRoleCategory(roleCategories, typeLine)
+		if row.RoleOverride != "" {
+			primaryCategory = row.RoleOverride
+		}
 		categoryCounts[primaryCategory] += qty
 		categoryCards[primaryCategory] = append(categoryCards[primaryCategory], roleCard)
 	}
@@ -693,7 +724,7 @@ func classifyDeckRoleCategories(name, typeLine, oracle string, cmc float64) []st
 	add("board_wipe", hasAny(oracle,
 		"destroy all",
 		"exile all",
-		"each creature",
+		"damage to each creature",
 		"all creatures get -",
 	))
 	add("protection", hasProtectionText(oracle) || hasAny(oracle,
@@ -724,7 +755,7 @@ func classifyDeckRoleCategories(name, typeLine, oracle string, cmc float64) []st
 		"create two",
 		"create three",
 		"create x",
-		"token",
+		"create a token",
 	))
 	add("sacrifice", hasAny(oracle,
 		"sacrifice another",
@@ -1795,7 +1826,7 @@ func normalizeAnalyticsRequestCards(raw []struct {
 func (a *App) buildWorkbenchDeckAnalytics(r *http.Request, format, commanderName string, requestCards []struct {
 	Name string `json:"name"`
 	Qty  int    `json:"qty"`
-}) (deckAnalyticsData, error) {
+}, overrides ...map[string]string) (deckAnalyticsData, error) {
 	normalized := normalizeAnalyticsRequestCards(requestCards)
 	rows := make([]deckAnalyticsCardInput, 0, len(normalized))
 
@@ -1808,6 +1839,10 @@ func (a *App) buildWorkbenchDeckAnalytics(r *http.Request, format, commanderName
 		return deckAnalyticsData{}, err
 	}
 
+	roleInfo, err := a.loadRoleAssignments(r.Context(), 0, names)
+	if err != nil {
+		return deckAnalyticsData{}, err
+	}
 	for _, item := range normalized {
 		key := strings.ToLower(strings.TrimSpace(item.Name))
 		dbCard, ok := byName[key]
@@ -1815,15 +1850,21 @@ func (a *App) buildWorkbenchDeckAnalytics(r *http.Request, format, commanderName
 			continue
 		}
 
+		primary := ""
+		if len(overrides) > 0 {
+			primary = normalizedRoleOverride(overrides[0][key])
+		}
 		rows = append(rows, deckAnalyticsCardInput{
-			Name:       strings.TrimSpace(dbCard.Name),
-			ManaCost:   strings.TrimSpace(dbCard.ManaCost),
-			TypeLine:   strings.TrimSpace(dbCard.TypeLine),
-			OracleText: strings.TrimSpace(dbCard.OracleText),
-			AllParts:   strings.TrimSpace(dbCard.AllPartsJSON),
-			ColorID:    strings.TrimSpace(dbCard.ColorIdentity),
-			CMC:        dbCard.CMC,
-			Qty:        item.Qty,
+			RoleOverride: primary,
+			Roles:        roleInfo[key].Roles,
+			Name:         strings.TrimSpace(dbCard.Name),
+			ManaCost:     strings.TrimSpace(dbCard.ManaCost),
+			TypeLine:     strings.TrimSpace(dbCard.TypeLine),
+			OracleText:   strings.TrimSpace(dbCard.OracleText),
+			AllParts:     strings.TrimSpace(dbCard.AllPartsJSON),
+			ColorID:      strings.TrimSpace(dbCard.ColorIdentity),
+			CMC:          dbCard.CMC,
+			Qty:          item.Qty,
 		})
 	}
 
@@ -1863,16 +1904,44 @@ func (a *App) HandleDeckAnalytics(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if err := a.enrichDeckRoles(r.Context(), d.ID, deckCards); err != nil {
+			a.RenderServerError(w, r, err)
+			return
+		}
 		analytics = computeDeckAnalyticsFromDeckCards(d.Format, d.CommanderName, deckCards)
 	} else {
 		var err error
-		analytics, err = a.buildWorkbenchDeckAnalytics(r, req.Format, req.CommanderName, req.Cards)
+		analytics, err = a.buildWorkbenchDeckAnalytics(r, req.Format, req.CommanderName, req.Cards, req.RoleOverrides)
 		if err != nil {
 			a.RenderServerError(w, r, err)
 			return
 		}
 	}
 
+	names := append([]string{}, req.RoleNames...)
+	for _, card := range req.Cards {
+		names = append(names, card.Name)
+	}
+	if len(names) > 1500 {
+		http.Error(w, "too many role names", http.StatusBadRequest)
+		return
+	}
+	assignments, err := a.loadRoleAssignments(r.Context(), req.DeckID, names)
+	if err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+	if req.DeckID == 0 {
+		for name, role := range req.RoleOverrides {
+			key := strings.ToLower(name)
+			info, ok := assignments[key]
+			if ok {
+				info.PrimaryRole = normalizedRoleOverride(role)
+				assignments[key] = info
+			}
+		}
+	}
+	analytics.RoleAssignments = assignments
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(analytics)
 }

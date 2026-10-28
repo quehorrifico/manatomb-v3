@@ -339,7 +339,7 @@ func TestDeckBrowserExportsRoundTripDeckAndPrintingMetadata(t *testing.T) {
 	if publicRR.Code != http.StatusOK {
 		t.Fatalf("expected public deck asset status 200, got %d", publicRR.Code)
 	}
-	if !strings.Contains(publicRR.Body.String(), `core.csvExport(boards, config)`) {
+	if !strings.Contains(publicRR.Body.String(), `window.ManatombDeckTransfer.fromBoards(boards, config)`) {
 		t.Fatal("public deck CSV export does not pass deck metadata")
 	}
 }

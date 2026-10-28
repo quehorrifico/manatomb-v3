@@ -336,3 +336,23 @@ func TestParseDecklistCSVReportsInvalidPrintID(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestParseConfigurableExportCSV(t *testing.T) {
+	const printID = "00000000-0000-0000-0000-000000000001"
+	for _, input := range []string{
+		"Section,Quantity,Name,Set,Collector Number,Scryfall UUID\nSideboard,4,Lightning Bolt,LEA,1," + printID,
+		"Section,Name,Scryfall UUID\nSideboard,Lightning Bolt," + printID,
+	} {
+		got, err := ParseDecklist(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got.Items) != 1 || got.Items[0].Board != ImportBoardSide || got.Items[0].PrintID != printID {
+			t.Fatalf("unexpected CSV: %#v", got)
+		}
+	}
+	got, err := ParseDecklist("Name\nLightning Bolt")
+	if err != nil || len(got.Items) != 1 || got.Items[0].Qty != 1 || got.Items[0].Board != ImportBoardMain {
+		t.Fatalf("quantity-free CSV: %#v, %v", got, err)
+	}
+}

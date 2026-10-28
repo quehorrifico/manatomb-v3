@@ -69,6 +69,39 @@ func TestBulkRowStreamPostgres(t *testing.T) {
 	if name != "Stream Card" || defaultID != printID || image != "https://example.test/card.jpg" {
 		t.Fatalf("bad imported metadata: %s %s %s", name, image, defaultID)
 	}
+	// A later bulk snapshot replaces the default and omits the old printing.
+	// Both implicit selections and explicit selections must remain usable.
+	if _, err := db.Exec(`INSERT INTO deck_cards(oracle_id,preferred_print_id) VALUES ($1,NULL),($1,$2)`, oracleID, printID); err != nil {
+		t.Fatal(err)
+	}
+	newPrintID := "00000000-0000-0000-0000-000000000003"
+	newPayload := strings.ReplaceAll(strings.ReplaceAll(payload, printID, newPrintID), "2026-01-01", "2026-02-01")
+	dec2, cleanup2, err := newBulkJSONDecoderFromReader(strings.NewReader(newPayload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup2()
+	spool2, err := spoolPaperPrints(ctx, dec2, oracles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer spool2.close()
+	if err := applyBulkRowStream(ctx, db, oracles, func(visit func(printBulkRow) error) error { return spool2.walk(ctx, spool2.paperIDs, visit) }, time.Now(), true); err != nil {
+		t.Fatal(err)
+	}
+	var pinned, retained int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM deck_cards WHERE preferred_print_id=$1`, printID).Scan(&pinned); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM card_prints WHERE scryfall_id=$1`, printID).Scan(&retained); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT default_print_id::text FROM oracle_cards WHERE oracle_id=$1`, oracleID).Scan(&defaultID); err != nil {
+		t.Fatal(err)
+	}
+	if pinned != 2 || retained != 1 || defaultID != newPrintID {
+		t.Fatalf("bulk sync changed deck selections: pinned=%d retained=%d default=%s", pinned, retained, defaultID)
+	}
 	var before time.Time
 	if err := db.QueryRow(`SELECT last_success_at FROM card_sync_state WHERE id=1`).Scan(&before); err != nil {
 		t.Fatal(err)

@@ -35,7 +35,7 @@ can be added without hunting through handler files.
 - `/decks/new/playtest` -> playtest the local workbench deck
 - `/decks/import` (GET/POST) -> import page and pasted deck text submit
 - `/decks/import/save` -> local workbench save-to-account endpoint
-- `/decks/{id}` -> deck detail and add/remove cards
+- `/decks/{id}` -> deck detail; card changes; `set_role` primary-role overrides; `cheapest_printings` explicit printing changes
 - `/decks/settings` (GET/POST) -> deck metadata editing
 - `/decks/delete` -> delete deck
 - `/decks/commander` -> update a saved deck's commander from cards already in the deck
@@ -58,6 +58,7 @@ can be added without hunting through handler files.
   - `internal/web/decks_playtest.go`
 
 ### Cards and commanders
+- `/cards/cheapest` (POST) -> lowest priced paper printing metadata for up to 500 names (local workbench)
 - `/cards` -> quick card results from the home search box
 - `/cards/search` -> advanced card search
 - `/cards/view/{oracle_id}` -> dedicated card detail page

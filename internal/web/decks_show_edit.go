@@ -50,6 +50,7 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, deckImportMaxBodyBytes)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
@@ -98,6 +99,62 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 			return "", ""
 		}
 
+		if action == "set_role" {
+			role := strings.TrimSpace(r.Form.Get("role"))
+			if !cards.ValidRole(role) {
+				http.Error(w, "invalid card role", http.StatusBadRequest)
+				return
+			}
+			if err := decks.SetCardRole(r.Context(), a.DB, id, user.ID, cardID, role); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+			return
+		}
+		if action == "cheapest_printings" {
+			if err := decks.UseCheapestPrintings(r.Context(), a.DB, id, user.ID); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+			return
+		}
+		if action == "bulk_import" {
+			parsed, err := decks.ParseDecklist(r.Form.Get("decklist"))
+			if err != nil || len(parsed.Items) == 0 || len(parsed.Items) > deckImportMaxRows {
+				http.Error(w, "Enter between 1 and 500 valid card rows.", http.StatusBadRequest)
+				return
+			}
+			parsed.Format = "Sandbox"
+			for i := range parsed.Items {
+				// Explicit sections are retained; otherwise use the selected destination.
+				if parsed.Items[i].Board == decks.ImportBoardMain && zone != "" {
+					parsed.Items[i].Board = normalizedImportBoard(zone)
+				}
+				if parsed.Items[i].Board == decks.ImportBoardCommander {
+					parsed.Items[i].Board = decks.ImportBoardMain
+				}
+			}
+			review, err := a.buildDeckImportReview(r.Context(), parsed, r.Form.Get("decklist"))
+			if err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			payload := directImportPayloadFromReview(review, "", "", false)
+			if len(payload.ImportWarnings) > 0 {
+				http.Error(w, strings.Join(payload.ImportWarnings, "\n"), http.StatusBadRequest)
+				return
+			}
+			_, _, items := reviewPersistenceData(review)
+			if err := decks.AddImportedDeckCards(r.Context(), a.DB, id, user.ID, items); err != nil {
+				a.RenderServerError(w, r, err)
+				return
+			}
+			a.renderSavedDeckWorkspaceJSON(w, r, user.ID, id)
+			return
+		}
+
 		if action == "save_overview" {
 			name := current.Name
 			if _, ok := r.Form["name"]; ok {
@@ -126,6 +183,9 @@ func (a *App) HandleDeckShow(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			powerBracket := defaultDeckPowerBracket(current.PowerBracket, format)
+			if _, ok := r.Form["power_bracket"]; ok {
+				powerBracket = decks.NormalizePowerBracket(r.Form.Get("power_bracket"))
+			}
 
 			if err := decks.UpdateDeckWithOptions(r.Context(), a.DB, id, decks.DeckInput{
 				Name:          name,

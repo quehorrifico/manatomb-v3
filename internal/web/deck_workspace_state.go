@@ -8,9 +8,13 @@ import (
 
 	"manatomb/app/internal/cards"
 	"manatomb/app/internal/decks"
+	"manatomb/app/internal/perf"
 )
 
 type workspaceCardMeta struct {
+	Roles                []string         `json:"roles,omitempty"`
+	PrimaryRole          string           `json:"primaryRole,omitempty"`
+	RoleSource           string           `json:"roleSource,omitempty"`
 	CardID               string           `json:"cardID,omitempty"`
 	Name                 string           `json:"name,omitempty"`
 	ManaCost             string           `json:"manaCost,omitempty"`
@@ -32,6 +36,7 @@ type workspaceCardMeta struct {
 }
 
 type workspaceDeckState struct {
+	PowerBracket        string                                  `json:"powerBracket"`
 	ID                  int64                                   `json:"id,omitempty"`
 	Name                string                                  `json:"name"`
 	Description         string                                  `json:"description"`
@@ -63,6 +68,7 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 func workspaceMetaFromDeckCard(dc decks.DeckCard, candidateSet map[string]bool) workspaceCardMeta {
 	name := strings.TrimSpace(dc.CardName)
 	return workspaceCardMeta{
+		Roles: dc.Roles, PrimaryRole: dc.RoleOverride, RoleSource: dc.RoleSource,
 		CardID:               strings.TrimSpace(dc.CardID),
 		Name:                 name,
 		ManaCost:             strings.TrimSpace(dc.ManaCost),
@@ -92,6 +98,7 @@ func buildWorkspaceStateFromDeck(
 	commanderCard *cards.Card,
 ) workspaceDeckState {
 	state := workspaceDeckState{
+		PowerBracket:     d.PowerBracket,
 		ID:               d.ID,
 		Name:             d.Name,
 		Description:      d.Description,
@@ -186,6 +193,11 @@ func buildWorkspaceStateFromDeck(
 				IsCommanderCandidate: isCommanderCandidateAllowed(commanderCard.IsCommanderCandidate, commanderCard.TypeLine),
 				Faces:                commanderCard.Faces,
 			}
+			if existing, ok := state.CardMeta[name]; ok {
+				meta.Roles = existing.Roles
+				meta.PrimaryRole = existing.PrimaryRole
+				meta.RoleSource = existing.RoleSource
+			}
 			state.CardMeta[name] = meta
 			if commanderName := strings.TrimSpace(d.CommanderName); commanderName != "" && !strings.EqualFold(commanderName, name) {
 				state.CardMeta[commanderName] = meta
@@ -197,6 +209,7 @@ func buildWorkspaceStateFromDeck(
 }
 
 func (a *App) loadSavedDeckWorkspace(ctx context.Context, userID, deckID int64) (deckPageData, error) {
+	defer perf.Stage(ctx, "deck_workspace")()
 	d, err := decks.GetDeck(ctx, a.DB, deckID, userID)
 	if err != nil {
 		return deckPageData{}, err
@@ -247,6 +260,9 @@ func (a *App) loadSavedDeckWorkspace(ctx context.Context, userID, deckID int64) 
 		commanderCard = a.lookupCommanderCardPrinting(ctx, d.CommanderName, d.CommanderPrintID)
 	}
 
+	if err := a.enrichDeckRoles(ctx, d.ID, deckCards, sideboardDeckCards, maybeDeckCards); err != nil {
+		return deckPageData{}, err
+	}
 	workspaceState := buildWorkspaceStateFromDeck(d, deckCards, sideboardDeckCards, maybeDeckCards, commanderCandidates, commanderCard)
 
 	return deckPageData{

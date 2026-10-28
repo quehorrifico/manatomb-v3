@@ -5,14 +5,15 @@ import (
 	"log"
 	"time"
 
-	_ "github.com/lib/pq"
+	"manatomb/app/internal/perf"
 )
 
 func Open(databaseURL string) *sql.DB {
-	db, err := sql.Open("postgres", databaseURL)
+	connector, err := perf.PostgresConnector(databaseURL)
 	if err != nil {
 		log.Fatalf("failed to open db: %v", err)
 	}
+	db := sql.OpenDB(connector)
 
 	// Conservative defaults for small managed Postgres plans.
 	db.SetMaxOpenConns(12)

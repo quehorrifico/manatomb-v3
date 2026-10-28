@@ -993,3 +993,14 @@ body[data-page="decks-new-commander"] .mt-btn:hover {
   }
 
 }
+
+.mt-card-detail-modal__printing-sort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: var(--mt-text-muted);
+  font-size: 0.8rem;
+}
+.mt-card-detail-modal__printing-sort select { width: auto; max-width: 100%; }

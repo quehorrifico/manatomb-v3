@@ -385,29 +385,6 @@
     closeActionMenu(true);
   }
 
-  function copyDeckList() {
-    copyText(core.textExport(boards, config)).then(function () {
-      setActionStatus("Deck list copied to clipboard.");
-    }).catch(function () {
-      setActionStatus("Could not copy the deck list.", true);
-    });
-    closeActionMenu(true);
-  }
-
-  function download(content, extension, contentType, returnFocus) {
-    var blob = new Blob([content], { type: contentType });
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement("a");
-    link.href = url;
-    link.download = core.fileBaseName(config.name) + extension;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-    setActionStatus(extension.toUpperCase().slice(1) + " export downloaded.");
-    closeActionMenu(returnFocus);
-  }
-
   boardButtons.forEach(function (button) {
     button.addEventListener("click", function () {
       state.board = core.normalizeBoard(button.dataset.board);
@@ -477,13 +454,7 @@
   });
 
   document.getElementById("public-deck-copy-link").addEventListener("click", copyDeckLink);
-  document.getElementById("public-deck-copy-list").addEventListener("click", copyDeckList);
-  document.getElementById("public-deck-export-txt").addEventListener("click", function () {
-    download(core.textExport(boards, config), ".txt", "text/plain;charset=utf-8", false);
-  });
-  document.getElementById("public-deck-export-csv").addEventListener("click", function () {
-    download(core.csvExport(boards, config), ".csv", "text/csv;charset=utf-8", true);
-  });
+  window.ManatombDeckTransfer.init({ getDeck: function () { return window.ManatombDeckTransfer.fromBoards(boards, config); } });
   if (sampleCardsContainer) {
     sampleCardsContainer.addEventListener("click", function (event) {
       var cardButton = event.target.closest("[data-sample-index]");

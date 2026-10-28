@@ -116,7 +116,7 @@ func TestDeckShowTemplateIncludesCardDetailModal(t *testing.T) {
 		!strings.Contains(body, `version.scryfall_id`) {
 		t.Fatalf("deck_show modal does not preserve the selected printing on its full-page link: %s", body)
 	}
-	if !strings.Contains(body, `src="/assets/deck_browser.js"`) {
+	if !strings.Contains(body, `src="/assets/deck_browser.js?v=`) {
 		t.Fatalf("deck_show template did not load the shared deck browser core: %s", body)
 	}
 }
@@ -361,12 +361,11 @@ func TestPublicDeckTemplateUsesSharedBrowserAndExportActions(t *testing.T) {
 
 	for _, needle := range []string{
 		`href="/assets/public_deck.css"`,
-		`src="/assets/deck_browser.js"`,
-		`src="/assets/public_deck.js"`,
+		`src="/assets/deck_browser.js?v=`,
+		`src="/assets/public_deck.js?v=`,
 		`id="public-deck-copy-link"`,
-		`id="public-deck-copy-list"`,
-		`id="public-deck-export-txt"`,
-		`id="public-deck-export-csv"`,
+		`id="deck-export-dialog"`,
+		`data-export-option="uuid"`,
 		`aria-current="page"`,
 	} {
 		if !strings.Contains(body, needle) {

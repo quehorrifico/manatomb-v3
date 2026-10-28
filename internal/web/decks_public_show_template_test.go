@@ -146,14 +146,10 @@ func TestPublicDeckShowUsesEditorialTombShowcase(t *testing.T) {
 		`Published Jul 27, 2026`,
 		`Updated Jul 30, 2026`,
 		`Sign In to Copy`,
-		`id="public-deck-action-menu"`,
-		`aria-label="More deck actions"`,
 		`id="public-deck-copy-link"`,
+		`id="deck-export-dialog"`,
+		`data-export-option="uuid"`,
 		`Copy deck link`,
-		`id="public-deck-copy-list"`,
-		`Copy decklist`,
-		`id="public-deck-export-txt"`,
-		`id="public-deck-export-csv"`,
 		`data-card-detail`,
 		`data-detail-path="/cards/view/sharuum-oracle-id"`,
 		`aria-label="View Sharuum the Hegemon card details"`,
@@ -202,8 +198,8 @@ func TestPublicDeckShowUsesEditorialTombShowcase(t *testing.T) {
 		`for="public-deck-view"`,
 		`<span>Card view</span>`,
 		`<option value="text" selected>Text list</option>`,
-		`src="/assets/deck_browser.js"`,
-		`src="/assets/public_deck.js"`,
+		`src="/assets/deck_browser.js?v=`,
+		`src="/assets/public_deck.js?v=`,
 	} {
 		if !strings.Contains(page, needle) && !strings.Contains(body, needle) {
 			t.Fatalf("public deck detail missing %q", needle)
@@ -465,7 +461,7 @@ func TestPublicDeckShowScriptUsesSemanticThemeClassesAndButtonState(t *testing.T
 		`Deck link copied to clipboard.`,
 		`Could not copy the deck link.`,
 		`document.getElementById("public-deck-copy-link").addEventListener("click", copyDeckLink)`,
-		`Deck list copied to clipboard.`,
+		`window.ManatombDeckTransfer.init`,
 	} {
 		if !strings.Contains(script, needle) {
 			t.Fatalf("public deck detail script missing %q", needle)

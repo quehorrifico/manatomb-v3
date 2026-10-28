@@ -11,6 +11,7 @@
   {{ end }}
   {{ $requiresCommanderDeck := formatRequiresCommander $d.Format }}
   {{ template "layout_header" . }}
+  <link rel="stylesheet" href="{{ assetURL "deck_transfer.css" }}">
 
   <div class="mt-deck-editor">
     <div id="deck-import-warning-toast"
@@ -50,31 +51,37 @@
           {{ end }}
         </div>
 
-        {{ if and $isGuest (not .CurrentUser) }}
-          <p id="deck-overview-status" class="mt-deck-editor__save-state" role="status">Local draft on this device. Sign in to save to your account.</p>
-        {{ else }}
-          <div class="mt-deck-editor__meta">
-            <p id="deck-overview-status" class="mt-deck-editor__save-state" role="status">
-              {{ if not $isGuest }}Saved to your account.{{ else }}Local draft on this device. Select Save deck to save to your account.{{ end }}
-            </p>
-
-            {{ if not $isGuest }}<button type="button" id="deck-overview-retry" class="mt-btn mt-btn--secondary mt-btn--sm" hidden>Retry save</button>{{ end }}
-            <div class="mt-deck-editor__header-actions">
-              <div class="mt-deck-editor__actions">
-                {{ if $isGuest }}
-                  <button type="button" id="guest-save-to-account" class="mt-btn mt-btn--primary mt-btn--sm">Save deck</button>
-                {{ else }}
-                  <button type="button" id="deck-save" class="mt-btn mt-btn--primary mt-btn--sm">Save Deck</button>
-                  <button type="button"
-                          id="deck-menu-open"
-                          class="mt-btn mt-btn--secondary mt-btn--sm"
-                          aria-haspopup="dialog"
-                          aria-expanded="false">Deck actions</button>
-                {{ end }}
-              </div>
+        <div class="mt-deck-editor__meta">
+          <p id="deck-overview-status" class="mt-deck-editor__save-state" role="status">
+            {{ if not $isGuest }}Saved to your account.{{ else if .CurrentUser }}Local draft on this device. Select Save deck to save to your account.{{ else }}Local draft on this device. Sign in to save to your account.{{ end }}
+          </p>
+          {{ if not $isGuest }}<button type="button" id="deck-overview-retry" class="mt-btn mt-btn--secondary mt-btn--sm" hidden>Retry save</button>{{ end }}
+          <div class="mt-deck-editor__header-actions">
+            <div class="mt-deck-editor__actions" role="group" aria-label="Deck actions">
+              {{ if not $isGuest }}
+                <button type="button" id="deck-save" class="mt-btn mt-btn--primary mt-btn--sm">{{ template "deck_action_save_icon" . }}<span>Save deck</span></button>
+              {{ else if .CurrentUser }}
+                <button type="button" id="guest-save-to-account" class="mt-btn mt-btn--primary mt-btn--sm">{{ template "deck_action_save_icon" . }}<span>Save deck</span></button>
+              {{ end }}
+              <button type="button" id="deck-export-open" class="mt-btn mt-btn--secondary mt-btn--sm" aria-haspopup="dialog">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5"/></svg><span>Export deck</span>
+              </button>
+              <button type="button" id="deck-cheapest-printings" class="mt-btn mt-btn--secondary mt-btn--sm" title="Use the lowest priced paper printings with known USD prices"><span aria-hidden="true">$</span><span>Use cheapest printings</span></button>
+              {{ if not $isGuest }}
+                <button type="button" id="deck-sharing-toggle" class="mt-btn mt-btn--secondary mt-btn--sm" title="{{ if $d.IsPublic }}Only you will be able to view this deck{{ else }}Let other players view this deck{{ end }}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18"/></svg><span data-sharing-label>{{ if $d.IsPublic }}Make private{{ else }}Make public{{ end }}</span>
+                </button>
+                <form id="deck-delete-form" method="POST" action="/decks/delete" onsubmit="return confirm('Delete this deck? This cannot be undone.');">
+                  <input type="hidden" name="id" value="{{ $d.ID }}">
+                  <button type="submit" class="mt-btn mt-btn--sm mt-deck-editor__delete-action" title="Permanently delete this deck">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg><span>Delete deck</span>
+                  </button>
+                </form>
+              {{ end }}
             </div>
           </div>
-        {{ end }}
+        </div>
+        <p id="deck-action-status" class="mt-deck-editor__action-status" role="status"></p>
       </div>
     </header>
 
@@ -170,6 +177,7 @@
                    aria-label="Card suggestions"
                    role="listbox"></div>
             </div>
+            <button type="button" id="deck-bulk-open" class="mt-btn mt-btn--secondary mt-btn--sm" aria-haspopup="dialog">Bulk add</button>
             <button type="button"
                     id="deck-focus-mode-toggle"
                     class="mt-btn mt-btn--secondary mt-btn--sm mt-deck-editor__focus-toggle"
@@ -363,6 +371,11 @@
             <p>Average mana value</p>
             <strong id="deck-analytics-avg-cmc">{{ $ctx.Analytics.AverageCMCDisplay }}</strong>
           </div>
+          <div class="mt-stat-card">
+            <p>Deck cost</p>
+            <strong id="deck-analytics-cost">—</strong>
+            <small id="deck-analytics-cost-note">Main + sideboard · USD</small>
+          </div>
           <button type="button" class="mt-stat-card mt-stat-card--button" data-analytics-stat="ramp" aria-controls="deck-analytics-card-list-panel" aria-expanded="false">
             <p>Ramp</p>
             <strong id="deck-analytics-ramp">{{ $ctx.Analytics.RampCount }}</strong>
@@ -386,78 +399,9 @@
         </div>
       </section>
 
-      {{ $power := $ctx.Analytics.PowerEstimate }}
-      <div id="deck-power-panel"
-           class="mt-power-panel {{ if $power.Available }}{{ else }}hidden{{ end }}"
-           aria-label="Commander bracket estimate">
-        <div class="mt-power-summary-row">
-          <div class="mt-power-rank">
-            <span class="mt-field-label">Bracket estimate</span>
-            <p>
-              <strong>B<span id="deck-power-bracket">{{ if $power.Available }}{{ $power.Bracket }}{{ else }}-{{ end }}</span></strong>
-              <span id="deck-power-label">{{ if $power.Available }}{{ $power.BracketLabel }}{{ else }}Commander only{{ end }}</span>
-              <span aria-hidden="true">·</span>
-              <span id="deck-power-confidence">
-                {{ if eq $power.Confidence "low" }}Early estimate
-                {{ else if eq $power.Confidence "medium" }}Developing estimate
-                {{ else }}Full-deck estimate
-                {{ end }}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <section class="mt-deck-editor__mana-profile" aria-labelledby="deck-mana-profile-title">
-        <div class="mt-deck-editor__analysis-section-head">
-          <div>
-            <h3 id="deck-mana-profile-title">Mana profile</h3>
-            <p>Choose a color to see the cards behind it.</p>
-          </div>
-        </div>
-
-        <div class="mt-deck-editor__mana-profile-grid">
-          <article class="mt-deck-editor__mana-chart">
-            <header>
-              <h4>Pips in costs</h4>
-              <p>Mana symbols across mainboard casting costs.</p>
-            </header>
-            <div class="mt-deck-editor__mana-chart-body">
-              <div class="mt-deck-editor__mana-bar" data-mana-profile-bar="pips" role="group" aria-label="Mana pips in card costs"></div>
-              <ul class="mt-deck-editor__mana-legend" data-mana-profile-legend="pips"></ul>
-            </div>
-            <p class="mt-deck-editor__mana-empty" data-mana-profile-empty="pips">Add cards with mana costs to fill this bar.</p>
-          </article>
-
-          <article class="mt-deck-editor__mana-chart">
-            <header>
-              <h4>Mana produced</h4>
-              <p>Mainboard cards capable of producing each color.</p>
-            </header>
-            <div class="mt-deck-editor__mana-chart-body">
-              <div class="mt-deck-editor__mana-bar" data-mana-profile-bar="sources" role="group" aria-label="Colors produced by cards"></div>
-              <ul class="mt-deck-editor__mana-legend" data-mana-profile-legend="sources"></ul>
-            </div>
-            <p class="mt-deck-editor__mana-empty" data-mana-profile-empty="sources">Add mana-producing cards to fill this bar.</p>
-          </article>
-        </div>
-
-        <div id="deck-mana-locked-panel" class="mt-deck-editor__mana-locked hidden" aria-live="polite">
-          <div>
-            <div>
-              <p class="mt-kicker">Locked in</p>
-              <h4 id="deck-mana-locked-title">Mana cards</h4>
-              <p id="deck-mana-locked-summary"></p>
-            </div>
-            <button type="button" id="deck-mana-locked-close" class="mt-btn mt-btn--secondary mt-btn--xs">Close</button>
-          </div>
-          <ul id="deck-mana-locked-list"></ul>
-        </div>
-      </section>
-
       {{ if $ctx.Analytics.ValidationWarnings }}
         <div id="deck-guide-warnings-panel" class="mt-deck-editor__guide-warnings">
-          <h3>Notes</h3>
+          <h3>Issues</h3>
           <ul id="deck-guide-warnings-list">
             {{ range $ctx.Analytics.ValidationWarnings }}
               <li>{{ . }}</li>
@@ -466,7 +410,7 @@
         </div>
       {{ else }}
         <div id="deck-guide-warnings-panel" class="mt-deck-editor__guide-warnings hidden">
-          <h3>Notes</h3>
+          <h3>Issues</h3>
           <ul id="deck-guide-warnings-list"></ul>
         </div>
       {{ end }}
@@ -521,6 +465,14 @@
               {{ end }}
             </div>
           </div>
+          <label class="mt-deck-editor__bracket-field" for="deck-overview-bracket">
+            <span class="mt-field-label">Bracket level</span>
+            <select id="deck-overview-bracket" class="mt-control">
+              <option value="">Not set</option>
+              <option value="1 - Thematic">1 - Thematic</option><option value="2 - Core">2 - Core</option>
+              <option value="3 - Upgraded">3 - Upgraded</option><option value="4 - Optimized">4 - Optimized</option><option value="5 - cEDH">5 - cEDH</option>
+            </select>
+          </label>
         </section>
       </div>
 
@@ -600,52 +552,40 @@
          class="hidden flex aspect-[5/7] items-center justify-center p-4 text-center text-sm font-medium"></div>
   </div>
 
-  {{ if not $isGuest }}
-    <div id="deck-menu-overlay"
-         class="mt-deck-editor__menu-overlay hidden"
-         role="dialog"
-         aria-modal="true"
-         aria-hidden="true"
-         aria-labelledby="deck-menu-title">
-      <div class="mt-deck-editor__menu" tabindex="-1">
-        <div>
-          <p class="mt-kicker">Manage</p>
-          <h2 id="deck-menu-title">{{ $d.Name }}</h2>
-          <p>Copy, export, publish, or delete this deck.</p>
-        </div>
+  {{ template "deck_export_modal" . }}
 
-        <div class="mt-deck-editor__menu-actions">
-          <button type="button" id="deck-menu-copy" class="mt-btn mt-btn--secondary w-full justify-center">Copy Decklist</button>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" id="deck-menu-export-txt" class="mt-btn mt-btn--secondary justify-center">Export TXT</button>
-            <button type="button" id="deck-menu-export-csv" class="mt-btn mt-btn--secondary justify-center">Export CSV</button>
-          </div>
-          <button type="button" id="deck-menu-visibility" class="mt-btn mt-btn--secondary w-full justify-center">
-            {{ if $d.IsPublic }}Set Private{{ else }}Set Public{{ end }}
-          </button>
-          <form id="deck-menu-delete-form"
-                method="POST"
-                action="/decks/delete"
-                onsubmit="return confirm('Delete this deck? This cannot be undone.');">
-            <input type="hidden" name="id" value="{{ $d.ID }}">
-            <button type="submit" class="mt-btn mt-btn--danger w-full justify-center">Delete Deck</button>
-          </form>
-        </div>
+  <dialog id="deck-role-dialog" class="mt-deck-transfer-dialog" aria-labelledby="deck-role-title">
+    <form method="dialog" class="mt-deck-transfer-dialog__close"><button class="mt-btn mt-btn--secondary mt-btn--sm" aria-label="Close card role">×</button></form>
+    <h2 id="deck-role-title">Card role</h2>
+    <p id="deck-role-suggestions"></p>
+    <label class="mt-deck-transfer-dialog__field">Primary role for this deck<select id="deck-role-select" class="mt-control"><option value="">Automatic</option></select></label>
+    <p>This changes the card's group in this deck. Cards can still contribute to multiple roles in Analysis.</p>
+    <p id="deck-role-status" role="status"></p>
+    <button type="button" id="deck-role-save" class="mt-btn mt-btn--primary">Save role</button>
+  </dialog>
 
-        <p id="deck-menu-status" class="mt-deck-editor__menu-status" aria-live="polite"></p>
-
-        <div class="mt-deck-editor__menu-close">
-          <button type="button" id="deck-menu-close" class="mt-btn mt-btn--primary mt-btn--sm">Close</button>
-        </div>
-      </div>
-    </div>
-  {{ end }}
+  <dialog id="deck-bulk-dialog" class="mt-deck-transfer-dialog" aria-labelledby="deck-bulk-title">
+    <form method="dialog" class="mt-deck-transfer-dialog__close"><button class="mt-btn mt-btn--secondary mt-btn--sm" aria-label="Close bulk add">×</button></form>
+    <p class="mt-kicker">Build faster</p>
+    <h2 id="deck-bulk-title">Bulk add cards</h2>
+    <p>Paste a decklist or choose a text or CSV file. Quantities, set codes, collector numbers, and board sections are supported. Existing cards keep their selected printing.</p>
+    <label class="mt-deck-transfer-dialog__field">Add mainboard entries to
+      <select id="deck-bulk-board" class="mt-control"><option value="main">Mainboard</option><option value="side">Sideboard</option><option value="maybe">Maybeboard</option></select>
+    </label>
+    <label class="mt-deck-transfer-dialog__field">Card list
+      <textarea id="deck-bulk-text" class="mt-control" rows="9" placeholder="4 Lightning Bolt&#10;2 Counterspell (DMR) 45"></textarea>
+    </label>
+    <label class="mt-deck-transfer-dialog__field">Or choose a file <input id="deck-bulk-file" type="file" accept=".txt,.csv,.tsv,text/plain,text/csv"></label>
+    <p id="deck-bulk-status" role="status"></p>
+    <button type="button" id="deck-bulk-submit" class="mt-btn mt-btn--primary">Add cards to deck</button>
+  </dialog>
 
   <script id="deck-workspace-seed" type="application/json">
     {{ toJSON $ctx.WorkspaceState }}
   </script>
 
-  <script src="/assets/deck_browser.js"></script>
+  <script src="{{ assetURL "deck_browser.js" }}"></script>
+  <script src="{{ assetURL "deck_transfer.js" }}"></script>
   <script src="{{ assetURL "saved_overview.js" }}"></script>
   {{ template "card_detail_modal_script" . }}
   {{ template "deck_show_guest_draft_script" . }}
@@ -661,6 +601,7 @@
       var tagHidden = document.getElementById('deck-overview-tags-hidden');
       var tagList = document.getElementById('deck-overview-tags-list');
       var tagButtons = Array.prototype.slice.call(document.querySelectorAll('[data-tag-suggestion]'));
+      var bracketField = document.getElementById('deck-overview-bracket');
       var noteField = document.getElementById('deck-overview-notes');
       var formatField = document.getElementById('deck-overview-format');
       var overviewLayout = document.getElementById('deck-overview-layout');
@@ -945,9 +886,12 @@
         window.mtDeckWorkspaceUpdateOverview({
           tags: tagHidden ? tagHidden.value : '',
           description: noteField ? noteField.value : '',
-          format: formatField ? formatField.value : ''
+          format: formatField ? formatField.value : '',
+          powerBracket: bracketField ? bracketField.value : ''
         });
       }
+
+      if (bracketField) bracketField.addEventListener('change', queueOverviewSave);
 
       function renderTags() {
         if (!tagList) return;
@@ -1286,3 +1230,5 @@
 
   {{ template "layout_footer" . }}
 {{ end }}
+
+{{ define "deck_action_save_icon" }}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12l4 4v12a2 2 0 0 1-2 2ZM7 3v6h10V3M7 21v-8h10v8"/></svg>{{ end }}

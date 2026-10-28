@@ -476,6 +476,11 @@ func (a *App) HandlePublicDeckShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := a.enrichDeckRoles(r.Context(), d.ID, deckCards, sideboardDeckCards, maybeDeckCards); err != nil {
+		a.RenderServerError(w, r, err)
+		return
+	}
+
 	var commanderCard *cards.Card
 	if decks.FormatRequiresCommander(d.Format) {
 		commanderCard = a.lookupCommanderCardPrinting(r.Context(), d.CommanderName, d.CommanderPrintID)

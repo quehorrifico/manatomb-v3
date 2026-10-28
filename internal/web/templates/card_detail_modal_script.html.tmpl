@@ -37,6 +37,7 @@
     var artistEl = modal.querySelector('[data-field="artist"]');
     var printingGroupEl = modal.querySelector('[data-field="printing-group"]');
     var printingLabelEl = modal.querySelector('[data-field="printing-label"]');
+    var printingSortEl = modal.querySelector('[data-field="printing-sort"]');
     var printingGridEl = modal.querySelector('[data-field="printing-grid"]');
     var printingMetaEl = modal.querySelector('[data-field="printing-meta"]');
     var stickyNameInputEl = modal.querySelector('[data-field="sticky-name-input"]');
@@ -280,7 +281,26 @@
 	      var idx = Number(selectedIndex || 0);
 	      if (!Number.isFinite(idx) || idx < 0 || idx >= versions.length) idx = 0;
 	      currentVersionIndex = idx;
-	      for (var i = 0; i < versions.length; i++) {
+	      var indices = versions.map(function (_, index) { return index; });
+	      var mode = printingSortEl ? printingSortEl.value : 'newest';
+	      indices.sort(function (a, b) {
+	        var left = versions[a], right = versions[b], result = 0;
+	        if (mode === 'price-low' || mode === 'price-high') {
+	          var lp = parseFloat(left.price_usd), rp = parseFloat(right.price_usd);
+	          if (!Number.isFinite(lp)) return Number.isFinite(rp) ? 1 : a - b;
+	          if (!Number.isFinite(rp)) return -1;
+	          result = mode === 'price-low' ? lp - rp : rp - lp;
+	        } else if (mode === 'set') {
+	          result = left.set_name.localeCompare(right.set_name);
+	        } else if (mode === 'collector') {
+	          result = left.collector_number.localeCompare(right.collector_number, undefined, { numeric: true });
+	        } else {
+	          result = left.released_at.localeCompare(right.released_at) * (mode === 'oldest' ? 1 : -1);
+	        }
+	        return result || a - b;
+	      });
+	      for (var order = 0; order < indices.length; order++) {
+	        var i = indices[order];
 	        var version = versions[i];
 	        var label = formatPrintingLabel(version, i);
 	        var button = document.createElement('button');
@@ -326,6 +346,7 @@
 	    }
 
     function setVersionsLoading(loading) {
+      if (printingSortEl) printingSortEl.disabled = !!loading;
       if (printingGridEl) {
         printingGridEl.querySelectorAll('button').forEach(function (button) {
           button.disabled = !!loading;
@@ -636,6 +657,11 @@
     });
 
 
+	    if (printingSortEl) {
+	      printingSortEl.addEventListener('change', function () {
+	        populatePrintings(currentVersions, currentVersionIndex);
+	      });
+	    }
 	    if (printingGridEl) {
 	      printingGridEl.addEventListener('click', function (event) {
 	        var button = event.target.closest('[data-printing-index]');
